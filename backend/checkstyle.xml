@@ -1,0 +1,177 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+    Checkstyle configuration based on Google Java Style Guide:
+    https://google.github.io/styleguide/javaguide.html
+-->
+<module name="Checker">
+    <property name="severity" value="warning"/>
+    <property name="fileExtensions" value="java"/>
+
+    <!-- File-level checks -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+    <module name="NewlineAtEndOfFile"/>
+    <module name="FileLength">
+        <property name="max" value="2000"/>
+    </module>
+
+    <!-- Line length -->
+    <module name="LineLength">
+        <property name="fileExtensions" value="java"/>
+        <property name="max" value="120"/>
+        <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
+    </module>
+
+    <module name="TreeWalker">
+
+        <!-- ===== IMPORTS ===== -->
+        <module name="AvoidStarImport"/>
+        <module name="RedundantImport"/>
+        <module name="UnusedImports">
+            <property name="processJavadoc" value="false"/>
+        </module>
+        <module name="IllegalImport"/>
+
+        <!-- ===== NAMING CONVENTIONS ===== -->
+        <module name="PackageName">
+            <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
+        </module>
+        <module name="TypeName"/>
+        <module name="MemberName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+        <module name="ParameterName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+        <module name="LocalVariableName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+            <property name="allowOneCharVarInForLoop" value="true"/>
+        </module>
+        <module name="ConstantName"/>
+        <module name="MethodName"/>
+        <module name="ClassTypeParameterName">
+            <property name="format" value="^[A-Z][0-9]?$"/>
+        </module>
+        <module name="MethodTypeParameterName">
+            <property name="format" value="^[A-Z][0-9]?$"/>
+        </module>
+
+        <!-- ===== WHITESPACE ===== -->
+        <module name="WhitespaceAround">
+            <property name="allowEmptyConstructors" value="true"/>
+            <property name="allowEmptyLambdas" value="true"/>
+            <property name="allowEmptyMethods" value="true"/>
+            <property name="allowEmptyTypes" value="true"/>
+            <property name="allowEmptyLoops" value="true"/>
+        </module>
+        <module name="WhitespaceAfter"/>
+        <module name="NoWhitespaceBefore">
+            <property name="tokens" value="COMMA, SEMI, POST_INC, POST_DEC, DOT"/>
+        </module>
+        <module name="NoWhitespaceAfter">
+            <property name="tokens" value="AT, INC, DEC, UNARY_MINUS, UNARY_PLUS, BNOT, LNOT, DOT, ARRAY_DECLARATOR, INDEX_OP"/>
+        </module>
+        <module name="GenericWhitespace"/>
+        <module name="MethodParamPad"/>
+        <module name="ParenPad"/>
+        <module name="EmptyLineSeparator">
+            <property name="allowNoEmptyLineBetweenFields" value="true"/>
+            <property name="allowMultipleEmptyLines" value="false"/>
+        </module>
+        <module name="SingleSpaceSeparator"/>
+
+        <!-- ===== BLOCKS & BRACES ===== -->
+        <module name="NeedBraces"/>
+        <module name="LeftCurly"/>
+        <module name="RightCurly"/>
+        <module name="EmptyBlock">
+            <property name="option" value="TEXT"/>
+            <property name="tokens" value="LITERAL_TRY, LITERAL_FINALLY, LITERAL_IF, LITERAL_ELSE, LITERAL_SWITCH"/>
+        </module>
+
+        <!-- ===== CODING PRACTICES ===== -->
+        <module name="EqualsHashCode"/>
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
+        <module name="StringLiteralEquality"/>
+        <module name="NestedIfDepth">
+            <property name="max" value="3"/>
+        </module>
+        <module name="NestedTryDepth">
+            <property name="max" value="2"/>
+        </module>
+        <module name="MultipleVariableDeclarations"/>
+        <module name="ModifiedControlVariable"/>
+        <module name="OneStatementPerLine"/>
+        <module name="FallThrough"/>
+        <module name="DefaultComesLast"/>
+        <module name="MissingSwitchDefault"/>
+        <module name="ReturnCount">
+            <property name="max" value="5"/>
+        </module>
+
+        <!-- ===== CLASS DESIGN ===== -->
+        <module name="InterfaceIsType"/>
+        <module name="VisibilityModifier">
+            <property name="allowPublicFinalFields" value="true"/>
+            <property name="protectedAllowed" value="true"/>
+        </module>
+
+        <!-- ===== MODIFIERS ===== -->
+        <module name="ModifierOrder"/>
+        <module name="RedundantModifier"/>
+
+        <!-- ===== METRICS ===== -->
+        <module name="MethodLength">
+            <property name="max" value="80"/>
+        </module>
+        <module name="ParameterNumber">
+            <property name="max" value="8"/>
+        </module>
+        <module name="CyclomaticComplexity">
+            <property name="max" value="15"/>
+        </module>
+
+        <!-- ===== ANNOTATIONS ===== -->
+        <module name="AnnotationLocation">
+            <property name="id" value="AnnotationLocationMostCases"/>
+            <property name="tokens" value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, METHOD_DEF, CTOR_DEF"/>
+        </module>
+        <module name="AnnotationLocation">
+            <property name="id" value="AnnotationLocationVariables"/>
+            <property name="tokens" value="VARIABLE_DEF"/>
+            <property name="allowSamelineMultipleAnnotations" value="true"/>
+        </module>
+
+        <!-- ===== JAVADOC ===== -->
+        <module name="JavadocMethod">
+            <property name="accessModifiers" value="public"/>
+            <property name="allowMissingParamTags" value="true"/>
+            <property name="allowMissingReturnTag" value="true"/>
+        </module>
+        <module name="MissingJavadocMethod">
+            <property name="scope" value="public"/>
+            <property name="minLineCount" value="2"/>
+            <property name="allowedAnnotations" value="Override, Test, Bean, Autowired, PostConstruct, PreDestroy, GetMapping, PostMapping, PutMapping, DeleteMapping, PatchMapping, MessageMapping"/>
+        </module>
+
+        <!-- ===== MISC ===== -->
+        <module name="ArrayTypeStyle"/>
+        <module name="UpperEll"/>
+        <module name="Regexp">
+            <property name="format" value="[ \t]+$"/>
+            <property name="illegalPattern" value="true"/>
+            <property name="message" value="Trailing whitespace"/>
+        </module>
+        <module name="OuterTypeFilename"/>
+        <module name="TodoComment">
+            <property name="format" value="(TODO|FIXME|HACK):"/>
+        </module>
+
+    </module>
+</module>
