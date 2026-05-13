@@ -1,0 +1,30 @@
+@use 'tailwindcss';
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+$theme: mat.define-theme(
+  (
+    color: (
+      theme-type: dark,
+      primary: mat.$violet-palette,
+    ),
+  )
+);
+
+html {
+  @include mat.all-component-themes($theme);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #0f0f1a;
+  color: #e2e8f0;
+}

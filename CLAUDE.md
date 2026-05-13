@@ -15,7 +15,7 @@ This is a **design-phase** repository. All code is yet to be written. The author
 
 **Backend:** Java 21 · Spring Boot 3.x · Spring Security + JWT (jjwt) · Spring WebSocket/STOMP · Spring Data JPA + Hibernate · PostgreSQL 16 · Maven · yt-dlp + FFmpeg (audio import) · Cloudflare Turnstile (anti-bot, inscription)
 
-**Frontend:** Angular 17+ (standalone components) · @stomp/rx-stomp · RxJS · Angular Material + TailwindCSS · Web Audio API
+**Frontend:** Angular 21 (standalone components) · @stomp/rx-stomp · RxJS · Angular Material + TailwindCSS · Web Audio API
 
 **Infrastructure:** Nginx reverse proxy → Angular SPA (static) + Spring Boot :8080 → PostgreSQL :5432 + `/media` (audio files)
 
