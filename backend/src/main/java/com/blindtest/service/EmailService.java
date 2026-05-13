@@ -38,6 +38,15 @@ public class EmailService {
     }
 
     /**
+     * Sends a password-reset email with a signed JWT link (TTL 1 hour).
+     */
+    public void sendPasswordResetEmail(String toEmail, String username, String resetToken) {
+        String link = appBaseUrl + "/reset-password?token=" + resetToken;
+        String html = buildPasswordResetEmailHtml(username, link);
+        send(FROM_HELLO, toEmail, "Reset your Blindtest password", html);
+    }
+
+    /**
      * Sends a welcome email after the user has verified their address.
      */
     public void sendWelcomeEmail(String toEmail, String username) {
@@ -189,6 +198,51 @@ public class EmailService {
             + "<div style=\"font-size:13px;color:#4a4640;line-height:1.55\">"
             + escapeHtml(description) + "</div>"
             + "</td></tr></table></td></tr>";
+    }
+
+    private String buildPasswordResetEmailHtml(String username, String link) {
+        return "<!DOCTYPE html>"
+            + "<html lang=\"en\"><head><meta charset=\"UTF-8\">"
+            + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            + "<title>Reset your password</title></head>"
+            + "<body style=\"margin:0;padding:0;background:#f5f1ea;"
+            + "font-family:'Manrope',-apple-system,system-ui,sans-serif;color:#1a1814\">"
+            + "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
+            + "<tr><td align=\"center\" style=\"padding:40px 16px\">"
+            + "<table width=\"100%\" style=\"max-width:560px;border-radius:14px;overflow:hidden;"
+            + "border:1px solid #e9e3d8;box-shadow:0 18px 40px -22px rgba(0,0,0,.18)\">"
+            + "<tr><td style=\"background:#22201c;padding:22px 28px\">"
+            + "<table width=\"100%\"><tr>"
+            + "<td><table><tr><td style=\"vertical-align:middle\">"
+            + "<div style=\"width:26px;height:26px;background:#c9f062;border-radius:7px;"
+            + "display:inline-block;vertical-align:middle;margin-right:10px\"></div>"
+            + "<span style=\"color:#fff;font-weight:700;font-size:16px;"
+            + "vertical-align:middle\">Blindtest</span></td></tr></table></td>"
+            + "<td align=\"right\"><span style=\"font-size:10.5px;font-weight:700;"
+            + "letter-spacing:.08em;padding:4px 8px;border-radius:4px;"
+            + "background:#f06262;color:#fff;text-transform:uppercase\">RESET</span></td>"
+            + "</tr></table></td></tr>"
+            + "<tr><td style=\"background:#fff;padding:32px 28px 28px\">"
+            + "<h1 style=\"font-size:24px;font-weight:700;letter-spacing:-.015em;"
+            + "margin:0 0 14px;line-height:1.2\">Reset your password, "
+            + escapeHtml(username) + "</h1>"
+            + "<p style=\"font-size:14.5px;line-height:1.65;color:#1a1814;margin:0 0 16px\">"
+            + "Click the button below to choose a new password. This link expires in 1 hour.</p>"
+            + "<div style=\"margin:24px 0 12px\">"
+            + "<a href=\"" + link + "\" style=\"display:inline-block;background:#c9f062;"
+            + "color:#1f2a08;border:1.5px solid #c9f062;padding:13px 22px;border-radius:8px;"
+            + "font-size:14px;font-weight:600;text-decoration:none\">Reset password &rarr;</a>"
+            + "</div>"
+            + "<div style=\"font-size:12px;color:#86807a;line-height:1.6;margin-top:18px;"
+            + "padding-top:18px;border-top:1px dashed #e9e3d8\">"
+            + "If you didn't request a password reset, you can ignore this email safely.</div>"
+            + "</td></tr>"
+            + "<tr><td style=\"background:#fff;padding:0 28px 28px\">"
+            + "<div style=\"text-align:center;font-size:11.5px;color:#86807a;line-height:1.7\">"
+            + "<div>Blindtest &middot; A real-time music game</div>"
+            + "<div style=\"margin-top:4px\">&copy; 2026 Blindtest</div>"
+            + "</div></td></tr>"
+            + "</table></td></tr></table></body></html>";
     }
 
     private static String escapeHtml(String text) {

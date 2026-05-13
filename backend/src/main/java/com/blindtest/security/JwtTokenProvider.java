@@ -19,19 +19,23 @@ public class JwtTokenProvider {
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_PURPOSE = "purpose";
     private static final String PURPOSE_EMAIL_VERIFY = "EMAIL_VERIFY";
+    private static final String PURPOSE_PASSWORD_RESET = "PASSWORD_RESET";
 
     private final SecretKey signingKey;
     private final long accessTokenTtlMs;
     private final long emailVerificationTtlMs;
+    private final long passwordResetTtlMs;
 
-    /** Initializes the provider with the signing key, access-token TTL, and email-verification TTL. */
+    /** Initializes the provider with the signing key and token TTLs. */
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token.ttl-ms:900000}") long accessTokenTtlMs,
-            @Value("${jwt.email-verification.ttl-ms:86400000}") long emailVerificationTtlMs) {
+            @Value("${jwt.email-verification.ttl-ms:86400000}") long emailVerificationTtlMs,
+            @Value("${jwt.password-reset.ttl-ms:3600000}") long passwordResetTtlMs) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenTtlMs = accessTokenTtlMs;
         this.emailVerificationTtlMs = emailVerificationTtlMs;
+        this.passwordResetTtlMs = passwordResetTtlMs;
     }
 
     /**
@@ -105,6 +109,37 @@ public class JwtTokenProvider {
 
     /** Extracts the user ID from a valid email-verification token. */
     public UUID extractUserIdFromEmailVerificationToken(String token) {
+        return UUID.fromString(parseClaims(token).getSubject());
+    }
+
+    /**
+     * Generates a signed HS256 JWT with {@code purpose=PASSWORD_RESET} for the given user.
+     * The token expires after the configured password-reset TTL (default: 1 hour).
+     */
+    public String generatePasswordResetToken(UUID userId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + passwordResetTtlMs);
+        var builder = Jwts.builder().subject(userId.toString());
+        builder.claim(CLAIM_PURPOSE, PURPOSE_PASSWORD_RESET);
+        builder.issuedAt(now).expiration(expiry).signWith(signingKey);
+        return builder.compact();
+    }
+
+    /**
+     * Validates a password-reset token: checks signature, expiry, and purpose claim.
+     * Returns {@code false} for any expired, malformed, wrongly-signed, or wrong-purpose token.
+     */
+    public boolean validatePasswordResetToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            return PURPOSE_PASSWORD_RESET.equals(claims.get(CLAIM_PURPOSE, String.class));
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /** Extracts the user ID from a valid password-reset token. */
+    public UUID extractUserIdFromPasswordResetToken(String token) {
         return UUID.fromString(parseClaims(token).getSubject());
     }
 

@@ -39,11 +39,11 @@ class SecurityConfigIntegrationTest {
     void publicAuthPostRoutesAreAccessibleWithoutToken() throws Exception {
         // Routes without a controller yet return 404; implemented endpoints return 400
         // (missing/invalid body). Neither should return 401 (security-blocked).
-        mockMvc.perform(post("/api/auth/login")).andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/auth/login")).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/register")).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/verify-email")).andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/auth/forgot-password")).andExpect(status().isNotFound());
-        mockMvc.perform(post("/api/auth/reset-password")).andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/auth/forgot-password")).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/auth/reset-password")).andExpect(status().isBadRequest());
     }
 
     @Test

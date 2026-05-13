@@ -44,7 +44,7 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
                     "/api/auth/verify-email", "/api/auth/forgot-password",
-                    "/api/auth/reset-password").permitAll();
+                    "/api/auth/reset-password", "/api/auth/refresh", "/api/auth/logout").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*", "/api/tracks",
                     "/api/playlists/**", "/media/**").permitAll();
             auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
