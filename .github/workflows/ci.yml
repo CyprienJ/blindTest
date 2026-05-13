@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — Checkstyle & Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: blindtest_test
+          POSTGRES_USER: blindtest
+          POSTGRES_PASSWORD: blindtest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - name: Checkstyle
+        working-directory: backend
+        run: mvn --batch-mode checkstyle:check
+
+      - name: Tests
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/blindtest_test
+          SPRING_DATASOURCE_USERNAME: blindtest
+          SPRING_DATASOURCE_PASSWORD: blindtest
+          JWT_SECRET: ci-test-secret-key-at-least-256-bits-long-for-hs256
+        run: mvn --batch-mode test
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
