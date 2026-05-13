@@ -105,3 +105,4 @@ src/app/
 
 - develop using Test Driven Developpment
 - keep the documentation up-to-date
+- everything in english in the code, tickets, comments
