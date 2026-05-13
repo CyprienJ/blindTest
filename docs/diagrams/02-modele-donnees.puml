@@ -1,0 +1,137 @@
+@startuml Data Model (JPA Entities)
+skinparam linetype ortho
+skinparam backgroundColor #FAFAFA
+skinparam class {
+  BorderColor #888888
+  BackgroundColor #FFFFFF
+  HeaderBackgroundColor #E8EAF6
+}
+
+' ── Entities ─────────────────────────────────────────────────────────
+
+entity User {
+  * id : UUID <<PK>>
+  --
+  * username : VARCHAR(50)
+  * email : VARCHAR(255) <<UNIQUE>>
+  * password_hash : VARCHAR
+    avatar_url : VARCHAR
+  * email_verified : BOOLEAN = false
+  * role : ENUM(USER, ADMIN)
+  * created_at : TIMESTAMP
+    last_connexion : TIMESTAMP
+}
+
+entity Track {
+  * id : UUID <<PK>>
+  --
+  * title : VARCHAR(255)
+  * artist : VARCHAR(255)
+    composer : VARCHAR(255)
+    work : VARCHAR(255)
+  * audio_url : VARCHAR
+    image_url : VARCHAR
+    youtube_url : VARCHAR
+    category : VARCHAR(100)
+    decade : INTEGER
+  * duration_seconds : INTEGER
+  * status : ENUM(PENDING_VALIDATION,\n         PUBLISHED, REJECTED)
+  * created_at : TIMESTAMP
+}
+
+entity Playlist {
+  * id : UUID <<PK>>
+  --
+  * name : VARCHAR(100)
+    description : TEXT
+    image_url : VARCHAR
+  * created_by : UUID <<FK>>
+  * created_at : TIMESTAMP
+}
+
+entity PlaylistTrack {
+  * playlist_id : UUID <<FK>>
+  * track_id : UUID <<FK>>
+  --
+  * "order" : INTEGER
+}
+
+entity TrackImportJob {
+  * id : UUID <<PK>>
+  --
+  * youtube_url : VARCHAR
+  * status : ENUM(QUEUED, DOWNLOADING,\n         PROCESSING, DONE, FAILED)
+    progress : INTEGER
+    error_message : TEXT
+  * admin_id : UUID <<FK>>
+    track_id : UUID <<FK>>
+  * created_at : TIMESTAMP
+}
+
+entity FriendRequest {
+  * id : UUID <<PK>>
+  --
+  * from_user_id : UUID <<FK>>
+  * to_user_id : UUID <<FK>>
+  * status : ENUM(PENDING,\n         ACCEPTED, DECLINED)
+  * created_at : TIMESTAMP
+    responded_at : TIMESTAMP
+}
+
+entity GameHistory {
+  * id : UUID <<PK>>
+  --
+  * session_code : VARCHAR(6)
+  * played_at : TIMESTAMP
+  * track_count : INTEGER
+  * player_count : INTEGER
+}
+
+entity GameHistoryPlayer {
+  * id : UUID <<PK>>
+  --
+  * game_id : UUID <<FK>>
+    user_id : UUID <<FK>>
+    guest_name : VARCHAR(50)
+  * final_score : INTEGER
+  * rank : INTEGER
+}
+
+' ── Relationships ─────────────────────────────────────────────────────
+
+User ||--o{ FriendRequest : "sends\n(from_user_id)"
+User ||--o{ FriendRequest : "receives\n(to_user_id)"
+
+User ||--o{ Playlist : "creates"
+
+User ||--o{ TrackImportJob : "admin_id"
+
+User ||--o{ GameHistoryPlayer : "user_id (nullable\nif guest)"
+
+GameHistory ||--|{ GameHistoryPlayer : "contains"
+
+Playlist ||--o{ PlaylistTrack : ""
+Track ||--o{ PlaylistTrack : ""
+
+TrackImportJob |o--o| Track : "produces\n(track_id)"
+
+note bottom of FriendRequest
+  Constraint: from_user_id ≠ to_user_id
+  Unique index: (from_user_id, to_user_id)
+  if status = PENDING
+end note
+
+note right of Track
+  Only tracks with
+  status = PUBLISHED
+  are accessible
+  in the public catalogue
+end note
+
+note right of GameHistoryPlayer
+  guest_name not null
+  if user_id is null
+  (guest player)
+end note
+
+@enduml

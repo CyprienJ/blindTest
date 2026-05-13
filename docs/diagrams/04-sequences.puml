@@ -1,0 +1,251 @@
+@startuml Sequence - Create and Join a Session
+title Create a session and join via code or friend invite
+skinparam backgroundColor #FAFAFA
+skinparam sequenceMessageAlign center
+
+actor "Host (A)" as host
+actor "Friend (B)" as friend
+participant "REST API" as rest
+participant "WebSocket\n(STOMP)" as ws
+participant "SessionService" as ss
+participant "NotificationService" as ns
+
+== Session Creation ==
+
+host ->> rest : POST /api/sessions\n{ rules, trackFilters }
+rest ->> ss : createSession(hostId, rules, tracks)
+ss -->> rest : GameSession { code: "XK9F2A" }
+rest -->> host : 201 { sessionCode, state: LOBBY }
+
+host ->> ws : CONNECT (JWT)
+host ->> ws : SUBSCRIBE /topic/session/XK9F2A
+ws -->> host : CONNECTED
+
+== Join via Friend Invite ==
+
+host ->> rest : POST /api/sessions/XK9F2A/invite/{friendId}
+rest ->> ns : notifyUser(friendId, SESSION_INVITE)
+ns ->> ws : /user/queue/notifications (friend B)
+ws -->> friend : SESSION_INVITE\n{ fromUser: A, sessionCode: XK9F2A }
+
+friend ->> rest : POST /api/sessions/XK9F2A/join\n[Authorization: Bearer JWT]
+rest ->> ss : addPlayer(code, userId: B)
+ss -->> rest : { sessionToken }
+rest -->> friend : 200 { sessionToken, userId }
+
+friend ->> ws : CONNECT (sessionToken)
+friend ->> ws : SUBSCRIBE /topic/session/XK9F2A
+ws ->> ss : registerSocket(userId: B, sessionId)
+ss ->> ws : broadcast PLAYER_JOINED
+ws -->> host : PLAYER_JOINED { displayName: B }
+ws -->> friend : PLAYER_JOINED { displayName: B }
+
+== Join via Code (Guest) ==
+
+actor "Guest (C)" as guest
+guest ->> rest : POST /api/sessions/XK9F2A/join\n{ guestName: "Bob" }
+rest ->> ss : addGuestPlayer(code, "Bob")
+ss -->> rest : { sessionToken, userId: guest_xyz }
+rest -->> guest : 200 { sessionToken, userId }
+
+guest ->> ws : CONNECT (sessionToken)
+guest ->> ws : SUBSCRIBE /topic/session/XK9F2A
+ss ->> ws : broadcast PLAYER_JOINED
+ws -->> host : PLAYER_JOINED { displayName: "Bob" }
+ws -->> friend : PLAYER_JOINED { displayName: "Bob" }
+ws -->> guest : PLAYER_JOINED { displayName: "Bob" }
+
+@enduml
+
+@startuml Sequence - Game Start and Audio Synchronization
+title Game Start and Audio Synchronization (Option 2)
+skinparam backgroundColor #FAFAFA
+
+actor "Host" as host
+actor "Player 1" as p1
+actor "Player 2" as p2
+participant "GameService" as gs
+participant "ScheduledExecutor" as sched
+
+host ->> gs : SEND /app/session/XK9F2A/start
+
+gs ->> gs : state = PLAYING\nstartAt = now() + 3000ms
+
+gs ->> sched : schedule(onTimerExpired,\n  startAt + timerSeconds * 1000)
+
+gs -->> host : broadcast ROUND_START\n{ audioUrl, startAt: T, timerSeconds: 30 }
+gs -->> p1 : broadcast ROUND_START\n{ audioUrl, startAt: T }
+gs -->> p2 : broadcast ROUND_START\n{ audioUrl, startAt: T }
+
+note over host, p2
+  Each client computes: delay = startAt - Date.now()
+  and schedules: setTimeout(() => audio.play(), delay)
+end note
+
+host -> host : audio.load(url)
+p1 -> p1 : audio.load(url)
+p2 -> p2 : audio.load(url)
+
+note over host, p2
+  At T = startAt (same moment for all)
+end note
+
+host -> host : audio.play() ← startAt
+p1 -> p1 : audio.play() ← startAt
+p2 -> p2 : audio.play() ← startAt
+
+@enduml
+
+@startuml Sequence - Round Cycle (Mode 2)
+title Round Cycle — Mode 2 (reveal when all found OR timer)
+skinparam backgroundColor #FAFAFA
+
+actor "Player 1" as p1
+actor "Player 2" as p2
+participant "GameService" as gs
+participant "ScheduledExecutor" as sched
+
+== Round in Progress ==
+
+p1 ->> gs : SEND /app/session/XK9F2A/answer\n{ text: "Smells Like Teen Spirit" }
+gs ->> gs : normalize() → correct ✓\nscore P1 += 100 + speedBonus\nfoundPlayers.add(P1)
+gs -->> p1 : broadcast PLAYER_FOUND\n{ userId: P1, score: 850 }
+gs -->> p2 : broadcast PLAYER_FOUND\n{ userId: P1, score: 850 }
+
+note over gs : Mode 2 → waiting for P2 or timer
+
+p2 ->> gs : SEND answer\n{ text: "smells like teen spirit" }
+gs ->> gs : normalize() → correct ✓\nscore P2 += 60\nfoundPlayers.add(P2)\nallPlayersFound() → true
+gs ->> sched : cancel timer
+gs ->> gs : roundState = REVEALED
+
+gs -->> p1 : broadcast ROUND_REVEALED\n{ track, scores }
+gs -->> p2 : broadcast ROUND_REVEALED\n{ track, scores }
+
+gs ->> sched : schedule(nextRound, 4s)
+
+== Alternative Case: Timer Expires ==
+
+note over sched : timerSeconds elapsed\nsince startAt
+
+sched ->> gs : onTimerExpired(sessionCode)
+gs ->> gs : roundState = REVEALED\n(if not already REVEALED)
+gs -->> p1 : broadcast ROUND_REVEALED\n{ track, scores }
+gs -->> p2 : broadcast ROUND_REVEALED
+
+== End of Round ==
+
+sched ->> gs : nextRound()
+gs ->> gs : currentTrackIndex++
+alt More tracks remaining
+  gs -->> p1 : broadcast ROUND_START { audioUrl, startAt }
+  gs -->> p2 : broadcast ROUND_START { audioUrl, startAt }
+else Last track finished
+  gs ->> gs : state = FINISHED\npersist GameHistory to DB
+  gs -->> p1 : broadcast GAME_FINISHED { finalScores }
+  gs -->> p2 : broadcast GAME_FINISHED { finalScores }
+end
+
+@enduml
+
+@startuml Sequence - Music Import (administrator)
+title Importing a Track from YouTube (administrator)
+skinparam backgroundColor #FAFAFA
+
+actor "Administrator" as admin
+participant "REST API" as rest
+participant "WebSocket\n(STOMP)" as ws
+participant "ImportJobService" as job
+participant "yt-dlp" as ytdlp
+participant "FFmpeg" as ffmpeg
+
+admin ->> rest : POST /api/admin/tracks/import\n{ youtubeUrl, title, artist, ... }
+rest ->> job : createJob(url, metadata)
+job -->> rest : { jobId }
+rest -->> admin : 202 { jobId }
+
+admin ->> ws : SUBSCRIBE /user/queue/import/{jobId}
+
+job ->> ytdlp : ProcessBuilder("yt-dlp", "-x", "--audio-format", "mp3", url)
+
+loop Downloading
+  ytdlp -->> job : stdout (progress)
+  job ->> ws : IMPORT_PROGRESS { progress: 0→50 }
+  ws -->> admin : IMPORT_PROGRESS { progress: 35 }
+end
+
+ytdlp -->> job : raw audio downloaded
+
+job ->> ffmpeg : MP3 conversion / normalisation
+ffmpeg -->> job : /media/{jobId}.mp3
+job ->> job : create TrackEntity (status=PENDING_VALIDATION)
+
+job ->> ws : IMPORT_DONE\n{ trackId, previewUrl }
+ws -->> admin : IMPORT_DONE\n{ trackId, previewUrl }
+
+note over admin
+  Admin listens to the preview in
+  the game interface (faithful rendering)
+  and can edit the metadata.
+end note
+
+alt Admin validates
+  admin ->> rest : POST /api/admin/tracks/{trackId}/validate
+  rest ->> job : validateTrack(trackId)
+  job ->> job : status = PUBLISHED
+  rest -->> admin : 200 { status: PUBLISHED }
+else Admin rejects
+  admin ->> rest : POST /api/admin/tracks/{trackId}/reject\n{ reason }
+  rest ->> job : rejectTrack(trackId)
+  job ->> job : status = REJECTED\ndelete /media/{jobId}.mp3
+  rest -->> admin : 200 { status: REJECTED }
+end
+
+@enduml
+
+@startuml Sequence - Friend System
+title Friend System — request, acceptance, invitation
+skinparam backgroundColor #FAFAFA
+
+actor "Player A" as a
+actor "Player B" as b
+participant "REST API" as rest
+participant "WebSocket\n(STOMP)" as ws
+participant "FriendService" as fs
+
+== Search and Friend Request ==
+
+a ->> rest : GET /api/users/search?q=PlayerB
+rest -->> a : [ { id, username: "PlayerB", avatarUrl } ]
+
+a ->> rest : POST /api/users/{playerBId}/friend-request
+rest ->> fs : createRequest(fromId: A, toId: B)
+fs ->> ws : notifyUser(B, FRIEND_REQUEST { fromUser: A })
+ws -->> b : FRIEND_REQUEST\n{ fromUser: A, requestId }
+rest -->> a : 201 { FriendRequest, status: PENDING }
+
+== Acceptance ==
+
+b ->> rest : GET /api/users/me/friends/requests
+rest -->> b : { received: [{ from: A, requestId }], sent: [] }
+
+b ->> rest : POST /api/users/me/friends/requests/{requestId}/accept
+rest ->> fs : acceptRequest(requestId, userId: B)
+fs ->> ws : notifyUser(A, FRIEND_REQUEST_ACCEPTED { byUser: B })
+ws -->> a : FRIEND_REQUEST_ACCEPTED\n{ byUser: B }
+rest -->> b : 200 OK
+
+note over a, b : A and B are now friends
+
+== Session Invite (from the lobby) ==
+
+a ->> rest : POST /api/sessions/XK9F2A/invite/{playerBId}
+rest ->> fs : inviteFriend(hostId: A, friendId: B, code)
+fs ->> ws : notifyUser(B, SESSION_INVITE\n{ fromUser: A, sessionCode: XK9F2A })
+ws -->> b : SESSION_INVITE\n{ fromUser: A, sessionCode: XK9F2A }
+rest -->> a : 200 OK
+
+b ->> rest : POST /api/sessions/XK9F2A/join\n[JWT of B]
+rest -->> b : 200 { sessionToken }
+
+@enduml

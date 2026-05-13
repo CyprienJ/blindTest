@@ -1,0 +1,889 @@
+openapi: 3.0.3
+info:
+  title: Blindtest API
+  description: |
+    API for the real-time multiplayer music blindtest game.
+
+    ## Authentication
+    Protected endpoints require a Bearer JWT in the `Authorization` header.
+    Guests receive a `sessionToken` from `/sessions/{code}/join` which acts as a temporary JWT.
+
+    ## Roles
+    - `USER`: registered player
+    - `ADMIN`: platform administrator (catalogue management)
+  version: 1.0.0
+  contact:
+    name: Blindtest
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development
+  - url: https://api.blindtest.example.com/api
+    description: Production
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Friends
+  - name: Sessions
+  - name: History
+  - name: Tracks
+  - name: Playlists
+  - name: Admin - Tracks
+  - name: Admin - Playlists
+  - name: Admin - Users
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+    SessionCode:
+      type: string
+      minLength: 6
+      maxLength: 6
+      pattern: "^[A-Z0-9]{6}$"
+      example: "XK9F2A"
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password, turnstileToken]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        turnstileToken:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [accessToken, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+        expiresIn:
+          type: integer
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+
+    VerifyEmailRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    UserPublic:
+      type: object
+      required: [id, username]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        username:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+
+    UserProfile:
+      allOf:
+        - $ref: '#/components/schemas/UserPublic'
+        - type: object
+          required: [email, role, createdAt]
+          properties:
+            email:
+              type: string
+              format: email
+            emailVerified:
+              type: boolean
+            role:
+              type: string
+              enum: [USER, ADMIN]
+            createdAt:
+              type: string
+              format: date-time
+            lastConnexion:
+              type: string
+              format: date-time
+              nullable: true
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+        avatarUrl:
+          type: string
+          nullable: true
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+
+    FriendRequest:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        from:
+          $ref: '#/components/schemas/UserPublic'
+        to:
+          $ref: '#/components/schemas/UserPublic'
+        status:
+          type: string
+          enum: [PENDING, ACCEPTED, DECLINED]
+        createdAt:
+          type: string
+          format: date-time
+        respondedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    FriendRequestsResponse:
+      type: object
+      properties:
+        received:
+          type: array
+          items:
+            $ref: '#/components/schemas/FriendRequest'
+        sent:
+          type: array
+          items:
+            $ref: '#/components/schemas/FriendRequest'
+
+    GameRules:
+      type: object
+      required: [revealMode, timerSeconds, trackCount]
+      properties:
+        revealMode:
+          type: string
+          enum: [MODE_1, MODE_2]
+        timerSeconds:
+          type: integer
+          minimum: 10
+          maximum: 120
+        trackCount:
+          type: integer
+          minimum: 1
+          maximum: 50
+        speedBonus:
+          type: boolean
+          default: true
+        skipThresholdPercent:
+          type: integer
+          minimum: 50
+          maximum: 100
+          default: 60
+
+    TrackFilters:
+      type: object
+      properties:
+        playlistId:
+          $ref: '#/components/schemas/UUID'
+        categories:
+          type: array
+          items:
+            type: string
+        decades:
+          type: array
+          items:
+            type: integer
+
+    CreateSessionRequest:
+      type: object
+      required: [rules]
+      properties:
+        rules:
+          $ref: '#/components/schemas/GameRules'
+        trackFilters:
+          $ref: '#/components/schemas/TrackFilters'
+
+    SessionSummary:
+      type: object
+      properties:
+        code:
+          $ref: '#/components/schemas/SessionCode'
+        state:
+          type: string
+          enum: [LOBBY, PLAYING, FINISHED]
+        host:
+          $ref: '#/components/schemas/UserPublic'
+        playerCount:
+          type: integer
+        rules:
+          $ref: '#/components/schemas/GameRules'
+
+    JoinSessionRequest:
+      type: object
+      properties:
+        guestName:
+          type: string
+          minLength: 2
+          maxLength: 30
+
+    JoinSessionResponse:
+      type: object
+      properties:
+        sessionToken:
+          type: string
+        userId:
+          type: string
+        sessionCode:
+          $ref: '#/components/schemas/SessionCode'
+
+    Track:
+      type: object
+      required: [id, title, artist]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        title:
+          type: string
+        artist:
+          type: string
+        composer:
+          type: string
+          nullable: true
+        work:
+          type: string
+          nullable: true
+        category:
+          type: string
+        decade:
+          type: integer
+        durationSeconds:
+          type: integer
+        imageUrl:
+          type: string
+          nullable: true
+
+    TrackAdmin:
+      allOf:
+        - $ref: '#/components/schemas/Track'
+        - type: object
+          properties:
+            audioUrl:
+              type: string
+            youtubeUrl:
+              type: string
+              nullable: true
+            status:
+              type: string
+              enum: [PENDING_VALIDATION, PUBLISHED, REJECTED]
+            createdAt:
+              type: string
+              format: date-time
+
+    UpdateTrackRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        artist:
+          type: string
+        composer:
+          type: string
+          nullable: true
+        work:
+          type: string
+          nullable: true
+        category:
+          type: string
+        decade:
+          type: integer
+        imageUrl:
+          type: string
+          nullable: true
+
+    ImportTrackRequest:
+      type: object
+      required: [youtubeUrl, title, artist]
+      properties:
+        youtubeUrl:
+          type: string
+        title:
+          type: string
+        artist:
+          type: string
+        composer:
+          type: string
+          nullable: true
+        work:
+          type: string
+          nullable: true
+        category:
+          type: string
+        decade:
+          type: integer
+        imageUrl:
+          type: string
+          nullable: true
+
+    ImportJobStatus:
+      type: string
+      enum: [QUEUED, DOWNLOADING, PROCESSING, DONE, FAILED]
+
+    TrackImportJob:
+      type: object
+      properties:
+        jobId:
+          $ref: '#/components/schemas/UUID'
+        status:
+          $ref: '#/components/schemas/ImportJobStatus'
+        progress:
+          type: integer
+        track:
+          $ref: '#/components/schemas/TrackAdmin'
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Playlist:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        trackCount:
+          type: integer
+
+    PlaylistDetail:
+      allOf:
+        - $ref: '#/components/schemas/Playlist'
+        - type: object
+          properties:
+            tracks:
+              type: array
+              items:
+                $ref: '#/components/schemas/Track'
+
+    CreatePlaylistRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+
+    AddTrackToPlaylistRequest:
+      type: object
+      required: [trackId]
+      properties:
+        trackId:
+          $ref: '#/components/schemas/UUID'
+        order:
+          type: integer
+          nullable: true
+
+    GameHistorySummary:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        sessionCode:
+          $ref: '#/components/schemas/SessionCode'
+        playedAt:
+          type: string
+          format: date-time
+        trackCount:
+          type: integer
+        playerCount:
+          type: integer
+        myScore:
+          type: integer
+          nullable: true
+        myRank:
+          type: integer
+          nullable: true
+
+    GameHistoryDetail:
+      allOf:
+        - $ref: '#/components/schemas/GameHistorySummary'
+        - type: object
+          properties:
+            players:
+              type: array
+              items:
+                type: object
+                properties:
+                  userId:
+                    $ref: '#/components/schemas/UUID'
+                    nullable: true
+                  displayName:
+                    type: string
+                  score:
+                    type: integer
+                  rank:
+                    type: integer
+            rounds:
+              type: array
+              items:
+                type: object
+                properties:
+                  track:
+                    $ref: '#/components/schemas/Track'
+                  foundByUserIds:
+                    type: array
+                    items:
+                      type: string
+
+    AdminUpdateUserRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [USER, ADMIN]
+        banned:
+          type: boolean
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Data conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Invalid data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    SessionCode:
+      name: code
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SessionCode'
+    TrackId:
+      name: trackId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    PlaylistId:
+      name: playlistId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    GameId:
+      name: gameId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 0
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        default: 20
+        maximum: 100
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout
+      responses:
+        '204':
+          description: OK
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh token
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  expiresIn:
+                    type: integer
+
+  /auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Email verification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: OK
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Connected user profile
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    patch:
+      tags: [Users]
+      summary: Update profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  /users/search:
+    get:
+      tags: [Users]
+      summary: Search users
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserPublic'
+                  totalElements:
+                    type: integer
+
+  /users/me/friends:
+    get:
+      tags: [Friends]
+      summary: Friend list
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserPublic'
+
+  /sessions:
+    post:
+      tags: [Sessions]
+      summary: Create session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionSummary'
+
+  /sessions/{code}/join:
+    post:
+      tags: [Sessions]
+      summary: Join session
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinSessionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinSessionResponse'
+
+  /tracks:
+    get:
+      tags: [Tracks]
+      summary: Public catalogue
+      security: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Track'
+                  totalElements:
+                    type: integer
+
+  /admin/tracks/import:
+    post:
+      tags: [Admin - Tracks]
+      summary: Import from YouTube
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportTrackRequest'
+      responses:
+        '202':
+          description: Import job started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    $ref: '#/components/schemas/UUID'
+
+  /admin/playlists:
+    get:
+      tags: [Admin - Playlists]
+      summary: List playlists
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlaylistDetail'
+    post:
+      tags: [Admin - Playlists]
+      summary: Create playlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaylistRequest'
+      responses:
+        '201':
+          description: Playlist created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+
+  /admin/playlists/{playlistId}/tracks:
+    post:
+      tags: [Admin - Playlists]
+      summary: Add track to playlist
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTrackToPlaylistRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistDetail'

@@ -1,0 +1,104 @@
+@startuml Component Architecture
+skinparam componentStyle rectangle
+skinparam backgroundColor #FAFAFA
+skinparam ArrowColor #555555
+skinparam component {
+  BorderColor #888888
+  BackgroundColor #FFFFFF
+}
+
+package "Browser (Angular)" {
+  [Auth Module] as auth_fe
+  [Lobby Module] as lobby_fe
+  [Game Module] as game_fe
+  [Admin Module] as admin_fe
+  [Friends / Profile] as friends_fe
+  [NotificationService] as notif_fe
+}
+
+package "Backend (Spring Boot :8080)" {
+  package "Web Layer" {
+    [REST Controllers\n/api/**] as rest
+    [WebSocket / STOMP\n/ws] as ws
+  }
+
+  package "Service Layer" {
+    [AuthService] as auth_svc
+    [SessionService] as session_svc
+    [GameService] as game_svc
+    [FriendService] as friend_svc
+    [TrackService] as track_svc
+    [PlaylistService] as playlist_svc
+    [ImportJobService] as import_svc
+    [NotificationService] as notif_svc
+    [EmailService] as email_svc
+  }
+
+  package "Infrastructure" {
+    [SessionStore\n(ConcurrentHashMap)] as store
+    [ScheduledExecutorService\n(round timers)] as scheduler
+    [YtDlpWrapper\n(yt-dlp + FFmpeg)] as ytdlp
+  }
+}
+
+database "PostgreSQL :5432" as pg {
+  [users]
+  [tracks]
+  [playlists]
+  [friend_requests]
+  [game_history]
+  [track_import_jobs]
+}
+
+folder "/media\n(MP3 audio files)" as media
+
+cloud "External Services" {
+  [YouTube] as yt
+  [SMTP (mail)] as smtp
+}
+
+' --- Frontend to Backend ---
+auth_fe -right-> rest
+lobby_fe -right-> rest
+game_fe -right-> rest
+admin_fe -right-> rest
+friends_fe -right-> rest
+
+game_fe -right-> ws
+lobby_fe -right-> ws
+notif_fe -right-> ws
+
+' --- Internal Routing ---
+rest --> auth_svc
+rest --> session_svc
+rest --> friend_svc
+rest --> track_svc
+rest --> playlist_svc
+rest --> import_svc
+
+ws --> game_svc
+ws --> session_svc
+ws --> notif_svc
+
+' --- Service Logic ---
+game_svc --> scheduler
+game_svc --> store
+session_svc --> store
+notif_svc --> ws
+friend_svc --> notif_svc
+import_svc --> ytdlp
+
+' --- Persistence ---
+auth_svc --> pg
+friend_svc --> pg
+track_svc --> pg
+playlist_svc --> pg
+import_svc --> pg
+
+' --- Infrastructure to External ---
+ytdlp -down-> yt
+ytdlp -down-> media
+email_svc -right-> smtp
+auth_svc --> email_svc
+
+@enduml

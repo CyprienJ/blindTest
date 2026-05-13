@@ -1,0 +1,153 @@
+@startuml States - Game Session
+title State Machine: Game Session
+skinparam backgroundColor #FAFAFA
+skinparam state {
+  BorderColor #888888
+  BackgroundColor #E8F5E9
+  StartColor #4CAF50
+  EndColor #4CAF50
+}
+
+[*] --> LOBBY : POST /api/sessions\n(host creates the session)
+
+LOBBY --> PLAYING : host sends "start"\nvia WebSocket
+
+LOBBY --> [*] : host deletes\nthe session
+
+PLAYING --> ROUND_END : all found\nOR timer expired
+
+ROUND_END --> PLAYING : next track\n(4s delay)
+
+ROUND_END --> FINISHED : last track\nfinished
+
+FINISHED --> [*] : session archived\nin GameHistory
+
+note right of LOBBY
+  Players can join
+  (code or friend invite)
+end note
+
+note right of PLAYING
+  A round is active.
+  Timer managed server-side.
+end note
+
+note right of FINISHED
+  Final results broadcast.
+  Scores persisted to DB.
+end note
+
+@enduml
+
+@startuml States - Round
+title State Machine: Round (current track)
+skinparam backgroundColor #FAFAFA
+skinparam state {
+  BorderColor #888888
+  BackgroundColor #E3F2FD
+}
+
+[*] --> LOADING : server sends\nROUND_START\n{ audioUrl, startAt }
+
+LOADING --> PLAYING : startAt reached\n(client-side)
+
+PLAYING --> REVEALED : Mode 1: 1st correct player\nMode 2: all correct\nOR timer expired
+
+REVEALED --> [*] : 4s delay\nthen next round\nor end of game
+
+note right of LOADING
+  Clients load the audio.
+  The server schedules
+  the server timer at startAt.
+end note
+
+note right of PLAYING
+  Answers are
+  accepted and evaluated
+  server-side only.
+end note
+
+@enduml
+
+@startuml States - Music Import
+title State Machine: Music Import (yt-dlp)
+skinparam backgroundColor #FAFAFA
+skinparam state {
+  BorderColor #888888
+  BackgroundColor #FFF3E0
+}
+
+[*] --> QUEUED : POST /admin/tracks/import\n(admin submits URL)
+
+QUEUED --> DOWNLOADING : yt-dlp starts
+
+DOWNLOADING --> PROCESSING : audio downloaded\nFFmpeg converts to MP3
+
+DOWNLOADING --> FAILED : network error\nor invalid link
+
+PROCESSING --> DONE : audio file ready\npreview available
+
+PROCESSING --> FAILED : FFmpeg error\nor unsupported format
+
+DONE --> PUBLISHED : admin validates\n(POST /validate)
+
+DONE --> REJECTED : admin rejects\n(POST /reject)
+
+FAILED --> [*] : job archived\nwith errorMessage
+
+PUBLISHED --> [*] : track available\nin the catalogue
+
+REJECTED --> [*] : audio file\ndeleted from server
+
+note right of DOWNLOADING
+  Progress 0-50%
+  notified via WebSocket
+  /user/queue/import/{jobId}
+end note
+
+note right of PROCESSING
+  Progress 50-100%
+  notified via WebSocket
+end note
+
+note right of DONE
+  Admin listens to preview
+  in the game interface
+  before validating.
+end note
+
+@enduml
+
+@startuml States - Friend Request
+title State Machine: Friend Request
+skinparam backgroundColor #FAFAFA
+skinparam state {
+  BorderColor #888888
+  BackgroundColor #FCE4EC
+}
+
+[*] --> PENDING : Player A sends\na request\n(POST /users/{id}/friend-request)
+
+PENDING --> ACCEPTED : Player B accepts\n(POST /requests/{id}/accept)
+
+PENDING --> DECLINED : Player B declines\n(POST /requests/{id}/decline)
+
+PENDING --> [*] : Player A cancels\n(DELETE /requests/{id})
+
+ACCEPTED --> [*] : Either player\nremoves friend\n(DELETE /friends/{id})
+
+DECLINED --> [*] : Request archived
+
+note right of PENDING
+  WebSocket notification
+  sent to Player B:
+  FRIEND_REQUEST { fromUser }
+end note
+
+note right of ACCEPTED
+  WebSocket notification
+  sent to Player A:
+  FRIEND_REQUEST_ACCEPTED
+end note
+
+@enduml
