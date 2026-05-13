@@ -17,7 +17,7 @@ class JwtTokenProviderTest {
 
     @BeforeEach
     void setUp() {
-        provider = new JwtTokenProvider(SECRET, 900_000L, 86_400_000L);
+        provider = new JwtTokenProvider(SECRET, 900_000L, 86_400_000L, 3_600_000L);
     }
 
     @Test
@@ -52,7 +52,7 @@ class JwtTokenProviderTest {
 
     @Test
     void validateTokenReturnsFalseForExpiredToken() {
-        JwtTokenProvider shortLived = new JwtTokenProvider(SECRET, -1L, 86_400_000L);
+        JwtTokenProvider shortLived = new JwtTokenProvider(SECRET, -1L, 86_400_000L, 3_600_000L);
         String expiredToken = shortLived.generateAccessToken(USER_ID, UserRole.USER);
         assertThat(provider.validateToken(expiredToken)).isFalse();
     }
@@ -65,7 +65,8 @@ class JwtTokenProviderTest {
 
     @Test
     void validateTokenReturnsFalseForTokenSignedWithDifferentKey() {
-        JwtTokenProvider other = new JwtTokenProvider("other-secret-key-that-is-32-bytes!!", 900_000L, 86_400_000L);
+        JwtTokenProvider other = new JwtTokenProvider(
+                "other-secret-key-that-is-32-bytes!!", 900_000L, 86_400_000L, 3_600_000L);
         String token = other.generateAccessToken(USER_ID, UserRole.USER);
         assertThat(provider.validateToken(token)).isFalse();
     }
