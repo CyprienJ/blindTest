@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Blindtest — Views (Print)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  html, body { margin: 0; padding: 0; background: oklch(0.12 0.005 70); color: var(--fg-0); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: var(--font-sans); }
+
+  .print-doc { display: flex; flex-direction: column; align-items: center; padding: 40px 0; gap: 40px; }
+  .print-section-head {
+    width: 1280px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line-soft);
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  .print-section-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .print-section-head p { margin: 4px 0 0; color: var(--fg-2); font-size: 13.5px; }
+
+  .print-page {
+    position: relative;
+    background: var(--bg-0);
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    overflow: hidden;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    page-break-after: always;
+    break-after: page;
+  }
+  .print-page .print-label {
+    position: absolute;
+    top: -28px; left: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg-1);
+    letter-spacing: 0.02em;
+  }
+  .print-page .print-label .label-num {
+    color: var(--fg-3);
+    font-family: var(--font-mono);
+    margin-right: 8px;
+  }
+  .print-page .print-label .label-section {
+    color: var(--fg-3);
+    margin-left: 8px;
+    font-weight: 500;
+  }
+
+  /* Each page wrapper gets top margin for the label */
+  .print-page-wrap {
+    padding-top: 32px;
+    page-break-after: always;
+    break-after: page;
+  }
+  .print-page-wrap:last-child { page-break-after: auto; break-after: auto; }
+
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  @media print {
+    body { background: white; }
+    .print-doc { padding: 0; gap: 0; }
+    .print-section-head { display: none; }
+    .print-page-wrap { padding: 24px 24px 0; page-break-after: always; break-after: page; }
+    .print-page { border: none; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="views/shared.jsx"></script>
+<script type="text/babel" src="views/auth.jsx"></script>
+<script type="text/babel" src="views/lobby.jsx"></script>
+<script type="text/babel" src="views/game.jsx"></script>
+<script type="text/babel" src="views/profile.jsx"></script>
+<script type="text/babel" src="views/admin.jsx"></script>
+
+<script type="text/babel">
+const W = 1280, H = 800;
+const Wn = 480, Hn = 760;
+
+const sections = [
+  {
+    id: "auth",
+    title: "Auth",
+    subtitle: "Registration with Cloudflare Turnstile, login, email verification, password reset",
+    boards: [
+      { label: "Login",              w: Wn, h: Hn, view: <LoginView /> },
+      { label: "Register · Turnstile", w: Wn, h: Hn, view: <RegisterView /> },
+      { label: "Verify email",       w: Wn, h: Hn, view: <VerifyEmailView /> },
+      { label: "Forgot password",    w: Wn, h: Hn, view: <ForgotPasswordView /> },
+    ],
+  },
+  {
+    id: "lobby",
+    title: "Lobby",
+    subtitle: "Joining by code or creating a configured session, then waiting in the lobby room",
+    boards: [
+      { label: "Join session",                w: Wn, h: Hn, view: <JoinSessionView /> },
+      { label: "Create session · rules",      w: W,  h: H,  view: <CreateSessionView /> },
+      { label: "Lobby room · friend invite",  w: W,  h: H,  view: <LobbyRoomView /> },
+    ],
+  },
+  {
+    id: "game",
+    title: "Game",
+    subtitle: "Synchronised playback, answer form, live scoreboard — through to final standings",
+    boards: [
+      { label: "Round · PLAYING",   w: W, h: H, view: <GameRoomView revealed={false} /> },
+      { label: "Round · REVEALED",  w: W, h: H, view: <GameRoomView revealed={true} /> },
+      { label: "End screen",        w: W, h: H, view: <EndScreenView /> },
+    ],
+  },
+  {
+    id: "profile",
+    title: "Profile & social",
+    subtitle: "Account, history, game replay, friends, requests, notification toasts",
+    boards: [
+      { label: "My profile",                  w: W, h: H, view: <MyProfileView /> },
+      { label: "Game history",                w: W, h: H, view: <GameHistoryView /> },
+      { label: "Game detail",                 w: W, h: H, view: <GameDetailView /> },
+      { label: "Friends",                     w: W, h: H, view: <FriendsView /> },
+      { label: "Friend requests + toasts",    w: W, h: H, view: <FriendRequestsView /> },
+    ],
+  },
+  {
+    id: "admin",
+    title: "Admin",
+    subtitle: "Catalogue, YouTube imports with live pipeline, playlist editor, user management",
+    boards: [
+      { label: "Track catalogue",             w: W, h: H, view: <AdminTracksView /> },
+      { label: "Import · pipeline + preview", w: W, h: H, view: <AdminImportView /> },
+      { label: "Playlist editor",             w: W, h: H, view: <AdminPlaylistView /> },
+      { label: "User management",             w: W, h: H, view: <AdminUsersView /> },
+    ],
+  },
+];
+
+function PrintPage({ board, num, sectionTitle }) {
+  return (
+    <div className="print-page-wrap">
+      <div className="print-page" style={{ width: board.w, height: board.h }}>
+        <div className="print-label">
+          <span className="label-num">{String(num).padStart(2, '0')}</span>
+          <span>{board.label}</span>
+          <span className="label-section">— {sectionTitle}</span>
+        </div>
+        {board.view}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  let num = 0;
+  return (
+    <div className="print-doc">
+      <div className="print-section-head" style={{ marginTop: 0 }}>
+        <h2 style={{ fontSize: 28 }}>Blindtest — All views</h2>
+        <p>18 screens generated from docs/architecture.md · v2.0</p>
+      </div>
+      {sections.map(sec => (
+        <React.Fragment key={sec.id}>
+          <div className="print-section-head">
+            <h2>{sec.title}</h2>
+            <p>{sec.subtitle}</p>
+          </div>
+          {sec.boards.map(b => {
+            num += 1;
+            return <PrintPage key={b.label} board={b} num={num} sectionTitle={sec.title} />;
+          })}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+// Auto-print after fonts + render settle
+(async () => {
+  try { await document.fonts.ready; } catch (e) {}
+  // Wait for React + Babel scripts + a settle delay
+  await new Promise(r => setTimeout(r, 1200));
+  window.print();
+})();
+</script>
+</body>
+</html>

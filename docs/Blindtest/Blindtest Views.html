@@ -26,6 +26,7 @@
 <script type="text/babel" src="views/game.jsx"></script>
 <script type="text/babel" src="views/profile.jsx"></script>
 <script type="text/babel" src="views/admin.jsx"></script>
+<script type="text/babel" src="views/emails.jsx"></script>
 
 <script type="text/babel">
 const { DesignCanvas, DCSection, DCArtboard } = window;
@@ -36,7 +37,7 @@ const Wn = 480, Hn = 760;  // narrow (auth)
 
 function App() {
   return (
-    <DesignCanvas title="Blindtest — All views" subtitle="Generated from docs/architecture.md · 18 screens">
+    <DesignCanvas title="Blindtest — All views" subtitle="Generated from docs/architecture.md · 24 screens">
       <DCSection id="auth" title="Auth" subtitle="Registration with Cloudflare Turnstile, login, email verification, password reset">
         <DCArtboard id="login" label="Login" width={Wn} height={Hn}><LoginView /></DCArtboard>
         <DCArtboard id="register" label="Register · Turnstile" width={Wn} height={Hn}><RegisterView /></DCArtboard>
@@ -69,6 +70,15 @@ function App() {
         <DCArtboard id="import" label="Import · pipeline + preview" width={W} height={H}><AdminImportView /></DCArtboard>
         <DCArtboard id="playlist" label="Playlist editor" width={W} height={H}><AdminPlaylistView /></DCArtboard>
         <DCArtboard id="users" label="User management" width={W} height={H}><AdminUsersView /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="emails" title="Transactional emails" subtitle="Email templates triggered by auth, social, and session events — light-bodied with the dark Blindtest brand header">
+        <DCArtboard id="e-verify"   label="Email verification"          width={620} height={820}><EmailVerify /></DCArtboard>
+        <DCArtboard id="e-welcome"  label="Welcome (post-verify)"        width={620} height={820}><EmailWelcome /></DCArtboard>
+        <DCArtboard id="e-reset"    label="Password reset"               width={620} height={820}><EmailPasswordReset /></DCArtboard>
+        <DCArtboard id="e-friend"   label="Friend request"               width={620} height={820}><EmailFriendRequest /></DCArtboard>
+        <DCArtboard id="e-accept"   label="Friend request accepted"      width={620} height={820}><EmailFriendAccepted /></DCArtboard>
+        <DCArtboard id="e-invite"   label="Session invite (live now)"    width={620} height={820}><EmailSessionInvite /></DCArtboard>
       </DCSection>
     </DesignCanvas>
   );
