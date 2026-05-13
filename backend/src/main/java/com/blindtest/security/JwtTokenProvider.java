@@ -17,16 +17,21 @@ import org.springframework.stereotype.Component;
 public class JwtTokenProvider {
 
     private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_PURPOSE = "purpose";
+    private static final String PURPOSE_EMAIL_VERIFY = "EMAIL_VERIFY";
 
     private final SecretKey signingKey;
     private final long accessTokenTtlMs;
+    private final long emailVerificationTtlMs;
 
-    /** Initializes the provider with the signing key and access-token TTL. */
+    /** Initializes the provider with the signing key, access-token TTL, and email-verification TTL. */
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token.ttl-ms:900000}") long accessTokenTtlMs) {
+            @Value("${jwt.access-token.ttl-ms:900000}") long accessTokenTtlMs,
+            @Value("${jwt.email-verification.ttl-ms:86400000}") long emailVerificationTtlMs) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenTtlMs = accessTokenTtlMs;
+        this.emailVerificationTtlMs = emailVerificationTtlMs;
     }
 
     /**
@@ -70,6 +75,37 @@ public class JwtTokenProvider {
     /** Extracts the role from a valid access token. */
     public UserRole extractRole(String token) {
         return UserRole.valueOf(parseClaims(token).get(CLAIM_ROLE, String.class));
+    }
+
+    /**
+     * Generates a signed HS256 JWT with {@code purpose=EMAIL_VERIFY} for the given user.
+     * The token expires after the configured email-verification TTL (default: 24 hours).
+     */
+    public String generateEmailVerificationToken(UUID userId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + emailVerificationTtlMs);
+        var builder = Jwts.builder().subject(userId.toString());
+        builder.claim(CLAIM_PURPOSE, PURPOSE_EMAIL_VERIFY);
+        builder.issuedAt(now).expiration(expiry).signWith(signingKey);
+        return builder.compact();
+    }
+
+    /**
+     * Validates an email-verification token: checks signature, expiry, and purpose claim.
+     * Returns {@code false} for any expired, malformed, wrongly-signed, or wrong-purpose token.
+     */
+    public boolean validateEmailVerificationToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            return PURPOSE_EMAIL_VERIFY.equals(claims.get(CLAIM_PURPOSE, String.class));
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /** Extracts the user ID from a valid email-verification token. */
+    public UUID extractUserIdFromEmailVerificationToken(String token) {
+        return UUID.fromString(parseClaims(token).getSubject());
     }
 
     private Claims parseClaims(String token) {
