@@ -18,7 +18,7 @@ public interface TrackImportJobRepository extends JpaRepository<TrackImportJobEn
     /** Returns all import jobs submitted by the given admin. */
     List<TrackImportJobEntity> findByAdminId(UUID adminId);
 
-    /** Returns the job by ID with its linked track eagerly loaded (avoids lazy-load issues). */
-    @Query("SELECT j FROM TrackImportJobEntity j LEFT JOIN FETCH j.track WHERE j.id = :id")
+    /** Returns the job by ID with its track and admin eagerly loaded (avoids lazy-load issues). */
+    @Query("SELECT j FROM TrackImportJobEntity j LEFT JOIN FETCH j.track LEFT JOIN FETCH j.admin WHERE j.id = :id")
     Optional<TrackImportJobEntity> findByIdWithTrack(@Param("id") UUID id);
 }

@@ -44,6 +44,7 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers("/error").permitAll();
             auth.requestMatchers("/api/auth/**").permitAll();
+            auth.requestMatchers("/ws/**").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*", "/api/tracks",
                     "/api/playlists/**", "/media/**").permitAll();
             auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
