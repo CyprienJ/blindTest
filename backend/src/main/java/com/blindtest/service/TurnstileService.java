@@ -1,6 +1,7 @@
 package com.blindtest.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -18,6 +19,7 @@ public class TurnstileService {
     private final RestClient restClient;
 
     /** Constructs the service with the Turnstile secret key and a default {@link RestClient}. */
+    @Autowired
     public TurnstileService(
             @Value("${cloudflare.turnstile.secret-key}") String secretKey) {
         this.secretKey = secretKey;

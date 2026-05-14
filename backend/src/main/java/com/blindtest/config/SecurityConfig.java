@@ -42,9 +42,8 @@ public class SecurityConfig {
         http.exceptionHandling(e -> e.authenticationEntryPoint(
                 (req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED)));
         http.authorizeHttpRequests(auth -> {
-            auth.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
-                    "/api/auth/verify-email", "/api/auth/forgot-password",
-                    "/api/auth/reset-password", "/api/auth/refresh", "/api/auth/logout").permitAll();
+            auth.requestMatchers("/error").permitAll();
+            auth.requestMatchers("/api/auth/**").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*", "/api/tracks",
                     "/api/playlists/**", "/media/**").permitAll();
             auth.requestMatchers("/api/admin/**").hasRole("ADMIN");

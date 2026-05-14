@@ -1,7 +1,6 @@
 package com.blindtest.service;
 
 import com.resend.Resend;
-import com.resend.core.exception.ResendException;
 import com.resend.services.emails.model.CreateEmailOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +59,7 @@ public class EmailService {
         CreateEmailOptions options = builder.build();
         try {
             resend.emails().send(options);
-        } catch (ResendException e) {
+        } catch (Exception e) {
             LOG.error("Failed to send email to {}: {}", to, e.getMessage());
         }
     }
