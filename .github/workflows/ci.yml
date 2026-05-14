@@ -11,21 +11,6 @@ jobs:
     name: Backend — Checkstyle & Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: blindtest_test
-          POSTGRES_USER: blindtest
-          POSTGRES_PASSWORD: blindtest
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,11 +28,6 @@ jobs:
 
       - name: Tests
         working-directory: backend
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/blindtest_test
-          SPRING_DATASOURCE_USERNAME: blindtest
-          SPRING_DATASOURCE_PASSWORD: blindtest
-          JWT_SECRET: ci-test-secret-key-at-least-256-bits-long-for-hs256
         run: mvn --batch-mode test
 
       - name: Upload test report
