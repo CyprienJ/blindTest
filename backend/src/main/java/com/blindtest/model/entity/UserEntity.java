@@ -15,7 +15,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.ColumnTransformer;
 
 /** JPA entity mapped to the {@code users} table. */
 @Entity
@@ -46,8 +45,7 @@ public class UserEntity {
     private boolean emailVerified = false;
 
     @Enumerated(EnumType.STRING)
-    @ColumnTransformer(write = "?::user_role")
-    @Column(name = "role", nullable = false)
+    @Column(name = "role", nullable = false, length = 10)
     private UserRole role = UserRole.USER;
 
     @Column(name = "created_at", nullable = false, updatable = false)

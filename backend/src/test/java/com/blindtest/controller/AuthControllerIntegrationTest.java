@@ -26,28 +26,21 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Testcontainers
+@TestPropertySource(properties = {
+    "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
+    "spring.datasource.driver-class-name=org.h2.Driver",
+    "spring.datasource.username=sa",
+    "spring.datasource.password=",
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.flyway.enabled=false"
+})
 class AuthControllerIntegrationTest {
-
-    @Container
-    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
-
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-    }
 
     @Autowired
     private MockMvc mockMvc;
