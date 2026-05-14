@@ -10,6 +10,7 @@ import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.AdminTrackService;
 import com.blindtest.service.AuthService;
 import com.blindtest.service.CatalogueService;
+import com.blindtest.service.ImportJobService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,9 @@ class SecurityConfigIntegrationTest {
 
     @MockBean
     private CatalogueService catalogueService;
+
+    @MockBean
+    private ImportJobService importJobService;
 
     @Test
     void publicAuthPostRoutesAreAccessibleWithoutToken() throws Exception {
