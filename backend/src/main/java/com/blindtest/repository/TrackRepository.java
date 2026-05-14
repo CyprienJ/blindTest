@@ -5,9 +5,11 @@ import com.blindtest.model.entity.TrackStatus;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 /** Spring Data JPA repository for {@link TrackEntity}. */
-public interface TrackRepository extends JpaRepository<TrackEntity, UUID> {
+public interface TrackRepository extends JpaRepository<TrackEntity, UUID>,
+        JpaSpecificationExecutor<TrackEntity> {
 
     /** Returns all tracks with the given publication status. */
     List<TrackEntity> findByStatus(TrackStatus status);
