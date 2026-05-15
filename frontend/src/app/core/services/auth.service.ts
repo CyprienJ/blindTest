@@ -26,6 +26,10 @@ export class AuthService {
     this.currentUser$ = this.currentUserSubject.asObservable();
   }
 
+  get currentUser(): UserSummary | null {
+    return this.currentUserSubject.value;
+  }
+
   getAccessToken(): string | null {
     return localStorage.getItem(ACCESS_TOKEN_KEY);
   }

@@ -19,7 +19,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").withSockJS();
+        registry.addEndpoint("/ws"); // native WebSocket for @stomp/rx-stomp
+        registry.addEndpoint("/ws-sockjs").withSockJS(); // SockJS fallback
     }
 
     @Override
