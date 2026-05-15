@@ -6,6 +6,7 @@ import com.blindtest.model.entity.TrackStatus;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +15,11 @@ public interface PlaylistTrackRepository extends JpaRepository<PlaylistTrackEnti
 
     /** Returns all track entries for the given playlist, sorted by position ascending. */
     List<PlaylistTrackEntity> findByIdPlaylistIdOrderByTrackOrderAsc(UUID playlistId);
+
+    /** Returns all tracks in a playlist (all statuses) with tracks eagerly loaded, ordered by position. */
+    @Query("SELECT pt FROM PlaylistTrackEntity pt JOIN FETCH pt.track "
+            + "WHERE pt.id.playlistId = :playlistId ORDER BY pt.trackOrder ASC")
+    List<PlaylistTrackEntity> findAllByPlaylistIdOrdered(@Param("playlistId") UUID playlistId);
 
     /** Returns published tracks in a playlist, eagerly loaded and ordered by position. */
     @Query("SELECT pt FROM PlaylistTrackEntity pt JOIN FETCH pt.track t "
@@ -27,4 +33,12 @@ public interface PlaylistTrackRepository extends JpaRepository<PlaylistTrackEnti
             + "WHERE pt.id.playlistId = :playlistId AND t.status = :status")
     int countPublishedInPlaylist(
             @Param("playlistId") UUID playlistId, @Param("status") TrackStatus status);
+
+    /** Counts all tracks in the given playlist regardless of status. */
+    int countByIdPlaylistId(UUID playlistId);
+
+    /** Deletes all track entries for the given playlist. */
+    @Modifying
+    @Query("DELETE FROM PlaylistTrackEntity pt WHERE pt.id.playlistId = :playlistId")
+    void deleteByIdPlaylistId(@Param("playlistId") UUID playlistId);
 }

@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.blindtest.model.entity.UserRole;
 import com.blindtest.security.JwtAuthFilter;
 import com.blindtest.security.JwtTokenProvider;
+import com.blindtest.service.AdminPlaylistService;
 import com.blindtest.service.AdminTrackService;
 import com.blindtest.service.AuthService;
 import com.blindtest.service.CatalogueService;
@@ -34,6 +35,9 @@ class SecurityConfigIntegrationTest {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @MockBean
+    private AdminPlaylistService adminPlaylistService;
 
     @MockBean
     private AdminTrackService adminTrackService;
