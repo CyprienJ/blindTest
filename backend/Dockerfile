@@ -3,7 +3,7 @@ FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
 # Cache dependencies before copying source
-COPY pom.xml .
+COPY pom.xml checkstyle.xml ./
 RUN mvn dependency:go-offline -B -q
 
 COPY src ./src
