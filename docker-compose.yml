@@ -1,14 +1,13 @@
 services:
+
+  # ── Database ────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16
-    container_name: blindtest-postgres
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-blindtest}
-      POSTGRES_USER: ${POSTGRES_USER:-blindtest}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blindtest}
-    ports:
-      - "5432:5432"
+      POSTGRES_DB:       ${POSTGRES_DB:-blindtest}
+      POSTGRES_USER:     ${POSTGRES_USER:-blindtest}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,7 +15,56 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
+
+  # ── Spring Boot backend ─────────────────────────────────────────────
+  backend:
+    # image: is used by CI (pre-built from GHCR); build: is used locally
+    image: ${BACKEND_IMAGE:-blindtest-backend:latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATASOURCE_URL:                  jdbc:postgresql://postgres:5432/${POSTGRES_DB:-blindtest}
+      DATASOURCE_USERNAME:             ${POSTGRES_USER:-blindtest}
+      DATASOURCE_PASSWORD:             ${POSTGRES_PASSWORD}
+      JWT_SECRET:                      ${JWT_SECRET}
+      JWT_EMAIL_VERIFICATION_TTL_MS:   ${JWT_EMAIL_VERIFICATION_TTL_MS:-86400000}
+      JWT_PASSWORD_RESET_TTL_MS:       ${JWT_PASSWORD_RESET_TTL_MS:-3600000}
+      JWT_REFRESH_TOKEN_TTL_MS:        ${JWT_REFRESH_TOKEN_TTL_MS:-604800000}
+      RESEND_API_KEY:                  ${RESEND_API_KEY}
+      APP_BASE_URL:                    ${APP_BASE_URL:-https://nosblindtests.fr}
+      CLOUDFLARE_TURNSTILE_SECRET_KEY: ${CLOUDFLARE_TURNSTILE_SECRET_KEY}
+    volumes:
+      - media:/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ── Nginx: Angular SPA + reverse proxy ─────────────────────────────
+  frontend:
+    image: ${FRONTEND_IMAGE:-blindtest-frontend:latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-8090}:80"   # nginx système proxie ici
+    volumes:
+      - media:/media:ro
+    depends_on:
+      - backend
+    networks:
+      - internal
 
 volumes:
   postgres_data:
   media:
+
+networks:
+  internal:
+    driver: bridge
