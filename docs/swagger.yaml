@@ -11,6 +11,13 @@ info:
     ## Roles
     - `USER`: registered player
     - `ADMIN`: platform administrator (catalogue management)
+
+    ## REST errors and request IDs
+    Every REST error uses the `Error` schema. The `code` field is stable and
+    machine-readable; `message` is safe for display but clients must branch on
+    `code`. Every HTTP response contains `X-Request-ID`. A valid UUID supplied in
+    that request header is reused; otherwise the server generates one. Report
+    `requestId` when investigating a failure.
   version: 1.0.0
   contact:
     name: Blindtest
@@ -43,6 +50,13 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  headers:
+    RequestId:
+      description: UUID used to correlate the response with server logs.
+      schema:
+        type: string
+        format: uuid
+
   schemas:
     UUID:
       type: string
@@ -58,12 +72,60 @@ components:
 
     Error:
       type: object
-      required: [code, message]
+      required: [timestamp, status, code, message, path, requestId]
       properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+          example: 400
         code:
           type: string
+          description: Stable machine-readable code.
+          enum:
+            - VALIDATION_FAILED
+            - MALFORMED_REQUEST
+            - INVALID_PARAMETER
+            - INVALID_OR_EXPIRED_TOKEN
+            - AUTHENTICATION_REQUIRED
+            - INVALID_ACCESS_TOKEN
+            - INVALID_CREDENTIALS
+            - INVALID_REFRESH_TOKEN
+            - ACCESS_DENIED
+            - EMAIL_NOT_VERIFIED
+            - TURNSTILE_FAILED
+            - RESOURCE_NOT_FOUND
+            - METHOD_NOT_ALLOWED
+            - EMAIL_TAKEN
+            - USERNAME_TAKEN
+            - CONFLICT
+            - UNSUPPORTED_MEDIA_TYPE
+            - INTERNAL_ERROR
         message:
           type: string
+          description: Safe client-facing summary without exception or provider details.
+        path:
+          type: string
+          example: /api/auth/login
+        requestId:
+          type: string
+          format: uuid
+        fieldErrors:
+          type: object
+          description: Present only for field validation errors.
+          additionalProperties:
+            type: string
+      example:
+        timestamp: "2026-07-27T17:00:00Z"
+        status: 400
+        code: VALIDATION_FAILED
+        message: Request validation failed
+        path: /api/auth/login
+        requestId: "2a4e1208-72f3-4a14-a8d5-f2e36c8f24f8"
+        fieldErrors:
+          email: must be a well-formed email address
 
     RegisterRequest:
       type: object
@@ -515,32 +577,65 @@ components:
           type: boolean
 
   responses:
+    BadRequest:
+      description: Malformed request, invalid parameter, or validation failure
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Missing or invalid token
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Forbidden:
       description: Insufficient permissions
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     NotFound:
       description: Resource not found
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Conflict:
       description: Data conflict
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     UnprocessableEntity:
       description: Invalid data
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Unexpected server failure
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:

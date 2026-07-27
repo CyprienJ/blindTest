@@ -10,7 +10,7 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[FND-03 — Standardize error contracts and correlation IDs](#fnd-03--standardize-error-contracts-and-correlation-ids)**
+**[FND-04 — Validate production configuration at startup](#fnd-04--validate-production-configuration-at-startup)**
 
 Status: ready
 
@@ -397,6 +397,8 @@ Acceptance:
 - no document still claims that all code remains to be written.
 
 #### FND-03 — Standardize error contracts and correlation IDs
+
+Status: completed on 2026-07-27.
 
 Work:
 

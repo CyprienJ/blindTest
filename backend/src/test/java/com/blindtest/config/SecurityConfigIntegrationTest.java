@@ -2,8 +2,12 @@ package com.blindtest.config;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.blindtest.error.GlobalExceptionHandler;
+import com.blindtest.error.RestSecurityErrorHandler;
 import com.blindtest.model.entity.UserRole;
 import com.blindtest.security.JwtAuthFilter;
 import com.blindtest.security.JwtTokenProvider;
@@ -23,7 +27,14 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest
-@Import({SecurityConfig.class, JwtAuthFilter.class, JwtTokenProvider.class})
+@Import({
+    CorrelationIdFilter.class,
+    GlobalExceptionHandler.class,
+    JwtAuthFilter.class,
+    JwtTokenProvider.class,
+    RestSecurityErrorHandler.class,
+    SecurityConfig.class
+})
 @TestPropertySource(properties = {
     "jwt.secret=test-secret-key-that-is-32-bytes!!",
     "jwt.email-verification.ttl-ms=86400000"
@@ -72,13 +83,23 @@ class SecurityConfigIntegrationTest {
 
     @Test
     void protectedRouteWithoutTokenReturnsUnauthorized() throws Exception {
-        mockMvc.perform(get("/api/users/profile")).andExpect(status().isUnauthorized());
+        String requestId = UUID.randomUUID().toString();
+        mockMvc.perform(get("/api/users/profile").
+                        header(CorrelationIdFilter.HEADER_NAME, requestId)).
+                andExpect(status().isUnauthorized()).
+                andExpect(header().string(CorrelationIdFilter.HEADER_NAME, requestId)).
+                andExpect(jsonPath("$.status").value(401)).
+                andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED")).
+                andExpect(jsonPath("$.requestId").value(requestId));
     }
 
     @Test
     void protectedRouteWithInvalidTokenReturnsUnauthorized() throws Exception {
         var req = get("/api/users/profile").header(HttpHeaders.AUTHORIZATION, "Bearer bad.token");
-        mockMvc.perform(req).andExpect(status().isUnauthorized());
+        mockMvc.perform(req).
+                andExpect(status().isUnauthorized()).
+                andExpect(jsonPath("$.code").value("INVALID_ACCESS_TOKEN")).
+                andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
     @Test
@@ -97,7 +118,10 @@ class SecurityConfigIntegrationTest {
     void adminRouteWithUserTokenReturnsForbidden() throws Exception {
         String token = jwtTokenProvider.generateAccessToken(UUID.randomUUID(), UserRole.USER);
         var req = get("/api/admin/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
-        mockMvc.perform(req).andExpect(status().isForbidden());
+        mockMvc.perform(req).
+                andExpect(status().isForbidden()).
+                andExpect(jsonPath("$.code").value("ACCESS_DENIED")).
+                andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
     @Test

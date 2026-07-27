@@ -1,7 +1,7 @@
 package com.blindtest.config;
 
+import com.blindtest.error.RestSecurityErrorHandler;
 import com.blindtest.security.JwtAuthFilter;
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -23,13 +23,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RestSecurityErrorHandler restSecurityErrorHandler;
     private final List<String> allowedOrigins;
 
     /** Constructs the security configuration with the JWT filter and allowed CORS origins. */
     public SecurityConfig(
             JwtAuthFilter jwtAuthFilter,
+            RestSecurityErrorHandler restSecurityErrorHandler,
             @Value("${cors.allowed-origins:http://localhost:4200}") String allowedOrigins) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.restSecurityErrorHandler = restSecurityErrorHandler;
         this.allowedOrigins = List.of(allowedOrigins.split(","));
     }
 
@@ -39,8 +42,9 @@ public class SecurityConfig {
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.cors(c -> c.configurationSource(corsConfigurationSource()));
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-        http.exceptionHandling(e -> e.authenticationEntryPoint(
-                (req, res, ex) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED)));
+        http.exceptionHandling(e -> e.
+                authenticationEntryPoint(restSecurityErrorHandler).
+                accessDeniedHandler(restSecurityErrorHandler));
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers("/error").permitAll();
             auth.requestMatchers("/api/auth/**").permitAll();

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -94,7 +95,35 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(post("/api/auth/login").
                         contentType(MediaType.APPLICATION_JSON).
                         content("{\"email\":\"" + ALICE_EMAIL + "\",\"password\":\"wrongpass\"}")).
-                andExpect(status().isUnauthorized());
+                andExpect(status().isUnauthorized()).
+                andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS")).
+                andExpect(jsonPath("$.message").value("Invalid credentials")).
+                andExpect(jsonPath("$.requestId").isNotEmpty());
+    }
+
+    @Test
+    void invalidLoginRequestReturnsValidationDetails() throws Exception {
+        mockMvc.perform(post("/api/auth/login").
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{\"email\":\"invalid\",\"password\":\"\"}")).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED")).
+                andExpect(jsonPath("$.fieldErrors.email").isNotEmpty()).
+                andExpect(jsonPath("$.fieldErrors.password").isNotEmpty());
+    }
+
+    @Test
+    void registeringExistingEmailReturnsStableConflictCode() throws Exception {
+        when(turnstileService.verify(any())).thenReturn(true);
+
+        mockMvc.perform(post("/api/auth/register").
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{\"username\":\"charlie\",\"email\":\"" + ALICE_EMAIL
+                                + "\",\"password\":\"password123\",\"turnstileToken\":\"valid\"}")).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("EMAIL_TAKEN")).
+                andExpect(jsonPath("$.message").value("Email address is already registered")).
+                andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
     @Test

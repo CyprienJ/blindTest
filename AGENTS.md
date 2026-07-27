@@ -82,6 +82,8 @@ Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
   and per-user STOMP progress messages.
 - Admin playlist CRUD and ordered track membership.
 - JWT authentication for HTTP and STOMP `CONNECT`.
+- A common safe REST error contract with stable codes and request IDs propagated
+  through `X-Request-ID` and logging MDC.
 - Flyway migrations V1 through V5 for users, refresh tokens, tracks, playlists,
   playlist tracks, and import jobs.
 
@@ -144,6 +146,7 @@ Do not treat the presence of routes or component files as feature completion.
 │       ├── main/java/com/blindtest/
 │       │   ├── config/
 │       │   ├── controller/
+│       │   ├── error/
 │       │   ├── infra/
 │       │   ├── model/{dto,entity}/
 │       │   ├── repository/
@@ -232,7 +235,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 103 passing tests;
+- backend: 0 Checkstyle violations and 110 passing tests;
 - frontend: lint passes, production build passes, and 1 passing scaffold test;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.

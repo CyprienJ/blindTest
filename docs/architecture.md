@@ -64,6 +64,35 @@ The delivered REST surface is limited to `/api/auth/**`, `/api/tracks`,
 `/api/playlists/**`, `/api/admin/tracks/**`,
 `/api/admin/tracks/import/**`, and `/api/admin/playlists/**`.
 
+### REST errors and correlation
+
+All delivered REST error paths, including Spring Security and malformed requests,
+return the same JSON shape:
+
+```json
+{
+  "timestamp": "2026-07-27T17:00:00Z",
+  "status": 400,
+  "code": "VALIDATION_FAILED",
+  "message": "Request validation failed",
+  "path": "/api/auth/login",
+  "requestId": "2a4e1208-72f3-4a14-a8d5-f2e36c8f24f8",
+  "fieldErrors": {
+    "email": "must be a well-formed email address"
+  }
+}
+```
+
+`fieldErrors` is present only for field validation failures. Clients must branch
+on the stable `code`, not on `message`. Exception messages, stack traces, rejected
+values, tokens, and provider details are never copied into the response.
+
+Every HTTP response carries the same ID in the `X-Request-ID` header. A valid UUID
+received in that request header is reused; missing or malformed values are replaced
+with a generated UUID. The ID is stored in SLF4J MDC and included in application
+log lines. The complete code enumeration and reusable response definitions are in
+[`swagger.yaml`](swagger.yaml).
+
 ### Delivered frontend
 
 Angular 21 currently implements the authentication pages and infrastructure:
