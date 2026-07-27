@@ -83,13 +83,15 @@ Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
 - Admin playlist CRUD and ordered track membership.
 - JaCoCo XML/HTML backend coverage reports with CI artifact publication and
   package-level regression gates for security, WebSocket, and service code.
+- PostgreSQL 16 Testcontainers integration coverage for Flyway migrations,
+  Hibernate schema validation, constraints, cascades, and repository queries.
 - JWT authentication for HTTP and STOMP `CONNECT`.
 - A common safe REST error contract with stable codes and request IDs propagated
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
   profiles and fail-fast production validation for secrets and endpoints.
-- Flyway migrations V1 through V5 for users, refresh tokens, tracks, playlists,
-  playlist tracks, and import jobs.
+- Flyway migrations V1 through V6 for users, refresh tokens, tracks, playlists,
+  playlist tracks, import jobs, and database enum constraints.
 
 The backend currently has controllers for:
 
@@ -239,15 +241,16 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 113 passing tests; JaCoCo reports 83.2%
+- backend: 0 Checkstyle violations and 121 passing tests; JaCoCo reports 84.3%
   line coverage and 52.2% branch coverage;
 - frontend: lint passes, production build passes, and 1 passing scaffold test;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.
 
-Backend integration tests use H2 with Flyway disabled and Hibernate
-`ddl-auto=create-drop`. They do not prove that PostgreSQL migrations work. Add a
-PostgreSQL/Testcontainers check when changing schema-sensitive behavior.
+Schema-agnostic backend integration tests use H2 with Flyway disabled and Hibernate
+`ddl-auto=create-drop`. The PostgreSQL Testcontainers suite runs Flyway from an
+empty database with Hibernate `ddl-auto=validate` and requires a Docker-compatible
+container runtime.
 
 ## Coding Conventions
 

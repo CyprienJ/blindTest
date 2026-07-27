@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[TEST-02 — Add PostgreSQL Testcontainers and Flyway validation](#test-02--add-postgresql-testcontainers-and-flyway-validation)**
+**[TEST-03 — Add Playwright foundation](#test-03--add-playwright-foundation)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. TEST-01 is complete, so TEST-02 is the next
+FND-05 remains blocked by DG-04. TEST-02 is complete, so TEST-03 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -498,6 +498,8 @@ Acceptance:
 - no arbitrary global threshold encourages low-value tests.
 
 #### TEST-02 — Add PostgreSQL Testcontainers and Flyway validation
+
+Status: completed on 2026-07-27.
 
 Work:
 
