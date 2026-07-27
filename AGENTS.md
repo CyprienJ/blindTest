@@ -30,15 +30,18 @@ When sources disagree, use this order:
 4. `docs/swagger.yaml` for intended API contracts;
 5. `docs/architecture.md` and `docs/diagrams/*.puml` for the original target design;
 6. the generated UI reference under `docs/Blindtest/`;
-7. `README.md`, `frontend/README.md`, and `CLAUDE.md`.
+7. `README.md` and `frontend/README.md`.
 
-Important: `CLAUDE.md` still says that all code remains to be written. That is
-obsolete. The backend and authentication frontend described below already exist.
-The root `README.md` also describes `docker compose up` as starting only PostgreSQL,
-but the current Compose file starts PostgreSQL, the backend, and the frontend.
-The master roadmap is `docs/plan.md`; despite its historical
-filename, it now covers the complete product delivery through the first production
-release and the post-V1 trajectory.
+`AGENTS.md` is the single tool-independent operating guide for coding agents in
+this repository. Keep agent instructions here instead of adding assistant-specific
+guides.
+
+## Delivery Roadmap
+
+The authoritative roadmap is [`docs/plan.md`](docs/plan.md). It covers the complete
+delivery through the first production release and the post-V1 trajectory. Its
+validated product decisions override the original target design, and its `Next
+Ticket` section identifies the default implementation ticket.
 
 ## Ticket Execution Workflow
 
@@ -64,7 +67,7 @@ release and the post-V1 trajectory.
 
 ## Current Implementation Snapshot
 
-Last reviewed: 2026-07-27, at commit `7db703e` on `main`.
+Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
 
 ### Implemented backend features
 
@@ -159,6 +162,7 @@ Do not treat the presence of routes or component files as feature completion.
 │       ├── features/
 │       └── shared/
 ├── docs/
+│   ├── adr/
 │   ├── architecture.md
 │   ├── swagger.yaml
 │   ├── diagrams/
@@ -273,14 +277,13 @@ Address these before considering the application production-ready:
    It omits some implemented operations and includes many unimplemented product
    endpoints. Verify contracts against controllers before using it to generate
    clients.
-6. The root README, frontend README, and `CLAUDE.md` are stale in several places.
-7. Frontend coverage is effectively absent: only the root app creation test exists.
-8. The committed production frontend build fetches Google Fonts during compilation,
+6. Frontend coverage is effectively absent: only the root app creation test exists.
+7. The committed production frontend build fetches Google Fonts during compilation,
    making builds depend on external network availability.
-9. Access tokens are stored in `localStorage`; account for XSS exposure in the
+8. Access tokens are stored in `localStorage`; account for XSS exposure in the
    frontend security model.
-10. Password-reset JWTs are not persisted as one-time tokens, so a token can be
-    replayed until it expires.
+9. Password-reset JWTs are not persisted as one-time tokens, so a token can be
+   replayed until it expires.
 
 ## Delivery and Deployment
 

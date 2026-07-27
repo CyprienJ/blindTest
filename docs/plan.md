@@ -10,7 +10,7 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[FND-01 — Revoke and remove the committed Resend credential](#fnd-01--revoke-and-remove-the-committed-resend-credential)**
+**[FND-03 — Standardize error contracts and correlation IDs](#fnd-03--standardize-error-contracts-and-correlation-ids)**
 
 Status: ready
 
@@ -361,6 +361,8 @@ configuration safe before new product code is added.
 
 #### FND-01 — Revoke and remove the committed Resend credential
 
+Status: handled outside the roadmap ticket workflow by the product owner.
+
 Work:
 
 - revoke/rotate the exposed key;
@@ -378,10 +380,12 @@ Acceptance:
 
 #### FND-02 — Align documentation with delivered code
 
+Status: completed on 2026-07-27.
+
 Work:
 
 - mark this roadmap as the delivery authority;
-- update the root README and stale `CLAUDE.md`;
+- update the root README and remove `CLAUDE.md` in favor of `AGENTS.md`;
 - describe the current and target architecture separately;
 - update `AGENTS.md` with the roadmap location;
 - create an ADR directory and template.
@@ -1999,6 +2003,7 @@ for the last product ticket.
 - `docs/diagrams/*.puml` — original target component/data/sequence diagrams.
 - `docs/Blindtest/Blindtest Views.html` — authoritative visual reference.
 - `AGENTS.md` — repository operating context.
+- `docs/adr/` — architecture decision record index and template.
 - [Playwright web-server configuration](https://playwright.dev/docs/test-webserver)
 - [Playwright authentication](https://playwright.dev/docs/auth)
 - [Playwright API testing](https://playwright.dev/docs/api-testing)

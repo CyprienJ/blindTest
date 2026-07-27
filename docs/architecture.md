@@ -1,30 +1,101 @@
 # Blindtest — Technical & Functional Documentation
 
+## Document Status
+
+This document contains two deliberately separate views:
+
+- **Current delivered architecture** describes what is present in executable code
+  and migrations as reviewed on 2026-07-27.
+- **Target architecture** preserves the original product design in sections 1–13.
+  It contains planned and deferred features and must not be used as proof that an
+  endpoint, model, screen, or behavior has been implemented.
+
+When documents disagree, executable code and tests come first, followed by
+database migrations and the validated decisions in [`plan.md`](plan.md). The plan
+is the delivery authority. `swagger.yaml`, the target sections below, diagrams,
+and UI references describe intent until code and tests deliver it.
+
 ## Table of Contents
 
-1. [Overview](#1-overview)
-2. [Functional Specifications](#2-functional-specifications)
-3. [Tech Stack](#3-tech-stack)
-4. [General Architecture](#4-general-architecture)
-5. [Data Model](#5-data-model)
-6. [REST API](#6-rest-api)
-7. [WebSocket / STOMP](#7-websocket--stomp)
-8. [Sequence Diagrams](#8-sequence-diagrams)
-9. [Backend Architecture (Spring Boot)](#9-backend-architecture-spring-boot)
-10. [Frontend Architecture (Angular)](#10-frontend-architecture-angular)
-11. [Audio Synchronization (Option 2)](#11-audio-synchronization-option-2)
-12. [Music Import Workflow](#12-music-import-workflow)
-13. [Security & Auth](#13-security--auth)
+- [Current Delivered Architecture](#current-delivered-architecture)
+- [Target Architecture](#target-architecture)
+  1. [Overview](#1-overview)
+  2. [Functional Specifications](#2-functional-specifications)
+  3. [Tech Stack](#3-tech-stack)
+  4. [General Architecture](#4-general-architecture)
+  5. [Data Model](#5-data-model)
+  6. [REST API](#6-rest-api)
+  7. [WebSocket / STOMP](#7-websocket--stomp)
+  8. [Sequence Diagrams](#8-sequence-diagrams)
+  9. [Backend Architecture (Spring Boot)](#9-backend-architecture-spring-boot)
+  10. [Frontend Architecture (Angular)](#10-frontend-architecture-angular)
+  11. [Audio Synchronization (Option 2)](#11-audio-synchronization-option-2)
+  12. [Music Import Workflow](#12-music-import-workflow)
+  13. [Security & Auth](#13-security--auth)
 
-> **Complementary sources of truth:**
-> - Full endpoints: `docs/swagger.yaml` (OpenAPI 3.0)
-> - UML diagrams: `docs/diagrams/*.puml` (PlantUML)
+## Current Delivered Architecture
+
+The repository is a modular monorepo:
+
+```text
+Browser
+  └── Nginx / Angular SPA (`frontend`)
+        ├── /api and /ws ──> Spring Boot (`backend`)
+        │                     └── JPA / Flyway ──> PostgreSQL
+        └── /media ─────────> shared Docker volume
+```
+
+Docker Compose starts all three services. Only the frontend publishes a host port;
+Nginx proxies the API and WebSocket traffic to the backend on the internal network.
+
+### Delivered backend
+
+- Java 21 and Spring Boot 3.2 with Spring Security, JPA, Flyway, and STOMP.
+- Registration with Turnstile, email verification, login, rotating opaque refresh
+  tokens, logout, and password reset.
+- Public published-track and playlist catalogue endpoints.
+- Administrator track review, asynchronous YouTube import jobs, per-user STOMP
+  import progress, and ordered playlist management.
+- PostgreSQL entities and Flyway migrations for users, refresh tokens, tracks,
+  playlists, playlist membership, and import jobs.
+- JWT authentication for HTTP requests and STOMP `CONNECT` frames.
+
+The delivered REST surface is limited to `/api/auth/**`, `/api/tracks`,
+`/api/playlists/**`, `/api/admin/tracks/**`,
+`/api/admin/tracks/import/**`, and `/api/admin/playlists/**`.
+
+### Delivered frontend
+
+Angular 21 currently implements the authentication pages and infrastructure:
+login, registration, email verification, forgot/reset password, route protection,
+JWT interception, refresh, and local session state. Non-auth feature components
+exist as route scaffolds whose templates are placeholders.
+
+### Not delivered
+
+There is no session or round domain model, `SessionStore`, gameplay controller,
+gameplay STOMP handler, scoring/timer/answer logic, synchronized playback, game
+history, profile management, friends, guest joining, or admin user management.
+The planned private S3-compatible media layer is also absent; current media uses a
+Docker volume and `/media` URLs.
+
+The import pipeline invokes `yt-dlp`, but the current backend runtime image does
+not install `yt-dlp` or FFmpeg. Consequently, imports fail in that container until
+the runtime dependency ticket is completed.
+
+## Target Architecture
+
+Sections 1–13 below are the original target specification. Some catalogue and
+authentication capabilities overlap with delivered code, while gameplay,
+multiplayer, social, history, and several administration capabilities remain
+planned or deferred. Future decisions are recorded under [`adr/`](adr/), and the
+roadmap determines when target behavior becomes delivery scope.
 
 ---
 
 ## 1. Overview
 
-Real-time multiplayer music blindtest web application.
+The target product is a real-time multiplayer music blindtest web application.
 
 - A **host** starts a session and configures the game
 - **Players** join via a short code or a friend invite (no account required)

@@ -1,59 +1,47 @@
-# Frontend
+# Blindtest frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.8.
+This Angular 21 application uses standalone components and lazy feature routes.
 
-## Development server
+## Current status
 
-To start a local development server, run:
+The login, registration, email-verification, forgot-password, and password-reset
+flows are implemented, together with the auth service, route guard, JWT
+interceptor, refresh flow, and local session state.
 
-```bash
-ng serve
-```
+The lobby, game, end screen, profile, friends, admin, and notification components
+are route scaffolds only. Their presence does not mean those features are
+implemented. See the root [`README.md`](../README.md) for the repository-wide
+status and [`docs/plan.md`](../docs/plan.md) for the authoritative delivery scope.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Development
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Install the pinned dependencies and start the Angular development server:
 
 ```bash
-ng generate --help
+npm ci
+npm start
 ```
 
-## Building
+Open `http://localhost:4200`. The development proxy forwards `/api` and `/media`
+to `http://localhost:8080`.
 
-To build the project run:
+## Validation
 
 ```bash
-ng build
+npm run lint
+npm run build
+npm run test -- --watch=false --browsers=ChromeHeadless
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+On the project workstation, tests may require:
 
 ```bash
-ng test
+CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHeadless
 ```
 
-## Running end-to-end tests
+## UI reference
 
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+When implementing a feature, use
+[`docs/Blindtest/Blindtest Views.html`](../docs/Blindtest/Blindtest%20Views.html)
+and its adjacent JSX sources as the visual reference. Product scope and executable
+code still take precedence over the reference screens.
