@@ -1,10 +1,11 @@
 package com.blindtest.service;
 
+import com.blindtest.config.properties.ApplicationProperties;
+import com.blindtest.config.properties.ResendProperties;
 import com.resend.Resend;
 import com.resend.services.emails.model.CreateEmailOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /** Sends transactional emails via the Resend API. */
@@ -19,11 +20,9 @@ public class EmailService {
     private final String appBaseUrl;
 
     /** Constructs the service with a Resend API key and the application base URL. */
-    public EmailService(
-            @Value("${resend.api-key}") String apiKey,
-            @Value("${app.base-url}") String appBaseUrl) {
-        this.resend = new Resend(apiKey);
-        this.appBaseUrl = appBaseUrl;
+    public EmailService(ResendProperties resendProperties, ApplicationProperties applicationProperties) {
+        this.resend = new Resend(resendProperties.apiKey());
+        this.appBaseUrl = applicationProperties.baseUrl().toString();
     }
 
     /**

@@ -30,13 +30,22 @@ services:
       DATASOURCE_URL:                  jdbc:postgresql://postgres:5432/${POSTGRES_DB:-blindtest}
       DATASOURCE_USERNAME:             ${POSTGRES_USER:-blindtest}
       DATASOURCE_PASSWORD:             ${POSTGRES_PASSWORD}
+      SPRING_PROFILES_ACTIVE:          production
       JWT_SECRET:                      ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_TTL_MS:         ${JWT_ACCESS_TOKEN_TTL_MS:-900000}
       JWT_EMAIL_VERIFICATION_TTL_MS:   ${JWT_EMAIL_VERIFICATION_TTL_MS:-86400000}
       JWT_PASSWORD_RESET_TTL_MS:       ${JWT_PASSWORD_RESET_TTL_MS:-3600000}
       JWT_REFRESH_TOKEN_TTL_MS:        ${JWT_REFRESH_TOKEN_TTL_MS:-604800000}
       RESEND_API_KEY:                  ${RESEND_API_KEY}
-      APP_BASE_URL:                    ${APP_BASE_URL:-https://nosblindtests.fr}
+      APP_BASE_URL:                    ${APP_BASE_URL}
       CLOUDFLARE_TURNSTILE_SECRET_KEY: ${CLOUDFLARE_TURNSTILE_SECRET_KEY}
+      S3_ENDPOINT:                     ${S3_ENDPOINT}
+      S3_PUBLIC_ENDPOINT:              ${S3_PUBLIC_ENDPOINT}
+      S3_REGION:                       ${S3_REGION}
+      S3_BUCKET:                       ${S3_BUCKET}
+      S3_ACCESS_KEY:                   ${S3_ACCESS_KEY}
+      S3_SECRET_KEY:                   ${S3_SECRET_KEY}
+      S3_PRESIGNED_URL_TTL:            ${S3_PRESIGNED_URL_TTL:-5m}
     volumes:
       - media:/media
     depends_on:

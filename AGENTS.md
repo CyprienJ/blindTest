@@ -84,6 +84,8 @@ Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
 - JWT authentication for HTTP and STOMP `CONNECT`.
 - A common safe REST error contract with stable codes and request IDs propagated
   through `X-Request-ID` and logging MDC.
+- Typed application configuration with separate development, test, and production
+  profiles and fail-fast production validation for secrets and endpoints.
 - Flyway migrations V1 through V5 for users, refresh tokens, tracks, playlists,
   playlist tracks, and import jobs.
 
@@ -266,26 +268,23 @@ PostgreSQL/Testcontainers check when changing schema-sensitive behavior.
 
 Address these before considering the application production-ready:
 
-1. `backend/src/main/resources/application.properties` contains a Resend-looking
-   API key as the fallback value. Treat it as compromised: rotate/revoke it, remove
-   the committed value, and require `RESEND_API_KEY`.
-2. `frontend/src/environments/environment.prod.ts` still uses the documented
+1. `frontend/src/environments/environment.prod.ts` still uses the documented
    Turnstile test site key. Production anti-bot protection is therefore not ready.
-3. The backend runtime Docker image does not install `yt-dlp` or FFmpeg, although
+2. The backend runtime Docker image does not install `yt-dlp` or FFmpeg, although
    the import pipeline executes `yt-dlp`. Imports will fail in that container until
    the runtime dependencies are installed and verified.
-4. The beta deployment workflow runs independently from the CI workflow. A push to
+3. The beta deployment workflow runs independently from the CI workflow. A push to
    `main` can deploy without waiting for Checkstyle/tests/lint to pass.
-5. `docs/swagger.yaml` represents a mixture of intended and delivered endpoints.
+4. `docs/swagger.yaml` represents a mixture of intended and delivered endpoints.
    It omits some implemented operations and includes many unimplemented product
    endpoints. Verify contracts against controllers before using it to generate
    clients.
-6. Frontend coverage is effectively absent: only the root app creation test exists.
-7. The committed production frontend build fetches Google Fonts during compilation,
+5. Frontend coverage is effectively absent: only the root app creation test exists.
+6. The committed production frontend build fetches Google Fonts during compilation,
    making builds depend on external network availability.
-8. Access tokens are stored in `localStorage`; account for XSS exposure in the
+7. Access tokens are stored in `localStorage`; account for XSS exposure in the
    frontend security model.
-9. Password-reset JWTs are not persisted as one-time tokens, so a token can be
+8. Password-reset JWTs are not persisted as one-time tokens, so a token can be
    replayed until it expires.
 
 ## Delivery and Deployment

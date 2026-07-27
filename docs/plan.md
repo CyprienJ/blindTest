@@ -10,9 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[FND-04 — Validate production configuration at startup](#fnd-04--validate-production-configuration-at-startup)**
+**[FND-06 — Record core architecture decisions](#fnd-06--record-core-architecture-decisions)**
 
 Status: ready
+
+FND-05 remains blocked by DG-04, so the next ready foundation ticket is FND-06.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -414,6 +416,8 @@ Acceptance:
 - integration tests verify representative errors.
 
 #### FND-04 — Validate production configuration at startup
+
+Status: completed on 2026-07-27.
 
 Work:
 
