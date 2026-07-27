@@ -1,4 +1,6 @@
 @startuml Sequence - Create and Join a Session
+' Deferred multiplayer scenario. ADR-0002, ADR-0003, and ADR-0004 govern the
+' server-authoritative state, STOMP transport, and replaceable active store.
 title Create a session and join via code or friend invite
 skinparam backgroundColor #FAFAFA
 skinparam sequenceMessageAlign center
@@ -9,6 +11,13 @@ participant "REST API" as rest
 participant "WebSocket\n(STOMP)" as ws
 participant "SessionService" as ss
 participant "NotificationService" as ns
+
+legend bottom
+  Deferred post-V1 multiplayer flow.
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]] server authority
+  [[../adr/0003-stomp-for-game-events-from-v1.md ADR-0003]] STOMP event transport
+  [[../adr/0004-in-memory-session-store.md ADR-0004]] active session store
+endlegend
 
 == Session Creation ==
 
@@ -58,6 +67,7 @@ ws -->> guest : PLAYER_JOINED { displayName: "Bob" }
 @enduml
 
 @startuml Sequence - Game Start and Audio Synchronization
+' Decisions: ADR-0002 server authority; ADR-0003 STOMP; ADR-0005 pre-signed media.
 title Game Start and Audio Synchronization (Option 2)
 skinparam backgroundColor #FAFAFA
 
@@ -66,6 +76,12 @@ actor "Player 1" as p1
 actor "Player 2" as p2
 participant "GameService" as gs
 participant "ScheduledExecutor" as sched
+
+legend bottom
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]] server authority
+  [[../adr/0003-stomp-for-game-events-from-v1.md ADR-0003]] STOMP event transport
+  [[../adr/0005-private-s3-media-and-presigned-playback.md ADR-0005]] pre-signed playback
+endlegend
 
 host ->> gs : SEND /app/session/XK9F2A/start
 
@@ -97,6 +113,8 @@ p2 -> p2 : audio.play() ← startAt
 @enduml
 
 @startuml Sequence - Round Cycle (Mode 2)
+' Deferred multiplayer mode. ADR-0002 defines server authority and ADR-0006
+' defines completed history persistence.
 title Round Cycle — Mode 2 (reveal when all found OR timer)
 skinparam backgroundColor #FAFAFA
 
@@ -104,6 +122,12 @@ actor "Player 1" as p1
 actor "Player 2" as p2
 participant "GameService" as gs
 participant "ScheduledExecutor" as sched
+
+legend bottom
+  Deferred post-V1 multiplayer scoring/reveal mode.
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]] server authority
+  [[../adr/0006-postgresql-history-snapshots.md ADR-0006]] completed history
+endlegend
 
 == Round in Progress ==
 
@@ -149,6 +173,7 @@ end
 @enduml
 
 @startuml Sequence - Music Import (administrator)
+' Decision: ADR-0005 stores validated audio in private S3-compatible storage.
 title Importing a Track from YouTube (administrator)
 skinparam backgroundColor #FAFAFA
 
@@ -158,6 +183,7 @@ participant "WebSocket\n(STOMP)" as ws
 participant "ImportJobService" as job
 participant "yt-dlp" as ytdlp
 participant "FFmpeg" as ffmpeg
+participant "MediaStorage" as storage
 
 admin ->> rest : POST /api/admin/tracks/import\n{ youtubeUrl, title, artist, ... }
 rest ->> job : createJob(url, metadata)
@@ -177,11 +203,13 @@ end
 ytdlp -->> job : raw audio downloaded
 
 job ->> ffmpeg : MP3 conversion / normalisation
-ffmpeg -->> job : /media/{jobId}.mp3
-job ->> job : create TrackEntity (status=PENDING_VALIDATION)
+ffmpeg -->> job : isolated temporary MP3
+job ->> storage : upload and verify object
+storage -->> job : opaque object key
+job ->> job : create TrackEntity\n(status=PENDING_VALIDATION, objectKey)
 
-job ->> ws : IMPORT_DONE\n{ trackId, previewUrl }
-ws -->> admin : IMPORT_DONE\n{ trackId, previewUrl }
+job ->> ws : IMPORT_DONE\n{ trackId }
+ws -->> admin : IMPORT_DONE\n{ trackId }
 
 note over admin
   Admin listens to the preview in
@@ -197,9 +225,15 @@ alt Admin validates
 else Admin rejects
   admin ->> rest : POST /api/admin/tracks/{trackId}/reject\n{ reason }
   rest ->> job : rejectTrack(trackId)
-  job ->> job : status = REJECTED\ndelete /media/{jobId}.mp3
+  job ->> job : status = REJECTED
+  job ->> storage : delete object per retention policy
   rest -->> admin : 200 { status: REJECTED }
 end
+
+legend bottom
+  Preview authorization produces a short-lived URL; it is never persisted.
+  [[../adr/0005-private-s3-media-and-presigned-playback.md ADR-0005]]
+endlegend
 
 @enduml
 

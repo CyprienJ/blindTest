@@ -1,4 +1,5 @@
 @startuml Data Model (JPA Entities)
+' Decision: ADR-0006 persists immutable completed-game snapshots in PostgreSQL.
 skinparam linetype ortho
 skinparam backgroundColor #FAFAFA
 skinparam class {
@@ -81,8 +82,9 @@ entity FriendRequest {
 entity GameHistory {
   * id : UUID <<PK>>
   --
-  * session_code : VARCHAR(6)
-  * played_at : TIMESTAMP
+  * rules_version : VARCHAR
+  * started_at : TIMESTAMP
+  * completed_at : TIMESTAMP
   * track_count : INTEGER
   * player_count : INTEGER
 }
@@ -97,6 +99,18 @@ entity GameHistoryPlayer {
   * rank : INTEGER
 }
 
+entity GameHistoryRound {
+  * id : UUID <<PK>>
+  --
+  * game_id : UUID <<FK>>
+  * round_number : INTEGER
+  * title_snapshot : VARCHAR
+    artist_snapshot : VARCHAR
+  * outcome : VARCHAR
+  * score_awarded : INTEGER
+  * elapsed_millis : BIGINT
+}
+
 ' ── Relationships ─────────────────────────────────────────────────────
 
 User ||--o{ FriendRequest : "sends\n(from_user_id)"
@@ -109,6 +123,7 @@ User ||--o{ TrackImportJob : "admin_id"
 User ||--o{ GameHistoryPlayer : "user_id (nullable\nif guest)"
 
 GameHistory ||--|{ GameHistoryPlayer : "contains"
+GameHistory ||--|{ GameHistoryRound : "snapshots"
 
 Playlist ||--o{ PlaylistTrack : ""
 Track ||--o{ PlaylistTrack : ""
@@ -132,6 +147,13 @@ note right of GameHistoryPlayer
   guest_name not null
   if user_id is null
   (guest player)
+end note
+
+note bottom of GameHistory
+  Immutable completed-game snapshot.
+  No guesses, credentials, media URLs,
+  or active-session state.
+  [[../adr/0006-postgresql-history-snapshots.md ADR-0006]]
 end note
 
 @enduml

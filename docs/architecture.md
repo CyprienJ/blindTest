@@ -117,7 +117,8 @@ the runtime dependency ticket is completed.
 Sections 1–13 below are the original target specification. Some catalogue and
 authentication capabilities overlap with delivered code, while gameplay,
 multiplayer, social, history, and several administration capabilities remain
-planned or deferred. Future decisions are recorded under [`adr/`](adr/), and the
+planned or deferred. Accepted technical decisions are indexed under
+[`adr/`](adr/README.md); they override conflicting target details below. The
 roadmap determines when target behavior becomes delivery scope.
 
 ---

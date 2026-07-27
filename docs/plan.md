@@ -10,11 +10,12 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[FND-06 — Record core architecture decisions](#fnd-06--record-core-architecture-decisions)**
+**[TEST-01 — Add backend coverage reporting](#test-01--add-backend-coverage-reporting)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04, so the next ready foundation ticket is FND-06.
+FND-05 remains blocked by DG-04. FND-06 is complete, so TEST-01 is the next
+ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -448,6 +449,8 @@ Acceptance:
 - repeated provisioning cannot create unexpected administrators.
 
 #### FND-06 — Record core architecture decisions
+
+Status: completed on 2026-07-27.
 
 Work:
 

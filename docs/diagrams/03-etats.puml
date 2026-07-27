@@ -1,4 +1,5 @@
 @startuml States - Game Session
+' Decision: ADR-0002 makes these transitions server-authoritative.
 title State Machine: Game Session
 skinparam backgroundColor #FAFAFA
 skinparam state {
@@ -8,38 +9,38 @@ skinparam state {
   EndColor #4CAF50
 }
 
-[*] --> LOBBY : POST /api/sessions\n(host creates the session)
+[*] --> CREATED : authenticated player\ncreates solo session
 
-LOBBY --> PLAYING : host sends "start"\nvia WebSocket
+CREATED --> PLAYING : server accepts start
 
-LOBBY --> [*] : host deletes\nthe session
+CREATED --> ABORTED : cancelled or expired
 
-PLAYING --> ROUND_END : all found\nOR timer expired
+PLAYING --> FINISHED : last round completed
+PLAYING --> ABORTED : unrecoverable session failure
 
-ROUND_END --> PLAYING : next track\n(4s delay)
+FINISHED --> [*] : immutable history snapshot\npersisted once
+ABORTED --> [*]
 
-ROUND_END --> FINISHED : last track\nfinished
-
-FINISHED --> [*] : session archived\nin GameHistory
-
-note right of LOBBY
-  Players can join
-  (code or friend invite)
+note right of CREATED
+  Configuration and selected tracks
+  are immutable snapshots.
 end note
 
 note right of PLAYING
-  A round is active.
-  Timer managed server-side.
+  Server state, time, deadlines,
+  answers, and score are canonical.
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]]
 end note
 
 note right of FINISHED
-  Final results broadcast.
-  Scores persisted to DB.
+  History persists in PostgreSQL.
+  [[../adr/0006-postgresql-history-snapshots.md ADR-0006]]
 end note
 
 @enduml
 
 @startuml States - Round
+' Decision: ADR-0002 makes these transitions server-authoritative.
 title State Machine: Round (current track)
 skinparam backgroundColor #FAFAFA
 skinparam state {
@@ -47,24 +48,25 @@ skinparam state {
   BackgroundColor #E3F2FD
 }
 
-[*] --> LOADING : server sends\nROUND_START\n{ audioUrl, startAt }
+[*] --> PREPARING : server prepares round\nand playback grant
 
-LOADING --> PLAYING : startAt reached\n(client-side)
+PREPARING --> PLAYING : authoritative startAt reached
 
-PLAYING --> REVEALED : Mode 1: 1st correct player\nMode 2: all correct\nOR timer expired
+PLAYING --> REVEALED : correct title, skip,\nor server deadline
 
-REVEALED --> [*] : 4s delay\nthen next round\nor end of game
+REVEALED --> COMPLETED : approved progression rule
+COMPLETED --> [*] : next round or game finish
 
-note right of LOADING
-  Clients load the audio.
-  The server schedules
-  the server timer at startAt.
+note right of PREPARING
+  Client may preload a short-lived
+  pre-signed audio URL.
+  [[../adr/0005-private-s3-media-and-presigned-playback.md ADR-0005]]
 end note
 
 note right of PLAYING
-  Answers are
-  accepted and evaluated
-  server-side only.
+  Client countdown is presentational.
+  Server evaluates every command.
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]]
 end note
 
 @enduml

@@ -1,4 +1,7 @@
 @startuml Component Architecture
+' Decisions: ADR-0001 modular monolith; ADR-0002 server authority;
+' ADR-0003 STOMP; ADR-0004 SessionStore; ADR-0005 private S3;
+' ADR-0006 PostgreSQL history snapshots.
 skinparam componentStyle rectangle
 skinparam backgroundColor #FAFAFA
 skinparam ArrowColor #555555
@@ -30,14 +33,20 @@ package "Backend (Spring Boot :8080)" {
     [TrackService] as track_svc
     [PlaylistService] as playlist_svc
     [ImportJobService] as import_svc
+    [HistoryService] as history_svc
     [NotificationService] as notif_svc
     [EmailService] as email_svc
   }
 
   package "Infrastructure" {
-    [SessionStore\n(ConcurrentHashMap)] as store
+    interface "SessionStore port" as store_port
+    [InMemorySessionStore\n(V1 adapter)] as store
+    interface "GameEventPublisher port" as event_port
+    [Spring STOMP adapter] as stomp_adapter
     [ScheduledExecutorService\n(round timers)] as scheduler
     [YtDlpWrapper\n(yt-dlp + FFmpeg)] as ytdlp
+    interface "MediaStorage port" as media_port
+    [MinIO S3 adapter] as minio_adapter
   }
 }
 
@@ -47,10 +56,11 @@ database "PostgreSQL :5432" as pg {
   [playlists]
   [friend_requests]
   [game_history]
+  [game_history_rounds]
   [track_import_jobs]
 }
 
-folder "/media\n(MP3 audio files)" as media
+cloud "MinIO\nprivate S3-compatible bucket" as media
 
 cloud "External Services" {
   [YouTube] as yt
@@ -82,11 +92,17 @@ ws --> notif_svc
 
 ' --- Service Logic ---
 game_svc --> scheduler
-game_svc --> store
-session_svc --> store
-notif_svc --> ws
+game_svc --> store_port
+session_svc --> store_port
+store_port <|.. store
+game_svc --> event_port
+session_svc --> event_port
+event_port <|.. stomp_adapter
+stomp_adapter --> ws
+notif_svc --> event_port
 friend_svc --> notif_svc
 import_svc --> ytdlp
+game_svc --> history_svc : "completed snapshot"
 
 ' --- Persistence ---
 auth_svc --> pg
@@ -94,11 +110,24 @@ friend_svc --> pg
 track_svc --> pg
 playlist_svc --> pg
 import_svc --> pg
+history_svc --> pg
 
 ' --- Infrastructure to External ---
 ytdlp -down-> yt
-ytdlp -down-> media
+ytdlp -down-> media_port : "validated temporary file"
+media_port <|.. minio_adapter
+minio_adapter -down-> media
 email_svc -right-> smtp
 auth_svc --> email_svc
+
+legend bottom
+  Architecture decisions:
+  [[../adr/0001-modular-monolith.md ADR-0001]] modular monolith
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]] server-authoritative sessions
+  [[../adr/0003-stomp-for-game-events-from-v1.md ADR-0003]] STOMP from V1
+  [[../adr/0004-in-memory-session-store.md ADR-0004]] in-memory SessionStore adapter
+  [[../adr/0005-private-s3-media-and-presigned-playback.md ADR-0005]] private S3 media
+  [[../adr/0006-postgresql-history-snapshots.md ADR-0006]] PostgreSQL history snapshots
+endlegend
 
 @enduml
