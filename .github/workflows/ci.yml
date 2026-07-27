@@ -26,9 +26,15 @@ jobs:
         working-directory: backend
         run: mvn --batch-mode checkstyle:check
 
-      - name: Tests
+      - name: Tests and coverage
+        if: always()
         working-directory: backend
         run: mvn --batch-mode test
+
+      - name: Finalize coverage report
+        if: ${{ always() && hashFiles('backend/target/jacoco.exec') != '' }}
+        working-directory: backend
+        run: mvn --batch-mode jacoco:report
 
       - name: Upload test report
         if: failure()
@@ -36,6 +42,17 @@ jobs:
         with:
           name: surefire-reports
           path: backend/target/surefire-reports/
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: |
+            backend/target/site/jacoco/
+            backend/target/jacoco.exec
+          if-no-files-found: warn
+          retention-days: 14
 
   frontend:
     name: Frontend — Lint & Build

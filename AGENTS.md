@@ -81,6 +81,8 @@ Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
 - Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
   and per-user STOMP progress messages.
 - Admin playlist CRUD and ordered track membership.
+- JaCoCo XML/HTML backend coverage reports with CI artifact publication and
+  package-level regression gates for security, WebSocket, and service code.
 - JWT authentication for HTTP and STOMP `CONNECT`.
 - A common safe REST error contract with stable codes and request IDs propagated
   through `X-Request-ID` and logging MDC.
@@ -237,7 +239,8 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 110 passing tests;
+- backend: 0 Checkstyle violations and 113 passing tests; JaCoCo reports 83.2%
+  line coverage and 52.2% branch coverage;
 - frontend: lint passes, production build passes, and 1 passing scaffold test;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.

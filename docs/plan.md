@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[TEST-01 — Add backend coverage reporting](#test-01--add-backend-coverage-reporting)**
+**[TEST-02 — Add PostgreSQL Testcontainers and Flyway validation](#test-02--add-postgresql-testcontainers-and-flyway-validation)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. FND-06 is complete, so TEST-01 is the next
+FND-05 remains blocked by DG-04. TEST-01 is complete, so TEST-02 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -482,6 +482,8 @@ Create reliable feedback before implementing storage and gameplay changes.
 ### Tickets
 
 #### TEST-01 — Add backend coverage reporting
+
+Status: completed on 2026-07-27.
 
 Work:
 
