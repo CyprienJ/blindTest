@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[TEST-03 — Add Playwright foundation](#test-03--add-playwright-foundation)**
+**[TEST-04 — Cover authentication with Playwright](#test-04--cover-authentication-with-playwright)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. TEST-02 is complete, so TEST-03 is the next
+FND-05 remains blocked by DG-04. TEST-03 is complete, so TEST-04 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -515,6 +515,8 @@ Acceptance:
 - schema-sensitive tests no longer rely exclusively on H2.
 
 #### TEST-03 — Add Playwright foundation
+
+Status: completed on 2026-07-27.
 
 Work:
 

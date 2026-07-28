@@ -31,12 +31,24 @@ to `http://localhost:8080`.
 npm run lint
 npm run build
 npm run test -- --watch=false --browsers=ChromeHeadless
+npm run test:e2e
 ```
+
+Install the Playwright-managed Chromium before the first end-to-end run:
+
+```bash
+npx playwright install chromium
+```
+
+`test:e2e:ui` opens Playwright's interactive runner and `test:e2e:debug` starts
+the debugger. Reports are written to `playwright-report/`; failure traces,
+screenshots, and videos are written to `test-results/`.
 
 On the project workstation, tests may require:
 
 ```bash
 CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHeadless
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/snap/bin/chromium npm run test:e2e
 ```
 
 ## UI reference
