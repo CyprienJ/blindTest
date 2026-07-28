@@ -88,6 +88,9 @@ Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
 - PostgreSQL 16 Testcontainers integration coverage for Flyway migrations,
   Hibernate schema validation, constraints, cascades, and repository queries.
 - JWT authentication for HTTP and STOMP `CONNECT`.
+- A provider-neutral media-storage port with a typed MinIO Java SDK adapter for
+  upload, existence checks, pre-signed GET URLs, and deletion, plus an in-memory
+  test adapter. The import pipeline does not use it yet.
 - A common safe REST error contract with stable codes and request IDs propagated
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
@@ -248,7 +251,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 124 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 133 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 26 passing Playwright authentication/smoke tests;

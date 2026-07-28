@@ -25,6 +25,7 @@
         <jacoco.version>0.8.12</jacoco.version>
         <maven-checkstyle-plugin.version>3.4.0</maven-checkstyle-plugin.version>
         <testcontainers.version>1.21.4</testcontainers.version>
+        <minio.version>8.5.17</minio.version>
     </properties>
 
     <dependencies>
@@ -57,6 +58,13 @@
             <groupId>com.resend</groupId>
             <artifactId>resend-java</artifactId>
             <version>4.4.0</version>
+        </dependency>
+
+        <!-- S3-compatible private media storage -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>${minio.version}</version>
         </dependency>
 
         <!-- Actuator -->

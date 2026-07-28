@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[MEDIA-01 — Add the media storage port and configuration](#media-01--add-the-media-storage-port-and-configuration)**
+**[MEDIA-02 — Add MinIO to local Docker Compose](#media-02--add-minio-to-local-docker-compose)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. TEST-05 is complete, so MEDIA-01 is the next
+FND-05 remains blocked by DG-04. MEDIA-01 is complete, so MEDIA-02 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -596,6 +596,8 @@ Dependencies: FND-04, TEST-02, TEST-05.
 ### Tickets
 
 #### MEDIA-01 — Add the media storage port and configuration
+
+Status: completed on 2026-07-28.
 
 Work:
 

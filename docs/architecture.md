@@ -61,6 +61,10 @@ Nginx proxies the API and WebSocket traffic to the backend on the internal netwo
 - Deterministic test adapters capture email, verify configured Turnstile tokens,
   execute imports synchronously, and write a small MPEG Layer III fixture without
   Resend, Cloudflare, YouTube, `yt-dlp`, or FFmpeg.
+- A provider-neutral private-media port supports upload, existence checks,
+  short-lived GET URLs, and deletion. Its production adapter uses the MinIO Java
+  SDK with typed internal endpoint, public endpoint, region, bucket, credentials,
+  and URL lifetime settings; tests can replace it with an in-memory adapter.
 - PostgreSQL entities and Flyway migrations for users, refresh tokens, tracks,
   playlists, playlist membership, and import jobs.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
@@ -110,8 +114,9 @@ exist as route scaffolds whose templates are placeholders.
 There is no session or round domain model, `SessionStore`, gameplay controller,
 gameplay STOMP handler, scoring/timer/answer logic, synchronized playback, game
 history, profile management, friends, guest joining, or admin user management.
-The planned private S3-compatible media layer is also absent; current media uses a
-Docker volume and `/media` URLs.
+The private-media port and MinIO SDK adapter are delivered, but MinIO deployment,
+database object keys, and import-pipeline integration are not. Current media still
+uses a Docker volume and `/media` URLs.
 
 The import pipeline invokes `yt-dlp`, but the current backend runtime image does
 not install `yt-dlp` or FFmpeg. Consequently, imports fail in that container until
@@ -120,8 +125,11 @@ the runtime dependency ticket is completed.
 Full-stack adapter tests import
 `DeterministicTestAdaptersConfig`. Production continues to use `EmailService`,
 `TurnstileService`, `AsyncImportJobScheduler`, the `ProcessBuilder` factory, a UTC
-system clock, and UUID-backed opaque refresh tokens. Persistence-generated entity
-IDs remain database-owned; tests consume returned IDs instead of predicting them.
+system clock, UUID-backed opaque refresh tokens, and `MinioMediaStorage`. The
+MinIO adapter keeps SDK types below the service port and uses separate clients for
+private storage operations and browser-accessible URL signing.
+Persistence-generated entity IDs remain database-owned; tests consume returned
+IDs instead of predicting them.
 
 ## Target Architecture
 

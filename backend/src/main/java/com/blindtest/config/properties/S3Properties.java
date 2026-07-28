@@ -7,7 +7,7 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-/** S3-compatible object-storage settings reserved for the media-storage adapter. */
+/** Typed connection and URL-signing settings for S3-compatible private media storage. */
 @Validated
 @ConfigurationProperties("app.s3")
 public record S3Properties(

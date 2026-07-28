@@ -16,6 +16,8 @@ gameplay and social features are still planned.
   playlist management APIs.
 - Deterministic backend adapters that exercise registration and audio import
   without Resend, Cloudflare, YouTube, `yt-dlp`, or FFmpeg.
+- A provider-neutral private-media storage API with a typed MinIO SDK adapter and
+  an in-memory test implementation.
 - Angular authentication pages and client-side authentication infrastructure.
 - PostgreSQL persistence with Flyway migrations V1 through V6.
 - A Docker Compose stack containing PostgreSQL, the Spring Boot backend, and the
@@ -26,7 +28,8 @@ gameplay and social features are still planned.
 - A server-authoritative solo game with playlist and round configuration, answer
   matching, scoring, skip, timeout, reveal, and an end-of-game summary.
 - Persistence of completed games.
-- Private S3-compatible media storage, initially provided by MinIO.
+- MinIO deployment and migration of imported audio to private S3-compatible
+  storage.
 - Production hardening, broader automated tests, and complete operational checks.
 
 ### Deferred until after the first production release
