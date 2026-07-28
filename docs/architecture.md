@@ -56,6 +56,11 @@ Nginx proxies the API and WebSocket traffic to the backend on the internal netwo
 - Public published-track and playlist catalogue endpoints.
 - Administrator track review, asynchronous YouTube import jobs, per-user STOMP
   import progress, and ordered playlist management.
+- External email, Turnstile, process, and import-scheduling boundaries exposed as
+  injectable ports, with injected authentication time and opaque-token generation.
+- Deterministic test adapters capture email, verify configured Turnstile tokens,
+  execute imports synchronously, and write a small MPEG Layer III fixture without
+  Resend, Cloudflare, YouTube, `yt-dlp`, or FFmpeg.
 - PostgreSQL entities and Flyway migrations for users, refresh tokens, tracks,
   playlists, playlist membership, and import jobs.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
@@ -111,6 +116,12 @@ Docker volume and `/media` URLs.
 The import pipeline invokes `yt-dlp`, but the current backend runtime image does
 not install `yt-dlp` or FFmpeg. Consequently, imports fail in that container until
 the runtime dependency ticket is completed.
+
+Full-stack adapter tests import
+`DeterministicTestAdaptersConfig`. Production continues to use `EmailService`,
+`TurnstileService`, `AsyncImportJobScheduler`, the `ProcessBuilder` factory, a UTC
+system clock, and UUID-backed opaque refresh tokens. Persistence-generated entity
+IDs remain database-owned; tests consume returned IDs instead of predicting them.
 
 ## Target Architecture
 

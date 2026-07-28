@@ -14,8 +14,8 @@ import com.blindtest.repository.PlaylistRepository;
 import com.blindtest.repository.PlaylistTrackRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
-import com.blindtest.service.EmailService;
-import com.blindtest.service.TurnstileService;
+import com.blindtest.service.port.EmailSender;
+import com.blindtest.service.port.TurnstileVerifier;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,10 +54,10 @@ class CatalogueControllerIntegrationTest {
     private PlaylistTrackRepository playlistTrackRepository;
 
     @MockBean
-    private EmailService emailService;
+    private EmailSender emailSender;
 
     @MockBean
-    private TurnstileService turnstileService;
+    private TurnstileVerifier turnstileVerifier;
 
     private TrackEntity publishedPop;
     private TrackEntity publishedJazz;

@@ -10,6 +10,9 @@ import com.blindtest.model.entity.UserEntity;
 import com.blindtest.repository.RefreshTokenRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.security.JwtTokenProvider;
+import com.blindtest.service.port.EmailSender;
+import com.blindtest.service.port.TurnstileVerifier;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,9 +29,10 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final TurnstileService turnstileService;
+    private final TurnstileVerifier turnstileVerifier;
     private final JwtTokenProvider jwtTokenProvider;
-    private final EmailService emailService;
+    private final EmailSender emailSender;
+    private final Clock clock;
     private final long refreshTokenTtlMs;
 
     /** Constructs the service with all required dependencies. */
@@ -36,16 +40,18 @@ public class AuthService {
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
-            TurnstileService turnstileService,
+            TurnstileVerifier turnstileVerifier,
             JwtTokenProvider jwtTokenProvider,
-            EmailService emailService,
+            EmailSender emailSender,
+            Clock clock,
             @Value("${jwt.refresh-token.ttl-ms:604800000}") long refreshTokenTtlMs) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
-        this.turnstileService = turnstileService;
+        this.turnstileVerifier = turnstileVerifier;
         this.jwtTokenProvider = jwtTokenProvider;
-        this.emailService = emailService;
+        this.emailSender = emailSender;
+        this.clock = clock;
         this.refreshTokenTtlMs = refreshTokenTtlMs;
     }
 
@@ -60,7 +66,7 @@ public class AuthService {
      */
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
-        if (!turnstileService.verify(request.getTurnstileToken())) {
+        if (!turnstileVerifier.verify(request.getTurnstileToken())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "TURNSTILE_FAILED");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -76,7 +82,7 @@ public class AuthService {
         UserEntity saved = userRepository.save(user);
 
         String verificationToken = jwtTokenProvider.generateEmailVerificationToken(saved.getId());
-        emailService.sendVerificationEmail(saved.getEmail(), saved.getUsername(), verificationToken);
+        emailSender.sendVerificationEmail(saved.getEmail(), saved.getUsername(), verificationToken);
 
         return new RegisterResponse(saved.getId(), saved.getUsername(), saved.getEmail());
     }
@@ -100,7 +106,7 @@ public class AuthService {
         }
         user.setEmailVerified(true);
         userRepository.save(user);
-        emailService.sendWelcomeEmail(user.getEmail(), user.getUsername());
+        emailSender.sendWelcomeEmail(user.getEmail(), user.getUsername());
     }
 
     /**
@@ -119,7 +125,7 @@ public class AuthService {
         if (!user.isEmailVerified()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED");
         }
-        user.setLastConnexion(LocalDateTime.now());
+        user.setLastConnexion(LocalDateTime.now(clock));
         userRepository.save(user);
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getRole());
@@ -141,7 +147,7 @@ public class AuthService {
     public AuthResult refresh(String tokenValue) {
         RefreshTokenEntity stored = refreshTokenRepository.findByToken(tokenValue).
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN"));
-        if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (stored.getExpiresAt().isBefore(LocalDateTime.now(clock))) {
             refreshTokenRepository.delete(stored);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN");
         }
@@ -168,7 +174,7 @@ public class AuthService {
     public void forgotPassword(String email) {
         userRepository.findByEmail(email).ifPresent(user -> {
             String resetToken = jwtTokenProvider.generatePasswordResetToken(user.getId());
-            emailService.sendPasswordResetEmail(user.getEmail(), user.getUsername(), resetToken);
+            emailSender.sendPasswordResetEmail(user.getEmail(), user.getUsername(), resetToken);
         });
     }
 
@@ -194,7 +200,7 @@ public class AuthService {
         RefreshTokenEntity token = new RefreshTokenEntity();
         token.setUser(user);
         token.setToken(tokenValue);
-        token.setExpiresAt(LocalDateTime.now().plusSeconds(refreshTokenTtlMs / 1000));
+        token.setExpiresAt(LocalDateTime.now(clock).plusSeconds(refreshTokenTtlMs / 1000));
         refreshTokenRepository.save(token);
     }
 }

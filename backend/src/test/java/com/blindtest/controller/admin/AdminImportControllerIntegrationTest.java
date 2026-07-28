@@ -11,9 +11,9 @@ import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.security.JwtTokenProvider;
-import com.blindtest.service.EmailService;
-import com.blindtest.service.ImportJobRunner;
-import com.blindtest.service.TurnstileService;
+import com.blindtest.service.port.EmailSender;
+import com.blindtest.service.port.ImportJobScheduler;
+import com.blindtest.service.port.TurnstileVerifier;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,13 +54,13 @@ class AdminImportControllerIntegrationTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @MockBean
-    private ImportJobRunner importJobRunner;
+    private ImportJobScheduler importJobScheduler;
 
     @MockBean
-    private EmailService emailService;
+    private EmailSender emailSender;
 
     @MockBean
-    private TurnstileService turnstileService;
+    private TurnstileVerifier turnstileVerifier;
 
     private String adminToken;
 

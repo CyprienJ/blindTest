@@ -2,7 +2,7 @@
 
 Status: proposed master plan
 
-Last reviewed: 2026-07-27
+Last reviewed: 2026-07-28
 
 Target: first public production release, followed by multiplayer and social features
 
@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[TEST-05 — Create deterministic external-service adapters](#test-05--create-deterministic-external-service-adapters)**
+**[MEDIA-01 — Add the media storage port and configuration](#media-01--add-the-media-storage-port-and-configuration)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. TEST-04 is complete, so TEST-05 is the next
+FND-05 remains blocked by DG-04. TEST-05 is complete, so MEDIA-01 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -550,6 +550,8 @@ Acceptance:
 - tests do not depend on external networks.
 
 #### TEST-05 — Create deterministic external-service adapters
+
+Status: completed on 2026-07-28.
 
 Work:
 

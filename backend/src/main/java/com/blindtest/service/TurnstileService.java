@@ -1,6 +1,7 @@
 package com.blindtest.service;
 
 import com.blindtest.config.properties.TurnstileProperties;
+import com.blindtest.service.port.TurnstileVerifier;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -10,7 +11,7 @@ import org.springframework.web.client.RestClient;
 
 /** Validates Cloudflare Turnstile tokens by calling the siteverify API. */
 @Service
-public class TurnstileService {
+public class TurnstileService implements TurnstileVerifier {
 
     static final String SITEVERIFY_URL =
             "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -35,6 +36,7 @@ public class TurnstileService {
      * Returns {@code true} if the given Turnstile token is valid according to Cloudflare.
      * Returns {@code false} on any API failure or invalid token.
      */
+    @Override
     public boolean verify(String token) {
         try {
             MultiValueMap<String, String> form = new LinkedMultiValueMap<>();

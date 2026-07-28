@@ -2,6 +2,7 @@ package com.blindtest.service;
 
 import com.blindtest.config.properties.ApplicationProperties;
 import com.blindtest.config.properties.ResendProperties;
+import com.blindtest.service.port.EmailSender;
 import com.resend.Resend;
 import com.resend.services.emails.model.CreateEmailOptions;
 import org.slf4j.Logger;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 /** Sends transactional emails via the Resend API. */
 @Service
-public class EmailService {
+public class EmailService implements EmailSender {
 
     private static final Logger LOG = LoggerFactory.getLogger(EmailService.class);
 
@@ -29,6 +30,7 @@ public class EmailService {
      * Sends an email-verification message to {@code toEmail}.
      * The link embeds a signed JWT that expires in 24 hours.
      */
+    @Override
     public void sendVerificationEmail(String toEmail, String username, String verificationToken) {
         String link = appBaseUrl + "/verify-email?token=" + verificationToken;
         String html = buildVerificationEmailHtml(username, link);
@@ -38,6 +40,7 @@ public class EmailService {
     /**
      * Sends a password-reset email with a signed JWT link (TTL 1 hour).
      */
+    @Override
     public void sendPasswordResetEmail(String toEmail, String username, String resetToken) {
         String link = appBaseUrl + "/reset-password?token=" + resetToken;
         String html = buildPasswordResetEmailHtml(username, link);
@@ -47,6 +50,7 @@ public class EmailService {
     /**
      * Sends a welcome email after the user has verified their address.
      */
+    @Override
     public void sendWelcomeEmail(String toEmail, String username) {
         String html = buildWelcomeEmailHtml(username);
         send(FROM_HELLO, toEmail, "You're in — let's start a blindtest", html);

@@ -6,6 +6,8 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 import javax.crypto.SecretKey;
@@ -25,17 +27,23 @@ public class JwtTokenProvider {
     private final long accessTokenTtlMs;
     private final long emailVerificationTtlMs;
     private final long passwordResetTtlMs;
+    private final Clock clock;
+    private final TokenGenerator tokenGenerator;
 
     /** Initializes the provider with the signing key and token TTLs. */
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token.ttl-ms:900000}") long accessTokenTtlMs,
             @Value("${jwt.email-verification.ttl-ms:86400000}") long emailVerificationTtlMs,
-            @Value("${jwt.password-reset.ttl-ms:3600000}") long passwordResetTtlMs) {
+            @Value("${jwt.password-reset.ttl-ms:3600000}") long passwordResetTtlMs,
+            Clock clock,
+            TokenGenerator tokenGenerator) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenTtlMs = accessTokenTtlMs;
         this.emailVerificationTtlMs = emailVerificationTtlMs;
         this.passwordResetTtlMs = passwordResetTtlMs;
+        this.clock = clock;
+        this.tokenGenerator = tokenGenerator;
     }
 
     /**
@@ -43,7 +51,7 @@ public class JwtTokenProvider {
      * The token expires after the configured TTL (default: 15 minutes).
      */
     public String generateAccessToken(UUID userId, UserRole role) {
-        Date now = new Date();
+        Date now = Date.from(clock.instant());
         Date expiry = new Date(now.getTime() + accessTokenTtlMs);
         var jwt = Jwts.builder().subject(userId.toString()).claim(CLAIM_ROLE, role.name());
         jwt.issuedAt(now).expiration(expiry).signWith(signingKey);
@@ -55,7 +63,7 @@ public class JwtTokenProvider {
      * Callers are responsible for persisting it and enforcing the 7-day TTL.
      */
     public String generateRefreshToken() {
-        return UUID.randomUUID().toString();
+        return tokenGenerator.generate();
     }
 
     /**
@@ -86,7 +94,7 @@ public class JwtTokenProvider {
      * The token expires after the configured email-verification TTL (default: 24 hours).
      */
     public String generateEmailVerificationToken(UUID userId) {
-        Date now = new Date();
+        Date now = Date.from(clock.instant());
         Date expiry = new Date(now.getTime() + emailVerificationTtlMs);
         var builder = Jwts.builder().subject(userId.toString());
         builder.claim(CLAIM_PURPOSE, PURPOSE_EMAIL_VERIFY);
@@ -117,7 +125,7 @@ public class JwtTokenProvider {
      * The token expires after the configured password-reset TTL (default: 1 hour).
      */
     public String generatePasswordResetToken(UUID userId) {
-        Date now = new Date();
+        Date now = Date.from(clock.instant());
         Date expiry = new Date(now.getTime() + passwordResetTtlMs);
         var builder = Jwts.builder().subject(userId.toString());
         builder.claim(CLAIM_PURPOSE, PURPOSE_PASSWORD_RESET);
@@ -144,7 +152,8 @@ public class JwtTokenProvider {
     }
 
     private Claims parseClaims(String token) {
-        var jws = Jwts.parser().verifyWith(signingKey).build().parseSignedClaims(token);
+        var jwtClock = (io.jsonwebtoken.Clock) () -> Date.from(Instant.now(clock));
+        var jws = Jwts.parser().verifyWith(signingKey).clock(jwtClock).build().parseSignedClaims(token);
         return jws.getPayload();
     }
 }

@@ -1,6 +1,9 @@
 package com.blindtest.config;
 
 import com.blindtest.infra.ProcessFactory;
+import com.blindtest.security.TokenGenerator;
+import java.time.Clock;
+import java.util.UUID;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -20,5 +23,17 @@ public class AppConfig {
     @Bean
     public ProcessFactory processFactory() {
         return command -> new ProcessBuilder(command).start();
+    }
+
+    /** UTC wall clock used by authentication expiry calculations. */
+    @Bean
+    public Clock clock() {
+        return Clock.systemUTC();
+    }
+
+    /** Generates opaque refresh tokens with production randomness. */
+    @Bean
+    public TokenGenerator tokenGenerator() {
+        return () -> UUID.randomUUID().toString();
     }
 }

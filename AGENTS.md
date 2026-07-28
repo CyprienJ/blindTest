@@ -80,6 +80,8 @@ Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
 - Admin track listing, update, delete, validate, and reject operations.
 - Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
   and per-user STOMP progress messages.
+- Injectable email, Turnstile, import-process, scheduling, clock, and opaque-token
+  boundaries with deterministic test adapters.
 - Admin playlist CRUD and ordered track membership.
 - JaCoCo XML/HTML backend coverage reports with CI artifact publication and
   package-level regression gates for security, WebSocket, and service code.
@@ -246,8 +248,8 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 121 passing tests; JaCoCo reports 84.3%
-  line coverage and 52.2% branch coverage;
+- backend: 0 Checkstyle violations and 124 passing tests; JaCoCo coverage gates
+  pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 26 passing Playwright authentication/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are

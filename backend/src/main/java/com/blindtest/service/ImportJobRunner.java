@@ -23,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /** Executes the yt-dlp download pipeline asynchronously for a queued import job. */
@@ -44,7 +43,6 @@ public class ImportJobRunner {
     private String mediaDir;
 
     /** Downloads and converts audio for the given job ID; updates status, progress, and pushes WS events. */
-    @Async
     public void execute(UUID jobId) {
         TrackImportJobEntity job = jobRepository.findByIdWithTrack(jobId).orElseThrow();
         UUID adminId = job.getAdmin().getId();

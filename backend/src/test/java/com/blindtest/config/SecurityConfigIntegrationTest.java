@@ -28,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest
 @Import({
+    AppConfig.class,
     CorrelationIdFilter.class,
     GlobalExceptionHandler.class,
     JwtAuthFilter.class,

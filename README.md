@@ -14,8 +14,10 @@ gameplay and social features are still planned.
 - Public published-track and playlist APIs.
 - Administrator track review, YouTube import jobs, import progress over STOMP, and
   playlist management APIs.
+- Deterministic backend adapters that exercise registration and audio import
+  without Resend, Cloudflare, YouTube, `yt-dlp`, or FFmpeg.
 - Angular authentication pages and client-side authentication infrastructure.
-- PostgreSQL persistence with Flyway migrations V1 through V5.
+- PostgreSQL persistence with Flyway migrations V1 through V6.
 - A Docker Compose stack containing PostgreSQL, the Spring Boot backend, and the
   Nginx-served Angular frontend.
 

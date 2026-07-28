@@ -14,8 +14,8 @@ import com.blindtest.model.entity.UserEntity;
 import com.blindtest.repository.RefreshTokenRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.security.JwtTokenProvider;
-import com.blindtest.service.EmailService;
-import com.blindtest.service.TurnstileService;
+import com.blindtest.service.port.EmailSender;
+import com.blindtest.service.port.TurnstileVerifier;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,10 +59,10 @@ class AuthControllerIntegrationTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @MockBean
-    private EmailService emailService;
+    private EmailSender emailSender;
 
     @MockBean
-    private TurnstileService turnstileService;
+    private TurnstileVerifier turnstileVerifier;
 
     private static final String ALICE_EMAIL = "alice@example.com";
     private static final String ALICE_PASSWORD = "password123";
@@ -114,7 +114,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void registeringExistingEmailReturnsStableConflictCode() throws Exception {
-        when(turnstileService.verify(any())).thenReturn(true);
+        when(turnstileVerifier.verify(any())).thenReturn(true);
 
         mockMvc.perform(post("/api/auth/register").
                         contentType(MediaType.APPLICATION_JSON).
@@ -214,7 +214,7 @@ class AuthControllerIntegrationTest {
                         content("{\"email\":\"" + ALICE_EMAIL + "\"}")).
                 andExpect(status().isOk());
 
-        verify(emailService).sendPasswordResetEmail(eq(ALICE_EMAIL), any(), any());
+        verify(emailSender).sendPasswordResetEmail(eq(ALICE_EMAIL), any(), any());
     }
 
     @Test
@@ -224,7 +224,7 @@ class AuthControllerIntegrationTest {
                         content("{\"email\":\"ghost@example.com\"}")).
                 andExpect(status().isOk());
 
-        verify(emailService, never()).sendPasswordResetEmail(any(), any(), any());
+        verify(emailSender, never()).sendPasswordResetEmail(any(), any(), any());
     }
 
     @Test
@@ -236,7 +236,7 @@ class AuthControllerIntegrationTest {
                         content("{\"email\":\"" + ALICE_EMAIL + "\"}")).
                 andExpect(status().isOk());
 
-        verify(emailService).sendPasswordResetEmail(eq(ALICE_EMAIL), any(), tokenCaptor.capture());
+        verify(emailSender).sendPasswordResetEmail(eq(ALICE_EMAIL), any(), tokenCaptor.capture());
         String resetToken = tokenCaptor.getValue();
 
         mockMvc.perform(post("/api/auth/reset-password").

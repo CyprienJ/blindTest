@@ -11,6 +11,7 @@ import com.blindtest.model.entity.UserEntity;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
+import com.blindtest.service.port.ImportJobScheduler;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,7 @@ public class ImportJobService {
     private final TrackImportJobRepository jobRepository;
     private final TrackRepository trackRepository;
     private final UserRepository userRepository;
-    private final ImportJobRunner importJobRunner;
+    private final ImportJobScheduler importJobScheduler;
 
     /** Creates a PENDING track and a QUEUED import job, then triggers async download. */
     @Transactional
@@ -44,7 +45,7 @@ public class ImportJobService {
         job.setTrack(track);
         job = jobRepository.save(job);
 
-        importJobRunner.execute(job.getId());
+        importJobScheduler.schedule(job.getId());
         return new ImportStartResponse(job.getId());
     }
 
