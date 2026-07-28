@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[TEST-04 — Cover authentication with Playwright](#test-04--cover-authentication-with-playwright)**
+**[TEST-05 — Create deterministic external-service adapters](#test-05--create-deterministic-external-service-adapters)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. TEST-03 is complete, so TEST-04 is the next
+FND-05 remains blocked by DG-04. TEST-04 is complete, so TEST-05 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -532,6 +532,8 @@ Acceptance:
 - a forced failure produces a usable trace and screenshot.
 
 #### TEST-04 — Cover authentication with Playwright
+
+Status: completed on 2026-07-28.
 
 Work:
 

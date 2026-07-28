@@ -114,6 +114,7 @@ cd ../frontend
 npm run lint
 npm run build
 npm run test -- --watch=false --browsers=ChromeHeadless
+npm run test:e2e
 
 cd ..
 docker compose config --quiet

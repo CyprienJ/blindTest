@@ -106,6 +106,7 @@ declare const turnstile: {
 
             @if (errorMessage) {
               <div
+                role="alert"
                 style="background: oklch(0.25 0.04 30); border: 1px solid oklch(0.38 0.10 30);
                           border-radius: var(--r-md); padding: 10px 14px; font-size: 13.5px; color: var(--danger);"
               >
@@ -210,7 +211,6 @@ export class RegisterComponent implements OnInit, OnDestroy {
         if (this.widgetId && typeof turnstile !== 'undefined') {
           turnstile.reset(this.widgetId);
         }
-        console.error('[register] error', err.status, err);
         if (err.status === 409) {
           const detail: string = err.error?.detail ?? '';
           this.errorMessage = detail.includes('EMAIL')
@@ -223,7 +223,7 @@ export class RegisterComponent implements OnInit, OnDestroy {
         } else if (err.status === 0) {
           this.errorMessage = 'Cannot reach the server — is the backend running?';
         } else {
-          this.errorMessage = `Error ${err.status}: ${err.error?.detail ?? err.message ?? 'Unknown error'}`;
+          this.errorMessage = 'Something went wrong. Please try again.';
         }
       },
     });

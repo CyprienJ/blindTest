@@ -6,7 +6,7 @@ This Angular 21 application uses standalone components and lazy feature routes.
 
 The login, registration, email-verification, forgot-password, and password-reset
 flows are implemented, together with the auth service, route guard, JWT
-interceptor, refresh flow, and local session state.
+interceptor, refresh flow, local session state, and authenticated sign-out control.
 
 The lobby, game, end screen, profile, friends, admin, and notification components
 are route scaffolds only. Their presence does not mean those features are
@@ -43,6 +43,11 @@ npx playwright install chromium
 `test:e2e:ui` opens Playwright's interactive runner and `test:e2e:debug` starts
 the debugger. Reports are written to `playwright-report/`; failure traces,
 screenshots, and videos are written to `test-results/`.
+
+The Playwright authentication suite mocks every `/api/auth` response and the
+Turnstile browser API. Its shared fixture blocks third-party traffic and rejects
+unexpected API requests, so the tests require neither the backend nor Cloudflare
+or Resend network access.
 
 On the project workstation, tests may require:
 

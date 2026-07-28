@@ -124,9 +124,11 @@ The WebSocket infrastructure exists only for authentication and import progress.
 - Forgot-password flow.
 - Reset-password flow.
 - Auth service, route guard, JWT interceptor, refresh flow, and local session state.
+- Authenticated sign-out control with local cleanup on both successful and failed
+  server-side logout.
 - Shared global styling based on the target visual design.
-- Playwright Chromium foundation with a deterministic login-page smoke test and
-  CI failure artifacts.
+- Playwright Chromium authentication coverage with mocked API and Turnstile
+  behavior, blocked third-party traffic, and CI failure artifacts.
 
 ### Frontend placeholders
 
@@ -230,6 +232,7 @@ cd ../frontend
 npm run lint
 npm run build
 npm run test -- --watch=false --browsers=ChromeHeadless
+npm run test:e2e
 
 cd ..
 docker compose config --quiet
@@ -246,7 +249,7 @@ Baseline at the review date:
 - backend: 0 Checkstyle violations and 121 passing tests; JaCoCo reports 84.3%
   line coverage and 52.2% branch coverage;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
-  and 1 passing Playwright smoke test;
+  and 26 passing Playwright authentication/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.
 

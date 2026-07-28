@@ -1,1 +1,19 @@
+@if (currentUser$ | async; as currentUser) {
+<div
+  style="
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  "
+>
+  <span style="font-size: 13px; color: var(--fg-2)">{{ currentUser.username }}</span>
+  <button type="button" class="bt-btn bt-btn-ghost" [disabled]="signingOut" (click)="signOut()">
+    {{ signingOut ? 'Signing out…' : 'Sign out' }}
+  </button>
+</div>
+}
 <router-outlet />
