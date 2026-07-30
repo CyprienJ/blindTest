@@ -1,5 +1,22 @@
 # Media Operations Runbook
 
+## Import resource limits
+
+The backend image runs as the unprivileged `blindtest` user and contains pinned,
+build-smoke-tested `yt-dlp` and FFmpeg binaries. Each import is constrained by:
+
+- `APP_IMPORT_TIMEOUT` (10 minutes by default);
+- `APP_IMPORT_MAX_SIZE_BYTES` (25 MiB by default), enforced by both the command
+  and live temporary-workspace monitoring;
+- a single FFmpeg worker thread;
+- `BACKEND_CPU_LIMIT` (1.0 CPU by default) on the Compose backend service.
+
+When an import exceeds its time or size limit, the application terminates the
+process and its descendants, removes the per-job temporary directory, and marks
+the job `FAILED`. Check the job error and backend logs by job UUID. Raise a limit
+only after confirming the source is legitimate and the host has sufficient CPU
+and temporary storage; retrying the failed job remains safe.
+
 ## Deletion queue
 
 Track deletion and media replacement add the obsolete object key to

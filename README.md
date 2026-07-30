@@ -14,6 +14,8 @@ gameplay and social features are still planned.
 - Public published-track and playlist APIs.
 - Administrator track review, YouTube import jobs, import progress over STOMP, and
   playlist management APIs.
+- A non-root backend runtime with pinned `yt-dlp` and FFmpeg, plus wall-clock,
+  temporary-file-size, FFmpeg thread, and container CPU limits for imports.
 - Deterministic backend adapters that exercise registration and audio import
   without Resend, Cloudflare, YouTube, `yt-dlp`, or FFmpeg.
 - A provider-neutral private-media storage API with a typed MinIO SDK adapter and
@@ -85,9 +87,10 @@ docker compose down
 Flyway migrations run automatically when the backend starts. Migration files are
 under `backend/src/main/resources/db/migration/`.
 
-The current backend runtime image does not yet contain `yt-dlp` or FFmpeg, so
-YouTube imports do not work inside that container even though the import API is
-implemented.
+The backend image pins and smoke-tests `yt-dlp` and FFmpeg. Imports default to a
+10-minute wall-clock limit, a 25 MiB temporary-file limit, one FFmpeg worker
+thread, and a 1.0-CPU container quota. Configure these with `APP_IMPORT_TIMEOUT`,
+`APP_IMPORT_MAX_SIZE_BYTES`, and `BACKEND_CPU_LIMIT`.
 
 ## Run services on the host
 

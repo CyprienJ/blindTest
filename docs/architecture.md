@@ -125,9 +125,11 @@ The private-media port, MinIO SDK adapter and deployment, database object-key
 schema, and import-pipeline integration are delivered. Legacy media can still use
 the Docker volume and `/media` URLs during migration.
 
-The import pipeline invokes `yt-dlp`, but the current backend runtime image does
-not install `yt-dlp` or FFmpeg. Consequently, imports fail in that container until
-the runtime dependency ticket is completed.
+The non-root backend runtime image installs pinned `yt-dlp` and FFmpeg versions
+and verifies both binaries while building. Import execution applies a configurable
+wall-clock deadline and temporary-file-size ceiling, limits FFmpeg to one worker
+thread, and inherits the backend container CPU quota. A timeout or oversized
+workspace terminates the process tree and marks the import failed.
 
 Full-stack adapter tests import
 `DeterministicTestAdaptersConfig`. Production continues to use `EmailService`,

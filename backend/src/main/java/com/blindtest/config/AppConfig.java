@@ -22,7 +22,7 @@ public class AppConfig {
     /** Factory that delegates to {@link ProcessBuilder} for real process creation. */
     @Bean
     public ProcessFactory processFactory() {
-        return command -> new ProcessBuilder(command).start();
+        return command -> new ProcessBuilder(command).redirectErrorStream(true).start();
     }
 
     /** UTC wall clock used by authentication expiry calculations. */

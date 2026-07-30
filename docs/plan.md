@@ -10,12 +10,13 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[MEDIA-07 — Install runtime import dependencies](#media-07--install-runtime-import-dependencies)**
+**[MEDIA-09 — Add MinIO integration tests](#media-09--add-minio-integration-tests)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. MEDIA-06 is complete, so MEDIA-07 is the next
-ready ticket in the recommended execution sequence.
+FND-05 remains blocked by DG-04. MEDIA-07 is complete, so MEDIA-09 is the next
+ready ticket in the recommended execution sequence. MEDIA-08 remains deferred
+until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -707,6 +708,8 @@ Acceptance:
 - operators can identify DB/object inconsistencies.
 
 #### MEDIA-07 — Install runtime import dependencies
+
+Status: completed on 2026-07-30.
 
 Work:
 

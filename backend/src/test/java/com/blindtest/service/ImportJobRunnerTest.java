@@ -2,6 +2,7 @@ package com.blindtest.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -31,8 +32,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -82,7 +85,7 @@ class ImportJobRunnerTest {
                 ytDlpWrapper,
                 messagingTemplate,
                 mediaStorage,
-                new ImportProperties(tempRoot, 8),
+                new ImportProperties(tempRoot, 8, Duration.ofMinutes(1)),
                 trackMediaService);
         when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(trackRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -206,7 +209,7 @@ class ImportJobRunnerTest {
                 ytDlpWrapper,
                 messagingTemplate,
                 mediaStorage,
-                new ImportProperties(tempRoot, maxSize),
+                new ImportProperties(tempRoot, maxSize, Duration.ofMinutes(1)),
                 trackMediaService);
         arrangeProcess(content, 0);
 
@@ -229,6 +232,41 @@ class ImportJobRunnerTest {
         assertTemporaryRootIsEmpty();
     }
 
+    @Test
+    void timedOutProcessIsTerminatedAndJobFails() throws Exception {
+        TestJob testJob = arrangeJob();
+        runner = new ImportJobRunner(
+                jobRepository,
+                ytDlpWrapper,
+                messagingTemplate,
+                mediaStorage,
+                new ImportProperties(tempRoot, 8, Duration.ofMillis(1)),
+                trackMediaService);
+        Process process = arrangeRunningProcess(new byte[0]);
+
+        runner.execute(testJob.jobId());
+
+        assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.FAILED);
+        assertThat(testJob.job().getErrorMessage()).contains("timeout");
+        verify(process).destroy();
+        verify(mediaStorage, never()).store(any(), any(), any());
+        assertTemporaryRootIsEmpty();
+    }
+
+    @Test
+    void growingImportBeyondLimitIsTerminatedBeforeProcessCompletes() throws Exception {
+        TestJob testJob = arrangeJob();
+        Process process = arrangeRunningProcess(new byte[9]);
+
+        runner.execute(testJob.jobId());
+
+        assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.FAILED);
+        assertThat(testJob.job().getErrorMessage()).contains("maximum size");
+        verify(process).destroy();
+        verify(mediaStorage, never()).store(any(), any(), any());
+        assertTemporaryRootIsEmpty();
+    }
+
     private TestJob arrangeJob() {
         UUID jobId = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
@@ -246,9 +284,25 @@ class ImportJobRunnerTest {
             String output = "50.0%\n100.0%\n";
             when(process.getInputStream()).thenReturn(
                     new ByteArrayInputStream(output.getBytes(StandardCharsets.UTF_8)));
-            when(process.waitFor()).thenReturn(exitCode);
+            when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);
+            when(process.exitValue()).thenReturn(exitCode);
             return process;
         });
+    }
+
+    private Process arrangeRunningProcess(byte[] content) throws Exception {
+        Process process = mock(Process.class);
+        when(process.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        when(process.waitFor(anyLong(), any(TimeUnit.class))).thenAnswer(invocation ->
+                invocation.getArgument(1) == TimeUnit.SECONDS);
+        when(ytDlpWrapper.start(any(), any())).thenAnswer(invocation -> {
+            Path outputTemplate = invocation.getArgument(1);
+            if (content.length > 0) {
+                Files.write(Path.of(outputTemplate + ".part"), content);
+            }
+            return process;
+        });
+        return process;
     }
 
     private void arrangeSuccessfulStorage() {

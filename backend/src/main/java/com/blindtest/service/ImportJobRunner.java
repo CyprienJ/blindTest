@@ -22,6 +22,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +44,8 @@ public class ImportJobRunner {
     private static final Pattern PROGRESS_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)%");
     private static final String IMPORT_QUEUE_PREFIX = "/queue/import/";
     private static final String AUDIO_CONTENT_TYPE = "audio/mpeg";
+    private static final long PROCESS_POLL_MILLIS = 250;
+    private static final long TERMINATION_GRACE_SECONDS = 2;
 
     private final TrackImportJobRepository jobRepository;
     private final YtDlpWrapper ytDlpWrapper;
@@ -62,9 +70,7 @@ public class ImportJobRunner {
             temporaryDirectory = createTemporaryDirectory(jobId);
             Path outputTemplate = temporaryDirectory.resolve("audio");
             Process process = ytDlpWrapper.start(job.getYoutubeUrl(), outputTemplate);
-            parseOutputLines(job, process.getInputStream(), adminId);
-
-            int exitCode = process.waitFor();
+            int exitCode = awaitProcess(job, process, temporaryDirectory, adminId);
             if (exitCode != 0) {
                 throw new RuntimeException("yt-dlp failed with exit code " + exitCode);
             }
@@ -100,6 +106,85 @@ public class ImportJobRunner {
                     new WsImportFailedEvent(jobId, msg));
         } finally {
             deleteTemporaryDirectoryQuietly(temporaryDirectory, jobId);
+        }
+    }
+
+    private int awaitProcess(TrackImportJobEntity job, Process process, Path temporaryDirectory, UUID adminId)
+            throws IOException, InterruptedException, ExecutionException {
+        long deadline = System.nanoTime() + importProperties.timeout().toNanos();
+        LinkedBlockingQueue<String> outputLines = new LinkedBlockingQueue<>();
+        try (ExecutorService outputReader = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<?> outputTask = outputReader.submit(
+                    () -> readOutputLinesUnchecked(process.getInputStream(), outputLines));
+            try {
+                while (true) {
+                    applyOutputLines(job, outputLines, adminId);
+                    long remainingNanos = deadline - System.nanoTime();
+                    if (remainingNanos <= 0) {
+                        terminateProcess(process);
+                        throw new IllegalStateException("yt-dlp exceeded the configured import timeout");
+                    }
+                    long waitMillis = Math.min(PROCESS_POLL_MILLIS,
+                            Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNanos)));
+                    if (process.waitFor(waitMillis, TimeUnit.MILLISECONDS)) {
+                        outputTask.get();
+                        applyOutputLines(job, outputLines, adminId);
+                        return process.exitValue();
+                    }
+                    if (temporaryDirectorySize(temporaryDirectory) > importProperties.maxSizeBytes()) {
+                        terminateProcess(process);
+                        throw new IllegalArgumentException("Imported audio exceeds the configured maximum size");
+                    }
+                }
+            } finally {
+                outputTask.cancel(true);
+                if (process.isAlive()) {
+                    terminateProcess(process);
+                }
+            }
+        }
+    }
+
+    private void readOutputLinesUnchecked(InputStream inputStream, LinkedBlockingQueue<String> outputLines) {
+        try {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    outputLines.add(line);
+                }
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not read yt-dlp output", exception);
+        }
+    }
+
+    private void applyOutputLines(
+            TrackImportJobEntity job, LinkedBlockingQueue<String> outputLines, UUID adminId) {
+        String line;
+        while ((line = outputLines.poll()) != null) {
+            updateProgress(job, line, adminId);
+        }
+    }
+
+    private long temporaryDirectorySize(Path directory) throws IOException {
+        try (var paths = Files.walk(directory)) {
+            long total = 0;
+            for (Path path : paths.filter(Files::isRegularFile).toList()) {
+                total = Math.addExact(total, Files.size(path));
+                if (total > importProperties.maxSizeBytes()) {
+                    return total;
+                }
+            }
+            return total;
+        }
+    }
+
+    private void terminateProcess(Process process) throws InterruptedException {
+        process.descendants().forEach(ProcessHandle::destroy);
+        process.destroy();
+        if (!process.waitFor(TERMINATION_GRACE_SECONDS, TimeUnit.SECONDS)) {
+            process.descendants().forEach(ProcessHandle::destroyForcibly);
+            process.destroyForcibly();
         }
     }
 
@@ -175,16 +260,6 @@ public class ImportJobRunner {
             deleteTemporaryDirectory(directory);
         } catch (IOException | RuntimeException exception) {
             log.warn("Could not fully clean temporary files for import job {}", jobId);
-        }
-    }
-
-    private void parseOutputLines(TrackImportJobEntity job, InputStream inputStream, UUID adminId)
-            throws IOException {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                updateProgress(job, line, adminId);
-            }
         }
     }
 

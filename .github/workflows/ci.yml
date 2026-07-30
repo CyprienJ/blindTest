@@ -31,6 +31,10 @@ jobs:
         working-directory: backend
         run: mvn --batch-mode test
 
+      - name: Build and smoke-test runtime import dependencies
+        working-directory: backend
+        run: docker build --target runtime-dependencies --tag blindtest-backend-runtime-smoke .
+
       - name: Finalize coverage report
         if: ${{ always() && hashFiles('backend/target/jacoco.exec') != '' }}
         working-directory: backend

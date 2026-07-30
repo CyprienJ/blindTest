@@ -83,6 +83,9 @@ Last reviewed: 2026-07-30.
 - Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
   per-user STOMP progress messages, MP3 validation, checksum generation, and
   finalized upload to private object storage.
+- The non-root backend runtime installs pinned, build-smoke-tested `yt-dlp` and
+  FFmpeg versions; imports enforce time, temporary-file-size, FFmpeg-thread, and
+  container CPU limits and terminate unsafe processes.
 - Injectable email, Turnstile, import-process, scheduling, clock, and opaque-token
   boundaries with deterministic test adapters.
 - Admin playlist CRUD and ordered track membership.
@@ -216,7 +219,8 @@ Copy `.env.example` to `.env` and replace every placeholder. The main variables 
 - `APP_BASE_URL` and `APP_PORT`;
 - `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`,
   `S3_ACCESS_KEY`, and `S3_SECRET_KEY`;
-- optional `APP_IMPORT_TEMP_DIR` and `APP_IMPORT_MAX_SIZE_BYTES`;
+- optional `APP_IMPORT_TEMP_DIR`, `APP_IMPORT_MAX_SIZE_BYTES`,
+  `APP_IMPORT_TIMEOUT`, and `BACKEND_CPU_LIMIT`;
 - optional `MEDIA_DELETION_POLL_DELAY_MS`;
 - optional `MINIO_API_PORT` and `MINIO_CONSOLE_PORT`;
 - optional image overrides used by deployment.
@@ -271,7 +275,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 160 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 162 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 26 passing Playwright authentication/smoke tests;
@@ -307,21 +311,18 @@ Address these before considering the application production-ready:
 
 1. `frontend/src/environments/environment.prod.ts` still uses the documented
    Turnstile test site key. Production anti-bot protection is therefore not ready.
-2. The backend runtime Docker image does not install `yt-dlp` or FFmpeg, although
-   the import pipeline executes `yt-dlp`. Imports will fail in that container until
-   the runtime dependencies are installed and verified.
-3. The beta deployment workflow runs independently from the CI workflow. A push to
+2. The beta deployment workflow runs independently from the CI workflow. A push to
    `main` can deploy without waiting for Checkstyle/tests/lint to pass.
-4. `docs/swagger.yaml` represents a mixture of intended and delivered endpoints.
+3. `docs/swagger.yaml` represents a mixture of intended and delivered endpoints.
    It omits some implemented operations and includes many unimplemented product
    endpoints. Verify contracts against controllers before using it to generate
    clients.
-5. Frontend coverage is effectively absent: only the root app creation test exists.
-6. The committed production frontend build fetches Google Fonts during compilation,
+4. Frontend coverage is effectively absent: only the root app creation test exists.
+5. The committed production frontend build fetches Google Fonts during compilation,
    making builds depend on external network availability.
-7. Access tokens are stored in `localStorage`; account for XSS exposure in the
+6. Access tokens are stored in `localStorage`; account for XSS exposure in the
    frontend security model.
-8. Password-reset JWTs are not persisted as one-time tokens, so a token can be
+7. Password-reset JWTs are not persisted as one-time tokens, so a token can be
    replayed until it expires.
 
 ## Delivery and Deployment

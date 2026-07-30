@@ -29,6 +29,7 @@ class ConfigurationPropertiesValidationTest {
                     "app.media-dir=/media",
                     "app.import.temp-dir=/tmp/blindtest-imports",
                     "app.import.max-size-bytes=26214400",
+                    "app.import.timeout=10m",
                     "app.s3.endpoint=http://minio:9000",
                     "app.s3.public-endpoint=https://media.example.test",
                     "app.s3.region=us-east-1",
@@ -68,11 +69,15 @@ class ConfigurationPropertiesValidationTest {
             ImportProperties properties = context.getBean(ImportProperties.class);
             assertThat(properties.tempDir().toString()).isEqualTo("/tmp/blindtest-imports");
             assertThat(properties.maxSizeBytes()).isEqualTo(26_214_400L);
+            assertThat(properties.timeout()).isEqualTo(Duration.ofMinutes(10));
         });
 
         contextRunner.withPropertyValues(
                 "jwt.secret=01234567890123456789012345678901",
                 "app.import.max-size-bytes=0").run(context -> assertThat(context).hasFailed());
+        contextRunner.withPropertyValues(
+                "jwt.secret=01234567890123456789012345678901",
+                "app.import.timeout=0s").run(context -> assertThat(context).hasFailed());
     }
 
     @Configuration(proxyBeanMethods = false)
