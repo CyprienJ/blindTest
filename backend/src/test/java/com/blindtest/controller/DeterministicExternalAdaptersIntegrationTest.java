@@ -108,7 +108,8 @@ class DeterministicExternalAdaptersIntegrationTest {
                                   "username": "listener",
                                   "email": "listener@example.com",
                                   "password": "password123",
-                                  "turnstileToken": "accepted-test-token"
+                                  "turnstileToken": "accepted-test-token",
+                                  "role": "ADMIN"
                                 }
                                 """)).
                 andExpect(status().isCreated()).
@@ -117,6 +118,7 @@ class DeterministicExternalAdaptersIntegrationTest {
 
         UserEntity saved = userRepository.findByEmail("listener@example.com").orElseThrow();
         assertThat(saved.isEmailVerified()).isFalse();
+        assertThat(saved.getRole()).isEqualTo(UserRole.USER);
         assertThat(emailSender.messages()).hasSize(1);
         FakeEmailSender.SentEmail email = emailSender.messages().getFirst();
         assertThat(email.type()).isEqualTo(EmailType.VERIFICATION);

@@ -75,8 +75,14 @@ remains temporarily for legacy tracks during the migration window.
   SDK with typed internal endpoint, public endpoint, region, bucket, credentials,
   and URL lifetime settings; tests can replace it with an in-memory adapter.
 - PostgreSQL entities and Flyway migrations for users, refresh tokens, tracks,
-  playlists, playlist membership, and import jobs.
+  playlists, playlist membership, import jobs, and safe first-administrator
+  provisioning audit records.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
+- A non-web operator command promotes one existing verified account when no
+  administrator exists. Pessimistic database locking makes concurrent attempts
+  safe; repeated promotion of the sole administrator is idempotent. Normal
+  registration always creates a `USER`. The production procedure is documented
+  in [`admin-provisioning.md`](admin-provisioning.md).
 
 The delivered REST surface is limited to `/api/auth/**`, `/api/tracks`,
 `/api/playlists/**`, `/api/admin/tracks/**`,

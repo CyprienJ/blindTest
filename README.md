@@ -11,6 +11,8 @@ gameplay and social features are still planned.
 
 - Account registration, email verification, login, token refresh, logout, and
   password reset.
+- Interactive, concurrency-safe provisioning of the first administrator from an
+  existing verified account.
 - Public published-track and playlist APIs.
 - Administrator track review, YouTube import jobs, import progress over STOMP, and
   playlist management APIs.
@@ -25,7 +27,7 @@ gameplay and social features are still planned.
 - A pinned local MinIO service with persistent storage, automatic private-bucket
   initialization, application-origin CORS, and localhost-only API and console ports.
 - Angular authentication pages and client-side authentication infrastructure.
-- PostgreSQL persistence with Flyway migrations V1 through V10.
+- PostgreSQL persistence with Flyway migrations V1 through V12.
 - A Docker Compose stack containing PostgreSQL, MinIO, the Spring Boot backend,
   and the Nginx-served Angular frontend.
 
@@ -88,6 +90,11 @@ docker compose down
 
 Flyway migrations run automatically when the backend starts. Migration files are
 under `backend/src/main/resources/db/migration/`.
+
+After registering and verifying the first administrator account, follow the
+operator procedure in
+[`docs/admin-provisioning.md`](docs/admin-provisioning.md). It uses a one-shot
+backend command and does not require a manual role update in PostgreSQL.
 
 The backend image pins and smoke-tests `yt-dlp` and FFmpeg. Imports default to a
 10-minute wall-clock limit, a 25 MiB temporary-file limit, one FFmpeg worker

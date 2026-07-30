@@ -124,10 +124,13 @@ Last reviewed: 2026-07-30.
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
   profiles and fail-fast production validation for secrets and endpoints.
-- Flyway migrations V1 through V11 for users, refresh tokens, tracks, playlists,
+- Interactive first-administrator provisioning promotes one verified account only
+  when no administrator exists, with concurrency-safe locking, idempotent replay,
+  and safe persistent outcome auditing.
+- Flyway migrations V1 through V12 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
   metadata, the media-deletion outbox, extended track metadata, active-import
-  deduplication, and import workflow timestamps.
+  deduplication, import workflow timestamps, and administrator-provisioning audit.
 
 The backend currently has controllers for:
 
@@ -290,7 +293,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 199 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 211 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 27 passing Playwright authentication/media/smoke tests;

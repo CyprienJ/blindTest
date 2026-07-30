@@ -3,6 +3,7 @@ package com.blindtest.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.blindtest.model.entity.AdminProvisioningOutcome;
 import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.PlaylistEntity;
 import com.blindtest.model.entity.PlaylistTrackEntity;
@@ -12,9 +13,16 @@ import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.entity.UserRole;
+import com.blindtest.service.FirstAdminProvisioningResult;
+import com.blindtest.service.FirstAdminProvisioningService;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
@@ -22,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -37,6 +46,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
+@Import(FirstAdminProvisioningService.class)
 class PostgresqlSchemaIntegrationTest {
 
     private static final String LEGACY_SCHEMA = "media03_existing_schema";
@@ -67,6 +77,10 @@ class PostgresqlSchemaIntegrationTest {
     private TrackImportJobRepository importJobRepository;
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
+    @Autowired
+    private AdminProvisioningAuditRepository adminProvisioningAuditRepository;
+    @Autowired
+    private FirstAdminProvisioningService firstAdminProvisioningService;
 
     @Test
     void flywayMigratesEmptyDatabaseAndHibernateValidatesMappings() {
@@ -74,7 +88,8 @@ class PostgresqlSchemaIntegrationTest {
                 "SELECT installed_rank FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 Integer.class);
 
-        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+        assertThat(installedRanks).containsExactly(
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
     }
 
     @Test
@@ -110,7 +125,8 @@ class PostgresqlSchemaIntegrationTest {
         assertThat(jdbcTemplate.queryForList("""
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
-                """, Integer.class)).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+                """, Integer.class)).containsExactly(
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
     }
 
     @Test
@@ -155,6 +171,47 @@ class PostgresqlSchemaIntegrationTest {
                 """, admin.getId())).
                 isInstanceOf(DataIntegrityViolationException.class).
                 hasMessageContaining("chk_track_import_jobs_status");
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void concurrentProvisioningCreatesExactlyOneAdministrator() throws Exception {
+        UserEntity first = userRepository.saveAndFlush(buildVerifiedUser("provision-first"));
+        UserEntity second = userRepository.saveAndFlush(buildVerifiedUser("provision-second"));
+        var executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<FirstAdminProvisioningResult>> futures = new ArrayList<>();
+            for (String email : List.of(first.getEmail(), second.getEmail())) {
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    start.await();
+                    return firstAdminProvisioningService.provision(email);
+                }));
+            }
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            List<AdminProvisioningOutcome> outcomes = new ArrayList<>();
+            for (Future<FirstAdminProvisioningResult> future : futures) {
+                outcomes.add(future.get(10, TimeUnit.SECONDS).outcome());
+            }
+
+            assertThat(outcomes).containsExactlyInAnyOrder(
+                    AdminProvisioningOutcome.PROMOTED,
+                    AdminProvisioningOutcome.ADMIN_ALREADY_EXISTS);
+            assertThat(userRepository.findByRole(UserRole.ADMIN)).hasSize(1);
+            assertThat(adminProvisioningAuditRepository.findAll()).
+                    extracting(audit -> audit.getOutcome()).
+                    containsExactlyInAnyOrder(
+                            AdminProvisioningOutcome.PROMOTED,
+                            AdminProvisioningOutcome.ADMIN_ALREADY_EXISTS);
+        } finally {
+            executor.shutdownNow();
+            adminProvisioningAuditRepository.deleteAll();
+            userRepository.deleteAllById(List.of(first.getId(), second.getId()));
+        }
     }
 
     @Test
@@ -286,6 +343,15 @@ class PostgresqlSchemaIntegrationTest {
         user.setEmail(username + "@example.com");
         user.setPasswordHash("hash");
         user.setRole(UserRole.ADMIN);
+        return user;
+    }
+
+    private UserEntity buildVerifiedUser(String username) {
+        UserEntity user = new UserEntity();
+        user.setUsername(username);
+        user.setEmail(username + "@example.com");
+        user.setPasswordHash("hash");
+        user.setEmailVerified(true);
         return user;
     }
 
