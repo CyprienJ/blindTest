@@ -137,6 +137,10 @@ Full-stack adapter tests import
 system clock, UUID-backed opaque refresh tokens, and `MinioMediaStorage`. The
 MinIO adapter keeps SDK types below the service port and uses separate clients for
 private storage operations and browser-accessible URL signing.
+Testcontainers exercises that adapter against the pinned MinIO API for upload,
+existence, recursive listing, pre-signing, HTTP byte-range reads, retry-safe
+overwrite/deletion, and unavailable-storage translation. Playwright independently
+verifies that Chromium can seek through a range-capable audio response.
 Administrators request previews through
 `GET /api/admin/tracks/{trackId}/preview-url`; the application verifies a pending
 track, a completed import, finalized media metadata, and object existence before

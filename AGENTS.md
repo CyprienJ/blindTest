@@ -98,6 +98,9 @@ Last reviewed: 2026-07-30.
   upload, existence checks, pre-signed GET URLs, and deletion, plus an in-memory
   test adapter. Imports use content-addressed object keys and confirm uploads
   before completion.
+- Testcontainers coverage validates put, existence, listing, pre-signing, byte-range
+  GET, idempotent retries, deletion, and unavailable-storage translation against a
+  real pinned MinIO API.
 - Local Docker Compose runs pinned MinIO and `mc` images, persists `minio_data`,
   creates a private `blindtest-media` bucket automatically, and restricts API CORS
   to the configured application origin.
@@ -151,7 +154,8 @@ The WebSocket infrastructure exists only for authentication and import progress.
   server-side logout.
 - Shared global styling based on the target visual design.
 - Playwright Chromium authentication coverage with mocked API and Turnstile
-  behavior, blocked third-party traffic, and CI failure artifacts.
+  behavior, blocked third-party traffic, browser audio range/seek coverage, and CI
+  failure artifacts.
 
 ### Frontend placeholders
 
@@ -275,10 +279,10 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 162 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 166 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
-  and 26 passing Playwright authentication/smoke tests;
+  and 27 passing Playwright authentication/media/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.
 

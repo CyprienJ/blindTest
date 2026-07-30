@@ -41,3 +41,24 @@ JaCoCo instead enforces regression floors on critical packages during the Maven
 When new critical domain packages are delivered, add package-specific floors
 based on meaningful behavior tests. Raise an existing floor when tests establish
 a durable higher baseline; do not lower one to make an unrelated change pass.
+
+## Real MinIO integration
+
+`MinioMediaStorageIntegrationTest` starts the same pinned MinIO image used by
+Docker Compose and validates the provider-neutral adapter against its real API.
+The suite covers upload, existence, recursive listing, pre-signed GET URLs, HTTP
+byte ranges, idempotent overwrite/deletion retries, and unavailable-storage error
+translation. It runs as part of the normal Maven `test` phase and therefore
+requires a Docker-compatible container runtime.
+
+## Browser media seek
+
+`frontend/e2e/media-playback.spec.ts` serves a deterministic range-capable WAV
+fixture to Chromium. It verifies media duration, changes `currentTime`, and
+asserts that the browser requests a nonzero byte range. Run it with the complete
+Playwright suite:
+
+```bash
+cd frontend
+npm run test:e2e
+```

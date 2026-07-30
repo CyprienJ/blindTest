@@ -20,6 +20,8 @@ gameplay and social features are still planned.
   without Resend, Cloudflare, YouTube, `yt-dlp`, or FFmpeg.
 - A provider-neutral private-media storage API with a typed MinIO SDK adapter and
   an in-memory test implementation.
+- Real-MinIO integration coverage for storage lifecycle, signed byte-range reads,
+  retry safety, and unavailable storage, plus a Chromium audio-seek smoke test.
 - A pinned local MinIO service with persistent storage, automatic private-bucket
   initialization, application-origin CORS, and localhost-only API and console ports.
 - Angular authentication pages and client-side authentication infrastructure.

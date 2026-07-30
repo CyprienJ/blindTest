@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[MEDIA-09 — Add MinIO integration tests](#media-09--add-minio-integration-tests)**
+**[CAT-01 — Extend the track data model](#cat-01--extend-the-track-data-model)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. MEDIA-07 is complete, so MEDIA-09 is the next
+FND-05 remains blocked by DG-04. MEDIA-09 is complete, so CAT-01 is the next
 ready ticket in the recommended execution sequence. MEDIA-08 remains deferred
 until real legacy files require migration.
 
@@ -740,6 +740,8 @@ Acceptance:
 - rollback remains possible during the observation window.
 
 #### MEDIA-09 — Add MinIO integration tests
+
+Status: completed on 2026-07-30.
 
 Work:
 
