@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[MEDIA-02 — Add MinIO to local Docker Compose](#media-02--add-minio-to-local-docker-compose)**
+**[MEDIA-03 — Add object-key schema migration](#media-03--add-object-key-schema-migration)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. MEDIA-01 is complete, so MEDIA-02 is the next
+FND-05 remains blocked by DG-04. MEDIA-02 is complete, so MEDIA-03 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -614,6 +614,8 @@ Acceptance:
   layer.
 
 #### MEDIA-02 — Add MinIO to local Docker Compose
+
+Status: completed on 2026-07-30.
 
 Work:
 

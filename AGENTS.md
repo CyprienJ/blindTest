@@ -91,6 +91,9 @@ Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
 - A provider-neutral media-storage port with a typed MinIO Java SDK adapter for
   upload, existence checks, pre-signed GET URLs, and deletion, plus an in-memory
   test adapter. The import pipeline does not use it yet.
+- Local Docker Compose runs pinned MinIO and `mc` images, persists `minio_data`,
+  creates a private `blindtest-media` bucket automatically, and restricts API CORS
+  to the configured application origin.
 - A common safe REST error contract with stable codes and request IDs propagated
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
@@ -199,6 +202,9 @@ Copy `.env.example` to `.env` and replace every placeholder. The main variables 
 - `RESEND_API_KEY`;
 - `CLOUDFLARE_TURNSTILE_SECRET_KEY`;
 - `APP_BASE_URL` and `APP_PORT`;
+- `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`,
+  `S3_ACCESS_KEY`, and `S3_SECRET_KEY`;
+- optional `MINIO_API_PORT` and `MINIO_CONSOLE_PORT`;
 - optional image overrides used by deployment.
 
 Run the full container stack from the repository root:
@@ -314,7 +320,7 @@ Address these before considering the application production-ready:
   images.
 - Nginx serves the Angular SPA and `/media`, and proxies `/api` and `/ws` to the
   backend.
-- PostgreSQL and media use named Docker volumes.
+- PostgreSQL, MinIO, and legacy media use named Docker volumes.
 
 When updating this file, keep the implementation snapshot factual and concise.
 Move features from “not implemented” to “implemented” only after their code and

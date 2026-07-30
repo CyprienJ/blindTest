@@ -18,18 +18,19 @@ gameplay and social features are still planned.
   without Resend, Cloudflare, YouTube, `yt-dlp`, or FFmpeg.
 - A provider-neutral private-media storage API with a typed MinIO SDK adapter and
   an in-memory test implementation.
+- A pinned local MinIO service with persistent storage, automatic private-bucket
+  initialization, application-origin CORS, and localhost-only API and console ports.
 - Angular authentication pages and client-side authentication infrastructure.
 - PostgreSQL persistence with Flyway migrations V1 through V6.
-- A Docker Compose stack containing PostgreSQL, the Spring Boot backend, and the
-  Nginx-served Angular frontend.
+- A Docker Compose stack containing PostgreSQL, MinIO, the Spring Boot backend,
+  and the Nginx-served Angular frontend.
 
 ### Planned for the first production release
 
 - A server-authoritative solo game with playlist and round configuration, answer
   matching, scoring, skip, timeout, reveal, and an end-of-game summary.
 - Persistence of completed games.
-- MinIO deployment and migration of imported audio to private S3-compatible
-  storage.
+- Migration of imported audio to private S3-compatible storage.
 - Production hardening, broader automated tests, and complete operational checks.
 
 ### Deferred until after the first production release
@@ -66,6 +67,8 @@ The stack starts:
 | Service | Purpose | Host access |
 |---|---|---|
 | `postgres` | PostgreSQL 16 | Internal Compose network only |
+| `minio` | Private S3-compatible object storage | API `127.0.0.1:${MINIO_API_PORT}`; console `127.0.0.1:${MINIO_CONSOLE_PORT}` |
+| `minio-init` | One-shot private bucket initializer | None |
 | `backend` | Spring Boot API and WebSocket endpoint | Through the frontend proxy |
 | `frontend` | Angular SPA, Nginx reverse proxy, and `/media` serving | `http://localhost:${APP_PORT}` (default `8090`) |
 
@@ -76,8 +79,8 @@ docker compose logs -f backend
 docker compose down
 ```
 
-`docker compose down` preserves the `postgres_data` and `media` volumes. Adding
-`--volumes` deletes both volumes and their data.
+`docker compose down` preserves the `postgres_data`, `minio_data`, and legacy
+`media` volumes. Adding `--volumes` deletes all three volumes and their data.
 
 Flyway migrations run automatically when the backend starts. Migration files are
 under `backend/src/main/resources/db/migration/`.

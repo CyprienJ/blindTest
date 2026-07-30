@@ -41,12 +41,16 @@ The repository is a modular monorepo:
 Browser
   └── Nginx / Angular SPA (`frontend`)
         ├── /api and /ws ──> Spring Boot (`backend`)
-        │                     └── JPA / Flyway ──> PostgreSQL
+        │                     ├── JPA / Flyway ──> PostgreSQL
+        │                     └── MediaStorage ──> MinIO
         └── /media ─────────> shared Docker volume
 ```
 
-Docker Compose starts all three services. Only the frontend publishes a host port;
-Nginx proxies the API and WebSocket traffic to the backend on the internal network.
+Docker Compose starts PostgreSQL, MinIO, a one-shot MinIO initializer, the backend,
+and the frontend. The frontend, MinIO API, and MinIO console bind to localhost;
+PostgreSQL remains internal. The initializer creates the private media bucket and
+MinIO restricts API CORS to the configured application origin. The `/media` volume
+remains temporarily because the current import pipeline has not migrated yet.
 
 ### Delivered backend
 
