@@ -152,6 +152,34 @@ class AdminTrackControllerIntegrationTest {
     }
 
     @Test
+    void getAllTracksFiltersByStatusAndSearchesMetadata() throws Exception {
+        pendingTrack.setAlbum("Hidden Gem");
+        pendingTrack.setCategory("Cinema");
+        trackRepository.saveAndFlush(pendingTrack);
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("status", "PENDING").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalElements").value(1)).
+                andExpect(jsonPath("$.content[0].id").value(pendingTrack.getId().toString()));
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("search", "hidden").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalElements").value(1)).
+                andExpect(jsonPath("$.content[0].title").value("Pending Track"));
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("status", "PUBLISHED").
+                        param("search", "pending").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
     void getAllTracksIncludesMediaMetadataButNotObjectKey() throws Exception {
         pendingTrack.setAudioChecksum("a".repeat(64));
         pendingTrack.setAudioSizeBytes(1234L);

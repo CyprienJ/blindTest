@@ -5,6 +5,7 @@ import com.blindtest.model.dto.TrackAnswerAliasRequest;
 import com.blindtest.model.dto.TrackAnswerAliasResponse;
 import com.blindtest.model.dto.TrackAdminResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
+import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.service.AdminTrackService;
 import com.blindtest.service.TrackAnswerAliasService;
 import jakarta.validation.Valid;
@@ -36,8 +37,10 @@ public class AdminTrackController {
     @GetMapping
     public Page<TrackAdminResponse> getAllTracks(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return adminTrackService.getAllTracks(page, size);
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) TrackStatus status,
+            @RequestParam(required = false) String search) {
+        return adminTrackService.getAllTracks(page, size, status, search);
     }
 
     @GetMapping("/{id}/preview-url")

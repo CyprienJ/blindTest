@@ -10,14 +10,14 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-05 — Implement the admin track catalogue UI](#cat-05--implement-the-admin-track-catalogue-ui)**
+**[CAT-06 — Implement the admin import UI](#cat-06--implement-the-admin-import-ui)**
 
 Status: ready
 
-CAT-02 is complete, so CAT-05 is now the earliest ready unfinished ticket in the
-recommended execution sequence. CAT-06 follows the delivered alias-management
-and excerpt APIs. MEDIA-08 remains deferred until real legacy files require
-migration.
+CAT-05 is complete, so CAT-06 is now the earliest ready unfinished ticket in the
+recommended execution sequence. Its import, polling, preview, publication,
+alias-management, and excerpt APIs are delivered. MEDIA-08 remains deferred
+until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -852,6 +852,8 @@ Acceptance:
 - only `PUBLISHED` tracks appear in public playlists/catalogue.
 
 #### CAT-05 — Implement the admin track catalogue UI
+
+Status: completed on 2026-07-30.
 
 Work:
 

@@ -1068,6 +1068,90 @@ paths:
                   totalElements:
                     type: integer
 
+  /admin/tracks:
+    get:
+      tags: [Admin - Tracks]
+      summary: Search and paginate tracks across every publication status
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PUBLISHED, REJECTED]
+        - name: search
+          in: query
+          description: Case-insensitive title, artist, album, or category search.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Administrator catalogue page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrackAdmin'
+                  totalElements:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  number:
+                    type: integer
+                  size:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/tracks/{trackId}:
+    parameters:
+      - $ref: '#/components/parameters/TrackId'
+    put:
+      tags: [Admin - Tracks]
+      summary: Partially update administrator track metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTrackRequest'
+      responses:
+        '200':
+          description: Updated track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAdmin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Admin - Tracks]
+      summary: Delete a track and queue private media cleanup
+      responses:
+        '204':
+          description: Track deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /admin/tracks/{trackId}/preview-url:
     get:
       tags: [Admin - Tracks]

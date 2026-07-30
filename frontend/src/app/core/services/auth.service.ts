@@ -34,6 +34,10 @@ export class AuthService {
     return this.currentUserSubject.value !== null && this.getAccessToken() !== null;
   }
 
+  isAdmin(): boolean {
+    return this.isLoggedIn() && this.currentUserSubject.value?.role === 'ADMIN';
+  }
+
   login(email: string, password: string): Observable<LoginResponse> {
     return this.http
       .post<LoginResponse>(`${API_BASE}/auth/login`, { email, password })

@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,8 +51,29 @@ public class AdminTrackService {
 
     /** Returns all tracks across all statuses, paginated. */
     public Page<TrackAdminResponse> getAllTracks(int pageNum, int pageSize) {
+        return getAllTracks(pageNum, pageSize, null, null);
+    }
+
+    /** Returns tracks filtered by workflow status and a case-insensitive metadata search. */
+    public Page<TrackAdminResponse> getAllTracks(
+            int pageNum, int pageSize, TrackStatus status, String search) {
         Pageable pageable = PageRequest.of(pageNum, Math.min(pageSize, 100));
-        return trackRepository.findAll(pageable).map(TrackAdminResponse::from);
+        Specification<TrackEntity> specification = Specification.where(null);
+        if (status != null) {
+            specification = specification.and(
+                    (root, query, builder) -> builder.equal(root.get("status"), status));
+        }
+        if (search != null && !search.isBlank()) {
+            String pattern = "%"
+                    + escapeLike(search.strip().toLowerCase(Locale.ROOT))
+                    + "%";
+            specification = specification.and((root, query, builder) -> builder.or(
+                    builder.like(builder.lower(root.get("title")), pattern, '\\'),
+                    builder.like(builder.lower(root.get("artist")), pattern, '\\'),
+                    builder.like(builder.lower(root.get("album")), pattern, '\\'),
+                    builder.like(builder.lower(root.get("category")), pattern, '\\')));
+        }
+        return trackRepository.findAll(specification, pageable).map(TrackAdminResponse::from);
     }
 
     /** Creates a short-lived preview URL for a completed, unpublished import. */
@@ -177,6 +200,10 @@ public class AdminTrackService {
         if (!TrackPublicationPolicy.isComplete(track)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "TRACK_METADATA_INCOMPLETE");
         }
+    }
+
+    private String escapeLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private void deleteAudioFile(String audioUrl) {

@@ -78,6 +78,8 @@ Last reviewed: 2026-07-30.
   cookies scoped to `/api/auth`.
 - Public published-track catalogue and public playlists.
 - Admin track listing, update, delete, validate, and reject operations.
+- Administrator track listing supports paginated status filtering and
+  case-insensitive metadata search.
 - Admin-only short-lived preview URLs for completed unpublished imports, with
   lifecycle, finalized-metadata, and object-existence checks.
 - Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
@@ -171,6 +173,11 @@ The WebSocket infrastructure exists only for authentication and import progress.
 - Auth service, route guard, JWT interceptor, refresh flow, and local session state.
 - Authenticated sign-out control with local cleanup on both successful and failed
   server-side logout.
+- Administrator track catalogue matching the reference design, with server-side
+  search/status filters, pagination, metadata and alias editing, secure audio
+  preview, publication/rejection/deletion actions, confirmations, and complete
+  operation states.
+- Administrator-only frontend route enforcement for the administration area.
 - Shared global styling based on the target visual design.
 - Playwright Chromium authentication coverage with mocked API and Turnstile
   behavior, blocked third-party traffic, browser audio range/seek coverage, and CI
@@ -186,7 +193,7 @@ All non-auth feature components are currently scaffolds whose templates only ren
 - end screen;
 - profile and game history;
 - friends and friend requests;
-- admin track list/import, playlist editor, and user management;
+- admin track import, playlist editor, and user management;
 - notification toast.
 
 Do not treat the presence of routes or component files as feature completion.
@@ -298,10 +305,10 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 226 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 227 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
-- frontend: lint passes, production build passes, 1 passing scaffold unit test,
-  and 27 passing Playwright authentication/media/smoke tests;
+- frontend: lint passes, production build passes, 3 passing unit tests,
+  and 31 passing Playwright authentication/catalogue/media/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.
 
