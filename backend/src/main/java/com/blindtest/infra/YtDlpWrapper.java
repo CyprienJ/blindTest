@@ -25,6 +25,7 @@ public class YtDlpWrapper {
                 "-x", "--audio-format", "mp3", "--postprocessor-args", "ffmpeg:-threads 1",
                 "--output", outputTemplate.toString(),
                 "--newline",
+                "--",
                 youtubeUrl));
     }
 }

@@ -160,7 +160,7 @@ class DeterministicExternalAdaptersIntegrationTest {
                         contentType(MediaType.APPLICATION_JSON).
                         content("""
                                 {
-                                  "youtubeUrl": "https://youtube.example.test/watch?v=fixture",
+                                  "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                                   "title": "Fixture Song",
                                   "artist": "Fixture Artist"
                                 }

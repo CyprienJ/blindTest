@@ -65,13 +65,21 @@ entity TrackImportJob {
   * id : UUID <<PK>>
   --
   * youtube_url : VARCHAR
-  * status : ENUM(QUEUED, DOWNLOADING,\n         PROCESSING, DONE, FAILED)
+    youtube_video_id : VARCHAR(11)
+  * status : ENUM(QUEUED, DOWNLOADING,\n         PROCESSING, DONE, PUBLISHED,\n         REJECTED, FAILED)
     progress : INTEGER
     error_message : TEXT
   * admin_id : UUID <<FK>>
     track_id : UUID <<FK>>
   * created_at : TIMESTAMP
 }
+
+note right of TrackImportJob
+  youtube_video_id is canonical.
+  A partial unique index permits
+  only one QUEUED, DOWNLOADING,
+  or PROCESSING job per video.
+end note
 
 entity FriendRequest {
   * id : UUID <<PK>>

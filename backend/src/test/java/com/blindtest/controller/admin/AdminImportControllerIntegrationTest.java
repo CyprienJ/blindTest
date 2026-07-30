@@ -1,6 +1,8 @@
 package com.blindtest.controller.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,6 +40,9 @@ import org.springframework.test.web.servlet.MockMvc;
     "spring.flyway.enabled=false"
 })
 class AdminImportControllerIntegrationTest {
+
+    private static final String VIDEO_ID = "dQw4w9WgXcQ";
+    private static final String WATCH_URL = "https://www.youtube.com/watch?v=" + VIDEO_ID;
 
     @Autowired
     private MockMvc mockMvc;
@@ -83,7 +88,7 @@ class AdminImportControllerIntegrationTest {
 
     @Test
     void startImportRequiresAdminRole() throws Exception {
-        String body = "{\"youtubeUrl\":\"https://youtube.com/watch?v=test\","
+        String body = "{\"youtubeUrl\":\"" + WATCH_URL + "\","
                 + "\"title\":\"Song\",\"artist\":\"Artist\"}";
 
         mockMvc.perform(post("/api/admin/tracks/import").
@@ -101,7 +106,7 @@ class AdminImportControllerIntegrationTest {
 
     @Test
     void startImportReturns202WithJobId() throws Exception {
-        String body = "{\"youtubeUrl\":\"https://youtube.com/watch?v=test\","
+        String body = "{\"youtubeUrl\":\"" + WATCH_URL + "\","
                 + "\"title\":\"Song\",\"artist\":\"Artist\"}";
 
         mockMvc.perform(post("/api/admin/tracks/import").
@@ -116,7 +121,7 @@ class AdminImportControllerIntegrationTest {
     void startImportPersistsConsistentOptionalMetadata() throws Exception {
         String body = """
                 {
-                  "youtubeUrl": "https://youtube.com/watch?v=test",
+                  "youtubeUrl": "https://youtu.be/dQw4w9WgXcQ",
                   "title": "Film Title",
                   "artist": "Orchestra",
                   "album": "Soundtrack Album",
@@ -141,11 +146,15 @@ class AdminImportControllerIntegrationTest {
         assertThat(track.getComposer()).isEqualTo("Composer");
         assertThat(track.getWork()).isEqualTo("Main Theme");
         assertThat(track.getDurationSeconds()).isEqualTo(210);
+        var job = jobRepository.findAll().getFirst();
+        assertThat(job.getYoutubeVideoId()).isEqualTo(VIDEO_ID);
+        assertThat(job.getYoutubeUrl()).isEqualTo(WATCH_URL);
+        assertThat(track.getYoutubeUrl()).isEqualTo(WATCH_URL);
     }
 
     @Test
     void getJobStatusReturnsQueuedJob() throws Exception {
-        String body = "{\"youtubeUrl\":\"https://youtube.com/watch?v=test\","
+        String body = "{\"youtubeUrl\":\"" + WATCH_URL + "\","
                 + "\"title\":\"Song\",\"artist\":\"Artist\"}";
 
         String response = mockMvc.perform(post("/api/admin/tracks/import").
@@ -178,5 +187,70 @@ class AdminImportControllerIntegrationTest {
                         header(HttpHeaders.AUTHORIZATION, adminToken).
                         content("{}")).
                 andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void unsupportedUrlFailsBeforePersistenceOrProcessScheduling() throws Exception {
+        String body = """
+                {
+                  "youtubeUrl": "https://example.com/watch?v=dQw4w9WgXcQ",
+                  "title": "Song",
+                  "artist": "Artist"
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/tracks/import").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content(body)).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED")).
+                andExpect(jsonPath("$.fieldErrors.youtubeUrl").exists());
+
+        assertThat(jobRepository.count()).isZero();
+        assertThat(trackRepository.count()).isZero();
+        verify(importJobScheduler, never()).schedule(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void oversizedMetadataIsRejected() throws Exception {
+        String body = """
+                {
+                  "youtubeUrl": "%s",
+                  "title": "%s",
+                  "artist": "Artist"
+                }
+                """.formatted(WATCH_URL, "x".repeat(256));
+
+        mockMvc.perform(post("/api/admin/tracks/import").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content(body)).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED")).
+                andExpect(jsonPath("$.fieldErrors.title").exists());
+    }
+
+    @Test
+    void equivalentUrlCannotCreateDuplicateActiveImport() throws Exception {
+        String firstBody = "{\"youtubeUrl\":\"" + WATCH_URL + "\","
+                + "\"title\":\"Song\",\"artist\":\"Artist\"}";
+        String duplicateBody = "{\"youtubeUrl\":\"https://youtu.be/" + VIDEO_ID + "\","
+                + "\"title\":\"Duplicate\",\"artist\":\"Artist\"}";
+
+        mockMvc.perform(post("/api/admin/tracks/import").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content(firstBody)).
+                andExpect(status().isAccepted());
+        mockMvc.perform(post("/api/admin/tracks/import").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content(duplicateBody)).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("IMPORT_ALREADY_ACTIVE"));
+
+        assertThat(jobRepository.count()).isOne();
+        assertThat(trackRepository.count()).isOne();
     }
 }

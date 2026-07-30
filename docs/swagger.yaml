@@ -103,6 +103,7 @@ components:
             - USERNAME_TAKEN
             - CONFLICT
             - TRACK_METADATA_INCOMPLETE
+            - IMPORT_ALREADY_ACTIVE
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
         message:
@@ -494,31 +495,46 @@ components:
       properties:
         youtubeUrl:
           type: string
+          format: uri
+          maxLength: 500
+          description: |
+            HTTPS YouTube watch, youtu.be, or Shorts URL for one video. The
+            service canonicalizes accepted forms before persistence.
         title:
           type: string
+          maxLength: 255
           description: Canonical primary game answer; the film title for film-related tracks, otherwise the music title.
         artist:
           type: string
+          maxLength: 255
         album:
           type: string
+          maxLength: 255
           nullable: true
         composer:
           type: string
+          maxLength: 255
           nullable: true
         work:
           type: string
+          maxLength: 255
           nullable: true
         category:
           type: string
+          maxLength: 100
           nullable: true
         decade:
           type: integer
+          minimum: 1900
+          maximum: 2090
           nullable: true
         durationSeconds:
           type: integer
+          minimum: 1
           nullable: true
         imageUrl:
           type: string
+          maxLength: 500
           nullable: true
 
     ImportJobStatus:
@@ -540,6 +556,7 @@ components:
         errorMessage:
           type: string
           nullable: true
+          description: Stable sanitized failure text; provider output is never exposed.
         createdAt:
           type: string
           format: date-time
@@ -1038,6 +1055,14 @@ paths:
                 properties:
                   jobId:
                     $ref: '#/components/schemas/UUID'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /admin/media/reconciliation:
     get:

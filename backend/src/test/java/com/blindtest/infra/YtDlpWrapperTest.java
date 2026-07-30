@@ -24,7 +24,7 @@ class YtDlpWrapperTest {
 
         YtDlpWrapper wrapper = new YtDlpWrapper(
                 factory, new ImportProperties(Path.of("/tmp/imports"), 26_214_400, Duration.ofMinutes(10)));
-        String url = "https://youtube.com/watch?v=test";
+        String url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         Path output = Path.of("/tmp/test-output");
         wrapper.start(url, output);
 
@@ -33,6 +33,7 @@ class YtDlpWrapperTest {
                 "-x", "--audio-format", "mp3", "--postprocessor-args", "ffmpeg:-threads 1",
                 "--output", output.toString(),
                 "--newline",
+                "--",
                 url));
     }
 }

@@ -10,13 +10,13 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-03 — Harden YouTube import requests](#cat-03--harden-youtube-import-requests)**
+**[CAT-04 — Complete import status and publication workflow](#cat-04--complete-import-status-and-publication-workflow)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. CAT-01 is complete. CAT-02 remains blocked by
-DG-03, so CAT-03 is the next ready ticket in the recommended execution sequence.
-MEDIA-08 remains deferred until real legacy files require migration.
+FND-05 remains blocked by DG-04. CAT-01 and CAT-03 are complete. CAT-02 remains
+blocked by DG-03, so CAT-04 is the next ready ticket in the recommended execution
+sequence. MEDIA-08 remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -807,6 +807,8 @@ Acceptance:
 - published tracks always have at least one primary title answer.
 
 #### CAT-03 — Harden YouTube import requests
+
+Status: completed on 2026-07-30.
 
 Work:
 

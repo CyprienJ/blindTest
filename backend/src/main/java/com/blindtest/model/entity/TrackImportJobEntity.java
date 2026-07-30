@@ -35,6 +35,9 @@ public class TrackImportJobEntity {
     @Column(name = "youtube_url", nullable = false, length = 500)
     private String youtubeUrl;
 
+    @Column(name = "youtube_video_id", length = 11)
+    private String youtubeVideoId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ImportJobStatus status = ImportJobStatus.QUEUED;

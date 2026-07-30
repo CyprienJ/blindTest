@@ -60,6 +60,8 @@ remains temporarily for legacy tracks during the migration window.
 - Public published-track and playlist catalogue endpoints.
 - Administrator track review, asynchronous YouTube import jobs, per-user STOMP
   import progress, and ordered playlist management.
+- Imports accept only HTTPS YouTube watch, short-link, and Shorts URLs with
+  canonical 11-character video IDs. Equivalent active imports are rejected.
 - Imported MP3s are validated in isolated temporary directories, checksummed,
   uploaded under content-addressed private object keys, confirmed, and cleaned up
   before jobs complete.
@@ -130,6 +132,13 @@ and verifies both binaries while building. Import execution applies a configurab
 wall-clock deadline and temporary-file-size ceiling, limits FFmpeg to one worker
 thread, and inherits the backend container CPU quota. A timeout or oversized
 workspace terminates the process tree and marks the import failed.
+Import requests enforce database-aligned metadata bounds and canonicalize
+supported YouTube URL forms before creating a job. A partial unique PostgreSQL
+index prevents concurrent active jobs for the same video. The process receives a
+fixed argument list with an option terminator and an application-owned output
+path inside a newly created import directory; symlink or non-regular output is
+rejected. Provider and infrastructure exception details are replaced with stable
+safe failure messages before persistence, WebSocket delivery, or logging.
 
 Full-stack adapter tests import
 `DeterministicTestAdaptersConfig`. Production continues to use `EmailService`,
@@ -448,6 +457,7 @@ classDiagram
     class TrackImportJob {
         +UUID id
         +String youtubeUrl
+        +String youtubeVideoId
         +ImportStatus status
         +Integer progress
         +String errorMessage

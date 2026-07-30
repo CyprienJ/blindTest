@@ -16,7 +16,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
@@ -72,13 +74,14 @@ public class ImportJobRunner {
             Process process = ytDlpWrapper.start(job.getYoutubeUrl(), outputTemplate);
             int exitCode = awaitProcess(job, process, temporaryDirectory, adminId);
             if (exitCode != 0) {
-                throw new RuntimeException("yt-dlp failed with exit code " + exitCode);
+                throw new ImportJobFailureException(ImportJobFailureException.Reason.PROVIDER);
             }
 
             job.setStatus(ImportJobStatus.PROCESSING);
             jobRepository.save(job);
 
-            Path audioFile = Path.of(outputTemplate + ".mp3");
+            Path audioFile = controlledOutputPath(
+                    temporaryDirectory, Path.of(outputTemplate + ".mp3"));
             long audioSize = validateAudioFile(audioFile);
             String checksum = sha256(audioFile);
             TrackEntity track = job.getTrack();
@@ -97,9 +100,9 @@ public class ImportJobRunner {
                     new WsImportDoneEvent(jobId, track.getId()));
 
         } catch (Exception e) {
-            log.error("Import job {} failed: {}", jobId, e.getMessage());
+            log.error("Import job {} failed with {}", jobId, e.getClass().getSimpleName());
             job.setStatus(ImportJobStatus.FAILED);
-            String msg = e.getMessage() != null ? e.getMessage() : "Unknown error";
+            String msg = safeFailureMessage(e);
             job.setErrorMessage(msg);
             jobRepository.save(job);
             messagingTemplate.convertAndSendToUser(adminId.toString(), IMPORT_QUEUE_PREFIX + jobId,
@@ -122,7 +125,8 @@ public class ImportJobRunner {
                     long remainingNanos = deadline - System.nanoTime();
                     if (remainingNanos <= 0) {
                         terminateProcess(process);
-                        throw new IllegalStateException("yt-dlp exceeded the configured import timeout");
+                        throw new ImportJobFailureException(
+                                ImportJobFailureException.Reason.TIMEOUT);
                     }
                     long waitMillis = Math.min(PROCESS_POLL_MILLIS,
                             Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNanos)));
@@ -133,7 +137,8 @@ public class ImportJobRunner {
                     }
                     if (temporaryDirectorySize(temporaryDirectory) > importProperties.maxSizeBytes()) {
                         terminateProcess(process);
-                        throw new IllegalArgumentException("Imported audio exceeds the configured maximum size");
+                        throw new ImportJobFailureException(
+                                ImportJobFailureException.Reason.SIZE_LIMIT);
                     }
                 }
             } finally {
@@ -189,17 +194,33 @@ public class ImportJobRunner {
     }
 
     private Path createTemporaryDirectory(UUID jobId) throws IOException {
-        Files.createDirectories(importProperties.tempDir());
-        return Files.createTempDirectory(importProperties.tempDir(), jobId + "-");
+        Path temporaryRoot = importProperties.tempDir().toAbsolutePath().normalize();
+        Files.createDirectories(temporaryRoot);
+        return Files.createTempDirectory(temporaryRoot, jobId + "-").normalize();
+    }
+
+    private Path controlledOutputPath(Path temporaryDirectory, Path candidate) {
+        Path normalizedDirectory = temporaryDirectory.toAbsolutePath().normalize();
+        Path normalizedCandidate = candidate.toAbsolutePath().normalize();
+        if (!normalizedCandidate.startsWith(normalizedDirectory)
+                || Files.isSymbolicLink(normalizedCandidate)) {
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.INVALID_MEDIA);
+        }
+        return normalizedCandidate;
     }
 
     private long validateAudioFile(Path audioFile) throws IOException {
-        long size = Files.size(audioFile);
+        BasicFileAttributes attributes = Files.readAttributes(
+                audioFile, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!attributes.isRegularFile()) {
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.INVALID_MEDIA);
+        }
+        long size = attributes.size();
         if (size == 0) {
-            throw new IllegalArgumentException("Imported audio is empty");
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.INVALID_MEDIA);
         }
         if (size > importProperties.maxSizeBytes()) {
-            throw new IllegalArgumentException("Imported audio exceeds the configured maximum size");
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.SIZE_LIMIT);
         }
         byte[] header;
         try (InputStream input = Files.newInputStream(audioFile)) {
@@ -210,7 +231,7 @@ public class ImportJobRunner {
                 && (header[0] & 0xff) == 0xff
                 && (header[1] & 0xe0) == 0xe0;
         if (!id3 && !mpegFrame) {
-            throw new IllegalArgumentException("Imported audio is not an MP3 file");
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.INVALID_MEDIA);
         }
         return size;
     }
@@ -261,6 +282,13 @@ public class ImportJobRunner {
         } catch (IOException | RuntimeException exception) {
             log.warn("Could not fully clean temporary files for import job {}", jobId);
         }
+    }
+
+    private String safeFailureMessage(Exception exception) {
+        if (exception instanceof ImportJobFailureException importFailure) {
+            return importFailure.safeMessage();
+        }
+        return "The media import failed";
     }
 
     private void updateProgress(TrackImportJobEntity job, String line, UUID adminId) {

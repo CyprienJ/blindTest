@@ -74,7 +74,7 @@ class PostgresqlSchemaIntegrationTest {
                 "SELECT installed_rank FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 Integer.class);
 
-        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9);
+        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
     }
 
     @Test
@@ -110,7 +110,7 @@ class PostgresqlSchemaIntegrationTest {
         assertThat(jdbcTemplate.queryForList("""
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
-                """, Integer.class)).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9);
+                """, Integer.class)).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
     }
 
     @Test
@@ -155,6 +155,45 @@ class PostgresqlSchemaIntegrationTest {
                 """, admin.getId())).
                 isInstanceOf(DataIntegrityViolationException.class).
                 hasMessageContaining("chk_track_import_jobs_status");
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void databaseRejectsDuplicateActiveImportForSameVideo() {
+        UUID adminId = UUID.randomUUID();
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO users (id, username, email, password_hash, role)
+                    VALUES (?, 'duplicate-admin', 'duplicate-admin@example.com', 'hash', 'ADMIN')
+                    """, adminId);
+            jdbcTemplate.update("""
+                    INSERT INTO track_import_jobs
+                        (youtube_url, youtube_video_id, status, admin_id)
+                    VALUES
+                        ('https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                         'dQw4w9WgXcQ', 'QUEUED', ?)
+                    """, adminId);
+
+            assertThatThrownBy(() -> jdbcTemplate.update("""
+                    INSERT INTO track_import_jobs
+                        (youtube_url, youtube_video_id, status, admin_id)
+                    VALUES
+                        ('https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                         'dQw4w9WgXcQ', 'PROCESSING', ?)
+                    """, adminId)).
+                    isInstanceOf(DataIntegrityViolationException.class).
+                    hasMessageContaining("uq_track_import_jobs_active_video");
+
+            jdbcTemplate.update("""
+                    INSERT INTO track_import_jobs
+                        (youtube_url, youtube_video_id, status, admin_id)
+                    VALUES
+                        ('https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                         'dQw4w9WgXcQ', 'FAILED', ?)
+                    """, adminId);
+        } finally {
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", adminId);
+        }
     }
 
     @Test

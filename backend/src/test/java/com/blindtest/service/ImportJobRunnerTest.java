@@ -247,7 +247,7 @@ class ImportJobRunnerTest {
         runner.execute(testJob.jobId());
 
         assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.FAILED);
-        assertThat(testJob.job().getErrorMessage()).contains("timeout");
+        assertThat(testJob.job().getErrorMessage()).contains("timed out");
         verify(process).destroy();
         verify(mediaStorage, never()).store(any(), any(), any());
         assertTemporaryRootIsEmpty();
@@ -261,9 +261,55 @@ class ImportJobRunnerTest {
         runner.execute(testJob.jobId());
 
         assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.FAILED);
-        assertThat(testJob.job().getErrorMessage()).contains("maximum size");
+        assertThat(testJob.job().getErrorMessage()).contains("maximum allowed size");
         verify(process).destroy();
         verify(mediaStorage, never()).store(any(), any(), any());
+        assertTemporaryRootIsEmpty();
+    }
+
+    @Test
+    void providerFailureIsSanitizedBeforePersistenceAndNotification() throws Exception {
+        TestJob testJob = arrangeJob();
+        when(ytDlpWrapper.start(any(), any())).
+                thenThrow(new IOException("secret provider response and local path"));
+
+        runner.execute(testJob.jobId());
+
+        assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.FAILED);
+        assertThat(testJob.job().getErrorMessage()).isEqualTo("The media import failed");
+        assertThat(testJob.job().getErrorMessage()).doesNotContain("secret", "local path");
+        ArgumentCaptor<WsImportFailedEvent> event =
+                ArgumentCaptor.forClass(WsImportFailedEvent.class);
+        verify(messagingTemplate).convertAndSendToUser(
+                eq(testJob.adminId().toString()),
+                eq("/queue/import/" + testJob.jobId()),
+                event.capture());
+        assertThat(event.getValue().getErrorMessage()).isEqualTo("The media import failed");
+        assertTemporaryRootIsEmpty();
+    }
+
+    @Test
+    void symbolicLinkOutputCannotEscapeTheJobTemporaryDirectory() throws Exception {
+        TestJob testJob = arrangeJob();
+        Path outsideAudio = tempRoot.resolve("outside.mp3");
+        Files.write(outsideAudio, VALID_MP3);
+        when(ytDlpWrapper.start(any(), any())).thenAnswer(invocation -> {
+            Path outputTemplate = invocation.getArgument(1);
+            Files.createSymbolicLink(Path.of(outputTemplate + ".mp3"), outsideAudio);
+            Process process = mock(Process.class);
+            when(process.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
+            when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);
+            when(process.exitValue()).thenReturn(0);
+            return process;
+        });
+
+        runner.execute(testJob.jobId());
+
+        assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.FAILED);
+        assertThat(testJob.job().getErrorMessage()).contains("not a valid MP3");
+        assertThat(Files.readAllBytes(outsideAudio)).isEqualTo(VALID_MP3);
+        verify(mediaStorage, never()).store(any(), any(), any());
+        Files.delete(outsideAudio);
         assertTemporaryRootIsEmpty();
     }
 
@@ -334,7 +380,7 @@ class ImportJobRunnerTest {
 
         TrackImportJobEntity job = new TrackImportJobEntity();
         ReflectionTestUtils.setField(job, "id", jobId);
-        job.setYoutubeUrl("https://youtube.com/watch?v=test");
+        job.setYoutubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
         job.setStatus(ImportJobStatus.QUEUED);
         job.setAdmin(admin);
         job.setTrack(track);

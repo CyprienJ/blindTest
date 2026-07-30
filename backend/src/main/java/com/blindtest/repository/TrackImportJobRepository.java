@@ -2,6 +2,7 @@ package com.blindtest.repository;
 
 import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.TrackImportJobEntity;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,4 +25,8 @@ public interface TrackImportJobRepository extends JpaRepository<TrackImportJobEn
 
     /** Reports whether a track belongs to an import in the requested lifecycle state. */
     boolean existsByTrackIdAndStatus(UUID trackId, ImportJobStatus status);
+
+    /** Reports whether the video already has an import in an active processing state. */
+    boolean existsByYoutubeVideoIdAndStatusIn(
+            String youtubeVideoId, Collection<ImportJobStatus> statuses);
 }

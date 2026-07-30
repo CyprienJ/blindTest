@@ -83,6 +83,9 @@ Last reviewed: 2026-07-30.
 - Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
   per-user STOMP progress messages, MP3 validation, checksum generation, and
   finalized upload to private object storage.
+- YouTube imports accept canonical single-video watch, short-link, and Shorts
+  URLs; metadata is bounded, active duplicate videos are rejected, output remains
+  inside isolated temporary directories, and provider failures are sanitized.
 - The non-root backend runtime installs pinned, build-smoke-tested `yt-dlp` and
   FFmpeg versions; imports enforce time, temporary-file-size, FFmpeg-thread, and
   container CPU limits and terminate unsafe processes.
@@ -118,9 +121,10 @@ Last reviewed: 2026-07-30.
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
   profiles and fail-fast production validation for secrets and endpoints.
-- Flyway migrations V1 through V9 for users, refresh tokens, tracks, playlists,
+- Flyway migrations V1 through V10 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
-  metadata, the media-deletion outbox, and extended track metadata.
+  metadata, the media-deletion outbox, extended track metadata, and active-import
+  deduplication.
 
 The backend currently has controllers for:
 
@@ -283,7 +287,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 174 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 199 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 27 passing Playwright authentication/media/smoke tests;
