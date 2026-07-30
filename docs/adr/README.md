@@ -29,3 +29,12 @@ Allowed statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, and
 | [ADR-0004](0004-in-memory-session-store.md) | Accepted | Keep active sessions in memory behind a port |
 | [ADR-0005](0005-private-s3-media-and-presigned-playback.md) | Accepted | Store media privately in S3 and use pre-signed playback URLs |
 | [ADR-0006](0006-postgresql-history-snapshots.md) | Accepted | Persist completed-game history snapshots in PostgreSQL |
+| [ADR-0007](0007-title-score-rounding-and-minimum.md) | Accepted | Round title scores to the nearest integer with a 100-point minimum |
+| [ADR-0008](0008-solo-game-configuration-limits.md) | Accepted | Use the reference solo-game configuration limits |
+| [ADR-0009](0009-admin-configured-playback-offset.md) | Accepted | Let administrators configure a track playback offset |
+| [ADR-0010](0010-first-administrator-operator-command.md) | Accepted | Provision the first administrator with an operator command |
+| [ADR-0011](0011-data-and-rejected-media-retention.md) | Accepted | Apply balanced retention to histories, imports, and rejected media |
+| [ADR-0012](0012-assume-operator-holds-content-rights.md) | Accepted | Treat content rights as an operator-owned prerequisite for now |
+| [ADR-0013](0013-rely-on-daily-vps-backups-for-now.md) | Accepted | Rely on the VPS daily backup system for now |
+| [ADR-0014](0014-randomize-game-track-selection-and-order.md) | Accepted | Randomize game track selection and order |
+| [ADR-0015](0015-four-second-automatic-reveal-transition.md) | Accepted | Advance automatically after a four-second reveal |

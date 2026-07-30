@@ -10,14 +10,15 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-07 — Complete playlist ordering APIs](#cat-07--complete-playlist-ordering-apis)**
+**[FND-05 — Define and implement first-admin provisioning](#fnd-05--define-and-implement-first-admin-provisioning)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. CAT-01, CAT-03, and CAT-04 are complete. CAT-02
-remains blocked by DG-03; CAT-05 and CAT-06 depend on its alias-management API.
-CAT-07 is therefore the next ready ticket in the recommended execution sequence.
-MEDIA-08 remains deferred until real legacy files require migration.
+DG-04 is resolved by ADR-0010, so FND-05 is now the earliest ready unfinished
+ticket in the recommended execution sequence. DG-03 is resolved by ADR-0009, so
+CAT-02 is also ready and follows FND-05. CAT-05 and CAT-06 then follow CAT-02's
+alias-management API. MEDIA-08 remains deferred until real legacy files require
+migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -308,20 +309,21 @@ keys must not depend on a single VPS.
 
 ## 5. Decision Gates
 
-These choices are intentionally not made by this roadmap. They require explicit
-product-owner approval before the blocking ticket starts.
+These choices required explicit product-owner approval before their blocking
+tickets could start. All nine gates are now resolved and recorded in accepted
+ADRs; a change must supersede the corresponding ADR.
 
-| Gate | Required decision | Blocks |
+| Gate | Decision | Effect |
 |---|---|---|
-| DG-01 | Exact score rounding and minimum score for a correct title | GAME-06 |
-| DG-02 | Allowed track-count values and timer range/default | GAME-02, UI-02 |
-| DG-03 | Whether playback starts at the beginning or at an admin-configured excerpt offset | CAT-02, GAME-08 |
-| DG-04 | How the first production administrator is provisioned | FND-05 |
-| DG-05 | Retention period for game histories, import jobs, and rejected media | HIST-01, OPS-08 |
-| DG-06 | Content rights, YouTube import policy, and administrator responsibility notice | REL-03 |
-| DG-07 | Recovery objectives and off-host backup destination for PostgreSQL and MinIO | OPS-05, OPS-06 |
-| DG-08 | Whether game tracks follow playlist order or are randomly selected | GAME-03 |
-| DG-09 | Reveal-screen duration and automatic versus manual progression to the next round | UI-07, SESSION-05 |
+| DG-01 | Resolved: nearest-integer rounding with a 100-point minimum ([ADR-0007](adr/0007-title-score-rounding-and-minimum.md)) | GAME-06 unblocked by this gate |
+| DG-02 | Resolved: 5–30 tracks, 10–60 seconds, defaults 15/30 ([ADR-0008](adr/0008-solo-game-configuration-limits.md)) | GAME-02 and UI-02 unblocked by this gate |
+| DG-03 | Resolved: optional administrator-configured offset, default zero ([ADR-0009](adr/0009-admin-configured-playback-offset.md)) | CAT-02 and GAME-08 unblocked by this gate |
+| DG-04 | Resolved: promote one verified account with a one-shot operator command ([ADR-0010](adr/0010-first-administrator-operator-command.md)) | FND-05 unblocked by this gate |
+| DG-05 | Resolved: histories 24 months, imports 30 days, rejected media 7 days ([ADR-0011](adr/0011-data-and-rejected-media-retention.md)) | HIST-01 and OPS-08 unblocked by this gate |
+| DG-06 | Resolved for now: operator is assumed to hold the required rights; no in-app policy workflow ([ADR-0012](adr/0012-assume-operator-holds-content-rights.md)) | REL-03 unblocked by this gate |
+| DG-07 | Resolved for now: daily VPS backups, nominal RPO 24 h, best-effort RTO ([ADR-0013](adr/0013-rely-on-daily-vps-backups-for-now.md)) | OPS-05 and OPS-06 unblocked by this gate |
+| DG-08 | Resolved: uniform selection without replacement and shuffled order ([ADR-0014](adr/0014-randomize-game-track-selection-and-order.md)) | GAME-03 unblocked by this gate |
+| DG-09 | Resolved: automatic transition after 4 seconds with owner advance action ([ADR-0015](adr/0015-four-second-automatic-reveal-transition.md)) | UI-07 and SESSION-05 unblocked by this gate |
 
 Each decision must be written as an ADR or product decision note before related
 implementation begins.
@@ -437,7 +439,7 @@ Acceptance:
 
 #### FND-05 — Define and implement first-admin provisioning
 
-Blocked by: DG-04.
+Decision: [ADR-0010](adr/0010-first-administrator-operator-command.md).
 
 Work:
 
@@ -792,14 +794,16 @@ Acceptance:
 
 #### CAT-02 — Model answer aliases and excerpt metadata
 
-Blocked by: DG-03 for excerpt behavior.
+Decision: [ADR-0009](adr/0009-admin-configured-playback-offset.md).
 
 Work:
 
 - persist manually configured aliases by answer type;
 - support aliases for title, artist, composer, and album;
 - validate duplicate/blank aliases;
-- add excerpt offset/duration only if approved;
+- add an optional whole-second excerpt start offset, defaulting to zero;
+- require 60 playable seconds after a non-zero offset and store no separate
+  excerpt duration;
 - expose admin CRUD without exposing internal normalization.
 
 Acceptance:
@@ -828,6 +832,8 @@ Acceptance:
 #### CAT-04 — Complete import status and publication workflow
 
 Status: completed on 2026-07-30.
+
+Retention decision: [ADR-0011](adr/0011-data-and-rejected-media-retention.md).
 
 Work:
 
@@ -962,7 +968,7 @@ Acceptance:
 
 #### GAME-02 — Approve and enforce configuration limits
 
-Blocked by: DG-02.
+Decision: [ADR-0008](adr/0008-solo-game-configuration-limits.md).
 
 Work:
 
@@ -977,7 +983,7 @@ Acceptance:
 
 #### GAME-03 — Select and snapshot tracks
 
-Blocked by: DG-08.
+Decision: [ADR-0014](adr/0014-randomize-game-track-selection-and-order.md).
 
 Work:
 
@@ -1026,7 +1032,7 @@ Acceptance:
 
 #### GAME-06 — Implement scoring
 
-Blocked by: DG-01.
+Decision: [ADR-0007](adr/0007-title-score-rounding-and-minimum.md).
 
 Work:
 
@@ -1065,7 +1071,7 @@ Acceptance:
 
 #### GAME-08 — Define playback window
 
-Blocked by: DG-03.
+Decision: [ADR-0009](adr/0009-admin-configured-playback-offset.md).
 
 Work:
 
@@ -1193,7 +1199,7 @@ Acceptance:
 
 #### SESSION-05 — Orchestrate server timers
 
-Blocked by: DG-09.
+Decision: [ADR-0015](adr/0015-four-second-automatic-reveal-transition.md).
 
 Work:
 
@@ -1238,7 +1244,7 @@ Acceptance:
 
 #### HIST-01 — Add durable history schema
 
-Blocked by: DG-05.
+Decision: [ADR-0011](adr/0011-data-and-rejected-media-retention.md).
 
 Work:
 
@@ -1344,7 +1350,7 @@ Acceptance:
 
 #### UI-02 — Implement game configuration
 
-Blocked by: DG-02.
+Decision: [ADR-0008](adr/0008-solo-game-configuration-limits.md).
 
 Work:
 
@@ -1425,7 +1431,7 @@ Acceptance:
 
 #### UI-07 — Implement reveal and round transition
 
-Blocked by: DG-09.
+Decision: [ADR-0015](adr/0015-four-second-automatic-reveal-transition.md).
 
 Work:
 
@@ -1696,13 +1702,13 @@ Acceptance:
 
 #### OPS-05 — PostgreSQL backup and restore
 
-Blocked by: DG-07.
+Decision: [ADR-0013](adr/0013-rely-on-daily-vps-backups-for-now.md).
 
 Work:
 
-- scheduled encrypted off-host backups;
-- retention;
-- restore command/runbook;
+- verify daily VPS backups include the PostgreSQL volume;
+- document the provider schedule, retention, and restore procedure;
+- restore runbook for an isolated VPS or clone;
 - periodic restore test;
 - migration rollback policy.
 
@@ -1712,12 +1718,12 @@ Acceptance:
 
 #### OPS-06 — MinIO backup and restore
 
-Blocked by: DG-07.
+Decision: [ADR-0013](adr/0013-rely-on-daily-vps-backups-for-now.md).
 
 Work:
 
-- approved off-host copy/replication;
-- object/version policy;
+- verify daily VPS backups include the MinIO volume;
+- document provider backup scope and shared-failure risk;
 - restore and reconciliation;
 - capacity alerts;
 - document single-node failure risk.
@@ -1743,7 +1749,7 @@ Acceptance:
 
 #### OPS-08 — Add retention and cleanup jobs
 
-Blocked by: DG-05.
+Decision: [ADR-0011](adr/0011-data-and-rejected-media-retention.md).
 
 Work:
 
@@ -1839,18 +1845,19 @@ Acceptance:
 
 #### REL-03 — Approve content/import policy
 
-Blocked by: DG-06.
+Decision: [ADR-0012](adr/0012-assume-operator-holds-content-rights.md).
 
 Work:
 
-- document permitted sources and administrator responsibility;
-- review YouTube/rights implications;
-- add necessary administrator notice and removal process;
-- define response to a rights complaint.
+- document the operator-owned rights assumption;
+- require external operator confirmation in the release checklist;
+- retain administrator-only import and private-media controls;
+- document track removal through the existing deletion workflow.
 
 Acceptance:
 
-- production import is not launched without an approved policy.
+- production import is not launched without operator confirmation that the
+  catalogue satisfies the recorded rights assumption.
 
 #### REL-04 — Rehearse data and media recovery
 
@@ -2027,7 +2034,7 @@ Start in this order:
 2. TEST-01 through TEST-05;
 3. MEDIA-01 through MEDIA-07 and MEDIA-09;
 4. CAT-01 through CAT-10;
-5. resolve DG-01, DG-02, DG-03, DG-08, and DG-09;
+5. decision gates DG-01 through DG-09 are resolved;
 6. GAME-01 through GAME-10;
 7. SESSION/HIST tickets;
 8. UI tickets;
