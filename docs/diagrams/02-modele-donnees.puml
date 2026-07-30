@@ -28,6 +28,7 @@ entity Track {
   --
   * title : VARCHAR(255)
   * artist : VARCHAR(255)
+    album : VARCHAR(255)
     composer : VARCHAR(255)
     work : VARCHAR(255)
     audio_url : VARCHAR
@@ -38,7 +39,7 @@ entity Track {
     youtube_url : VARCHAR
     category : VARCHAR(100)
     decade : INTEGER
-  * duration_seconds : INTEGER
+    duration_seconds : INTEGER
   * status : ENUM(PENDING,\n         PUBLISHED, REJECTED)
   * created_at : TIMESTAMP
 }
@@ -140,10 +141,16 @@ note bottom of FriendRequest
 end note
 
 note right of Track
-  Only tracks with
-  status = PUBLISHED
-  are accessible
-  in the public catalogue
+  title is the canonical primary answer:
+  film title for film tracks,
+  music title otherwise.
+
+  Publication requires nonblank
+  title and artist plus either
+  a legacy audio_url or complete
+  object key/checksum/size.
+
+  Other metadata is optional.
 end note
 
 note right of GameHistoryPlayer

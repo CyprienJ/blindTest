@@ -76,11 +76,13 @@ class TrackRepositoryTest {
         publishedTrack.setAudioObjectKey("tracks/test/audio-content.mp3");
         publishedTrack.setAudioChecksum("a".repeat(64));
         publishedTrack.setAudioSizeBytes(1234L);
+        publishedTrack.setAlbum("A Night at the Opera");
         trackRepository.saveAndFlush(publishedTrack);
 
         TrackEntity found = trackRepository.findById(publishedTrack.getId()).orElseThrow();
         assertThat(found.getTitle()).isEqualTo("Bohemian Rhapsody");
         assertThat(found.getArtist()).isEqualTo("Queen");
+        assertThat(found.getAlbum()).isEqualTo("A Night at the Opera");
         assertThat(found.getStatus()).isEqualTo(TrackStatus.PUBLISHED);
         assertThat(found.getAudioObjectKey()).isEqualTo("tracks/test/audio-content.mp3");
         assertThat(found.getAudioChecksum()).isEqualTo("a".repeat(64));

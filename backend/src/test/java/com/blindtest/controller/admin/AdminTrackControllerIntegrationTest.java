@@ -219,10 +219,19 @@ class AdminTrackControllerIntegrationTest {
         mockMvc.perform(put("/api/admin/tracks/" + id).
                         contentType(MediaType.APPLICATION_JSON).
                         header(HttpHeaders.AUTHORIZATION, adminToken).
-                        content("{\"title\":\"Updated Title\",\"artist\":\"Updated Artist\"}")).
+                        content("""
+                                {
+                                  "title": "Updated Title",
+                                  "artist": "Updated Artist",
+                                  "album": "Updated Album",
+                                  "durationSeconds": 240
+                                }
+                                """)).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.title").value("Updated Title")).
-                andExpect(jsonPath("$.artist").value("Updated Artist"));
+                andExpect(jsonPath("$.artist").value("Updated Artist")).
+                andExpect(jsonPath("$.album").value("Updated Album")).
+                andExpect(jsonPath("$.durationSeconds").value(240));
     }
 
     @Test
@@ -260,6 +269,20 @@ class AdminTrackControllerIntegrationTest {
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.status").value("PUBLISHED"));
+    }
+
+    @Test
+    void validateTrackRejectsIncompletePrimaryMetadata() throws Exception {
+        pendingTrack.setTitle(" ");
+        trackRepository.saveAndFlush(pendingTrack);
+
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("TRACK_METADATA_INCOMPLETE"));
+
+        assertThat(trackRepository.findById(pendingTrack.getId()).orElseThrow().getStatus()).
+                isEqualTo(TrackStatus.PENDING);
     }
 
     @Test

@@ -2,7 +2,7 @@
 
 Status: proposed master plan
 
-Last reviewed: 2026-07-28
+Last reviewed: 2026-07-30
 
 Target: first public production release, followed by multiplayer and social features
 
@@ -10,13 +10,13 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-01 — Extend the track data model](#cat-01--extend-the-track-data-model)**
+**[CAT-03 — Harden YouTube import requests](#cat-03--harden-youtube-import-requests)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. MEDIA-09 is complete, so CAT-01 is the next
-ready ticket in the recommended execution sequence. MEDIA-08 remains deferred
-until real legacy files require migration.
+FND-05 remains blocked by DG-04. CAT-01 is complete. CAT-02 remains blocked by
+DG-03, so CAT-03 is the next ready ticket in the recommended execution sequence.
+MEDIA-08 remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -773,6 +773,8 @@ Dependencies: Lot 2.
 ### Tickets
 
 #### CAT-01 — Extend the track data model
+
+Status: completed on 2026-07-30.
 
 Work:
 

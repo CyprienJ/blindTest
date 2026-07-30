@@ -73,6 +73,10 @@ class CatalogueControllerIntegrationTest {
         UserEntity admin = userRepository.save(buildUser("admin", "admin@example.com"));
 
         TrackEntity pop = buildTrack("Pop Song", "Pop Artist", "pop", (short) 2000, TrackStatus.PUBLISHED);
+        pop.setAlbum("Pop Album");
+        pop.setComposer("Pop Composer");
+        pop.setWork("Pop Work");
+        pop.setDurationSeconds(180);
         publishedPop = trackRepository.save(pop);
 
         TrackEntity jazz = buildTrack("Jazz Tune", "Jazz Artist", "jazz", (short) 1990, TrackStatus.PUBLISHED);
@@ -115,6 +119,19 @@ class CatalogueControllerIntegrationTest {
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.totalElements").value(1)).
                 andExpect(jsonPath("$.content[0].title").value("Pop Song"));
+    }
+
+    @Test
+    void getTracksUsesOneFlatSnapshotCompatibleMetadataShape() throws Exception {
+        mockMvc.perform(get("/api/tracks").
+                        param("category", "pop")).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.content[0].title").value("Pop Song")).
+                andExpect(jsonPath("$.content[0].artist").value("Pop Artist")).
+                andExpect(jsonPath("$.content[0].album").value("Pop Album")).
+                andExpect(jsonPath("$.content[0].composer").value("Pop Composer")).
+                andExpect(jsonPath("$.content[0].work").value("Pop Work")).
+                andExpect(jsonPath("$.content[0].durationSeconds").value(180));
     }
 
     @Test

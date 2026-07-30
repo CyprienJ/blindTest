@@ -1,5 +1,6 @@
 package com.blindtest.controller.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -109,6 +110,37 @@ class AdminImportControllerIntegrationTest {
                         content(body)).
                 andExpect(status().isAccepted()).
                 andExpect(jsonPath("$.jobId").isNotEmpty());
+    }
+
+    @Test
+    void startImportPersistsConsistentOptionalMetadata() throws Exception {
+        String body = """
+                {
+                  "youtubeUrl": "https://youtube.com/watch?v=test",
+                  "title": "Film Title",
+                  "artist": "Orchestra",
+                  "album": "Soundtrack Album",
+                  "composer": "Composer",
+                  "work": "Main Theme",
+                  "category": "film",
+                  "decade": 2000,
+                  "durationSeconds": 210,
+                  "imageUrl": "https://images.example.test/cover.jpg"
+                }
+                """;
+
+        mockMvc.perform(post("/api/admin/tracks/import").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content(body)).
+                andExpect(status().isAccepted());
+
+        var track = trackRepository.findAll().getFirst();
+        assertThat(track.getTitle()).isEqualTo("Film Title");
+        assertThat(track.getAlbum()).isEqualTo("Soundtrack Album");
+        assertThat(track.getComposer()).isEqualTo("Composer");
+        assertThat(track.getWork()).isEqualTo("Main Theme");
+        assertThat(track.getDurationSeconds()).isEqualTo(210);
     }
 
     @Test

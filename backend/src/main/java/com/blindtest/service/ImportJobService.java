@@ -61,10 +61,12 @@ public class ImportJobService {
         TrackEntity track = new TrackEntity();
         track.setTitle(request.getTitle());
         track.setArtist(request.getArtist());
+        track.setAlbum(request.getAlbum());
         track.setComposer(request.getComposer());
         track.setWork(request.getWork());
         track.setCategory(request.getCategory());
         track.setDecade(request.getDecade());
+        track.setDurationSeconds(request.getDurationSeconds());
         track.setImageUrl(request.getImageUrl());
         track.setYoutubeUrl(request.getYoutubeUrl());
         track.setAudioUrl(null);

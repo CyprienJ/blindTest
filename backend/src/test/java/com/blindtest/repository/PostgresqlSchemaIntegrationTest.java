@@ -74,7 +74,7 @@ class PostgresqlSchemaIntegrationTest {
                 "SELECT installed_rank FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 Integer.class);
 
-        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6, 7, 8);
+        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9);
     }
 
     @Test
@@ -92,6 +92,9 @@ class PostgresqlSchemaIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT audio_url FROM media03_existing_schema.tracks WHERE id = ?
                 """, String.class, legacyTrackId)).isEqualTo("/media/legacy.mp3");
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT album FROM media03_existing_schema.tracks WHERE id = ?
+                """, String.class, legacyTrackId)).isNull();
         UUID objectTrackId = UUID.randomUUID();
         jdbcTemplate.update("""
                 INSERT INTO media03_existing_schema.tracks
@@ -107,7 +110,7 @@ class PostgresqlSchemaIntegrationTest {
         assertThat(jdbcTemplate.queryForList("""
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
-                """, Integer.class)).containsExactly(1, 2, 3, 4, 5, 6, 7, 8);
+                """, Integer.class)).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9);
     }
 
     @Test

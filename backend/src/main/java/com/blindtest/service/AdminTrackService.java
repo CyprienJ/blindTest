@@ -6,6 +6,7 @@ import com.blindtest.model.dto.TrackAdminResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
 import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.TrackEntity;
+import com.blindtest.model.entity.TrackPublicationPolicy;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
@@ -81,6 +82,9 @@ public class AdminTrackService {
         if (request.getArtist() != null) {
             track.setArtist(request.getArtist());
         }
+        if (request.getAlbum() != null) {
+            track.setAlbum(request.getAlbum());
+        }
         if (request.getComposer() != null) {
             track.setComposer(request.getComposer());
         }
@@ -92,6 +96,9 @@ public class AdminTrackService {
         }
         if (request.getDecade() != null) {
             track.setDecade(request.getDecade());
+        }
+        if (request.getDurationSeconds() != null) {
+            track.setDurationSeconds(request.getDurationSeconds());
         }
         if (request.getImageUrl() != null) {
             track.setImageUrl(request.getImageUrl());
@@ -113,6 +120,9 @@ public class AdminTrackService {
     @Transactional
     public TrackAdminResponse validateTrack(UUID id) {
         TrackEntity track = findOrThrow(id);
+        if (!TrackPublicationPolicy.isComplete(track)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "TRACK_METADATA_INCOMPLETE");
+        }
         track.setStatus(TrackStatus.PUBLISHED);
         return TrackAdminResponse.from(trackRepository.save(track));
     }

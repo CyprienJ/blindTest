@@ -107,6 +107,10 @@ Last reviewed: 2026-07-30.
 - Tracks can retain a nullable legacy audio URL or reference private storage with
   a server-internal object key, checksum, and byte size; object keys are excluded
   from public and administrator DTOs.
+- Track metadata includes a canonical primary `title`, required display `artist`,
+  and optional album, composer, work, category, decade, duration, and image fields
+  through immutable public and administrator snapshots. Publication requires the
+  primary metadata plus a legacy URL or complete object-storage metadata.
 - Track deletion and media replacement use a transactional deletion outbox with a
   scheduled retry/backoff worker. Administrator reconciliation reports missing
   and orphaned objects using safe key fingerprints, with aggregate Actuator metrics.
@@ -114,9 +118,9 @@ Last reviewed: 2026-07-30.
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
   profiles and fail-fast production validation for secrets and endpoints.
-- Flyway migrations V1 through V8 for users, refresh tokens, tracks, playlists,
+- Flyway migrations V1 through V9 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
-  metadata, and the media-deletion outbox.
+  metadata, the media-deletion outbox, and extended track metadata.
 
 The backend currently has controllers for:
 
@@ -279,7 +283,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 166 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 174 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 27 passing Playwright authentication/media/smoke tests;

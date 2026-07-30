@@ -22,6 +22,7 @@ public enum ApiErrorCode {
     EMAIL_TAKEN(HttpStatus.CONFLICT, "Email address is already registered"),
     USERNAME_TAKEN(HttpStatus.CONFLICT, "Username is already registered"),
     CONFLICT(HttpStatus.CONFLICT, "Request conflicts with current state"),
+    TRACK_METADATA_INCOMPLETE(HttpStatus.CONFLICT, "Track metadata is incomplete"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Media type is not supported"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 

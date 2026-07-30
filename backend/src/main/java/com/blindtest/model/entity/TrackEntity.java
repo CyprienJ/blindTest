@@ -29,11 +29,15 @@ public class TrackEntity {
     @Setter(AccessLevel.NONE)
     private UUID id;
 
+    /** Canonical primary answer: film title for film tracks, music title otherwise. */
     @Column(nullable = false, length = 255)
     private String title;
 
     @Column(nullable = false, length = 255)
     private String artist;
+
+    @Column(length = 255)
+    private String album;
 
     @Column(length = 255)
     private String composer;

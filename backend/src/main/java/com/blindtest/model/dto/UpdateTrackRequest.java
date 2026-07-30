@@ -10,9 +10,11 @@ public class UpdateTrackRequest {
 
     private String title;
     private String artist;
+    private String album;
     private String composer;
     private String work;
     private String category;
     private Short decade;
+    private Integer durationSeconds;
     private String imageUrl;
 }

@@ -141,6 +141,11 @@ Testcontainers exercises that adapter against the pinned MinIO API for upload,
 existence, recursive listing, pre-signing, HTTP byte-range reads, retry-safe
 overwrite/deletion, and unavailable-storage translation. Playwright independently
 verifies that Chromium can seek through a range-capable audio response.
+Track catalogue responses are immutable scalar metadata snapshots. `title` is
+always the canonical primary answer (film title for film-related tracks, music
+title otherwise); album, composer, work, category, decade, duration, and image are
+nullable secondary metadata. Publication requires nonblank title and artist plus
+either a legacy audio URL or a complete object key/checksum/positive-size tuple.
 Administrators request previews through
 `GET /api/admin/tracks/{trackId}/preview-url`; the application verifies a pending
 track, a completed import, finalized media metadata, and object existence before
@@ -231,7 +236,8 @@ The target product is a real-time multiplayer music blindtest web application.
 
 **Catalogue Management (Administrator)**
 - As an administrator, I want to import a track by pasting a YouTube link
-- As an administrator, I want to fill in metadata: title, artist, composer, work, decade, image
+- As an administrator, I want to fill in metadata: title, artist, album, composer,
+  work, category, decade, duration, and image
 - As an administrator, I want to preview the in-game rendering before validating
 - As an administrator, I want to validate or reject an imported track
 - As an administrator, I want to create and edit themed playlists
@@ -408,9 +414,13 @@ classDiagram
         +UUID id
         +String title
         +String artist
+        +String album
         +String composer
         +String work
         +String audioUrl
+        +String audioObjectKey
+        +String audioChecksum
+        +Long audioSizeBytes
         +String imageUrl
         +String category
         +Integer decade

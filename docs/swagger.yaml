@@ -102,6 +102,7 @@ components:
             - EMAIL_TAKEN
             - USERNAME_TAKEN
             - CONFLICT
+            - TRACK_METADATA_INCOMPLETE
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
         message:
@@ -355,14 +356,19 @@ components:
 
     Track:
       type: object
+      description: Immutable scalar metadata suitable for catalogue and future history snapshots.
       required: [id, title, artist]
       properties:
         id:
           $ref: '#/components/schemas/UUID'
         title:
           type: string
+          description: Canonical primary game answer; the film title for film-related tracks, otherwise the music title.
         artist:
           type: string
+        album:
+          type: string
+          nullable: true
         composer:
           type: string
           nullable: true
@@ -371,10 +377,13 @@ components:
           nullable: true
         category:
           type: string
+          nullable: true
         decade:
           type: integer
+          nullable: true
         durationSeconds:
           type: integer
+          nullable: true
         imageUrl:
           type: string
           nullable: true
@@ -453,8 +462,13 @@ components:
       properties:
         title:
           type: string
+          nullable: true
         artist:
           type: string
+          nullable: true
+        album:
+          type: string
+          nullable: true
         composer:
           type: string
           nullable: true
@@ -463,8 +477,13 @@ components:
           nullable: true
         category:
           type: string
+          nullable: true
         decade:
           type: integer
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
         imageUrl:
           type: string
           nullable: true
@@ -477,8 +496,12 @@ components:
           type: string
         title:
           type: string
+          description: Canonical primary game answer; the film title for film-related tracks, otherwise the music title.
         artist:
           type: string
+        album:
+          type: string
+          nullable: true
         composer:
           type: string
           nullable: true
@@ -487,8 +510,13 @@ components:
           nullable: true
         category:
           type: string
+          nullable: true
         decade:
           type: integer
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
         imageUrl:
           type: string
           nullable: true
