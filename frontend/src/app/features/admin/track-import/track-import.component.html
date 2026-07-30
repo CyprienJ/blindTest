@@ -1,0 +1,396 @@
+<div class="admin-shell">
+  <header class="bt-topbar admin-topbar">
+    <a class="bt-logo" routerLink="/lobby" aria-label="Blindtest home">
+      <span class="bt-logo-mark" aria-hidden="true"></span>
+      Blindtest
+    </a>
+    <span class="admin-label">Admin console</span>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar" aria-label="Administration">
+      <p>Manage</p>
+      <nav>
+        <a routerLink="/admin/tracks" routerLinkActive="active">♫ <span>Track catalogue</span></a>
+        <a routerLink="/admin/tracks/import" routerLinkActive="active">↥ <span>Imports</span></a>
+        <a routerLink="/admin/playlists" routerLinkActive="active">☷ <span>Playlists</span></a>
+        <a routerLink="/admin/users" routerLinkActive="active">♙ <span>Users</span></a>
+      </nav>
+    </aside>
+
+    <main class="import-page">
+      <div class="page-heading">
+        <div>
+          <a class="back-link" routerLink="/admin/tracks">← Track catalogue</a>
+          <h1>Import from YouTube</h1>
+          <p>Metadata is saved first; yt-dlp and FFmpeg process the audio securely on the server.</p>
+        </div>
+        @if (job) {
+          <span class="job-badge" [class]="'job-badge ' + job.status.toLowerCase()">
+            {{ statusLabel(job.status) }}
+          </span>
+        }
+      </div>
+
+      @if (monitorError) {
+        <div class="notice error" role="alert">
+          <span>{{ monitorError }}</span>
+          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="retryPolling()">Retry now</button>
+        </div>
+      }
+
+      <div class="import-grid">
+        <section class="panel form-panel">
+          <div class="panel-title">
+            <div>
+              <span class="step-number">1</span>
+              <h2>New import</h2>
+            </div>
+            @if (importForm.disabled) {
+              <span class="locked">Locked during import</span>
+            }
+          </div>
+
+          <form [formGroup]="importForm" (ngSubmit)="startImport()">
+            <label class="field wide">
+              <span>YouTube URL *</span>
+              <input
+                class="bt-input"
+                formControlName="youtubeUrl"
+                placeholder="https://www.youtube.com/watch?v=…"
+              />
+              @if (importForm.controls.youtubeUrl.invalid && importForm.controls.youtubeUrl.touched) {
+                <small>Enter a supported YouTube watch, short, or Shorts URL.</small>
+              }
+            </label>
+
+            <div class="form-grid">
+              <label class="field">
+                <span>Title *</span>
+                <input class="bt-input" formControlName="title" />
+              </label>
+              <label class="field">
+                <span>Artist *</span>
+                <input class="bt-input" formControlName="artist" />
+              </label>
+              <label class="field">
+                <span>Album</span>
+                <input class="bt-input" formControlName="album" />
+              </label>
+              <label class="field">
+                <span>Composer</span>
+                <input class="bt-input" formControlName="composer" />
+              </label>
+              <label class="field">
+                <span>Work / film</span>
+                <input class="bt-input" formControlName="work" />
+              </label>
+              <label class="field">
+                <span>Category</span>
+                <input class="bt-input" formControlName="category" placeholder="Pop, cinema…" />
+              </label>
+              <label class="field">
+                <span>Decade</span>
+                <input class="bt-input" type="number" formControlName="decade" placeholder="1980" />
+              </label>
+              <label class="field">
+                <span>Known duration (seconds)</span>
+                <input
+                  class="bt-input"
+                  type="number"
+                  formControlName="durationSeconds"
+                  placeholder="Optional"
+                />
+              </label>
+              <label class="field wide">
+                <span>Cover image URL</span>
+                <div class="cover-input">
+                  <span class="cover-preview" aria-hidden="true">
+                    @if (importForm.controls.imageUrl.value) {
+                      <img [src]="importForm.controls.imageUrl.value" alt="" />
+                    } @else {
+                      ♪
+                    }
+                  </span>
+                  <input
+                    class="bt-input"
+                    formControlName="imageUrl"
+                    placeholder="https://…/cover.jpg"
+                  />
+                </div>
+              </label>
+            </div>
+
+            <div class="alias-section">
+              <div class="alias-heading">
+                <div>
+                  <h3>Alternative answers</h3>
+                  <p>Optional accepted variants, saved when the audio is finalized.</p>
+                </div>
+                <button
+                  class="bt-btn bt-btn-sm bt-btn-ghost"
+                  type="button"
+                  [disabled]="importForm.disabled || aliases.length >= 10"
+                  (click)="addAlias()"
+                >＋ Add alias</button>
+              </div>
+
+              <div formArrayName="aliases">
+                @if (aliases.length === 0) {
+                  <p class="empty-aliases">No alternative answers configured.</p>
+                }
+                @for (alias of aliases.controls; track $index; let index = $index) {
+                  <div class="alias-row" [formGroupName]="index">
+                    <select class="bt-input" formControlName="type" aria-label="Alias type">
+                      @for (type of aliasTypes; track type) {
+                        <option [value]="type">{{ type }}</option>
+                      }
+                    </select>
+                    <input
+                      class="bt-input"
+                      formControlName="value"
+                      aria-label="Alternative answer"
+                      placeholder="Alternative answer"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Remove alternative answer"
+                      (click)="removeAlias(index)"
+                    >×</button>
+                  </div>
+                }
+              </div>
+            </div>
+
+            @if (importForm.invalid && importForm.touched) {
+              <p class="form-error">Complete the required fields with valid values.</p>
+            }
+            @if (submitError) {
+              <p class="form-error" role="alert">{{ submitError }}</p>
+            }
+
+            <button
+              class="bt-btn bt-btn-primary bt-btn-lg submit"
+              type="submit"
+              [disabled]="submitting || importForm.disabled"
+            >
+              @if (submitting) {
+                <span class="spinner" aria-hidden="true"></span> Starting import…
+              } @else {
+                ↥ Start import
+              }
+            </button>
+          </form>
+        </section>
+
+        <div class="right-column">
+          <section class="panel pipeline-panel">
+            <div class="panel-title pipeline-title">
+              <div>
+                <span class="step-number">2</span>
+                <h2>Import pipeline</h2>
+              </div>
+              @if (job) {
+                <span class="job-id mono">{{ shortJobId(job.jobId) }}</span>
+              }
+            </div>
+
+            @if (recovering && !job) {
+              <div class="empty-state" role="status">
+                <span class="spinner"></span>
+                <h3>Recovering import…</h3>
+                <p>Reading the latest durable state from the server.</p>
+              </div>
+            } @else if (!job) {
+              <div class="empty-state">
+                <span class="pipeline-icon" aria-hidden="true">↥</span>
+                <h3>No import running</h3>
+                <p>Submit a supported YouTube URL to start the pipeline.</p>
+              </div>
+            } @else {
+              <div class="connection">
+                <span [class]="realtimeState"></span>
+                {{
+                  realtimeState === 'connected'
+                    ? 'Live updates connected'
+                    : realtimeState === 'connecting'
+                      ? 'Connecting live updates…'
+                      : 'Polling recovery active'
+                }}
+              </div>
+
+              <div class="stages">
+                <div class="stage" [attr.data-state]="stageState('QUEUED')">
+                  <span class="stage-dot">{{ stageState('QUEUED') === 'done' ? '✓' : '1' }}</span>
+                  <div><strong>Queued</strong><small>Request accepted and persisted</small></div>
+                </div>
+                <div class="stage" [attr.data-state]="stageState('DOWNLOADING')">
+                  <span class="stage-dot">{{ stageState('DOWNLOADING') === 'done' ? '✓' : '2' }}</span>
+                  <div><strong>Downloading</strong><small>yt-dlp retrieves the source audio</small></div>
+                </div>
+                <div class="stage" [attr.data-state]="stageState('PROCESSING')">
+                  <span class="stage-dot">{{ stageState('PROCESSING') === 'done' ? '✓' : '3' }}</span>
+                  <div>
+                    <strong>Processing</strong>
+                    <small>FFmpeg conversion, validation and private upload</small>
+                    @if (
+                      job.status === 'DOWNLOADING' ||
+                      job.status === 'PROCESSING'
+                    ) {
+                      <div class="progress">
+                        <span [style.width.%]="job.progress"></span>
+                      </div>
+                    }
+                  </div>
+                  @if (job.status === 'DOWNLOADING' || job.status === 'PROCESSING') {
+                    <b class="mono">{{ job.progress }}%</b>
+                  }
+                </div>
+                <div class="stage" [attr.data-state]="stageState('DONE')">
+                  <span class="stage-dot">{{ stageState('DONE') === 'done' ? '✓' : '4' }}</span>
+                  <div><strong>Ready</strong><small>Preview and administrator review</small></div>
+                </div>
+              </div>
+
+              @if (job.status === 'FAILED') {
+                <div class="failure" role="alert">
+                  <strong>Import failed</strong>
+                  <p>{{ job.errorMessage || 'The media import failed.' }}</p>
+                  <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="resetImport()">
+                    Start another import
+                  </button>
+                </div>
+              }
+
+              <div class="activity" aria-label="Import activity">
+                @for (line of activity; track $index) {
+                  <div>{{ line }}</div>
+                } @empty {
+                  <div>Waiting for pipeline activity…</div>
+                }
+              </div>
+            }
+          </section>
+
+          @if (job?.track; as track) {
+            <section class="panel review-panel">
+              <div class="panel-title">
+                <div>
+                  <span class="step-number">3</span>
+                  <h2>Review and publish</h2>
+                </div>
+                @if (aliasState === 'saving') {
+                  <span class="saving"><span class="spinner"></span> Saving aliases…</span>
+                }
+              </div>
+
+              <div class="track-preview">
+                <span class="large-cover" aria-hidden="true">
+                  @if (track.imageUrl) {
+                    <img [src]="track.imageUrl" alt="" />
+                  } @else {
+                    ♪
+                  }
+                </span>
+                <div>
+                  <h3>{{ track.title }}</h3>
+                  <p>
+                    {{ track.artist }}
+                    @if (track.decade) { · {{ track.decade }}s }
+                    @if (track.category) { · {{ track.category }} }
+                  </p>
+                  @if (track.album) {
+                    <small>{{ track.album }}</small>
+                  }
+                </div>
+              </div>
+
+              @if (job!.status === 'DONE') {
+                @if (aliasState === 'error') {
+                  <div class="notice error" role="alert">
+                    <span>{{ aliasError }}</span>
+                    <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="retryAliases()">
+                      Retry aliases
+                    </button>
+                  </div>
+                }
+                @if (previewError) {
+                  <p class="form-error" role="alert">{{ previewError }}</p>
+                }
+                @if (preview) {
+                  <audio controls autoplay [src]="preview.url">
+                    Your browser cannot play this audio.
+                  </audio>
+                  <small class="preview-expiry">
+                    Secure link expires at {{ preview.expiresAt | date: 'shortTime' }}.
+                  </small>
+                } @else {
+                  <button
+                    class="bt-btn bt-btn-ghost listen"
+                    type="button"
+                    [disabled]="previewLoading || !job!.previewAvailable"
+                    (click)="loadPreview()"
+                  >
+                    {{ previewLoading ? 'Preparing preview…' : '▶ Listen to imported audio' }}
+                  </button>
+                }
+                @if (workflowError) {
+                  <p class="form-error" role="alert">{{ workflowError }}</p>
+                }
+                <div class="review-actions">
+                  <button
+                    class="bt-btn bt-btn-primary"
+                    type="button"
+                    [disabled]="workflowBusy || aliasState !== 'saved'"
+                    (click)="publish()"
+                  >{{ workflowBusy ? 'Working…' : '✓ Validate and publish' }}</button>
+                  <button
+                    class="bt-btn bt-btn-danger"
+                    type="button"
+                    [disabled]="workflowBusy"
+                    (click)="confirmReject = true"
+                  >× Reject</button>
+                </div>
+              } @else if (job!.status === 'PUBLISHED') {
+                <div class="completion success" role="status">
+                  <strong>Track published</strong>
+                  <p>It is now available to public playlists and future games.</p>
+                </div>
+                <div class="review-actions">
+                  <a class="bt-btn bt-btn-ghost" routerLink="/admin/tracks">Open catalogue</a>
+                  <button class="bt-btn bt-btn-primary" type="button" (click)="resetImport()">New import</button>
+                </div>
+              } @else if (job!.status === 'REJECTED') {
+                <div class="completion rejected" role="status">
+                  <strong>Track rejected</strong>
+                  <p>It remains unavailable from the public catalogue.</p>
+                </div>
+                <button class="bt-btn bt-btn-primary submit" type="button" (click)="resetImport()">
+                  New import
+                </button>
+              } @else {
+                <p class="waiting-copy">Preview and publication unlock after media finalization.</p>
+              }
+            </section>
+          }
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+@if (confirmReject && job?.track; as track) {
+  <div class="modal-backdrop">
+    <section class="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="reject-title">
+      <span>!</span>
+      <h2 id="reject-title">Reject this import?</h2>
+      <p><strong>{{ track.title }}</strong> will not be available in the public catalogue.</p>
+      <div>
+        <button class="bt-btn bt-btn-ghost" type="button" (click)="confirmReject = false">Cancel</button>
+        <button class="bt-btn bt-btn-danger" type="button" [disabled]="workflowBusy" (click)="reject()">
+          {{ workflowBusy ? 'Rejecting…' : 'Reject track' }}
+        </button>
+      </div>
+    </section>
+  </div>
+}

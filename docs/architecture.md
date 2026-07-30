@@ -680,6 +680,9 @@ Protocol: STOMP 1.2
 Header: Authorization: Bearer <JWT or sessionToken>
 ```
 
+Native WebSocket clients connect to `/ws`. SockJS clients use the separate
+`/ws-sockjs` fallback endpoint.
+
 ### Subscription Topics (server → clients)
 
 | Topic | Recipients | Content |

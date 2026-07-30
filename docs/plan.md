@@ -10,14 +10,15 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-06 — Implement the admin import UI](#cat-06--implement-the-admin-import-ui)**
+**[CAT-07 — Complete playlist ordering APIs](#cat-07--complete-playlist-ordering-apis)**
 
 Status: ready
 
-CAT-05 is complete, so CAT-06 is now the earliest ready unfinished ticket in the
-recommended execution sequence. Its import, polling, preview, publication,
-alias-management, and excerpt APIs are delivered. MEDIA-08 remains deferred
-until real legacy files require migration.
+CAT-06 is complete, so CAT-07 is now the earliest ready unfinished ticket in the
+recommended execution sequence. The administrator can complete the
+import-to-publication journey through the delivered UI, including live progress
+with polling recovery. MEDIA-08 remains deferred until real legacy files require
+migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -869,6 +870,8 @@ Acceptance:
 - all actions enforce loading, empty, success, and failure states.
 
 #### CAT-06 — Implement the admin import UI
+
+Status: completed on 2026-07-30.
 
 Work:
 

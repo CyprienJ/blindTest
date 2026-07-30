@@ -102,6 +102,8 @@ Last reviewed: 2026-07-30.
 - PostgreSQL 16 Testcontainers integration coverage for Flyway migrations,
   Hibernate schema validation, constraints, cascades, and repository queries.
 - JWT authentication for HTTP and STOMP `CONNECT`.
+- Native STOMP is exposed at `/ws`; the SockJS fallback is exposed separately at
+  `/ws-sockjs`.
 - A provider-neutral media-storage port with a typed MinIO Java SDK adapter for
   upload, existence checks, pre-signed GET URLs, and deletion, plus an in-memory
   test adapter. Imports use content-addressed object keys and confirm uploads
@@ -177,6 +179,10 @@ The WebSocket infrastructure exists only for authentication and import progress.
   search/status filters, pagination, metadata and alias editing, secure audio
   preview, publication/rejection/deletion actions, confirmations, and complete
   operation states.
+- Administrator YouTube import UI matching the reference design, with validated
+  metadata and alias drafts, duplicate-submit protection, authenticated STOMP
+  progress, durable polling/reload recovery, secure preview, and
+  publication/rejection actions.
 - Administrator-only frontend route enforcement for the administration area.
 - Shared global styling based on the target visual design.
 - Playwright Chromium authentication coverage with mocked API and Turnstile
@@ -193,7 +199,7 @@ All non-auth feature components are currently scaffolds whose templates only ren
 - end screen;
 - profile and game history;
 - friends and friend requests;
-- admin track import, playlist editor, and user management;
+- admin playlist editor and user management;
 - notification toast.
 
 Do not treat the presence of routes or component files as feature completion.
@@ -277,7 +283,7 @@ npm ci
 npm start
 ```
 
-Angular's development proxy sends `/api` and `/media` to `localhost:8080`.
+Angular's development proxy sends `/api`, `/media`, and `/ws` to `localhost:8080`.
 
 ## Required Validation
 
@@ -307,8 +313,8 @@ Baseline at the review date:
 
 - backend: 0 Checkstyle violations and 227 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
-- frontend: lint passes, production build passes, 3 passing unit tests,
-  and 31 passing Playwright authentication/catalogue/media/smoke tests;
+- frontend: lint passes, production build passes, 6 passing unit tests,
+  and 36 passing Playwright authentication/administration/media/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.
 

@@ -22,7 +22,7 @@ npm ci
 npm start
 ```
 
-Open `http://localhost:4200`. The development proxy forwards `/api` and `/media`
+Open `http://localhost:4200`. The development proxy forwards `/api`, `/media`, and `/ws`
 to `http://localhost:8080`.
 
 ## Validation
