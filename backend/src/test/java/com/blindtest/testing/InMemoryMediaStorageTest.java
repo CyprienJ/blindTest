@@ -28,6 +28,7 @@ class InMemoryMediaStorageTest {
         assertThat(storage.contentType(stored.objectKey())).isEqualTo("audio/mpeg");
         assertThat(storage.presignedGetUrl(stored.objectKey()).toString()).
                 isEqualTo("https://media.example.test/audio/fixture.mp3?signature=test");
+        assertThat(storage.listObjectKeys()).containsExactly("audio/fixture.mp3");
 
         storage.delete(stored.objectKey());
         storage.delete(stored.objectKey());

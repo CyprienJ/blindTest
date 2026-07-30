@@ -140,6 +140,15 @@ Administrators request previews through
 track, a completed import, finalized media metadata, and object existence before
 returning the pre-signed URL and its expiration. Signed URLs and object keys are
 not written to application logs or persistent API data.
+Track deletion and media replacement write obsolete object keys to a durable
+`media_deletion_outbox` row in the same transaction as the reference change. A
+bounded scheduled worker deletes objects idempotently and retains failed tasks
+with exponential backoff. Administrators can run read-only reconciliation through
+`GET /api/admin/media/reconciliation`; it reports track IDs and truncated key
+fingerprints rather than exposing internal keys. Aggregate pending, success,
+failure, missing, and orphan counts are available through the administrator-only
+Actuator metrics endpoint. Operational response steps are documented in
+[`media-operations.md`](media-operations.md).
 Persistence-generated entity IDs remain database-owned; tests consume returned
 IDs instead of predicting them.
 

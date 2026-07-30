@@ -2,6 +2,7 @@ package com.blindtest.service.port;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.Set;
 
 /** Provider-neutral boundary for private audio object storage. */
 public interface MediaStorage {
@@ -17,4 +18,7 @@ public interface MediaStorage {
 
     /** Deletes an object. Deleting a missing object is idempotent. */
     void delete(String objectKey);
+
+    /** Lists object keys for operational reconciliation. */
+    Set<String> listObjectKeys();
 }

@@ -8,9 +8,7 @@ import com.blindtest.model.dto.WsImportProgressEvent;
 import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.TrackEntity;
 import com.blindtest.model.entity.TrackImportJobEntity;
-import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.repository.TrackImportJobRepository;
-import com.blindtest.repository.TrackRepository;
 import com.blindtest.service.port.MediaStorage;
 import com.blindtest.service.port.StoredMedia;
 import java.io.BufferedReader;
@@ -42,11 +40,11 @@ public class ImportJobRunner {
     private static final String AUDIO_CONTENT_TYPE = "audio/mpeg";
 
     private final TrackImportJobRepository jobRepository;
-    private final TrackRepository trackRepository;
     private final YtDlpWrapper ytDlpWrapper;
     private final SimpMessagingTemplate messagingTemplate;
     private final MediaStorage mediaStorage;
     private final ImportProperties importProperties;
+    private final TrackMediaService trackMediaService;
 
     /** Downloads and converts audio for the given job ID; updates status, progress, and pushes WS events. */
     public void execute(UUID jobId) {
@@ -82,12 +80,7 @@ public class ImportJobRunner {
             StoredMedia storedMedia = mediaStorage.store(objectKey, audioFile, AUDIO_CONTENT_TYPE);
             verifyStoredMedia(storedMedia, objectKey, audioSize);
 
-            track.setAudioUrl(null);
-            track.setAudioObjectKey(objectKey);
-            track.setAudioChecksum(checksum);
-            track.setAudioSizeBytes(audioSize);
-            track.setStatus(TrackStatus.PENDING);
-            trackRepository.save(track);
+            trackMediaService.replaceMedia(track, objectKey, checksum, audioSize);
 
             deleteTemporaryDirectory(temporaryDirectory);
             job.setStatus(ImportJobStatus.DONE);

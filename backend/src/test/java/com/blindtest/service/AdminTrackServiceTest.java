@@ -33,6 +33,7 @@ class AdminTrackServiceTest {
 
     private TrackRepository trackRepository;
     private TrackImportJobRepository importJobRepository;
+    private TrackMediaService trackMediaService;
     private MediaStorage mediaStorage;
     private AdminTrackService service;
     private TrackEntity track;
@@ -41,12 +42,13 @@ class AdminTrackServiceTest {
     void setUp() {
         trackRepository = mock(TrackRepository.class);
         importJobRepository = mock(TrackImportJobRepository.class);
+        trackMediaService = mock(TrackMediaService.class);
         mediaStorage = mock(MediaStorage.class);
         S3Properties properties = new S3Properties(
                 URI.create("http://minio:9000"), URI.create("https://media.example.test"),
                 "eu-west-3", "media", "access", "secret", Duration.ofMinutes(5));
         service = new AdminTrackService(
-                trackRepository, importJobRepository, mediaStorage, properties,
+                trackRepository, importJobRepository, trackMediaService, mediaStorage, properties,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         track = mock(TrackEntity.class);
@@ -102,6 +104,14 @@ class AdminTrackServiceTest {
 
         assertConflict();
         verify(mediaStorage, never()).presignedGetUrl(OBJECT_KEY);
+    }
+
+    @Test
+    void deleteQueuesObjectBeforeRemovingTrackRecord() {
+        service.deleteTrack(TRACK_ID);
+
+        verify(trackMediaService).enqueueDeletion(OBJECT_KEY);
+        verify(trackRepository).delete(track);
     }
 
     private void assertConflict() {

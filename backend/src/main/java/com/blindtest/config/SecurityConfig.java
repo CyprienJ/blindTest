@@ -47,6 +47,8 @@ public class SecurityConfig {
                 accessDeniedHandler(restSecurityErrorHandler));
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers("/error").permitAll();
+            auth.requestMatchers("/actuator/health").permitAll();
+            auth.requestMatchers("/actuator/metrics/**").hasRole("ADMIN");
             auth.requestMatchers("/api/auth/**").permitAll();
             auth.requestMatchers("/ws/**").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*", "/api/tracks",

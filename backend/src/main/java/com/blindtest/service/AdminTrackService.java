@@ -37,6 +37,7 @@ public class AdminTrackService {
 
     private final TrackRepository trackRepository;
     private final TrackImportJobRepository importJobRepository;
+    private final TrackMediaService trackMediaService;
     private final MediaStorage mediaStorage;
     private final S3Properties s3Properties;
     private final Clock clock;
@@ -98,11 +99,12 @@ public class AdminTrackService {
         return TrackAdminResponse.from(trackRepository.save(track));
     }
 
-    /** Deletes the track's DB record and attempts to remove its audio file. Returns 404 if not found. */
+    /** Deletes a track and durably queues object cleanup. Returns 404 if not found. */
     @Transactional
     public void deleteTrack(UUID id) {
         TrackEntity track = findOrThrow(id);
         String audioUrl = track.getAudioUrl();
+        trackMediaService.enqueueDeletion(track.getAudioObjectKey());
         trackRepository.delete(track);
         deleteAudioFile(audioUrl);
     }

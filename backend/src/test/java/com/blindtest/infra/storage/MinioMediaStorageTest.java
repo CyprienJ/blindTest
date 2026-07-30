@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.blindtest.config.properties.S3Properties;
 import com.blindtest.service.port.MediaStorageException;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.ObjectWriteResponse;
 import io.minio.RemoveObjectArgs;
@@ -17,10 +18,13 @@ import io.minio.StatObjectArgs;
 import io.minio.UploadObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import io.minio.messages.ErrorResponse;
+import io.minio.messages.Item;
+import io.minio.Result;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -123,6 +127,23 @@ class MinioMediaStorageTest {
         verify(storageClient).removeObject(arguments.capture());
         assertThat(arguments.getValue().bucket()).isEqualTo(BUCKET);
         assertThat(arguments.getValue().object()).isEqualTo(OBJECT_KEY);
+    }
+
+    @Test
+    void listsObjectKeysRecursivelyUsingPrivateClient() throws Exception {
+        @SuppressWarnings("unchecked")
+        Result<Item> result = mock(Result.class);
+        Item item = mock(Item.class);
+        when(item.objectName()).thenReturn(OBJECT_KEY);
+        when(result.get()).thenReturn(item);
+        when(storageClient.listObjects(any(ListObjectsArgs.class))).thenReturn(List.of(result));
+
+        assertThat(storage.listObjectKeys()).containsExactly(OBJECT_KEY);
+
+        ArgumentCaptor<ListObjectsArgs> arguments = ArgumentCaptor.forClass(ListObjectsArgs.class);
+        verify(storageClient).listObjects(arguments.capture());
+        assertThat(arguments.getValue().bucket()).isEqualTo(BUCKET);
+        assertThat(arguments.getValue().recursive()).isTrue();
     }
 
     private S3Properties properties() {

@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /** In-memory media-storage adapter for unit and integration tests. */
 public class InMemoryMediaStorage implements MediaStorage {
@@ -52,6 +53,11 @@ public class InMemoryMediaStorage implements MediaStorage {
     @Override
     public synchronized void delete(String objectKey) {
         objects.remove(objectKey);
+    }
+
+    @Override
+    public synchronized Set<String> listObjectKeys() {
+        return Set.copyOf(objects.keySet());
     }
 
     /** Removes every captured object. */

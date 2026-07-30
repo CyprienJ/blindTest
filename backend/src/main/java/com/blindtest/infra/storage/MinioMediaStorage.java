@@ -5,15 +5,18 @@ import com.blindtest.service.port.MediaStorage;
 import com.blindtest.service.port.MediaStorageException;
 import com.blindtest.service.port.StoredMedia;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;
 import io.minio.StatObjectArgs;
 import io.minio.UploadObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Set;
 
 /** MinIO Java SDK implementation of the private media-storage boundary. */
@@ -96,6 +99,21 @@ public class MinioMediaStorage implements MediaStorage {
                     build());
         } catch (Exception exception) {
             throw new MediaStorageException("delete", exception);
+        }
+    }
+
+    @Override
+    public Set<String> listObjectKeys() {
+        try {
+            Set<String> objectKeys = new HashSet<>();
+            Iterable<io.minio.Result<Item>> results = storageClient.listObjects(
+                    ListObjectsArgs.builder().bucket(properties.bucket()).recursive(true).build());
+            for (io.minio.Result<Item> result : results) {
+                objectKeys.add(result.get().objectName());
+            }
+            return Set.copyOf(objectKeys);
+        } catch (Exception exception) {
+            throw new MediaStorageException("list", exception);
         }
     }
 }

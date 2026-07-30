@@ -101,13 +101,16 @@ Last reviewed: 2026-07-30.
 - Tracks can retain a nullable legacy audio URL or reference private storage with
   a server-internal object key, checksum, and byte size; object keys are excluded
   from public and administrator DTOs.
+- Track deletion and media replacement use a transactional deletion outbox with a
+  scheduled retry/backoff worker. Administrator reconciliation reports missing
+  and orphaned objects using safe key fingerprints, with aggregate Actuator metrics.
 - A common safe REST error contract with stable codes and request IDs propagated
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
   profiles and fail-fast production validation for secrets and endpoints.
-- Flyway migrations V1 through V7 for users, refresh tokens, tracks, playlists,
-  playlist tracks, import jobs, database enum constraints, and object-storage
-  track metadata.
+- Flyway migrations V1 through V8 for users, refresh tokens, tracks, playlists,
+  playlist tracks, import jobs, database enum constraints, object-storage track
+  metadata, and the media-deletion outbox.
 
 The backend currently has controllers for:
 
@@ -116,6 +119,7 @@ The backend currently has controllers for:
 - `/api/playlists/**`
 - `/api/admin/tracks/**`
 - `/api/admin/tracks/import/**`
+- `/api/admin/media/**`
 - `/api/admin/playlists/**`
 
 ### Not implemented in the backend
@@ -213,6 +217,7 @@ Copy `.env.example` to `.env` and replace every placeholder. The main variables 
 - `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`,
   `S3_ACCESS_KEY`, and `S3_SECRET_KEY`;
 - optional `APP_IMPORT_TEMP_DIR` and `APP_IMPORT_MAX_SIZE_BYTES`;
+- optional `MEDIA_DELETION_POLL_DELAY_MS`;
 - optional `MINIO_API_PORT` and `MINIO_CONSOLE_PORT`;
 - optional image overrides used by deployment.
 
@@ -266,7 +271,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 150 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 160 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 26 passing Playwright authentication/smoke tests;

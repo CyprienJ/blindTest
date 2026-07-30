@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -56,6 +57,7 @@ class ImportJobRunnerTest {
     private YtDlpWrapper ytDlpWrapper;
     private SimpMessagingTemplate messagingTemplate;
     private MediaStorage mediaStorage;
+    private TrackMediaService trackMediaService;
     private ImportJobRunner runner;
 
     @BeforeEach
@@ -65,13 +67,23 @@ class ImportJobRunnerTest {
         ytDlpWrapper = mock(YtDlpWrapper.class);
         messagingTemplate = mock(SimpMessagingTemplate.class);
         mediaStorage = mock(MediaStorage.class);
+        trackMediaService = mock(TrackMediaService.class);
+        doAnswer(invocation -> {
+            TrackEntity target = invocation.getArgument(0);
+            target.setAudioUrl(null);
+            target.setAudioObjectKey(invocation.getArgument(1));
+            target.setAudioChecksum(invocation.getArgument(2));
+            target.setAudioSizeBytes(invocation.getArgument(3));
+            trackRepository.save(target);
+            return null;
+        }).when(trackMediaService).replaceMedia(any(), any(), any(), any(Long.class));
         runner = new ImportJobRunner(
                 jobRepository,
-                trackRepository,
                 ytDlpWrapper,
                 messagingTemplate,
                 mediaStorage,
-                new ImportProperties(tempRoot, 8));
+                new ImportProperties(tempRoot, 8),
+                trackMediaService);
         when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(trackRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -191,11 +203,11 @@ class ImportJobRunnerTest {
         TestJob testJob = arrangeJob();
         runner = new ImportJobRunner(
                 jobRepository,
-                trackRepository,
                 ytDlpWrapper,
                 messagingTemplate,
                 mediaStorage,
-                new ImportProperties(tempRoot, maxSize));
+                new ImportProperties(tempRoot, maxSize),
+                trackMediaService);
         arrangeProcess(content, 0);
 
         runner.execute(testJob.jobId());

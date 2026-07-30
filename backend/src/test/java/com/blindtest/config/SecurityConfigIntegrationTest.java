@@ -16,6 +16,7 @@ import com.blindtest.service.AdminTrackService;
 import com.blindtest.service.AuthService;
 import com.blindtest.service.CatalogueService;
 import com.blindtest.service.ImportJobService;
+import com.blindtest.service.MediaReconciliationService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,9 @@ class SecurityConfigIntegrationTest {
 
     @MockBean
     private ImportJobService importJobService;
+
+    @MockBean
+    private MediaReconciliationService mediaReconciliationService;
 
     @Test
     void publicAuthPostRoutesAreAccessibleWithoutToken() throws Exception {

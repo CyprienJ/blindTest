@@ -21,7 +21,7 @@ gameplay and social features are still planned.
 - A pinned local MinIO service with persistent storage, automatic private-bucket
   initialization, application-origin CORS, and localhost-only API and console ports.
 - Angular authentication pages and client-side authentication infrastructure.
-- PostgreSQL persistence with Flyway migrations V1 through V6.
+- PostgreSQL persistence with Flyway migrations V1 through V8.
 - A Docker Compose stack containing PostgreSQL, MinIO, the Spring Boot backend,
   and the Nginx-served Angular frontend.
 

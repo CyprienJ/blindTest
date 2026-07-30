@@ -37,6 +37,7 @@ tags:
   - name: Tracks
   - name: Playlists
   - name: Admin - Tracks
+  - name: Admin - Media
   - name: Admin - Playlists
   - name: Admin - Users
 
@@ -416,6 +417,36 @@ components:
         expiresAt:
           type: string
           format: date-time
+
+    MediaReconciliationReport:
+      type: object
+      required: [checkedAt, missingCount, orphanedCount, missingObjects, orphanedObjectFingerprints]
+      properties:
+        checkedAt:
+          type: string
+          format: date-time
+        missingCount:
+          type: integer
+          minimum: 0
+        orphanedCount:
+          type: integer
+          minimum: 0
+        missingObjects:
+          type: array
+          items:
+            type: object
+            required: [trackId, objectFingerprint]
+            properties:
+              trackId:
+                $ref: '#/components/schemas/UUID'
+              objectFingerprint:
+                type: string
+                description: Safe truncated SHA-256 fingerprint of the internal object key.
+        orphanedObjectFingerprints:
+          type: array
+          items:
+            type: string
+          description: Safe truncated SHA-256 fingerprints; internal object keys are never returned.
 
     UpdateTrackRequest:
       type: object
@@ -979,6 +1010,26 @@ paths:
                 properties:
                   jobId:
                     $ref: '#/components/schemas/UUID'
+
+  /admin/media/reconciliation:
+    get:
+      tags: [Admin - Media]
+      summary: Compare track media references with private object storage
+      description: |
+        Read-only operational report. Objects already present in the durable
+        deletion outbox are excluded from orphan results. Internal object keys
+        are represented only by short SHA-256 fingerprints.
+      responses:
+        '200':
+          description: Point-in-time reconciliation report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaReconciliationReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /admin/playlists:
     get:

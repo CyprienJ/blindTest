@@ -18,12 +18,14 @@ import com.blindtest.model.entity.UserRole;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
+import com.blindtest.repository.MediaDeletionTaskRepository;
 import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.port.EmailSender;
 import com.blindtest.service.port.MediaStorage;
 import com.blindtest.service.port.TurnstileVerifier;
 import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +46,8 @@ import org.springframework.test.web.servlet.MockMvc;
     "spring.datasource.username=sa",
     "spring.datasource.password=",
     "spring.jpa.hibernate.ddl-auto=create-drop",
-    "spring.flyway.enabled=false"
+    "spring.flyway.enabled=false",
+    "app.media-maintenance.deletion-poll-delay-ms=3600000"
 })
 class AdminTrackControllerIntegrationTest {
 
@@ -56,6 +59,9 @@ class AdminTrackControllerIntegrationTest {
 
     @Autowired
     private TrackImportJobRepository importJobRepository;
+
+    @Autowired
+    private MediaDeletionTaskRepository deletionTaskRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -78,6 +84,7 @@ class AdminTrackControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        deletionTaskRepository.deleteAll();
         importJobRepository.deleteAll();
         trackRepository.deleteAll();
         userRepository.deleteAll();
@@ -108,6 +115,8 @@ class AdminTrackControllerIntegrationTest {
         when(mediaStorage.exists("tracks/pending/audio.mp3")).thenReturn(true);
         when(mediaStorage.presignedGetUrl("tracks/pending/audio.mp3")).thenReturn(
                 URI.create("https://media.example.test/tracks/pending/audio.mp3?signature=test"));
+        when(mediaStorage.listObjectKeys()).thenReturn(Set.of(
+                "tracks/pending/audio.mp3", "tracks/orphan/audio.mp3"));
 
         TrackEntity published = buildTrack("Published Track", TrackStatus.PUBLISHED);
         publishedTrack = trackRepository.save(published);
@@ -174,6 +183,29 @@ class AdminTrackControllerIntegrationTest {
     }
 
     @Test
+    void adminCanReconcileMediaWithoutReceivingInternalObjectKeys() throws Exception {
+        mockMvc.perform(get("/api/admin/media/reconciliation").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.missingCount").value(0)).
+                andExpect(jsonPath("$.orphanedCount").value(1)).
+                andExpect(jsonPath("$.orphanedObjectFingerprints[0]").isString()).
+                andExpect(jsonPath("$.orphanedObjectKeys").doesNotExist()).
+                andExpect(jsonPath("$.missingObjects").isEmpty());
+    }
+
+    @Test
+    void normalUserCannotRequestMediaReconciliation() throws Exception {
+        String userToken = "Bearer " + jwtTokenProvider.generateAccessToken(
+                UUID.randomUUID(), UserRole.USER);
+
+        mockMvc.perform(get("/api/admin/media/reconciliation").
+                        header(HttpHeaders.AUTHORIZATION, userToken)).
+                andExpect(status().isForbidden()).
+                andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+    }
+
+    @Test
     void previewRejectsPublishedTrack() throws Exception {
         mockMvc.perform(get("/api/admin/tracks/" + publishedTrack.getId() + "/preview-url").
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
@@ -211,6 +243,7 @@ class AdminTrackControllerIntegrationTest {
                 andExpect(status().isNoContent());
 
         assertThat(trackRepository.findById(pendingTrack.getId())).isEmpty();
+        assertThat(deletionTaskRepository.findByObjectKey("tracks/pending/audio.mp3")).isPresent();
     }
 
     @Test
