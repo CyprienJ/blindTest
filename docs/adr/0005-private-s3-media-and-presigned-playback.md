@@ -63,9 +63,10 @@ database cutover, rollback window, and reconciliation have succeeded.
 
 ## Follow-up
 
-- Implement the storage port, MinIO adapter, private bucket bootstrap, and CORS.
-- Threat-model URL leakage and test anonymous denial, expiry, range playback, and
-  authorization.
+- The storage port, MinIO adapter, private bucket bootstrap, CORS, and authorized
+  administrator preview URL endpoint are implemented.
+- Complete real-MinIO expiry/range playback tests and the remaining URL-leakage
+  threat-model checks.
 - Add backups, reconciliation, migration, and provider compatibility checks.
 
 ## References
@@ -73,4 +74,3 @@ database cutover, rollback window, and reconciliation have succeeded.
 - [Roadmap media model](../plan.md#45-media-security-model)
 - [Component diagram](../diagrams/01-composants.puml)
 - [Import sequence diagram](../diagrams/04-sequences.puml)
-

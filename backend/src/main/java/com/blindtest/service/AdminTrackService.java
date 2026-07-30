@@ -1,15 +1,22 @@
 package com.blindtest.service;
 
+import com.blindtest.config.properties.S3Properties;
+import com.blindtest.model.dto.MediaPreviewResponse;
 import com.blindtest.model.dto.TrackAdminResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
+import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.TrackEntity;
 import com.blindtest.model.entity.TrackStatus;
+import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
+import com.blindtest.service.port.MediaStorage;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +36,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminTrackService {
 
     private final TrackRepository trackRepository;
+    private final TrackImportJobRepository importJobRepository;
+    private final MediaStorage mediaStorage;
+    private final S3Properties s3Properties;
+    private final Clock clock;
 
     @Value("${app.media-dir:/media}")
     private String mediaDir;
@@ -37,6 +48,26 @@ public class AdminTrackService {
     public Page<TrackAdminResponse> getAllTracks(int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum, Math.min(pageSize, 100));
         return trackRepository.findAll(pageable).map(TrackAdminResponse::from);
+    }
+
+    /** Creates a short-lived preview URL for a completed, unpublished import. */
+    @Transactional(readOnly = true)
+    public MediaPreviewResponse createPreviewUrl(UUID id) {
+        TrackEntity track = findOrThrow(id);
+        String objectKey = track.getAudioObjectKey();
+        boolean completedImport = importJobRepository.existsByTrackIdAndStatus(
+                id, ImportJobStatus.DONE);
+        if (track.getStatus() != TrackStatus.PENDING || !completedImport
+                || objectKey == null || track.getAudioChecksum() == null
+                || track.getAudioSizeBytes() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONFLICT");
+        }
+        if (!mediaStorage.exists(objectKey)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONFLICT");
+        }
+        Instant expiresAt = Instant.now(clock).plus(s3Properties.presignedUrlTtl());
+        URI url = mediaStorage.presignedGetUrl(objectKey);
+        return new MediaPreviewResponse(url, expiresAt);
     }
 
     /** Updates the non-null metadata fields of the given track. Returns 404 if not found. */

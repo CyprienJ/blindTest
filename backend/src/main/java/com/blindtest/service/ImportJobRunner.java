@@ -95,7 +95,7 @@ public class ImportJobRunner {
             jobRepository.save(job);
 
             messagingTemplate.convertAndSendToUser(adminId.toString(), IMPORT_QUEUE_PREFIX + jobId,
-                    new WsImportDoneEvent(jobId, track.getId(), null));
+                    new WsImportDoneEvent(jobId, track.getId()));
 
         } catch (Exception e) {
             log.error("Import job {} failed: {}", jobId, e.getMessage());

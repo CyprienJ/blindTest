@@ -21,4 +21,7 @@ public interface TrackImportJobRepository extends JpaRepository<TrackImportJobEn
     /** Returns the job by ID with its track and admin eagerly loaded (avoids lazy-load issues). */
     @Query("SELECT j FROM TrackImportJobEntity j LEFT JOIN FETCH j.track LEFT JOIN FETCH j.admin WHERE j.id = :id")
     Optional<TrackImportJobEntity> findByIdWithTrack(@Param("id") UUID id);
+
+    /** Reports whether a track belongs to an import in the requested lifecycle state. */
+    boolean existsByTrackIdAndStatus(UUID trackId, ImportJobStatus status);
 }

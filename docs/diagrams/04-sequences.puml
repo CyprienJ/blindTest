@@ -206,10 +206,18 @@ job ->> ffmpeg : MP3 conversion / normalisation
 ffmpeg -->> job : isolated temporary MP3
 job ->> storage : upload and verify object
 storage -->> job : opaque object key
-job ->> job : create TrackEntity\n(status=PENDING_VALIDATION, objectKey)
+job ->> job : finalize TrackEntity\n(status=PENDING, objectKey, checksum, size)
 
 job ->> ws : IMPORT_DONE\n{ trackId }
 ws -->> admin : IMPORT_DONE\n{ trackId }
+
+admin ->> rest : GET /api/admin/tracks/{trackId}/preview-url
+rest ->> job : verify PENDING track and DONE import
+rest ->> storage : exists(objectKey)
+storage -->> rest : true
+rest ->> storage : presignedGetUrl(objectKey)
+storage -->> rest : short-lived URL
+rest -->> admin : 200 { url, expiresAt }
 
 note over admin
   Admin listens to the preview in

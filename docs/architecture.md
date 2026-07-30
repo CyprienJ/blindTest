@@ -135,6 +135,11 @@ Full-stack adapter tests import
 system clock, UUID-backed opaque refresh tokens, and `MinioMediaStorage`. The
 MinIO adapter keeps SDK types below the service port and uses separate clients for
 private storage operations and browser-accessible URL signing.
+Administrators request previews through
+`GET /api/admin/tracks/{trackId}/preview-url`; the application verifies a pending
+track, a completed import, finalized media metadata, and object existence before
+returning the pre-signed URL and its expiration. Signed URLs and object keys are
+not written to application logs or persistent API data.
 Persistence-generated entity IDs remain database-owned; tests consume returned
 IDs instead of predicting them.
 
@@ -667,7 +672,7 @@ Header: Authorization: Bearer <JWT or sessionToken>
 | Type | Payload |
 |---|---|
 | `IMPORT_PROGRESS` | `{ jobId, status, progress }` |
-| `IMPORT_DONE` | `{ jobId, trackId, previewUrl }` |
+| `IMPORT_DONE` | `{ jobId, trackId }`; the admin then requests an authorized preview URL |
 | `IMPORT_FAILED` | `{ jobId, errorMessage }` |
 
 ---
@@ -717,8 +722,12 @@ sequenceDiagram
 
     YtDlp-->>Job: audio downloaded
     Job->>Job: FFmpeg convert → MP3
-    Job->>WS: IMPORT_DONE { trackId, previewUrl }
-    WS-->>Admin: IMPORT_DONE { trackId, previewUrl }
+    Job->>WS: IMPORT_DONE { trackId }
+    WS-->>Admin: IMPORT_DONE { trackId }
+
+    Admin->>REST: GET /api/admin/tracks/{trackId}/preview-url
+    REST->>S3: verify object and pre-sign GET
+    REST-->>Admin: 200 { url, expiresAt }
 
     Note over Admin: Admin listens to the in-game preview
     Admin->>REST: POST /api/admin/tracks/{trackId}/validate
@@ -921,8 +930,9 @@ schedulePlay(audioUrl: string, startAt: number): void {
 2. **POST** `/api/admin/tracks/import` → the server creates a `TrackImportJob` and responds `202 { jobId }`
 3. The admin subscribes to `/user/queue/import/{jobId}` to track progress
 4. The server runs `yt-dlp` in the background to download the audio, then FFmpeg to convert to MP3
-5. Once done, the `IMPORT_DONE` event contains `previewUrl` and `trackId`
-6. The admin previews the track in the preview interface (faithful in-game rendering)
+5. Once done, the `IMPORT_DONE` event contains `jobId` and `trackId`
+6. The admin requests `GET /api/admin/tracks/{trackId}/preview-url` and previews
+   the track with the returned short-lived URL (faithful in-game rendering)
 7. The admin validates (**POST** `/api/admin/tracks/{id}/validate`) → `status = PUBLISHED`
    or rejects (**POST** `/api/admin/tracks/{id}/reject`) → `status = REJECTED`
 8. Only `PUBLISHED` tracks are available in the catalogue for sessions

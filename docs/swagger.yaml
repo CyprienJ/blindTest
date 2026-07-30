@@ -400,10 +400,22 @@ components:
               nullable: true
             status:
               type: string
-              enum: [PENDING_VALIDATION, PUBLISHED, REJECTED]
+              enum: [PENDING, PUBLISHED, REJECTED]
             createdAt:
               type: string
               format: date-time
+
+    MediaPreview:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Short-lived pre-signed GET URL. Treat as a bearer credential.
+        expiresAt:
+          type: string
+          format: date-time
 
     UpdateTrackRequest:
       type: object
@@ -921,6 +933,31 @@ paths:
                       $ref: '#/components/schemas/Track'
                   totalElements:
                     type: integer
+
+  /admin/tracks/{trackId}/preview-url:
+    get:
+      tags: [Admin - Tracks]
+      summary: Create a short-lived preview URL for a completed import
+      description: |
+        The track must be unpublished and pending review, its import job must be
+        complete, and its private media object must still exist.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Authorized preview URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaPreview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /admin/tracks/import:
     post:

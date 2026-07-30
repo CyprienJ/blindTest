@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[MEDIA-05 — Implement authorized preview URLs](#media-05--implement-authorized-preview-urls)**
+**[MEDIA-06 — Add reliable deletion and reconciliation](#media-06--add-reliable-deletion-and-reconciliation)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. MEDIA-04 is complete, so MEDIA-05 is the next
+FND-05 remains blocked by DG-04. MEDIA-05 is complete, so MEDIA-06 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -673,6 +673,8 @@ Acceptance:
 - retry does not create duplicate active objects.
 
 #### MEDIA-05 — Implement authorized preview URLs
+
+Status: completed on 2026-07-30.
 
 Work:
 

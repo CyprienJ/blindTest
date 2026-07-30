@@ -1,5 +1,6 @@
 package com.blindtest.controller.admin;
 
+import com.blindtest.model.dto.MediaPreviewResponse;
 import com.blindtest.model.dto.TrackAdminResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
 import com.blindtest.service.AdminTrackService;
@@ -32,6 +33,11 @@ public class AdminTrackController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return adminTrackService.getAllTracks(page, size);
+    }
+
+    @GetMapping("/{id}/preview-url")
+    public MediaPreviewResponse createPreviewUrl(@PathVariable UUID id) {
+        return adminTrackService.createPreviewUrl(id);
     }
 
     @PutMapping("/{id}")

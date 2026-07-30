@@ -30,13 +30,16 @@ entity Track {
   * artist : VARCHAR(255)
     composer : VARCHAR(255)
     work : VARCHAR(255)
-  * audio_url : VARCHAR
+    audio_url : VARCHAR
+    audio_object_key : VARCHAR
+    audio_checksum : CHAR(64)
+    audio_size_bytes : BIGINT
     image_url : VARCHAR
     youtube_url : VARCHAR
     category : VARCHAR(100)
     decade : INTEGER
   * duration_seconds : INTEGER
-  * status : ENUM(PENDING_VALIDATION,\n         PUBLISHED, REJECTED)
+  * status : ENUM(PENDING,\n         PUBLISHED, REJECTED)
   * created_at : TIMESTAMP
 }
 

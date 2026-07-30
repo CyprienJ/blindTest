@@ -105,7 +105,6 @@ class ImportJobRunnerTest {
                 satisfies(event -> {
                     WsImportDoneEvent doneEvent = (WsImportDoneEvent) event;
                     assertThat(doneEvent.getTrackId()).isEqualTo(testJob.trackId());
-                    assertThat(doneEvent.getPreviewUrl()).isNull();
                 });
         InOrder persistenceOrder = inOrder(trackRepository, jobRepository);
         persistenceOrder.verify(trackRepository).save(track);

@@ -78,6 +78,8 @@ Last reviewed: 2026-07-30.
   cookies scoped to `/api/auth`.
 - Public published-track catalogue and public playlists.
 - Admin track listing, update, delete, validate, and reject operations.
+- Admin-only short-lived preview URLs for completed unpublished imports, with
+  lifecycle, finalized-metadata, and object-existence checks.
 - Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
   per-user STOMP progress messages, MP3 validation, checksum generation, and
   finalized upload to private object storage.
@@ -264,7 +266,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 142 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 150 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 26 passing Playwright authentication/smoke tests;
