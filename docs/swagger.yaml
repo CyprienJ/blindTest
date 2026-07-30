@@ -539,10 +539,11 @@ components:
 
     ImportJobStatus:
       type: string
-      enum: [QUEUED, DOWNLOADING, PROCESSING, DONE, FAILED]
+      enum: [QUEUED, DOWNLOADING, PROCESSING, DONE, PUBLISHED, REJECTED, FAILED]
 
     TrackImportJob:
       type: object
+      required: [jobId, status, progress, previewAvailable, createdAt, updatedAt]
       properties:
         jobId:
           $ref: '#/components/schemas/UUID'
@@ -557,9 +558,19 @@ components:
           type: string
           nullable: true
           description: Stable sanitized failure text; provider output is never exposed.
+        previewAvailable:
+          type: boolean
+          description: Whether the completed pending import currently has previewable media.
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
 
     Playlist:
       type: object
@@ -1061,6 +1072,67 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/import/{jobId}:
+    get:
+      tags: [Admin - Tracks]
+      summary: Poll the current import workflow state
+      description: Polling fallback for reconnects or missed private WebSocket events.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Current safe import workflow snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackImportJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/tracks/{trackId}/validate:
+    post:
+      tags: [Admin - Tracks]
+      summary: Publish a completed import
+      description: Idempotently transitions DONE to PUBLISHED with complete metadata.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Published track snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAdmin'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/{trackId}/reject:
+    post:
+      tags: [Admin - Tracks]
+      summary: Reject a completed import
+      description: |
+        Idempotently transitions DONE to REJECTED. Media is retained until DG-05
+        defines the rejected-media retention and deletion period.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Rejected track snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAdmin'
         '409':
           $ref: '#/components/responses/Conflict'
 

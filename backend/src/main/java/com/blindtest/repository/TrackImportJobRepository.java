@@ -6,7 +6,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,6 +24,12 @@ public interface TrackImportJobRepository extends JpaRepository<TrackImportJobEn
     /** Returns the job by ID with its track and admin eagerly loaded (avoids lazy-load issues). */
     @Query("SELECT j FROM TrackImportJobEntity j LEFT JOIN FETCH j.track LEFT JOIN FETCH j.admin WHERE j.id = :id")
     Optional<TrackImportJobEntity> findByIdWithTrack(@Param("id") UUID id);
+
+    /** Locks the import workflow associated with a track while it is reviewed. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT j FROM TrackImportJobEntity j LEFT JOIN FETCH j.track "
+            + "WHERE j.track.id = :trackId")
+    Optional<TrackImportJobEntity> findByTrackIdForUpdate(@Param("trackId") UUID trackId);
 
     /** Reports whether a track belongs to an import in the requested lifecycle state. */
     boolean existsByTrackIdAndStatus(UUID trackId, ImportJobStatus status);

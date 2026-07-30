@@ -234,7 +234,7 @@ else Admin rejects
   admin ->> rest : POST /api/admin/tracks/{trackId}/reject\n{ reason }
   rest ->> job : rejectTrack(trackId)
   job ->> job : status = REJECTED
-  job ->> storage : delete object per retention policy
+  note over job,storage : object retained until DG-05 defines deletion timing
   rest -->> admin : 200 { status: REJECTED }
 end
 

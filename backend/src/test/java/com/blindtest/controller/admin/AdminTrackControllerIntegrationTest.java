@@ -269,6 +269,14 @@ class AdminTrackControllerIntegrationTest {
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+        mockMvc.perform(post("/api/admin/tracks/" + id + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+        assertThat(importJobRepository.findAll().getFirst().getStatus()).
+                isEqualTo(ImportJobStatus.PUBLISHED);
     }
 
     @Test
@@ -294,11 +302,38 @@ class AdminTrackControllerIntegrationTest {
 
     @Test
     void rejectTrackSetsStatusToRejected() throws Exception {
-        String id = publishedTrack.getId().toString();
+        String id = pendingTrack.getId().toString();
         mockMvc.perform(post("/api/admin/tracks/" + id + "/reject").
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.status").value("REJECTED"));
+
+        mockMvc.perform(post("/api/admin/tracks/" + id + "/reject").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.status").value("REJECTED"));
+
+        TrackImportJobEntity job = importJobRepository.findAll().getFirst();
+        assertThat(job.getStatus()).isEqualTo(ImportJobStatus.REJECTED);
+        assertThat(trackRepository.findById(pendingTrack.getId()).orElseThrow().
+                getAudioObjectKey()).isEqualTo("tracks/pending/audio.mp3");
+    }
+
+    @Test
+    void publicationRejectsImportThatIsNotDone() throws Exception {
+        TrackImportJobEntity job = importJobRepository.findAll().getFirst();
+        job.setStatus(ImportJobStatus.PROCESSING);
+        importJobRepository.saveAndFlush(job);
+
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isConflict());
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/reject").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isConflict());
+
+        assertThat(trackRepository.findById(pendingTrack.getId()).orElseThrow().getStatus()).
+                isEqualTo(TrackStatus.PENDING);
     }
 
     // ── helpers ────────────────────────────────────────────────────────────────

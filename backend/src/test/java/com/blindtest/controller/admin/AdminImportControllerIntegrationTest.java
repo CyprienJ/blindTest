@@ -3,12 +3,14 @@ package com.blindtest.controller.admin;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.blindtest.model.entity.UserEntity;
+import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.UserRole;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
@@ -16,6 +18,8 @@ import com.blindtest.repository.UserRepository;
 import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.port.EmailSender;
 import com.blindtest.service.port.ImportJobScheduler;
+import com.blindtest.service.port.MediaStorage;
+import java.time.LocalDateTime;
 import com.blindtest.service.port.TurnstileVerifier;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +65,9 @@ class AdminImportControllerIntegrationTest {
 
     @MockBean
     private ImportJobScheduler importJobScheduler;
+
+    @MockBean
+    private MediaStorage mediaStorage;
 
     @MockBean
     private EmailSender emailSender;
@@ -170,7 +177,71 @@ class AdminImportControllerIntegrationTest {
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.status").value("QUEUED")).
-                andExpect(jsonPath("$.jobId").value(jobId));
+                andExpect(jsonPath("$.jobId").value(jobId)).
+                andExpect(jsonPath("$.progress").value(0)).
+                andExpect(jsonPath("$.previewAvailable").value(false)).
+                andExpect(jsonPath("$.createdAt").isNotEmpty()).
+                andExpect(jsonPath("$.updatedAt").isNotEmpty()).
+                andExpect(jsonPath("$.completedAt").doesNotExist());
+    }
+
+    @Test
+    void pollingRecoversCompletedStateAfterWebSocketEventWasMissed() throws Exception {
+        String body = "{\"youtubeUrl\":\"" + WATCH_URL + "\","
+                + "\"title\":\"Song\",\"artist\":\"Artist\"}";
+        mockMvc.perform(post("/api/admin/tracks/import").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content(body)).
+                andExpect(status().isAccepted());
+
+        var job = jobRepository.findAll().getFirst();
+        job.setStatus(ImportJobStatus.DONE);
+        job.setProgress((short) 100);
+        job.setCompletedAt(LocalDateTime.now());
+        var track = trackRepository.findById(job.getTrack().getId()).orElseThrow();
+        track.setAudioObjectKey("tracks/poll/audio.mp3");
+        track.setAudioChecksum("a".repeat(64));
+        track.setAudioSizeBytes(1234L);
+        trackRepository.saveAndFlush(track);
+        jobRepository.saveAndFlush(job);
+        when(mediaStorage.exists("tracks/poll/audio.mp3")).thenReturn(true);
+
+        mockMvc.perform(get("/api/admin/tracks/import/" + job.getId()).
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.status").value("DONE")).
+                andExpect(jsonPath("$.progress").value(100)).
+                andExpect(jsonPath("$.previewAvailable").value(true)).
+                andExpect(jsonPath("$.completedAt").isNotEmpty()).
+                andExpect(jsonPath("$.track.id").value(track.getId().toString())).
+                andExpect(jsonPath("$.track.audioObjectKey").doesNotExist());
+    }
+
+    @Test
+    void pollingExposesOnlyPersistedSafeFailureMessage() throws Exception {
+        String body = "{\"youtubeUrl\":\"" + WATCH_URL + "\","
+                + "\"title\":\"Song\",\"artist\":\"Artist\"}";
+        mockMvc.perform(post("/api/admin/tracks/import").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content(body)).
+                andExpect(status().isAccepted());
+
+        var job = jobRepository.findAll().getFirst();
+        job.setStatus(ImportJobStatus.FAILED);
+        job.setErrorMessage("The media provider could not process this video");
+        job.setCompletedAt(LocalDateTime.now());
+        jobRepository.saveAndFlush(job);
+
+        mockMvc.perform(get("/api/admin/tracks/import/" + job.getId()).
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.status").value("FAILED")).
+                andExpect(jsonPath("$.errorMessage").value(
+                        "The media provider could not process this video")).
+                andExpect(jsonPath("$.previewAvailable").value(false)).
+                andExpect(jsonPath("$.completedAt").isNotEmpty());
     }
 
     @Test

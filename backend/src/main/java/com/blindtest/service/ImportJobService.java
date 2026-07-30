@@ -13,6 +13,7 @@ import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.service.port.ImportJobScheduler;
+import com.blindtest.service.port.MediaStorage;
 import java.util.EnumSet;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class ImportJobService {
     private final TrackRepository trackRepository;
     private final UserRepository userRepository;
     private final ImportJobScheduler importJobScheduler;
+    private final MediaStorage mediaStorage;
 
     /** Creates a PENDING track and a QUEUED import job, then triggers async download. */
     @Transactional
@@ -66,7 +68,18 @@ public class ImportJobService {
     public ImportJobResponse getJobStatus(UUID jobId) {
         TrackImportJobEntity job = jobRepository.findByIdWithTrack(jobId).
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return ImportJobResponse.from(job);
+        return ImportJobResponse.from(job, isPreviewAvailable(job));
+    }
+
+    private boolean isPreviewAvailable(TrackImportJobEntity job) {
+        TrackEntity track = job.getTrack();
+        return job.getStatus() == ImportJobStatus.DONE
+                && track != null
+                && track.getStatus() == TrackStatus.PENDING
+                && track.getAudioObjectKey() != null
+                && track.getAudioChecksum() != null
+                && track.getAudioSizeBytes() != null
+                && mediaStorage.exists(track.getAudioObjectKey());
     }
 
     private TrackEntity buildTrack(ImportTrackRequest request, String youtubeUrl) {

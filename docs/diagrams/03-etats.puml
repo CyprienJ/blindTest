@@ -99,7 +99,7 @@ FAILED --> [*] : job archived\nwith errorMessage
 
 PUBLISHED --> [*] : track available\nin the catalogue
 
-REJECTED --> [*] : audio file\ndeleted from server
+REJECTED --> [*] : private audio retained\npending DG-05
 
 note right of DOWNLOADING
   Progress 0-50%

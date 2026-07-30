@@ -83,6 +83,9 @@ Last reviewed: 2026-07-30.
 - Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
   per-user STOMP progress messages, MP3 validation, checksum generation, and
   finalized upload to private object storage.
+- Import polling exposes safe errors, preview availability, and lifecycle timestamps;
+  completed imports transition transactionally and idempotently to published or
+  rejected, while rejected media is retained pending DG-05.
 - YouTube imports accept canonical single-video watch, short-link, and Shorts
   URLs; metadata is bounded, active duplicate videos are rejected, output remains
   inside isolated temporary directories, and provider failures are sanitized.
@@ -121,10 +124,10 @@ Last reviewed: 2026-07-30.
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
   profiles and fail-fast production validation for secrets and endpoints.
-- Flyway migrations V1 through V10 for users, refresh tokens, tracks, playlists,
+- Flyway migrations V1 through V11 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
-  metadata, the media-deletion outbox, extended track metadata, and active-import
-  deduplication.
+  metadata, the media-deletion outbox, extended track metadata, active-import
+  deduplication, and import workflow timestamps.
 
 The backend currently has controllers for:
 

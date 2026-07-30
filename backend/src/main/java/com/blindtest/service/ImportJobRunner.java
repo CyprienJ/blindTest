@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.UUID;
@@ -94,6 +95,7 @@ public class ImportJobRunner {
             deleteTemporaryDirectory(temporaryDirectory);
             job.setStatus(ImportJobStatus.DONE);
             job.setProgress((short) 100);
+            job.setCompletedAt(LocalDateTime.now());
             jobRepository.save(job);
 
             messagingTemplate.convertAndSendToUser(adminId.toString(), IMPORT_QUEUE_PREFIX + jobId,
@@ -102,6 +104,7 @@ public class ImportJobRunner {
         } catch (Exception e) {
             log.error("Import job {} failed with {}", jobId, e.getClass().getSimpleName());
             job.setStatus(ImportJobStatus.FAILED);
+            job.setCompletedAt(LocalDateTime.now());
             String msg = safeFailureMessage(e);
             job.setErrorMessage(msg);
             jobRepository.save(job);

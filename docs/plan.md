@@ -10,13 +10,14 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-04 — Complete import status and publication workflow](#cat-04--complete-import-status-and-publication-workflow)**
+**[CAT-07 — Complete playlist ordering APIs](#cat-07--complete-playlist-ordering-apis)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. CAT-01 and CAT-03 are complete. CAT-02 remains
-blocked by DG-03, so CAT-04 is the next ready ticket in the recommended execution
-sequence. MEDIA-08 remains deferred until real legacy files require migration.
+FND-05 remains blocked by DG-04. CAT-01, CAT-03, and CAT-04 are complete. CAT-02
+remains blocked by DG-03; CAT-05 and CAT-06 depend on its alias-management API.
+CAT-07 is therefore the next ready ticket in the recommended execution sequence.
+MEDIA-08 remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -825,6 +826,8 @@ Acceptance:
 - import cannot write outside its temporary directory.
 
 #### CAT-04 — Complete import status and publication workflow
+
+Status: completed on 2026-07-30.
 
 Work:
 

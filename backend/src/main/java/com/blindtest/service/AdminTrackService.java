@@ -6,6 +6,7 @@ import com.blindtest.model.dto.TrackAdminResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
 import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.TrackEntity;
+import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.TrackPublicationPolicy;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.repository.TrackImportJobRepository;
@@ -120,10 +121,16 @@ public class AdminTrackService {
     @Transactional
     public TrackAdminResponse validateTrack(UUID id) {
         TrackEntity track = findOrThrow(id);
+        TrackImportJobEntity job = findReviewableJob(id, ImportJobStatus.PUBLISHED);
+        if (job.getStatus() == ImportJobStatus.PUBLISHED) {
+            return TrackAdminResponse.from(track);
+        }
         if (!TrackPublicationPolicy.isComplete(track)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "TRACK_METADATA_INCOMPLETE");
         }
         track.setStatus(TrackStatus.PUBLISHED);
+        job.setStatus(ImportJobStatus.PUBLISHED);
+        importJobRepository.save(job);
         return TrackAdminResponse.from(trackRepository.save(track));
     }
 
@@ -131,8 +138,27 @@ public class AdminTrackService {
     @Transactional
     public TrackAdminResponse rejectTrack(UUID id) {
         TrackEntity track = findOrThrow(id);
+        TrackImportJobEntity job = findReviewableJob(id, ImportJobStatus.REJECTED);
+        if (job.getStatus() == ImportJobStatus.REJECTED) {
+            return TrackAdminResponse.from(track);
+        }
         track.setStatus(TrackStatus.REJECTED);
+        job.setStatus(ImportJobStatus.REJECTED);
+        importJobRepository.save(job);
         return TrackAdminResponse.from(trackRepository.save(track));
+    }
+
+    private TrackImportJobEntity findReviewableJob(
+            UUID trackId, ImportJobStatus idempotentStatus) {
+        TrackImportJobEntity job = importJobRepository.findByTrackIdForUpdate(trackId).
+                orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.CONFLICT, "IMPORT_NOT_DONE"));
+        if (job.getStatus() != ImportJobStatus.DONE
+                && job.getStatus() != idempotentStatus) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "INVALID_IMPORT_STATUS_TRANSITION");
+        }
+        return job;
     }
 
     private TrackEntity findOrThrow(UUID id) {

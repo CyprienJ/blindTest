@@ -299,6 +299,11 @@ stateDiagram-v2
     REJECTED --> [*]
 ```
 
+Publication and rejection are idempotent terminal actions and are accepted only
+from `DONE`. The REST status endpoint is the recovery source after a missed private
+WebSocket event. Rejected media remains private and retained until DG-05 defines
+its deletion period.
+
 ### 2.6 State Machine — Friend Request
 
 ```mermaid

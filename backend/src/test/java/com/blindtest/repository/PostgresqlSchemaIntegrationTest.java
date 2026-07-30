@@ -74,7 +74,7 @@ class PostgresqlSchemaIntegrationTest {
                 "SELECT installed_rank FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 Integer.class);
 
-        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
     }
 
     @Test
@@ -110,7 +110,7 @@ class PostgresqlSchemaIntegrationTest {
         assertThat(jdbcTemplate.queryForList("""
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
-                """, Integer.class)).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+                """, Integer.class)).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
     }
 
     @Test
