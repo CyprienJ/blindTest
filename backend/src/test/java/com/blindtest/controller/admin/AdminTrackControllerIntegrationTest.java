@@ -17,12 +17,14 @@ import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.entity.UserRole;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
+import com.blindtest.repository.TrackAnswerAliasRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.repository.MediaDeletionTaskRepository;
 import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.port.EmailSender;
 import com.blindtest.service.port.MediaStorage;
 import com.blindtest.service.port.TurnstileVerifier;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.util.List;
 import java.util.Set;
@@ -61,6 +63,9 @@ class AdminTrackControllerIntegrationTest {
     private TrackImportJobRepository importJobRepository;
 
     @Autowired
+    private TrackAnswerAliasRepository aliasRepository;
+
+    @Autowired
     private MediaDeletionTaskRepository deletionTaskRepository;
 
     @Autowired
@@ -68,6 +73,9 @@ class AdminTrackControllerIntegrationTest {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockBean
     private EmailSender emailSender;
@@ -86,6 +94,7 @@ class AdminTrackControllerIntegrationTest {
     void setUp() {
         deletionTaskRepository.deleteAll();
         importJobRepository.deleteAll();
+        aliasRepository.deleteAll();
         trackRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -224,14 +233,162 @@ class AdminTrackControllerIntegrationTest {
                                   "title": "Updated Title",
                                   "artist": "Updated Artist",
                                   "album": "Updated Album",
-                                  "durationSeconds": 240
+                                  "durationSeconds": 240,
+                                  "excerptStartSeconds": 30
                                 }
                                 """)).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.title").value("Updated Title")).
                 andExpect(jsonPath("$.artist").value("Updated Artist")).
                 andExpect(jsonPath("$.album").value("Updated Album")).
-                andExpect(jsonPath("$.durationSeconds").value(240));
+                andExpect(jsonPath("$.durationSeconds").value(240)).
+                andExpect(jsonPath("$.excerptStartSeconds").value(30));
+    }
+
+    @Test
+    void administratorCanCreateListUpdateAndDeleteAliasesWithoutNormalizationLeak()
+            throws Exception {
+        String aliasesUrl = "/api/admin/tracks/" + pendingTrack.getId() + "/aliases";
+        String response = mockMvc.perform(post(aliasesUrl).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"type":"TITLE","value":"  Le Fabuleux Destin  "}
+                                """)).
+                andExpect(status().isCreated()).
+                andExpect(jsonPath("$.type").value("TITLE")).
+                andExpect(jsonPath("$.value").value("Le Fabuleux Destin")).
+                andExpect(jsonPath("$.normalizedValue").doesNotExist()).
+                andReturn().getResponse().getContentAsString();
+        String aliasId = objectMapper.readTree(response).get("id").asText();
+
+        mockMvc.perform(get(aliasesUrl).
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$[0].id").value(aliasId)).
+                andExpect(jsonPath("$[0].normalizedValue").doesNotExist());
+
+        mockMvc.perform(put(aliasesUrl + "/" + aliasId).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"type":"ALBUM","value":"Nouvel alias"}
+                                """)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.type").value("ALBUM")).
+                andExpect(jsonPath("$.value").value("Nouvel alias"));
+
+        mockMvc.perform(delete(aliasesUrl + "/" + aliasId).
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isNoContent());
+        assertThat(aliasRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void aliasCrudSupportsEveryApprovedAnswerType() throws Exception {
+        String aliasesUrl = "/api/admin/tracks/" + pendingTrack.getId() + "/aliases";
+        for (String type : List.of("TITLE", "ARTIST", "COMPOSER", "ALBUM")) {
+            mockMvc.perform(post(aliasesUrl).
+                            contentType(MediaType.APPLICATION_JSON).
+                            header(HttpHeaders.AUTHORIZATION, adminToken).
+                            content("{\"type\":\"" + type + "\",\"value\":\"Alias "
+                                    + type + "\"}")).
+                    andExpect(status().isCreated()).
+                    andExpect(jsonPath("$.type").value(type));
+        }
+        assertThat(aliasRepository.findAll()).hasSize(4);
+    }
+
+    @Test
+    void blankAndNormalizedDuplicateAliasesAreRejected() throws Exception {
+        String aliasesUrl = "/api/admin/tracks/" + pendingTrack.getId() + "/aliases";
+        mockMvc.perform(post(aliasesUrl).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"type":"TITLE","value":"My   Alias"}
+                                """)).
+                andExpect(status().isCreated());
+
+        mockMvc.perform(post(aliasesUrl).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"type":"TITLE","value":"  my alias  "}
+                                """)).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("ANSWER_ALIAS_DUPLICATE"));
+
+        mockMvc.perform(post(aliasesUrl).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"type":"ARTIST","value":"   "}
+                                """)).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void normalUserCannotManageAliases() throws Exception {
+        String userToken = "Bearer " + jwtTokenProvider.generateAccessToken(
+                UUID.randomUUID(), UserRole.USER);
+        mockMvc.perform(get("/api/admin/tracks/" + pendingTrack.getId() + "/aliases").
+                        header(HttpHeaders.AUTHORIZATION, userToken)).
+                andExpect(status().isForbidden());
+    }
+
+    @Test
+    void negativeExcerptOffsetIsRejected() throws Exception {
+        mockMvc.perform(put("/api/admin/tracks/" + pendingTrack.getId()).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"excerptStartSeconds\":-1}")).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void publicationAcceptsExactlySixtyPlayableSecondsAfterOffset() throws Exception {
+        pendingTrack.setDurationSeconds(90);
+        pendingTrack.setExcerptStartSeconds(30);
+        trackRepository.saveAndFlush(pendingTrack);
+
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.excerptStartSeconds").value(30));
+    }
+
+    @Test
+    void publicationRejectsUnknownOrInsufficientDurationAfterOffset() throws Exception {
+        pendingTrack.setExcerptStartSeconds(30);
+        trackRepository.saveAndFlush(pendingTrack);
+
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("TRACK_EXCERPT_INVALID"));
+
+        pendingTrack.setDurationSeconds(89);
+        trackRepository.saveAndFlush(pendingTrack);
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("TRACK_EXCERPT_INVALID"));
+    }
+
+    @Test
+    void publishedTrackCannotLoseItsCanonicalPrimaryTitle() throws Exception {
+        mockMvc.perform(put("/api/admin/tracks/" + publishedTrack.getId()).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"title\":\"   \"}")).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("TRACK_METADATA_INCOMPLETE"));
+
+        assertThat(trackRepository.findById(publishedTrack.getId()).orElseThrow().getTitle()).
+                isEqualTo("Published Track");
     }
 
     @Test

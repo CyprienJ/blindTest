@@ -117,6 +117,10 @@ Last reviewed: 2026-07-30.
   and optional album, composer, work, category, decade, duration, and image fields
   through immutable public and administrator snapshots. Publication requires the
   primary metadata plus a legacy URL or complete object-storage metadata.
+- Administrators can CRUD per-track alternative answers for title, artist,
+  composer, and album without exposing their internal normalized duplicate key.
+  Tracks have a non-negative whole-second playback offset, default zero; non-zero
+  offsets require at least 60 remaining seconds before publication.
 - Track deletion and media replacement use a transactional deletion outbox with a
   scheduled retry/backoff worker. Administrator reconciliation reports missing
   and orphaned objects using safe key fingerprints, with aggregate Actuator metrics.
@@ -127,10 +131,11 @@ Last reviewed: 2026-07-30.
 - Interactive first-administrator provisioning promotes one verified account only
   when no administrator exists, with concurrency-safe locking, idempotent replay,
   and safe persistent outcome auditing.
-- Flyway migrations V1 through V12 for users, refresh tokens, tracks, playlists,
+- Flyway migrations V1 through V13 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
   metadata, the media-deletion outbox, extended track metadata, active-import
-  deduplication, import workflow timestamps, and administrator-provisioning audit.
+  deduplication, import workflow timestamps, administrator-provisioning audit,
+  answer aliases, and excerpt offsets.
 
 The backend currently has controllers for:
 
@@ -293,7 +298,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 211 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 226 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 27 passing Playwright authentication/media/smoke tests;

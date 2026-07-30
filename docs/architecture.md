@@ -161,6 +161,13 @@ always the canonical primary answer (film title for film-related tracks, music
 title otherwise); album, composer, work, category, decade, duration, and image are
 nullable secondary metadata. Publication requires nonblank title and artist plus
 either a legacy audio URL or a complete object key/checksum/positive-size tuple.
+Administrators manage alternative title, artist, composer, and album answers
+through dedicated per-track CRUD endpoints. Alias responses expose only their ID,
+type, and display value; an internal Unicode/case/whitespace key rejects
+duplicates without defining the later gameplay matching rules. Tracks also store
+an administrator-configured whole-second playback offset, defaulting to zero.
+Publication of a non-zero offset requires a known duration with at least 60
+seconds remaining.
 Administrators request previews through
 `GET /api/admin/tracks/{trackId}/preview-url`; the application verifies a pending
 track, a completed import, finalized media metadata, and object existence before

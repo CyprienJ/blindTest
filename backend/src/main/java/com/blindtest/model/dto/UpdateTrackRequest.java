@@ -1,5 +1,6 @@
 package com.blindtest.model.dto;
 
+import jakarta.validation.constraints.Min;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -16,5 +17,7 @@ public class UpdateTrackRequest {
     private String category;
     private Short decade;
     private Integer durationSeconds;
+    @Min(0)
+    private Integer excerptStartSeconds;
     private String imageUrl;
 }

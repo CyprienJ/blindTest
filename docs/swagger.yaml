@@ -102,6 +102,8 @@ components:
             - EMAIL_TAKEN
             - USERNAME_TAKEN
             - CONFLICT
+            - ANSWER_ALIAS_DUPLICATE
+            - TRACK_EXCERPT_INVALID
             - TRACK_METADATA_INCOMPLETE
             - IMPORT_ALREADY_ACTIVE
             - UNSUPPORTED_MEDIA_TYPE
@@ -393,7 +395,16 @@ components:
       allOf:
         - $ref: '#/components/schemas/Track'
         - type: object
+          required: [excerptStartSeconds]
           properties:
+            excerptStartSeconds:
+              type: integer
+              minimum: 0
+              default: 0
+              description: |
+                Administrator-configured whole-second playback offset. A
+                non-zero value can only be published when at least 60 seconds
+                remain in the finalized media.
             audioUrl:
               type: string
               nullable: true
@@ -485,9 +496,45 @@ components:
         durationSeconds:
           type: integer
           nullable: true
+        excerptStartSeconds:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Set to zero to reset playback to the beginning.
         imageUrl:
           type: string
           nullable: true
+
+    TrackAnswerType:
+      type: string
+      enum: [TITLE, ARTIST, COMPOSER, ALBUM]
+
+    TrackAnswerAlias:
+      type: object
+      required: [id, type, value]
+      description: |
+        Administrator-configured alternative answer. Internal normalization
+        used for duplicate detection is never exposed.
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        type:
+          $ref: '#/components/schemas/TrackAnswerType'
+        value:
+          type: string
+          minLength: 1
+          maxLength: 255
+
+    TrackAnswerAliasRequest:
+      type: object
+      required: [type, value]
+      properties:
+        type:
+          $ref: '#/components/schemas/TrackAnswerType'
+        value:
+          type: string
+          minLength: 1
+          maxLength: 255
 
     ImportTrackRequest:
       type: object
@@ -1045,6 +1092,103 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/{trackId}/aliases:
+    get:
+      tags: [Admin - Tracks]
+      summary: List manually configured alternative answers
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Stable ordered alias list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrackAnswerAlias'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin - Tracks]
+      summary: Create a manually configured alternative answer
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackAnswerAliasRequest'
+      responses:
+        '201':
+          description: Alias created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAnswerAlias'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/{trackId}/aliases/{aliasId}:
+    parameters:
+      - $ref: '#/components/parameters/TrackId'
+      - name: aliasId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
+    put:
+      tags: [Admin - Tracks]
+      summary: Replace a manually configured alternative answer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackAnswerAliasRequest'
+      responses:
+        '200':
+          description: Alias updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAnswerAlias'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Admin - Tracks]
+      summary: Delete a manually configured alternative answer
+      responses:
+        '204':
+          description: Alias deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /admin/tracks/import:
     post:

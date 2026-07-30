@@ -19,6 +19,7 @@ public record TrackAdminResponse(
         String category,
         Short decade,
         Integer durationSeconds,
+        int excerptStartSeconds,
         String imageUrl,
         String audioUrl,
         String audioChecksum,
@@ -32,7 +33,8 @@ public record TrackAdminResponse(
         return new TrackAdminResponse(
                 entity.getId(), entity.getTitle(), entity.getArtist(),
                 entity.getAlbum(), entity.getComposer(), entity.getWork(), entity.getCategory(),
-                entity.getDecade(), entity.getDurationSeconds(), entity.getImageUrl(),
+                entity.getDecade(), entity.getDurationSeconds(), entity.getExcerptStartSeconds(),
+                entity.getImageUrl(),
                 entity.getAudioUrl(), entity.getAudioChecksum(), entity.getAudioSizeBytes(),
                 entity.getYoutubeUrl(),
                 entity.getStatus().name(), entity.getCreatedAt());

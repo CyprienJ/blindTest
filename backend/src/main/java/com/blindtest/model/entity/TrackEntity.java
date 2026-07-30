@@ -68,6 +68,9 @@ public class TrackEntity {
     @Column(name = "duration_seconds")
     private Integer durationSeconds;
 
+    @Column(name = "excerpt_start_seconds", nullable = false)
+    private int excerptStartSeconds;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TrackStatus status = TrackStatus.PENDING;

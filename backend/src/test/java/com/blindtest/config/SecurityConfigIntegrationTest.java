@@ -17,6 +17,7 @@ import com.blindtest.service.AuthService;
 import com.blindtest.service.CatalogueService;
 import com.blindtest.service.ImportJobService;
 import com.blindtest.service.MediaReconciliationService;
+import com.blindtest.service.TrackAnswerAliasService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +55,9 @@ class SecurityConfigIntegrationTest {
 
     @MockBean
     private AdminTrackService adminTrackService;
+
+    @MockBean
+    private TrackAnswerAliasService trackAnswerAliasService;
 
     @MockBean
     private AuthService authService;

@@ -101,8 +101,14 @@ public class AdminTrackService {
         if (request.getDurationSeconds() != null) {
             track.setDurationSeconds(request.getDurationSeconds());
         }
+        if (request.getExcerptStartSeconds() != null) {
+            track.setExcerptStartSeconds(request.getExcerptStartSeconds());
+        }
         if (request.getImageUrl() != null) {
             track.setImageUrl(request.getImageUrl());
+        }
+        if (track.getStatus() == TrackStatus.PUBLISHED) {
+            validatePublishable(track);
         }
         return TrackAdminResponse.from(trackRepository.save(track));
     }
@@ -125,9 +131,7 @@ public class AdminTrackService {
         if (job.getStatus() == ImportJobStatus.PUBLISHED) {
             return TrackAdminResponse.from(track);
         }
-        if (!TrackPublicationPolicy.isComplete(track)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "TRACK_METADATA_INCOMPLETE");
-        }
+        validatePublishable(track);
         track.setStatus(TrackStatus.PUBLISHED);
         job.setStatus(ImportJobStatus.PUBLISHED);
         importJobRepository.save(job);
@@ -164,6 +168,15 @@ public class AdminTrackService {
     private TrackEntity findOrThrow(UUID id) {
         return trackRepository.findById(id).
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
+    private void validatePublishable(TrackEntity track) {
+        if (!TrackPublicationPolicy.hasPlayableExcerpt(track)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "TRACK_EXCERPT_INVALID");
+        }
+        if (!TrackPublicationPolicy.isComplete(track)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "TRACK_METADATA_INCOMPLETE");
+        }
     }
 
     private void deleteAudioFile(String audioUrl) {

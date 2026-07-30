@@ -19,6 +19,23 @@ public final class TrackPublicationPolicy {
                 && (hasText(track.getAudioUrl()) || hasCompleteObjectMedia(track));
     }
 
+    /**
+     * Returns whether the configured offset leaves every supported round duration playable.
+     *
+     * <p>Zero needs no known media duration. A non-zero offset requires at least sixty
+     * remaining whole seconds.
+     */
+    public static boolean hasPlayableExcerpt(TrackEntity track) {
+        int offset = track.getExcerptStartSeconds();
+        if (offset == 0) {
+            return true;
+        }
+        Integer duration = track.getDurationSeconds();
+        return offset > 0
+                && duration != null
+                && (long) duration - offset >= 60;
+    }
+
     private static boolean hasCompleteObjectMedia(TrackEntity track) {
         return hasText(track.getAudioObjectKey())
                 && hasText(track.getAudioChecksum())

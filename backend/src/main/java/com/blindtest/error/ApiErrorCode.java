@@ -22,6 +22,9 @@ public enum ApiErrorCode {
     EMAIL_TAKEN(HttpStatus.CONFLICT, "Email address is already registered"),
     USERNAME_TAKEN(HttpStatus.CONFLICT, "Username is already registered"),
     CONFLICT(HttpStatus.CONFLICT, "Request conflicts with current state"),
+    ANSWER_ALIAS_DUPLICATE(HttpStatus.CONFLICT, "Answer alias already exists"),
+    TRACK_EXCERPT_INVALID(
+            HttpStatus.CONFLICT, "Track excerpt does not leave 60 playable seconds"),
     TRACK_METADATA_INCOMPLETE(HttpStatus.CONFLICT, "Track metadata is incomplete"),
     IMPORT_ALREADY_ACTIVE(HttpStatus.CONFLICT, "An import for this YouTube video is already active"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Media type is not supported"),

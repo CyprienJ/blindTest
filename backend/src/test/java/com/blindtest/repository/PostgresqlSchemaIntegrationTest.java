@@ -89,7 +89,7 @@ class PostgresqlSchemaIntegrationTest {
                 Integer.class);
 
         assertThat(installedRanks).containsExactly(
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
     }
 
     @Test
@@ -110,6 +110,10 @@ class PostgresqlSchemaIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT album FROM media03_existing_schema.tracks WHERE id = ?
                 """, String.class, legacyTrackId)).isNull();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT excerpt_start_seconds
+                FROM media03_existing_schema.tracks WHERE id = ?
+                """, Integer.class, legacyTrackId)).isZero();
         UUID objectTrackId = UUID.randomUUID();
         jdbcTemplate.update("""
                 INSERT INTO media03_existing_schema.tracks
@@ -126,7 +130,7 @@ class PostgresqlSchemaIntegrationTest {
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
                 """, Integer.class)).containsExactly(
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
     }
 
     @Test
@@ -171,6 +175,51 @@ class PostgresqlSchemaIntegrationTest {
                 """, admin.getId())).
                 isInstanceOf(DataIntegrityViolationException.class).
                 hasMessageContaining("chk_track_import_jobs_status");
+    }
+
+    @Test
+    void databaseRejectsNegativeExcerptStart() {
+        TrackEntity track = trackRepository.saveAndFlush(
+                buildTrack("Negative excerpt", TrackStatus.PENDING));
+
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                UPDATE tracks SET excerpt_start_seconds = -1 WHERE id = ?
+                """, track.getId())).
+                isInstanceOf(DataIntegrityViolationException.class).
+                hasMessageContaining("chk_tracks_excerpt_start_seconds");
+    }
+
+    @Test
+    void databaseRejectsUnknownAnswerAliasType() {
+        TrackEntity track = trackRepository.saveAndFlush(
+                buildTrack("Unknown alias type", TrackStatus.PENDING));
+
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO track_answer_aliases
+                    (track_id, answer_type, alias_value, normalized_value)
+                VALUES (?, 'WORK', 'Alias', 'alias')
+                """, track.getId())).
+                isInstanceOf(DataIntegrityViolationException.class).
+                hasMessageContaining("chk_track_answer_aliases_type");
+    }
+
+    @Test
+    void databaseRejectsDuplicateNormalizedAliasForSameType() {
+        TrackEntity track = trackRepository.saveAndFlush(
+                buildTrack("Duplicate alias", TrackStatus.PENDING));
+        jdbcTemplate.update("""
+                INSERT INTO track_answer_aliases
+                    (track_id, answer_type, alias_value, normalized_value)
+                VALUES (?, 'TITLE', 'My Alias', 'my alias')
+                """, track.getId());
+
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO track_answer_aliases
+                    (track_id, answer_type, alias_value, normalized_value)
+                VALUES (?, 'TITLE', 'my alias', 'my alias')
+                """, track.getId())).
+                isInstanceOf(DataIntegrityViolationException.class).
+                hasMessageContaining("uq_track_answer_aliases_normalized");
     }
 
     @Test
@@ -286,10 +335,16 @@ class PostgresqlSchemaIntegrationTest {
         PlaylistEntity playlist = playlistRepository.saveAndFlush(buildPlaylist(admin, "Track delete playlist"));
         playlistTrackRepository.saveAndFlush(new PlaylistTrackEntity(playlist, track, 1));
         TrackImportJobEntity job = importJobRepository.saveAndFlush(buildImportJob(admin, track));
+        jdbcTemplate.update("""
+                INSERT INTO track_answer_aliases
+                    (track_id, answer_type, alias_value, normalized_value)
+                VALUES (?, 'TITLE', 'Deleted alias', 'deleted alias')
+                """, track.getId());
 
         jdbcTemplate.update("DELETE FROM tracks WHERE id = ?", track.getId());
 
         assertThat(rowCount("playlist_tracks")).isZero();
+        assertThat(rowCount("track_answer_aliases")).isZero();
         assertThat(rowCount("track_import_jobs")).isOne();
         UUID trackId = jdbcTemplate.queryForObject(
                 "SELECT track_id FROM track_import_jobs WHERE id = ?", UUID.class, job.getId());

@@ -10,14 +10,14 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-02 — Model answer aliases and excerpt metadata](#cat-02--model-answer-aliases-and-excerpt-metadata)**
+**[CAT-05 — Implement the admin track catalogue UI](#cat-05--implement-the-admin-track-catalogue-ui)**
 
 Status: ready
 
-FND-05 is complete and DG-03 is resolved by ADR-0009, so CAT-02 is now the
-earliest ready unfinished ticket in the recommended execution sequence. CAT-05
-and CAT-06 then follow CAT-02's alias-management API. MEDIA-08 remains deferred
-until real legacy files require migration.
+CAT-02 is complete, so CAT-05 is now the earliest ready unfinished ticket in the
+recommended execution sequence. CAT-06 follows the delivered alias-management
+and excerpt APIs. MEDIA-08 remains deferred until real legacy files require
+migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -794,6 +794,8 @@ Acceptance:
 - optional secondary fields are represented consistently.
 
 #### CAT-02 — Model answer aliases and excerpt metadata
+
+Status: completed on 2026-07-30.
 
 Decision: [ADR-0009](adr/0009-admin-configured-playback-offset.md).
 

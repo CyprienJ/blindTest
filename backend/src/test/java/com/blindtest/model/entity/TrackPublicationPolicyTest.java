@@ -56,6 +56,25 @@ class TrackPublicationPolicyTest {
         assertThat(TrackPublicationPolicy.isComplete(track)).isFalse();
     }
 
+    @Test
+    void zeroExcerptNeedsNoKnownDuration() {
+        TrackEntity track = requiredMetadata();
+
+        assertThat(TrackPublicationPolicy.hasPlayableExcerpt(track)).isTrue();
+    }
+
+    @Test
+    void nonZeroExcerptRequiresAtLeastSixtyRemainingSeconds() {
+        TrackEntity track = requiredMetadata();
+        track.setExcerptStartSeconds(30);
+
+        assertThat(TrackPublicationPolicy.hasPlayableExcerpt(track)).isFalse();
+        track.setDurationSeconds(89);
+        assertThat(TrackPublicationPolicy.hasPlayableExcerpt(track)).isFalse();
+        track.setDurationSeconds(90);
+        assertThat(TrackPublicationPolicy.hasPlayableExcerpt(track)).isTrue();
+    }
+
     private TrackEntity requiredMetadata() {
         TrackEntity track = new TrackEntity();
         track.setTitle("Primary title");
