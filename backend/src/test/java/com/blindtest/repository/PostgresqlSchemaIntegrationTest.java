@@ -15,6 +15,8 @@ import com.blindtest.model.entity.UserRole;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -23,6 +25,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -34,6 +38,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 class PostgresqlSchemaIntegrationTest {
+
+    private static final String LEGACY_SCHEMA = "media03_existing_schema";
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES =
@@ -68,7 +74,40 @@ class PostgresqlSchemaIntegrationTest {
                 "SELECT installed_rank FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 Integer.class);
 
-        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6);
+        assertThat(installedRanks).containsExactly(1, 2, 3, 4, 5, 6, 7);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void objectStorageMigrationUpgradesExistingSchemaWithoutBreakingLegacyRows() {
+        flywayForLegacySchema(MigrationVersion.fromVersion("6")).migrate();
+        UUID legacyTrackId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO media03_existing_schema.tracks (id, title, artist, audio_url, status)
+                VALUES (?, 'Legacy track', 'Legacy artist', '/media/legacy.mp3', 'PUBLISHED')
+                """, legacyTrackId);
+
+        flywayForLegacySchema(null).migrate();
+
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT audio_url FROM media03_existing_schema.tracks WHERE id = ?
+                """, String.class, legacyTrackId)).isEqualTo("/media/legacy.mp3");
+        UUID objectTrackId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO media03_existing_schema.tracks
+                    (id, title, artist, audio_object_key, audio_checksum, audio_size_bytes, status)
+                VALUES (?, 'Object track', 'Object artist', ?, ?, ?, 'PENDING')
+                """, objectTrackId, "tracks/object/audio-content.mp3", "a".repeat(64), 1234L);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT audio_url FROM media03_existing_schema.tracks WHERE id = ?
+                """, String.class, objectTrackId)).isNull();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT audio_object_key FROM media03_existing_schema.tracks WHERE id = ?
+                """, String.class, objectTrackId)).isEqualTo("tracks/object/audio-content.mp3");
+        assertThat(jdbcTemplate.queryForList("""
+                SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
+                WHERE success AND version IS NOT NULL ORDER BY installed_rank
+                """, Integer.class)).containsExactly(1, 2, 3, 4, 5, 6, 7);
     }
 
     @Test
@@ -186,6 +225,17 @@ class PostgresqlSchemaIntegrationTest {
 
     private int rowCount(String table) {
         return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
+    }
+
+    private Flyway flywayForLegacySchema(MigrationVersion target) {
+        var configuration = Flyway.configure().
+                dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()).
+                defaultSchema(LEGACY_SCHEMA).
+                schemas(LEGACY_SCHEMA);
+        if (target != null) {
+            configuration.target(target);
+        }
+        return configuration.load();
     }
 
     private UserEntity buildUser(String username) {

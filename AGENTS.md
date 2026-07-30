@@ -67,7 +67,7 @@ Ticket` section identifies the default implementation ticket.
 
 ## Current Implementation Snapshot
 
-Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
+Last reviewed: 2026-07-30.
 
 ### Implemented backend features
 
@@ -94,12 +94,16 @@ Last reviewed: 2026-07-27, at commit `c7b5479` on `dev`.
 - Local Docker Compose runs pinned MinIO and `mc` images, persists `minio_data`,
   creates a private `blindtest-media` bucket automatically, and restricts API CORS
   to the configured application origin.
+- Tracks can retain a nullable legacy audio URL or reference private storage with
+  a server-internal object key, checksum, and byte size; object keys are excluded
+  from public and administrator DTOs.
 - A common safe REST error contract with stable codes and request IDs propagated
   through `X-Request-ID` and logging MDC.
 - Typed application configuration with separate development, test, and production
   profiles and fail-fast production validation for secrets and endpoints.
-- Flyway migrations V1 through V6 for users, refresh tokens, tracks, playlists,
-  playlist tracks, import jobs, and database enum constraints.
+- Flyway migrations V1 through V7 for users, refresh tokens, tracks, playlists,
+  playlist tracks, import jobs, database enum constraints, and object-storage
+  track metadata.
 
 The backend currently has controllers for:
 
@@ -257,7 +261,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 133 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 134 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 26 passing Playwright authentication/smoke tests;

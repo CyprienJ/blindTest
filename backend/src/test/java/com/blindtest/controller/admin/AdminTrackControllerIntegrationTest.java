@@ -15,6 +15,7 @@ import com.blindtest.repository.TrackRepository;
 import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.port.EmailSender;
 import com.blindtest.service.port.TurnstileVerifier;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -92,11 +93,20 @@ class AdminTrackControllerIntegrationTest {
     }
 
     @Test
-    void getAllTracksIncludesAudioUrl() throws Exception {
+    void getAllTracksIncludesMediaMetadataButNotObjectKey() throws Exception {
+        pendingTrack.setAudioChecksum("a".repeat(64));
+        pendingTrack.setAudioSizeBytes(1234L);
+        publishedTrack.setAudioChecksum("a".repeat(64));
+        publishedTrack.setAudioSizeBytes(1234L);
+        trackRepository.saveAllAndFlush(List.of(pendingTrack, publishedTrack));
+
         mockMvc.perform(get("/api/admin/tracks").
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.content[0].audioUrl").isNotEmpty()).
+                andExpect(jsonPath("$.content[0].audioChecksum").value("a".repeat(64))).
+                andExpect(jsonPath("$.content[0].audioSizeBytes").value(1234)).
+                andExpect(jsonPath("$.content[0].audioObjectKey").doesNotExist()).
                 andExpect(jsonPath("$.content[0].status").isNotEmpty());
     }
 

@@ -73,10 +73,18 @@ class TrackRepositoryTest {
 
     @Test
     void saveAndFindByIdRoundTripsAllFields() {
+        publishedTrack.setAudioObjectKey("tracks/test/audio-content.mp3");
+        publishedTrack.setAudioChecksum("a".repeat(64));
+        publishedTrack.setAudioSizeBytes(1234L);
+        trackRepository.saveAndFlush(publishedTrack);
+
         TrackEntity found = trackRepository.findById(publishedTrack.getId()).orElseThrow();
         assertThat(found.getTitle()).isEqualTo("Bohemian Rhapsody");
         assertThat(found.getArtist()).isEqualTo("Queen");
         assertThat(found.getStatus()).isEqualTo(TrackStatus.PUBLISHED);
+        assertThat(found.getAudioObjectKey()).isEqualTo("tracks/test/audio-content.mp3");
+        assertThat(found.getAudioChecksum()).isEqualTo("a".repeat(64));
+        assertThat(found.getAudioSizeBytes()).isEqualTo(1234L);
         assertThat(found.getCreatedAt()).isNotNull();
     }
 

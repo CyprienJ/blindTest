@@ -41,8 +41,17 @@ public class TrackEntity {
     @Column(length = 255)
     private String work;
 
-    @Column(name = "audio_url", nullable = false, length = 500)
+    @Column(name = "audio_url", length = 500)
     private String audioUrl;
+
+    @Column(name = "audio_object_key", length = 1024)
+    private String audioObjectKey;
+
+    @Column(name = "audio_checksum", length = 64)
+    private String audioChecksum;
+
+    @Column(name = "audio_size_bytes")
+    private Long audioSizeBytes;
 
     @Column(name = "image_url", length = 500)
     private String imageUrl;

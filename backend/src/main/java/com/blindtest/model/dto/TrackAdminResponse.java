@@ -6,7 +6,7 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-/** Admin track response DTO — includes sensitive fields (audioUrl, youtubeUrl, status). */
+/** Admin track response DTO; storage object keys remain server-internal. */
 @Getter
 @AllArgsConstructor
 public class TrackAdminResponse {
@@ -21,6 +21,8 @@ public class TrackAdminResponse {
     private Integer durationSeconds;
     private String imageUrl;
     private String audioUrl;
+    private String audioChecksum;
+    private Long audioSizeBytes;
     private String youtubeUrl;
     private String status;
     private LocalDateTime createdAt;
@@ -31,7 +33,8 @@ public class TrackAdminResponse {
                 entity.getId(), entity.getTitle(), entity.getArtist(),
                 entity.getComposer(), entity.getWork(), entity.getCategory(),
                 entity.getDecade(), entity.getDurationSeconds(), entity.getImageUrl(),
-                entity.getAudioUrl(), entity.getYoutubeUrl(),
+                entity.getAudioUrl(), entity.getAudioChecksum(), entity.getAudioSizeBytes(),
+                entity.getYoutubeUrl(),
                 entity.getStatus().name(), entity.getCreatedAt());
     }
 }

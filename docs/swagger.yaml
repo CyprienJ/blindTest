@@ -385,6 +385,16 @@ components:
           properties:
             audioUrl:
               type: string
+              nullable: true
+            audioChecksum:
+              type: string
+              nullable: true
+              description: Checksum of the stored audio object, when available.
+            audioSizeBytes:
+              type: integer
+              format: int64
+              nullable: true
+              description: Size of the stored audio object, when available.
             youtubeUrl:
               type: string
               nullable: true

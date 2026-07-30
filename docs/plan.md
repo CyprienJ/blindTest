@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[MEDIA-03 — Add object-key schema migration](#media-03--add-object-key-schema-migration)**
+**[MEDIA-04 — Upload finalized imports to object storage](#media-04--upload-finalized-imports-to-object-storage)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. MEDIA-02 is complete, so MEDIA-03 is the next
+FND-05 remains blocked by DG-04. MEDIA-03 is complete, so MEDIA-04 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -634,6 +634,8 @@ Acceptance:
 - the browser can use a valid pre-signed URL.
 
 #### MEDIA-03 — Add object-key schema migration
+
+Status: completed on 2026-07-30.
 
 Work:
 

@@ -118,10 +118,13 @@ class CatalogueControllerIntegrationTest {
     }
 
     @Test
-    void getTracksDoesNotExposeAudioUrlOrYoutubeUrl() throws Exception {
+    void getTracksDoesNotExposeMediaStorageDetailsOrYoutubeUrl() throws Exception {
         mockMvc.perform(get("/api/tracks")).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.content[0].audioUrl").doesNotExist()).
+                andExpect(jsonPath("$.content[0].audioObjectKey").doesNotExist()).
+                andExpect(jsonPath("$.content[0].audioChecksum").doesNotExist()).
+                andExpect(jsonPath("$.content[0].audioSizeBytes").doesNotExist()).
                 andExpect(jsonPath("$.content[0].youtubeUrl").doesNotExist());
     }
 
