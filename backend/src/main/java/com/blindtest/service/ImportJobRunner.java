@@ -1,5 +1,6 @@
 package com.blindtest.service;
 
+import com.blindtest.config.properties.ImportProperties;
 import com.blindtest.infra.YtDlpWrapper;
 import com.blindtest.model.dto.WsImportDoneEvent;
 import com.blindtest.model.dto.WsImportFailedEvent;
@@ -10,18 +11,23 @@ import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
+import com.blindtest.service.port.MediaStorage;
+import com.blindtest.service.port.StoredMedia;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
@@ -33,26 +39,30 @@ public class ImportJobRunner {
 
     private static final Pattern PROGRESS_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)%");
     private static final String IMPORT_QUEUE_PREFIX = "/queue/import/";
+    private static final String AUDIO_CONTENT_TYPE = "audio/mpeg";
 
     private final TrackImportJobRepository jobRepository;
     private final TrackRepository trackRepository;
     private final YtDlpWrapper ytDlpWrapper;
     private final SimpMessagingTemplate messagingTemplate;
-
-    @Value("${app.media-dir:/media}")
-    private String mediaDir;
+    private final MediaStorage mediaStorage;
+    private final ImportProperties importProperties;
 
     /** Downloads and converts audio for the given job ID; updates status, progress, and pushes WS events. */
     public void execute(UUID jobId) {
         TrackImportJobEntity job = jobRepository.findByIdWithTrack(jobId).orElseThrow();
+        if (job.getStatus() == ImportJobStatus.DONE) {
+            return;
+        }
         UUID adminId = job.getAdmin().getId();
+        Path temporaryDirectory = null;
         try {
             job.setStatus(ImportJobStatus.DOWNLOADING);
+            job.setErrorMessage(null);
             jobRepository.save(job);
 
-            Path outputTemplate = Path.of(mediaDir, jobId.toString());
-            Files.createDirectories(outputTemplate.getParent());
-
+            temporaryDirectory = createTemporaryDirectory(jobId);
+            Path outputTemplate = temporaryDirectory.resolve("audio");
             Process process = ytDlpWrapper.start(job.getYoutubeUrl(), outputTemplate);
             parseOutputLines(job, process.getInputStream(), adminId);
 
@@ -64,26 +74,114 @@ public class ImportJobRunner {
             job.setStatus(ImportJobStatus.PROCESSING);
             jobRepository.save(job);
 
+            Path audioFile = Path.of(outputTemplate + ".mp3");
+            long audioSize = validateAudioFile(audioFile);
+            String checksum = sha256(audioFile);
             TrackEntity track = job.getTrack();
-            track.setAudioUrl("/media/" + jobId + ".mp3");
+            String objectKey = objectKey(track.getId(), checksum);
+            StoredMedia storedMedia = mediaStorage.store(objectKey, audioFile, AUDIO_CONTENT_TYPE);
+            verifyStoredMedia(storedMedia, objectKey, audioSize);
+
+            track.setAudioUrl(null);
+            track.setAudioObjectKey(objectKey);
+            track.setAudioChecksum(checksum);
+            track.setAudioSizeBytes(audioSize);
             track.setStatus(TrackStatus.PENDING);
             trackRepository.save(track);
 
+            deleteTemporaryDirectory(temporaryDirectory);
             job.setStatus(ImportJobStatus.DONE);
             job.setProgress((short) 100);
             jobRepository.save(job);
 
             messagingTemplate.convertAndSendToUser(adminId.toString(), IMPORT_QUEUE_PREFIX + jobId,
-                    new WsImportDoneEvent(jobId, track.getId(), track.getAudioUrl()));
+                    new WsImportDoneEvent(jobId, track.getId(), null));
 
         } catch (Exception e) {
-            log.error("Import job {} failed: {}", jobId, e.getMessage(), e);
+            log.error("Import job {} failed: {}", jobId, e.getMessage());
             job.setStatus(ImportJobStatus.FAILED);
             String msg = e.getMessage() != null ? e.getMessage() : "Unknown error";
             job.setErrorMessage(msg);
             jobRepository.save(job);
             messagingTemplate.convertAndSendToUser(adminId.toString(), IMPORT_QUEUE_PREFIX + jobId,
                     new WsImportFailedEvent(jobId, msg));
+        } finally {
+            deleteTemporaryDirectoryQuietly(temporaryDirectory, jobId);
+        }
+    }
+
+    private Path createTemporaryDirectory(UUID jobId) throws IOException {
+        Files.createDirectories(importProperties.tempDir());
+        return Files.createTempDirectory(importProperties.tempDir(), jobId + "-");
+    }
+
+    private long validateAudioFile(Path audioFile) throws IOException {
+        long size = Files.size(audioFile);
+        if (size == 0) {
+            throw new IllegalArgumentException("Imported audio is empty");
+        }
+        if (size > importProperties.maxSizeBytes()) {
+            throw new IllegalArgumentException("Imported audio exceeds the configured maximum size");
+        }
+        byte[] header;
+        try (InputStream input = Files.newInputStream(audioFile)) {
+            header = input.readNBytes(3);
+        }
+        boolean id3 = header.length == 3 && header[0] == 'I' && header[1] == 'D' && header[2] == '3';
+        boolean mpegFrame = header.length >= 2
+                && (header[0] & 0xff) == 0xff
+                && (header[1] & 0xe0) == 0xe0;
+        if (!id3 && !mpegFrame) {
+            throw new IllegalArgumentException("Imported audio is not an MP3 file");
+        }
+        return size;
+    }
+
+    private String sha256(Path audioFile) throws IOException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = Files.newInputStream(audioFile)) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = input.read(buffer)) != -1) {
+                    digest.update(buffer, 0, bytesRead);
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
+    }
+
+    private String objectKey(UUID trackId, String checksum) {
+        return "tracks/" + trackId + "/audio-" + checksum + ".mp3";
+    }
+
+    private void verifyStoredMedia(StoredMedia storedMedia, String expectedKey, long expectedSize) {
+        if (!expectedKey.equals(storedMedia.objectKey()) || storedMedia.size() != expectedSize) {
+            throw new IllegalStateException("Storage returned inconsistent audio metadata");
+        }
+        if (!mediaStorage.exists(expectedKey)) {
+            throw new IllegalStateException("Stored audio object could not be confirmed");
+        }
+    }
+
+    private void deleteTemporaryDirectory(Path directory) throws IOException {
+        if (directory == null || !Files.exists(directory)) {
+            return;
+        }
+        try (var paths = Files.walk(directory)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        }
+    }
+
+    private void deleteTemporaryDirectoryQuietly(Path directory, UUID jobId) {
+        try {
+            deleteTemporaryDirectory(directory);
+        } catch (IOException | RuntimeException exception) {
+            log.warn("Could not fully clean temporary files for import job {}", jobId);
         }
     }
 

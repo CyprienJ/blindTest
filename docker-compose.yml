@@ -78,6 +78,8 @@ services:
       JWT_REFRESH_TOKEN_TTL_MS:        ${JWT_REFRESH_TOKEN_TTL_MS:-604800000}
       RESEND_API_KEY:                  ${RESEND_API_KEY}
       APP_BASE_URL:                    ${APP_BASE_URL}
+      APP_IMPORT_TEMP_DIR:             ${APP_IMPORT_TEMP_DIR:-/tmp/blindtest-imports}
+      APP_IMPORT_MAX_SIZE_BYTES:       ${APP_IMPORT_MAX_SIZE_BYTES:-26214400}
       CLOUDFLARE_TURNSTILE_SECRET_KEY: ${CLOUDFLARE_TURNSTILE_SECRET_KEY}
       S3_ENDPOINT:                     ${S3_ENDPOINT}
       S3_PUBLIC_ENDPOINT:              ${S3_PUBLIC_ENDPOINT}

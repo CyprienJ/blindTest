@@ -10,11 +10,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[MEDIA-04 — Upload finalized imports to object storage](#media-04--upload-finalized-imports-to-object-storage)**
+**[MEDIA-05 — Implement authorized preview URLs](#media-05--implement-authorized-preview-urls)**
 
 Status: ready
 
-FND-05 remains blocked by DG-04. MEDIA-03 is complete, so MEDIA-04 is the next
+FND-05 remains blocked by DG-04. MEDIA-04 is complete, so MEDIA-05 is the next
 ready ticket in the recommended execution sequence.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -652,6 +652,8 @@ Acceptance:
 - Flyway succeeds on empty and existing-schema fixtures.
 
 #### MEDIA-04 — Upload finalized imports to object storage
+
+Status: completed on 2026-07-30.
 
 Work:
 

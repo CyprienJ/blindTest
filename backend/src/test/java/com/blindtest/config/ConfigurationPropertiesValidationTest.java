@@ -3,6 +3,7 @@ package com.blindtest.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.blindtest.config.properties.ApplicationProperties;
+import com.blindtest.config.properties.ImportProperties;
 import com.blindtest.config.properties.JwtProperties;
 import com.blindtest.config.properties.ResendProperties;
 import com.blindtest.config.properties.S3Properties;
@@ -26,6 +27,8 @@ class ConfigurationPropertiesValidationTest {
                     "cloudflare.turnstile.secret-key=test-key",
                     "app.base-url=https://example.test",
                     "app.media-dir=/media",
+                    "app.import.temp-dir=/tmp/blindtest-imports",
+                    "app.import.max-size-bytes=26214400",
                     "app.s3.endpoint=http://minio:9000",
                     "app.s3.public-endpoint=https://media.example.test",
                     "app.s3.region=us-east-1",
@@ -58,12 +61,27 @@ class ConfigurationPropertiesValidationTest {
         });
     }
 
+    @Test
+    void bindsAndValidatesImportSettings() {
+        contextRunner.withPropertyValues("jwt.secret=01234567890123456789012345678901").run(context -> {
+            assertThat(context).hasNotFailed();
+            ImportProperties properties = context.getBean(ImportProperties.class);
+            assertThat(properties.tempDir().toString()).isEqualTo("/tmp/blindtest-imports");
+            assertThat(properties.maxSizeBytes()).isEqualTo(26_214_400L);
+        });
+
+        contextRunner.withPropertyValues(
+                "jwt.secret=01234567890123456789012345678901",
+                "app.import.max-size-bytes=0").run(context -> assertThat(context).hasFailed());
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableConfigurationProperties({
         JwtProperties.class,
         ResendProperties.class,
         TurnstileProperties.class,
         ApplicationProperties.class,
+        ImportProperties.class,
         S3Properties.class
     })
     static class PropertiesConfiguration {

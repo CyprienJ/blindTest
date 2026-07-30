@@ -50,7 +50,7 @@ Docker Compose starts PostgreSQL, MinIO, a one-shot MinIO initializer, the backe
 and the frontend. The frontend, MinIO API, and MinIO console bind to localhost;
 PostgreSQL remains internal. The initializer creates the private media bucket and
 MinIO restricts API CORS to the configured application origin. The `/media` volume
-remains temporarily because the current import pipeline has not migrated yet.
+remains temporarily for legacy tracks during the migration window.
 
 ### Delivered backend
 
@@ -60,6 +60,9 @@ remains temporarily because the current import pipeline has not migrated yet.
 - Public published-track and playlist catalogue endpoints.
 - Administrator track review, asynchronous YouTube import jobs, per-user STOMP
   import progress, and ordered playlist management.
+- Imported MP3s are validated in isolated temporary directories, checksummed,
+  uploaded under content-addressed private object keys, confirmed, and cleaned up
+  before jobs complete.
 - External email, Turnstile, process, and import-scheduling boundaries exposed as
   injectable ports, with injected authentication time and opaque-token generation.
 - Deterministic test adapters capture email, verify configured Turnstile tokens,
@@ -118,9 +121,9 @@ exist as route scaffolds whose templates are placeholders.
 There is no session or round domain model, `SessionStore`, gameplay controller,
 gameplay STOMP handler, scoring/timer/answer logic, synchronized playback, game
 history, profile management, friends, guest joining, or admin user management.
-The private-media port, MinIO SDK adapter and deployment, and database object-key
-schema are delivered, but import-pipeline integration is not. Current media still
-uses a Docker volume and `/media` URLs.
+The private-media port, MinIO SDK adapter and deployment, database object-key
+schema, and import-pipeline integration are delivered. Legacy media can still use
+the Docker volume and `/media` URLs during migration.
 
 The import pipeline invokes `yt-dlp`, but the current backend runtime image does
 not install `yt-dlp` or FFmpeg. Consequently, imports fail in that container until

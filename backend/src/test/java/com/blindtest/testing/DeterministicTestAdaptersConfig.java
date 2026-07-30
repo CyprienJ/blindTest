@@ -3,7 +3,6 @@ package com.blindtest.testing;
 import com.blindtest.security.TokenGenerator;
 import com.blindtest.service.ImportJobRunner;
 import com.blindtest.service.port.ImportJobScheduler;
-import com.blindtest.service.port.MediaStorage;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -40,7 +39,7 @@ public class DeterministicTestAdaptersConfig {
     /** Keeps media objects in memory instead of contacting S3-compatible storage. */
     @Bean
     @Primary
-    public MediaStorage inMemoryMediaStorage() {
+    public InMemoryMediaStorage inMemoryMediaStorage() {
         return new InMemoryMediaStorage();
     }
 

@@ -67,7 +67,7 @@ public class ImportJobService {
         track.setDecade(request.getDecade());
         track.setImageUrl(request.getImageUrl());
         track.setYoutubeUrl(request.getYoutubeUrl());
-        track.setAudioUrl("");
+        track.setAudioUrl(null);
         track.setStatus(TrackStatus.PENDING);
         return track;
     }

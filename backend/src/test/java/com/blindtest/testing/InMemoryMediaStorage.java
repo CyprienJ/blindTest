@@ -54,6 +54,11 @@ public class InMemoryMediaStorage implements MediaStorage {
         objects.remove(objectKey);
     }
 
+    /** Removes every captured object. */
+    public synchronized void clear() {
+        objects.clear();
+    }
+
     /** Returns a copy of the bytes stored under an object key. */
     public synchronized byte[] content(String objectKey) {
         StoredObject stored = objects.get(objectKey);

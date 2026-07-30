@@ -79,7 +79,8 @@ Last reviewed: 2026-07-30.
 - Public published-track catalogue and public playlists.
 - Admin track listing, update, delete, validate, and reject operations.
 - Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
-  and per-user STOMP progress messages.
+  per-user STOMP progress messages, MP3 validation, checksum generation, and
+  finalized upload to private object storage.
 - Injectable email, Turnstile, import-process, scheduling, clock, and opaque-token
   boundaries with deterministic test adapters.
 - Admin playlist CRUD and ordered track membership.
@@ -90,7 +91,8 @@ Last reviewed: 2026-07-30.
 - JWT authentication for HTTP and STOMP `CONNECT`.
 - A provider-neutral media-storage port with a typed MinIO Java SDK adapter for
   upload, existence checks, pre-signed GET URLs, and deletion, plus an in-memory
-  test adapter. The import pipeline does not use it yet.
+  test adapter. Imports use content-addressed object keys and confirm uploads
+  before completion.
 - Local Docker Compose runs pinned MinIO and `mc` images, persists `minio_data`,
   creates a private `blindtest-media` bucket automatically, and restricts API CORS
   to the configured application origin.
@@ -208,6 +210,7 @@ Copy `.env.example` to `.env` and replace every placeholder. The main variables 
 - `APP_BASE_URL` and `APP_PORT`;
 - `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`,
   `S3_ACCESS_KEY`, and `S3_SECRET_KEY`;
+- optional `APP_IMPORT_TEMP_DIR` and `APP_IMPORT_MAX_SIZE_BYTES`;
 - optional `MINIO_API_PORT` and `MINIO_CONSOLE_PORT`;
 - optional image overrides used by deployment.
 
@@ -261,7 +264,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 134 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 142 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 1 passing scaffold unit test,
   and 26 passing Playwright authentication/smoke tests;

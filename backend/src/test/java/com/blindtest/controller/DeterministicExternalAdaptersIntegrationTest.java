@@ -17,6 +17,7 @@ import com.blindtest.testing.FakeEmailSender;
 import com.blindtest.testing.FakeEmailSender.EmailType;
 import com.blindtest.testing.FakeProcessFactory;
 import com.blindtest.testing.FakeTurnstileVerifier;
+import com.blindtest.testing.InMemoryMediaStorage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -40,7 +41,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import(DeterministicTestAdaptersConfig.class)
 class DeterministicExternalAdaptersIntegrationTest {
 
-    private static final Path MEDIA_DIR = createMediaDirectory();
+    private static final Path IMPORT_TEMP_DIR = createImportTempDirectory();
 
     @Autowired
     private MockMvc mockMvc;
@@ -69,6 +70,9 @@ class DeterministicExternalAdaptersIntegrationTest {
     @Autowired
     private FakeProcessFactory processFactory;
 
+    @Autowired
+    private InMemoryMediaStorage mediaStorage;
+
     @DynamicPropertySource
     static void deterministicProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url",
@@ -78,7 +82,8 @@ class DeterministicExternalAdaptersIntegrationTest {
         registry.add("spring.datasource.password", () -> "");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
         registry.add("spring.flyway.enabled", () -> "false");
-        registry.add("app.media-dir", MEDIA_DIR::toString);
+        registry.add("app.import.temp-dir", IMPORT_TEMP_DIR::toString);
+        registry.add("app.import.max-size-bytes", () -> 2048);
     }
 
     @BeforeEach
@@ -89,6 +94,7 @@ class DeterministicExternalAdaptersIntegrationTest {
         emailSender.reset();
         turnstileVerifier.reset();
         processFactory.reset();
+        mediaStorage.clear();
     }
 
     @Test
@@ -167,21 +173,30 @@ class DeterministicExternalAdaptersIntegrationTest {
         var job = jobRepository.findByIdWithTrack(jobId).orElseThrow();
         assertThat(job.getStatus()).isEqualTo(ImportJobStatus.DONE);
         assertThat(job.getProgress()).isEqualTo((short) 100);
-        assertThat(job.getTrack().getAudioUrl()).isEqualTo("/media/" + jobId + ".mp3");
+        assertThat(job.getTrack().getAudioUrl()).isNull();
+        assertThat(job.getTrack().getAudioObjectKey()).
+                startsWith("tracks/" + job.getTrack().getId() + "/audio-").
+                endsWith(".mp3");
+        assertThat(job.getTrack().getAudioChecksum()).hasSize(64);
+        assertThat(job.getTrack().getAudioSizeBytes()).isEqualTo(1040L);
+        assertThat(mediaStorage.exists(job.getTrack().getAudioObjectKey())).isTrue();
+        assertThat(mediaStorage.contentType(job.getTrack().getAudioObjectKey())).isEqualTo("audio/mpeg");
         assertThat(processFactory.startCount()).isEqualTo(1);
 
-        Path mp3 = MEDIA_DIR.resolve(jobId + ".mp3");
-        byte[] bytes = Files.readAllBytes(mp3);
+        byte[] bytes = mediaStorage.content(job.getTrack().getAudioObjectKey());
         assertThat(bytes).hasSize(1040);
         assertThat(bytes[0] & 0xff).isEqualTo(0xff);
         assertThat(bytes[1] & 0xe0).isEqualTo(0xe0);
+        try (var temporaryFiles = Files.list(IMPORT_TEMP_DIR)) {
+            assertThat(temporaryFiles).isEmpty();
+        }
     }
 
-    private static Path createMediaDirectory() {
+    private static Path createImportTempDirectory() {
         try {
-            return Files.createTempDirectory("blindtest-test-media-");
+            return Files.createTempDirectory("blindtest-test-imports-");
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot create deterministic test media directory", exception);
+            throw new IllegalStateException("Cannot create deterministic import directory", exception);
         }
     }
 }
