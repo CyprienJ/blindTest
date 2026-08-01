@@ -62,13 +62,26 @@ For a host-based development loop, also install Java 21, Maven, Node.js, and npm
 ## Run the complete Compose stack
 
 Copy the environment template and replace every placeholder before starting the
-application:
+application. For local browser development, include the local override so Angular
+and Spring use Cloudflare's matching public test key pair:
 
 ```bash
 cp .env.example .env
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 docker compose ps
 ```
+
+The base Compose file remains production-like and uses the real Turnstile site
+key and secret:
+
+```bash
+docker compose up -d --build
+```
+
+Do not include `docker-compose.local.yml` in a production deployment.
+`CORS_ALLOWED_ORIGINS` accepts a comma-separated list of browser origins. The
+local override pins it to `http://localhost:${APP_PORT}`; production should keep
+it restricted to the public application origin.
 
 The stack starts:
 
@@ -84,7 +97,7 @@ Follow backend logs or stop the stack with:
 
 ```bash
 docker compose logs -f backend
-docker compose down
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
 ```
 
 `docker compose down` preserves the `postgres_data`, `minio_data`, and legacy

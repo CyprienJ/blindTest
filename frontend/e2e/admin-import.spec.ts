@@ -145,6 +145,43 @@ test.describe('administrator YouTube import', () => {
     await expect(page.getByRole('button', { name: 'Validate and publish' })).toBeEnabled();
   });
 
+  test('does not block publication while optional aliases are still saving', async ({ page }) => {
+    await page.route('**/api/admin/tracks/import', (route) =>
+      route.fulfill({ status: 202, json: { jobId } }),
+    );
+    await page.route(`**/api/admin/tracks/import/${jobId}`, (route) =>
+      route.fulfill({ json: job('DONE', 100) }),
+    );
+    await page.route(`**/api/admin/tracks/${trackId}/aliases`, async (route) => {
+      if (route.request().method() === 'GET') {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await route.fulfill({ json: [] });
+      } else {
+        await route.fulfill({
+          status: 201,
+          json: { id: 'alias-id', ...route.request().postDataJSON() },
+        });
+      }
+    });
+    await page.route(`**/api/admin/tracks/${trackId}/validate`, (route) =>
+      route.fulfill({ json: { ...track, status: 'PUBLISHED' } }),
+    );
+
+    await page.goto('/admin/tracks/import');
+    await page.getByLabel('YouTube URL *').fill('https://youtu.be/Zi_XLOBDo_Y');
+    await page.getByLabel('Title *').fill('Billie Jean');
+    await page.getByLabel('Artist *').fill('Michael Jackson');
+    await page.getByRole('button', { name: 'Add alias' }).click();
+    await page.getByRole('textbox', { name: 'Alternative answer' }).fill('Billie-Jean');
+    await page.getByRole('button', { name: /Start import/ }).click();
+
+    await expect(page.getByText('Saving aliases…')).toBeVisible();
+    const publishButton = page.getByRole('button', { name: 'Validate and publish' });
+    await expect(publishButton).toBeEnabled();
+    await publishButton.click();
+    await expect(page.getByText('Track published', { exact: true })).toBeVisible();
+  });
+
   test('shows safe import failures and allows another attempt', async ({ page }) => {
     await page.route('**/api/admin/tracks/import', (route) =>
       route.fulfill({ status: 202, json: { jobId } }),

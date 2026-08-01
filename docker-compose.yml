@@ -78,6 +78,7 @@ services:
       JWT_REFRESH_TOKEN_TTL_MS:        ${JWT_REFRESH_TOKEN_TTL_MS:-604800000}
       RESEND_API_KEY:                  ${RESEND_API_KEY}
       APP_BASE_URL:                    ${APP_BASE_URL}
+      CORS_ALLOWED_ORIGINS:            ${CORS_ALLOWED_ORIGINS:-${APP_BASE_URL}}
       APP_IMPORT_TEMP_DIR:             ${APP_IMPORT_TEMP_DIR:-/tmp/blindtest-imports}
       APP_IMPORT_MAX_SIZE_BYTES:       ${APP_IMPORT_MAX_SIZE_BYTES:-26214400}
       APP_IMPORT_TIMEOUT:              ${APP_IMPORT_TIMEOUT:-10m}
@@ -92,6 +93,12 @@ services:
     volumes:
       - media:/media
     cpus: ${BACKEND_CPU_LIMIT:-1.0}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     depends_on:
       postgres:
         condition: service_healthy
@@ -112,7 +119,8 @@ services:
     volumes:
       - media:/media:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - internal
 

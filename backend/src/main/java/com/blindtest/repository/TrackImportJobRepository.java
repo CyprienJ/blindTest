@@ -18,6 +18,10 @@ public interface TrackImportJobRepository extends JpaRepository<TrackImportJobEn
     /** Returns all import jobs with the given status. */
     List<TrackImportJobEntity> findByStatus(ImportJobStatus status);
 
+    /** Returns IDs for persisted jobs whose processing lifecycle is still active. */
+    @Query("SELECT j.id FROM TrackImportJobEntity j WHERE j.status IN :statuses")
+    List<UUID> findIdsByStatusIn(@Param("statuses") Collection<ImportJobStatus> statuses);
+
     /** Returns all import jobs submitted by the given admin. */
     List<TrackImportJobEntity> findByAdminId(UUID adminId);
 

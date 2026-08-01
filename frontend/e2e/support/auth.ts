@@ -62,6 +62,15 @@ export async function expireTurnstile(page: Page): Promise<void> {
   });
 }
 
+export async function failTurnstile(page: Page): Promise<boolean | undefined> {
+  return page.evaluate(() => {
+    const mock = window as unknown as {
+      __turnstileMock: { options?: { 'error-callback'?: () => boolean } };
+    };
+    return mock.__turnstileMock.options?.['error-callback']?.();
+  });
+}
+
 export async function turnstileResetCount(page: Page): Promise<number> {
   return page.evaluate(() => {
     const mock = window as unknown as { __turnstileMock: { resetCount: number } };

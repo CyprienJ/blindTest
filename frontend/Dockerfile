@@ -6,7 +6,8 @@ COPY package*.json ./
 RUN npm ci --prefer-offline
 
 COPY . .
-RUN npx ng build --configuration production
+ARG ANGULAR_CONFIGURATION=production
+RUN npx ng build --configuration "${ANGULAR_CONFIGURATION}"
 
 # ── Serve stage ─────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine

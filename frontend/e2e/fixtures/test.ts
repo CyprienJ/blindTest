@@ -5,6 +5,7 @@ export const test = base.extend({
     await page.addInitScript(() => {
       type TurnstileOptions = {
         callback?: (token: string) => void;
+        'error-callback'?: () => boolean;
         'expired-callback'?: () => void;
       };
 

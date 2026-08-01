@@ -1,6 +1,7 @@
 package com.blindtest.config;
 
 import java.util.concurrent.Executor;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -13,8 +14,11 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableScheduling
 public class AsyncConfig implements AsyncConfigurer {
 
-    @Override
-    public Executor getAsyncExecutor() {
+    public static final String IMPORT_EXECUTOR = "importTaskExecutor";
+
+    /** Executor dedicated to persisted media import work. */
+    @Bean(name = IMPORT_EXECUTOR)
+    public ThreadPoolTaskExecutor importTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(5);
@@ -22,5 +26,10 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setThreadNamePrefix("import-");
         executor.initialize();
         return executor;
+    }
+
+    @Override
+    public Executor getAsyncExecutor() {
+        return importTaskExecutor();
     }
 }

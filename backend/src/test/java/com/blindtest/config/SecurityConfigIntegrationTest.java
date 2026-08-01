@@ -25,6 +25,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -40,7 +41,8 @@ import org.springframework.test.web.servlet.MockMvc;
 })
 @TestPropertySource(properties = {
     "jwt.secret=test-secret-key-that-is-32-bytes!!",
-    "jwt.email-verification.ttl-ms=86400000"
+    "jwt.email-verification.ttl-ms=86400000",
+    "app.base-url=http://localhost:8090"
 })
 class SecurityConfigIntegrationTest {
 
@@ -80,6 +82,27 @@ class SecurityConfigIntegrationTest {
         mockMvc.perform(post("/api/auth/verify-email")).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/forgot-password")).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/reset-password")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void applicationBaseUrlIsAllowedAsCorsOrigin() throws Exception {
+        mockMvc.perform(post("/api/auth/register").
+                        header(HttpHeaders.ORIGIN, "http://localhost:8090").
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{}")).
+                andExpect(status().isBadRequest()).
+                andExpect(header().string(
+                        HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:8090"));
+    }
+
+    @Test
+    void unknownCorsOriginIsRejected() throws Exception {
+        mockMvc.perform(post("/api/auth/register").
+                        header(HttpHeaders.ORIGIN, "https://untrusted.example").
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{}")).
+                andExpect(status().isForbidden()).
+                andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
     }
 
     @Test

@@ -67,11 +67,12 @@ Ticket` section identifies the default implementation ticket.
 
 ## Current Implementation Snapshot
 
-Last reviewed: 2026-07-30.
+Last reviewed: 2026-08-01.
 
 ### Implemented backend features
 
-- Account registration with Cloudflare Turnstile verification.
+- Account registration with Cloudflare Turnstile verification, bounded server-side
+  validation calls, and safe rejection diagnostics that never log tokens or secrets.
 - Email verification and password-reset emails through Resend.
 - Login, JWT access tokens, opaque rotating refresh tokens, logout.
 - Refresh tokens stored in PostgreSQL and sent as Secure, HttpOnly, SameSite=Strict
@@ -82,9 +83,10 @@ Last reviewed: 2026-07-30.
   case-insensitive metadata search.
 - Admin-only short-lived preview URLs for completed unpublished imports, with
   lifecycle, finalized-metadata, and object-existence checks.
-- Admin YouTube import jobs, asynchronous `yt-dlp` execution, persisted progress,
-  per-user STOMP progress messages, MP3 validation, checksum generation, and
-  finalized upload to private object storage.
+- Admin YouTube import jobs, post-commit asynchronous `yt-dlp` execution,
+  persisted progress, startup recovery of interrupted active jobs, per-user STOMP
+  progress messages, MP3 validation, checksum generation, and finalized upload to
+  private object storage.
 - Import polling exposes safe errors, preview availability, and lifecycle timestamps;
   completed imports transition transactionally and idempotently to published or
   rejected, while rejected media is retained pending DG-05.
@@ -168,7 +170,8 @@ The WebSocket infrastructure exists only for authentication and import progress.
 ### Implemented frontend features
 
 - Login.
-- Registration with Turnstile widget integration.
+- Registration with Turnstile widget integration, explicit challenge lifecycle
+  handling, and single-use token submission guards.
 - Email verification.
 - Forgot-password flow.
 - Reset-password flow.
@@ -241,6 +244,7 @@ Do not treat the presence of routes or component files as feature completion.
 │   └── Blindtest/
 ├── .github/workflows/
 ├── docker-compose.yml
+├── docker-compose.local.yml
 └── .env.example
 ```
 
@@ -252,7 +256,7 @@ Copy `.env.example` to `.env` and replace every placeholder. The main variables 
 - `JWT_SECRET` (at least 32 ASCII characters);
 - `RESEND_API_KEY`;
 - `CLOUDFLARE_TURNSTILE_SECRET_KEY`;
-- `APP_BASE_URL` and `APP_PORT`;
+- `APP_BASE_URL`, `APP_PORT`, and `CORS_ALLOWED_ORIGINS`;
 - `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`,
   `S3_ACCESS_KEY`, and `S3_SECRET_KEY`;
 - optional `APP_IMPORT_TEMP_DIR`, `APP_IMPORT_MAX_SIZE_BYTES`,
@@ -261,14 +265,19 @@ Copy `.env.example` to `.env` and replace every placeholder. The main variables 
 - optional `MINIO_API_PORT` and `MINIO_CONSOLE_PORT`;
 - optional image overrides used by deployment.
 
-Run the full container stack from the repository root:
+Run the full container stack for local browser development from the repository
+root. The local override selects the development Spring profile and Cloudflare's
+matching public test key pair:
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 docker compose ps
 docker compose logs -f backend
-docker compose down
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
 ```
+
+Run `docker compose up -d --build` without the local override only for a
+production-like environment configured with the real Turnstile key pair.
 
 For a host-based development loop:
 
@@ -311,10 +320,10 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 227 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 237 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
-- frontend: lint passes, production build passes, 6 passing unit tests,
-  and 36 passing Playwright authentication/administration/media/smoke tests;
+- frontend: lint passes, production build passes, 8 passing unit tests,
+  and 38 passing Playwright authentication/administration/media/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.
 
@@ -345,20 +354,18 @@ container runtime.
 
 Address these before considering the application production-ready:
 
-1. `frontend/src/environments/environment.prod.ts` still uses the documented
-   Turnstile test site key. Production anti-bot protection is therefore not ready.
-2. The beta deployment workflow runs independently from the CI workflow. A push to
+1. The beta deployment workflow runs independently from the CI workflow. A push to
    `main` can deploy without waiting for Checkstyle/tests/lint to pass.
-3. `docs/swagger.yaml` represents a mixture of intended and delivered endpoints.
+2. `docs/swagger.yaml` represents a mixture of intended and delivered endpoints.
    It omits some implemented operations and includes many unimplemented product
    endpoints. Verify contracts against controllers before using it to generate
    clients.
-4. Frontend coverage is effectively absent: only the root app creation test exists.
-5. The committed production frontend build fetches Google Fonts during compilation,
+3. Frontend unit coverage remains narrow outside authentication and registration.
+4. The committed production frontend build fetches Google Fonts during compilation,
    making builds depend on external network availability.
-6. Access tokens are stored in `localStorage`; account for XSS exposure in the
+5. Access tokens are stored in `localStorage`; account for XSS exposure in the
    frontend security model.
-7. Password-reset JWTs are not persisted as one-time tokens, so a token can be
+6. Password-reset JWTs are not persisted as one-time tokens, so a token can be
    replayed until it expires.
 
 ## Delivery and Deployment

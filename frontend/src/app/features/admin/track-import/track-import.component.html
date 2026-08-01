@@ -341,7 +341,7 @@
                   <button
                     class="bt-btn bt-btn-primary"
                     type="button"
-                    [disabled]="workflowBusy || aliasState !== 'saved'"
+                    [disabled]="workflowBusy"
                     (click)="publish()"
                   >{{ workflowBusy ? 'Working…' : '✓ Validate and publish' }}</button>
                   <button

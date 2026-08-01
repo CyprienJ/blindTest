@@ -2,6 +2,7 @@ package com.blindtest.config;
 
 import com.blindtest.error.RestSecurityErrorHandler;
 import com.blindtest.security.JwtAuthFilter;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -30,10 +31,14 @@ public class SecurityConfig {
     public SecurityConfig(
             JwtAuthFilter jwtAuthFilter,
             RestSecurityErrorHandler restSecurityErrorHandler,
-            @Value("${cors.allowed-origins:http://localhost:4200}") String allowedOrigins) {
+            @Value("${cors.allowed-origins:${app.base-url:http://localhost:4200}}")
+                    String allowedOrigins) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.restSecurityErrorHandler = restSecurityErrorHandler;
-        this.allowedOrigins = List.of(allowedOrigins.split(","));
+        this.allowedOrigins = Arrays.stream(allowedOrigins.split(",")).
+                map(String::trim).
+                filter(origin -> !origin.isEmpty()).
+                toList();
     }
 
     @Bean

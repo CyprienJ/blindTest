@@ -215,7 +215,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
 
   publish(): void {
     const track = this.job?.track;
-    if (!track || this.workflowBusy || this.aliasState !== 'saved') {
+    if (!track || this.workflowBusy) {
       return;
     }
     this.workflowBusy = true;

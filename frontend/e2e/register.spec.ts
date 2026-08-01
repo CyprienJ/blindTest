@@ -1,6 +1,7 @@
 import { expect, test } from './fixtures/test';
 import {
   expireTurnstile,
+  failTurnstile,
   mockJson,
   solveTurnstile,
   testUser,
@@ -39,6 +40,19 @@ test.describe('registration and Turnstile', () => {
 
     await expireTurnstile(page);
     await expect(page.getByRole('button', { name: 'Create account' })).toBeDisabled();
+    await expect(page.getByRole('alert')).toHaveText(
+      'Security check expired. Please complete it again.',
+    );
+
+    await solveTurnstile(page, 'replacement-token');
+    await expect(page.getByRole('button', { name: 'Create account' })).toBeEnabled();
+    await expect(page.getByRole('alert')).toBeHidden();
+
+    expect(await failTurnstile(page)).toBe(true);
+    await expect(page.getByRole('button', { name: 'Create account' })).toBeDisabled();
+    await expect(page.getByRole('alert')).toHaveText(
+      'Security check could not be completed. Please try again.',
+    );
   });
 
   test('registers without Cloudflare and shows the check-inbox state', async ({ page }) => {
@@ -68,6 +82,39 @@ test.describe('registration and Turnstile', () => {
       password: 'StrongPassword!',
       turnstileToken: 'deterministic-turnstile-token',
     });
+  });
+
+  test('sends a single-use token only once when the form is submitted twice', async ({ page }) => {
+    let requestCount = 0;
+    let releaseRequest!: () => void;
+    const pendingResponse = new Promise<void>((resolve) => {
+      releaseRequest = resolve;
+    });
+    await page.route('**/api/auth/register', async (route) => {
+      requestCount += 1;
+      await pendingResponse;
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(testUser),
+      });
+    });
+    await page.goto('/auth/register');
+    await solveTurnstile(page, 'single-use-token');
+    await page.getByLabel('Username').fill('musicfan');
+    await page.getByLabel('Email').fill('musicfan@example.com');
+    await page.getByLabel('Password', { exact: true }).fill('StrongPassword!');
+
+    await page.locator('form').evaluate((form) => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    await expect.poll(() => requestCount).toBe(1);
+    await expect(page.getByRole('button', { name: 'Creating account…' })).toBeDisabled();
+    releaseRequest();
+    await expect(page).toHaveURL(/\/auth\/verify-email\?.*mode=check-inbox/);
+    expect(requestCount).toBe(1);
   });
 
   for (const scenario of [
