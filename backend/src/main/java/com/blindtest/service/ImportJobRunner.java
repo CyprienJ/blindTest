@@ -1,7 +1,10 @@
 package com.blindtest.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.blindtest.config.properties.ImportProperties;
 import com.blindtest.infra.YtDlpWrapper;
+import com.blindtest.infra.WaveformGenerator;
 import com.blindtest.model.dto.WsImportDoneEvent;
 import com.blindtest.model.dto.WsImportFailedEvent;
 import com.blindtest.model.dto.WsImportProgressEvent;
@@ -49,6 +52,7 @@ public class ImportJobRunner {
     private static final String AUDIO_CONTENT_TYPE = "audio/mpeg";
     private static final long PROCESS_POLL_MILLIS = 250;
     private static final long TERMINATION_GRACE_SECONDS = 2;
+    private static final long MAX_METADATA_BYTES = 1_048_576;
 
     private final TrackImportJobRepository jobRepository;
     private final YtDlpWrapper ytDlpWrapper;
@@ -56,6 +60,8 @@ public class ImportJobRunner {
     private final MediaStorage mediaStorage;
     private final ImportProperties importProperties;
     private final TrackMediaService trackMediaService;
+    private final ObjectMapper objectMapper;
+    private final WaveformGenerator waveformGenerator;
 
     /** Downloads and converts audio for the given job ID; updates status, progress, and pushes WS events. */
     public void execute(UUID jobId) {
@@ -84,8 +90,13 @@ public class ImportJobRunner {
             Path audioFile = controlledOutputPath(
                     temporaryDirectory, Path.of(outputTemplate + ".mp3"));
             long audioSize = validateAudioFile(audioFile);
+            Path metadataFile = controlledOutputPath(
+                    temporaryDirectory, Path.of(outputTemplate + ".info.json"));
             String checksum = sha256(audioFile);
             TrackEntity track = job.getTrack();
+            applyYouTubeMetadata(track, metadataFile);
+            track.setWaveformPeaks(objectMapper.writeValueAsString(
+                    waveformGenerator.generate(audioFile, importProperties.timeout())));
             String objectKey = objectKey(track.getId(), checksum);
             StoredMedia storedMedia = mediaStorage.store(objectKey, audioFile, AUDIO_CONTENT_TYPE);
             verifyStoredMedia(storedMedia, objectKey, audioSize);
@@ -253,6 +264,53 @@ public class ImportJobRunner {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
+    }
+
+    private void applyYouTubeMetadata(TrackEntity track, Path metadataFile) throws IOException {
+        BasicFileAttributes attributes = Files.readAttributes(
+                metadataFile, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!attributes.isRegularFile() || attributes.size() <= 0
+                || attributes.size() > MAX_METADATA_BYTES) {
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.INVALID_MEDIA);
+        }
+        JsonNode metadata = objectMapper.readTree(metadataFile.toFile());
+        String title = text(metadata, "title");
+        String artist = firstText(metadata, "artist", "uploader", "channel");
+        if (title == null || artist == null) {
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.INVALID_MEDIA);
+        }
+        track.setTitle(limit(title, 255));
+        track.setArtist(limit(artist, 255));
+        JsonNode duration = metadata.get("duration");
+        if (duration != null && duration.isNumber() && duration.doubleValue() > 0) {
+            track.setDurationSeconds((int) Math.floor(duration.doubleValue()));
+        }
+        String thumbnail = text(metadata, "thumbnail");
+        if (thumbnail != null && thumbnail.length() <= 500) {
+            track.setImageUrl(thumbnail);
+        }
+    }
+
+    private String firstText(JsonNode metadata, String... fields) {
+        for (String field : fields) {
+            String value = text(metadata, field);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String text(JsonNode metadata, String field) {
+        JsonNode value = metadata.get(field);
+        if (value == null || !value.isTextual() || value.textValue().isBlank()) {
+            return null;
+        }
+        return value.textValue().strip();
+    }
+
+    private String limit(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
     private String objectKey(UUID trackId, String checksum) {

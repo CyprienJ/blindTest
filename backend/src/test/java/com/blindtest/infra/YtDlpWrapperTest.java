@@ -30,6 +30,7 @@ class YtDlpWrapperTest {
 
         verify(factory).start(List.of(
                 "yt-dlp", "--no-playlist", "--max-filesize", "26214400",
+                "--write-info-json", "--clean-info-json",
                 "-x", "--audio-format", "mp3", "--postprocessor-args", "ffmpeg:-threads 1",
                 "--output", output.toString(),
                 "--newline",

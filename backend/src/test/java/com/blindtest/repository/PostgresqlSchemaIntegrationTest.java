@@ -89,7 +89,7 @@ class PostgresqlSchemaIntegrationTest {
                 Integer.class);
 
         assertThat(installedRanks).containsExactly(
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
     }
 
     @Test
@@ -130,7 +130,7 @@ class PostgresqlSchemaIntegrationTest {
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
                 """, Integer.class)).containsExactly(
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
     }
 
     @Test
@@ -187,6 +187,51 @@ class PostgresqlSchemaIntegrationTest {
                 """, track.getId())).
                 isInstanceOf(DataIntegrityViolationException.class).
                 hasMessageContaining("chk_tracks_excerpt_start_seconds");
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void databaseEnforcesNonNegativeUniquePlaylistPositions() {
+        UUID adminId = UUID.randomUUID();
+        UUID playlistId = UUID.randomUUID();
+        UUID firstTrackId = UUID.randomUUID();
+        UUID secondTrackId = UUID.randomUUID();
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO users (id, username, email, password_hash, role)
+                    VALUES (?, 'ordering-admin', 'ordering-admin@example.com', 'hash', 'ADMIN')
+                    """, adminId);
+            jdbcTemplate.update("""
+                    INSERT INTO playlists (id, name, created_by)
+                    VALUES (?, 'Ordering constraints', ?)
+                    """, playlistId, adminId);
+            jdbcTemplate.update("""
+                    INSERT INTO tracks (id, title, artist, audio_url, status)
+                    VALUES
+                        (?, 'First ordered track', 'Artist', '/first.mp3', 'PUBLISHED'),
+                        (?, 'Second ordered track', 'Artist', '/second.mp3', 'PUBLISHED')
+                    """, firstTrackId, secondTrackId);
+            jdbcTemplate.update("""
+                    INSERT INTO playlist_tracks (playlist_id, track_id, "order")
+                    VALUES (?, ?, 0)
+                    """, playlistId, firstTrackId);
+
+            assertThatThrownBy(() -> jdbcTemplate.update("""
+                    INSERT INTO playlist_tracks (playlist_id, track_id, "order")
+                    VALUES (?, ?, 0)
+                    """, playlistId, secondTrackId)).
+                    isInstanceOf(DataIntegrityViolationException.class).
+                    hasMessageContaining("uq_playlist_tracks_order");
+            assertThatThrownBy(() -> jdbcTemplate.update("""
+                    INSERT INTO playlist_tracks (playlist_id, track_id, "order")
+                    VALUES (?, ?, -1)
+                    """, playlistId, secondTrackId)).
+                    isInstanceOf(DataIntegrityViolationException.class).
+                    hasMessageContaining("chk_playlist_tracks_order_non_negative");
+        } finally {
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", adminId);
+            jdbcTemplate.update("DELETE FROM tracks WHERE id IN (?, ?)", firstTrackId, secondTrackId);
+        }
     }
 
     @Test

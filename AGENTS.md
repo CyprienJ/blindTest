@@ -83,6 +83,8 @@ Last reviewed: 2026-08-01.
   case-insensitive metadata search.
 - Admin-only short-lived preview URLs for completed unpublished imports, with
   lifecycle, finalized-metadata, and object-existence checks.
+- Imported audio receives a bounded server-generated waveform summary of at most
+  800 normalized peaks, exposed through an administrator-only track endpoint.
 - Admin YouTube import jobs, post-commit asynchronous `yt-dlp` execution,
   persisted progress, startup recovery of interrupted active jobs, per-user STOMP
   progress messages, MP3 validation, checksum generation, and finalized upload to
@@ -91,14 +93,17 @@ Last reviewed: 2026-08-01.
   completed imports transition transactionally and idempotently to published or
   rejected, while rejected media is retained pending DG-05.
 - YouTube imports accept canonical single-video watch, short-link, and Shorts
-  URLs; metadata is bounded, active duplicate videos are rejected, output remains
-  inside isolated temporary directories, and provider failures are sanitized.
+  URLs; title, channel/artist, duration, and thumbnail are extracted automatically,
+  metadata is bounded, active duplicate videos are rejected, output remains inside
+  isolated temporary directories, and provider failures are sanitized.
 - The non-root backend runtime installs pinned, build-smoke-tested `yt-dlp` and
   FFmpeg versions; imports enforce time, temporary-file-size, FFmpeg-thread, and
   container CPU limits and terminate unsafe processes.
 - Injectable email, Turnstile, import-process, scheduling, clock, and opaque-token
   boundaries with deterministic test adapters.
-- Admin playlist CRUD and ordered track membership.
+- Admin playlist CRUD with published-track-only membership, duplicate prevention,
+  zero-based atomic ordering, and automatic compaction when tracks are removed,
+  rejected, or deleted.
 - JaCoCo XML/HTML backend coverage reports with CI artifact publication and
   package-level regression gates for security, WebSocket, and service code.
 - PostgreSQL 16 Testcontainers integration coverage for Flyway migrations,
@@ -137,11 +142,12 @@ Last reviewed: 2026-08-01.
 - Interactive first-administrator provisioning promotes one verified account only
   when no administrator exists, with concurrency-safe locking, idempotent replay,
   and safe persistent outcome auditing.
-- Flyway migrations V1 through V13 for users, refresh tokens, tracks, playlists,
+- Flyway migrations V1 through V15 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
   metadata, the media-deletion outbox, extended track metadata, active-import
   deduplication, import workflow timestamps, administrator-provisioning audit,
-  answer aliases, and excerpt offsets.
+  answer aliases, excerpt offsets, persisted waveform peaks, and enforced playlist
+  ordering.
 
 The backend currently has controllers for:
 
@@ -183,9 +189,11 @@ The WebSocket infrastructure exists only for authentication and import progress.
   preview, publication/rejection/deletion actions, confirmations, and complete
   operation states.
 - Administrator YouTube import UI matching the reference design, with validated
-  metadata and alias drafts, duplicate-submit protection, authenticated STOMP
-  progress, durable polling/reload recovery, secure preview, and
-  publication/rejection actions.
+  URL-only submission, editable extracted metadata, alias drafts, a one-handle
+  60-second excerpt selector with immediate seek-and-play feedback, duplicate-submit
+  protection, authenticated STOMP progress, durable polling/reload recovery,
+  interactive server-generated waveform rendering, selected-excerpt preview, and
+  explicit publication/rejection actions.
 - Administrator-only frontend route enforcement for the administration area.
 - Shared global styling based on the target visual design.
 - Playwright Chromium authentication coverage with mocked API and Turnstile
@@ -320,7 +328,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 237 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 248 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 8 passing unit tests,
   and 38 passing Playwright authentication/administration/media/smoke tests;

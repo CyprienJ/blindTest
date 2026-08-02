@@ -10,12 +10,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.blindtest.model.entity.ImportJobStatus;
+import com.blindtest.model.entity.PlaylistEntity;
+import com.blindtest.model.entity.PlaylistTrackEntity;
 import com.blindtest.model.entity.TrackEntity;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.entity.UserRole;
 import com.blindtest.repository.TrackImportJobRepository;
+import com.blindtest.repository.PlaylistRepository;
+import com.blindtest.repository.PlaylistTrackRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.TrackAnswerAliasRepository;
 import com.blindtest.repository.UserRepository;
@@ -66,6 +70,12 @@ class AdminTrackControllerIntegrationTest {
     private TrackAnswerAliasRepository aliasRepository;
 
     @Autowired
+    private PlaylistRepository playlistRepository;
+
+    @Autowired
+    private PlaylistTrackRepository playlistTrackRepository;
+
+    @Autowired
     private MediaDeletionTaskRepository deletionTaskRepository;
 
     @Autowired
@@ -95,6 +105,8 @@ class AdminTrackControllerIntegrationTest {
         deletionTaskRepository.deleteAll();
         importJobRepository.deleteAll();
         aliasRepository.deleteAll();
+        playlistTrackRepository.deleteAll();
+        playlistRepository.deleteAll();
         trackRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -111,6 +123,7 @@ class AdminTrackControllerIntegrationTest {
         pending.setAudioObjectKey("tracks/pending/audio.mp3");
         pending.setAudioChecksum("a".repeat(64));
         pending.setAudioSizeBytes(1234L);
+        pending.setWaveformPeaks("[0,25,100]");
         pendingTrack = trackRepository.save(pending);
 
         TrackImportJobEntity completedJob = new TrackImportJobEntity();
@@ -206,6 +219,19 @@ class AdminTrackControllerIntegrationTest {
                         "https://media.example.test/tracks/pending/audio.mp3?signature=test")).
                 andExpect(jsonPath("$.expiresAt").isNotEmpty()).
                 andExpect(jsonPath("$.audioObjectKey").doesNotExist());
+    }
+
+    @Test
+    void adminCanRequestBoundedWaveformData() throws Exception {
+        pendingTrack.setDurationSeconds(180);
+        trackRepository.saveAndFlush(pendingTrack);
+        mockMvc.perform(get("/api/admin/tracks/" + pendingTrack.getId() + "/waveform").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.durationSeconds").value(180)).
+                andExpect(jsonPath("$.peaks.length()").value(3)).
+                andExpect(jsonPath("$.peaks[2]").value(100)).
+                andExpect(jsonPath("$.waveformPeaks").doesNotExist());
     }
 
     @Test
@@ -505,6 +531,46 @@ class AdminTrackControllerIntegrationTest {
     }
 
     @Test
+    void rejectingPublishedTrackRemovesItFromPlaylistsAndCompactsOrder() throws Exception {
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk());
+        PlaylistEntity playlist = playlist("Rejection playlist");
+        playlistTrackRepository.saveAll(List.of(
+                new PlaylistTrackEntity(playlist, publishedTrack, 0),
+                new PlaylistTrackEntity(playlist, pendingTrack, 1)));
+
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/reject").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.status").value("REJECTED"));
+
+        assertThat(playlistTrackRepository.findAllByPlaylistIdOrdered(playlist.getId())).
+                singleElement().satisfies(entry -> {
+                    assertThat(entry.getTrack().getId()).isEqualTo(publishedTrack.getId());
+                    assertThat(entry.getTrackOrder()).isZero();
+                });
+    }
+
+    @Test
+    void deletingPublishedTrackRemovesItFromPlaylistsAndCompactsOrder() throws Exception {
+        PlaylistEntity playlist = playlist("Deletion playlist");
+        playlistTrackRepository.saveAll(List.of(
+                new PlaylistTrackEntity(playlist, publishedTrack, 0),
+                new PlaylistTrackEntity(playlist, pendingTrack, 1)));
+
+        mockMvc.perform(delete("/api/admin/tracks/" + publishedTrack.getId()).
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isNoContent());
+
+        assertThat(playlistTrackRepository.findAllByPlaylistIdOrdered(playlist.getId())).
+                singleElement().satisfies(entry -> {
+                    assertThat(entry.getTrack().getId()).isEqualTo(pendingTrack.getId());
+                    assertThat(entry.getTrackOrder()).isZero();
+                });
+    }
+
+    @Test
     void publicationRejectsImportThatIsNotDone() throws Exception {
         TrackImportJobEntity job = importJobRepository.findAll().getFirst();
         job.setStatus(ImportJobStatus.PROCESSING);
@@ -530,5 +596,12 @@ class AdminTrackControllerIntegrationTest {
         track.setAudioUrl("https://example.com/audio.mp3");
         track.setStatus(status);
         return track;
+    }
+
+    private PlaylistEntity playlist(String name) {
+        PlaylistEntity playlist = new PlaylistEntity();
+        playlist.setName(name);
+        playlist.setCreatedBy(userRepository.findByEmail("track-admin@example.com").orElseThrow());
+        return playlistRepository.save(playlist);
     }
 }

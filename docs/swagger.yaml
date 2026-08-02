@@ -106,6 +106,9 @@ components:
             - TRACK_EXCERPT_INVALID
             - TRACK_METADATA_INCOMPLETE
             - IMPORT_ALREADY_ACTIVE
+            - PLAYLIST_ORDER_INVALID
+            - PLAYLIST_TRACK_DUPLICATE
+            - PLAYLIST_TRACK_NOT_PUBLISHED
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
         message:
@@ -439,6 +442,22 @@ components:
           type: string
           format: date-time
 
+    TrackWaveform:
+      type: object
+      required: [peaks]
+      properties:
+        durationSeconds:
+          type: integer
+          nullable: true
+          minimum: 1
+        peaks:
+          type: array
+          maxItems: 800
+          items:
+            type: integer
+            minimum: 0
+            maximum: 100
+
     MediaReconciliationReport:
       type: object
       required: [checkedAt, missingCount, orphanedCount, missingObjects, orphanedObjectFingerprints]
@@ -538,7 +557,7 @@ components:
 
     ImportTrackRequest:
       type: object
-      required: [youtubeUrl, title, artist]
+      required: [youtubeUrl]
       properties:
         youtubeUrl:
           type: string
@@ -546,43 +565,9 @@ components:
           maxLength: 500
           description: |
             HTTPS YouTube watch, youtu.be, or Shorts URL for one video. The
-            service canonicalizes accepted forms before persistence.
-        title:
-          type: string
-          maxLength: 255
-          description: Canonical primary game answer; the film title for film-related tracks, otherwise the music title.
-        artist:
-          type: string
-          maxLength: 255
-        album:
-          type: string
-          maxLength: 255
-          nullable: true
-        composer:
-          type: string
-          maxLength: 255
-          nullable: true
-        work:
-          type: string
-          maxLength: 255
-          nullable: true
-        category:
-          type: string
-          maxLength: 100
-          nullable: true
-        decade:
-          type: integer
-          minimum: 1900
-          maximum: 2090
-          nullable: true
-        durationSeconds:
-          type: integer
-          minimum: 1
-          nullable: true
-        imageUrl:
-          type: string
-          maxLength: 500
-          nullable: true
+            service canonicalizes accepted forms before persistence. Title,
+            artist/channel, duration, and thumbnail are extracted by yt-dlp and
+            remain editable through the administrator track endpoint.
 
     ImportJobStatus:
       type: string
@@ -661,15 +646,41 @@ components:
           type: string
           nullable: true
 
+    UpdatePlaylistRequest:
+      type: object
+      description: Playlist metadata patch; omitted properties remain unchanged.
+      properties:
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+
     AddTrackToPlaylistRequest:
       type: object
-      required: [trackId]
+      required: [trackId, order]
       properties:
         trackId:
           $ref: '#/components/schemas/UUID'
         order:
           type: integer
-          nullable: true
+          minimum: 0
+          description: Zero-based insertion position, at most the current playlist size.
+
+    ReorderPlaylistTracksRequest:
+      type: object
+      required: [trackIds]
+      properties:
+        trackIds:
+          type: array
+          maxItems: 500
+          description: Complete ordered snapshot containing every current track ID exactly once.
+          items:
+            $ref: '#/components/schemas/UUID'
 
     GameHistorySummary:
       type: object
@@ -1177,6 +1188,28 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /admin/tracks/{trackId}/waveform:
+    get:
+      tags: [Admin - Tracks]
+      summary: Read the server-generated waveform peaks for an imported track
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Bounded normalized waveform data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackWaveform'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /admin/tracks/{trackId}/aliases:
     get:
       tags: [Admin - Tracks]
@@ -1350,8 +1383,9 @@ paths:
       tags: [Admin - Tracks]
       summary: Reject a completed import
       description: |
-        Idempotently transitions DONE to REJECTED. Media is retained until DG-05
-        defines the rejected-media retention and deletion period.
+        Idempotently transitions DONE or PUBLISHED to REJECTED. A published track
+        is removed from every playlist and each remaining order is compacted in
+        the same transaction. Media is retained according to ADR-0011.
       parameters:
         - $ref: '#/components/parameters/TrackId'
       responses:
@@ -1414,6 +1448,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/Playlist'
 
+  /admin/playlists/{playlistId}:
+    get:
+      tags: [Admin - Playlists]
+      summary: Get playlist detail with ordered published tracks
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin - Playlists]
+      summary: Update playlist metadata
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaylistRequest'
+      responses:
+        '200':
+          description: Updated playlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Admin - Playlists]
+      summary: Delete playlist and all memberships
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '204':
+          description: Playlist deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /admin/playlists/{playlistId}/tracks:
     post:
       tags: [Admin - Playlists]
@@ -1433,3 +1513,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PlaylistDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/playlists/{playlistId}/tracks/{trackId}:
+    delete:
+      tags: [Admin - Playlists]
+      summary: Remove a track and compact following positions
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '204':
+          description: Track removed
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/playlists/{playlistId}/tracks/order:
+    put:
+      tags: [Admin - Playlists]
+      summary: Atomically replace the complete playlist order
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderPlaylistTracksRequest'
+      responses:
+        '200':
+          description: Reordered playlist detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'

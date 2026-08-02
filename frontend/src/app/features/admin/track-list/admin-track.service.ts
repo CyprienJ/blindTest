@@ -10,6 +10,7 @@ import {
   TrackAnswerType,
   TrackStatus,
   TrackUpdate,
+  TrackWaveform,
 } from './admin-track.model';
 
 @Injectable({ providedIn: 'root' })
@@ -61,6 +62,10 @@ export class AdminTrackService {
 
   preview(id: string): Observable<MediaPreview> {
     return this.http.get<MediaPreview>(`${this.baseUrl}/${id}/preview-url`);
+  }
+
+  waveform(id: string): Observable<TrackWaveform> {
+    return this.http.get<TrackWaveform>(`${this.baseUrl}/${id}/waveform`);
   }
 
   validate(id: string): Observable<AdminTrack> {

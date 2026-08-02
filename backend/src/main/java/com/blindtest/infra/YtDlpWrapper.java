@@ -22,6 +22,7 @@ public class YtDlpWrapper {
     public Process start(String youtubeUrl, Path outputTemplate) throws IOException {
         return processFactory.start(List.of(
                 "yt-dlp", "--no-playlist", "--max-filesize", Long.toString(importProperties.maxSizeBytes()),
+                "--write-info-json", "--clean-info-json",
                 "-x", "--audio-format", "mp3", "--postprocessor-args", "ffmpeg:-threads 1",
                 "--output", outputTemplate.toString(),
                 "--newline",

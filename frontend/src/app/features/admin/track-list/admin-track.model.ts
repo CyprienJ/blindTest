@@ -43,9 +43,9 @@ export interface TrackUpdate {
   album: string | null;
   composer: string | null;
   work: string | null;
-  category: string;
-  decade: number;
-  durationSeconds: number;
+  category: string | null;
+  decade: number | null;
+  durationSeconds: number | null;
   excerptStartSeconds: number;
   imageUrl: string | null;
 }
@@ -53,4 +53,9 @@ export interface TrackUpdate {
 export interface MediaPreview {
   url: string;
   expiresAt: string;
+}
+
+export interface TrackWaveform {
+  durationSeconds: number | null;
+  peaks: number[];
 }

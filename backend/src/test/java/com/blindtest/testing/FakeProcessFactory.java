@@ -19,6 +19,15 @@ public class FakeProcessFactory implements ProcessFactory {
 
     @Override
     public synchronized Process start(List<String> command) throws IOException {
+        if (!command.isEmpty() && "ffmpeg".equals(command.getFirst())) {
+            byte[] pcm = new byte[1_600];
+            for (int index = 0; index < pcm.length / 2; index++) {
+                short sample = (short) ((index % 100) * 300);
+                pcm[index * 2] = (byte) sample;
+                pcm[index * 2 + 1] = (byte) (sample >>> 8);
+            }
+            return new CompletedProcess(pcm);
+        }
         int outputFlagIndex = command.indexOf("--output");
         if (outputFlagIndex < 0 || outputFlagIndex + 1 >= command.size()) {
             throw new IOException("Missing yt-dlp output argument");
@@ -27,6 +36,14 @@ public class FakeProcessFactory implements ProcessFactory {
         Path outputTemplate = Path.of(command.get(outputFlagIndex + 1));
         Files.createDirectories(outputTemplate.getParent());
         Files.write(Path.of(outputTemplate + ".mp3"), fixtureBytes());
+        Files.writeString(Path.of(outputTemplate + ".info.json"), """
+                {
+                  "title": "Deterministic YouTube title",
+                  "uploader": "Deterministic YouTube channel",
+                  "duration": 120,
+                  "thumbnail": "https://images.example.test/deterministic-cover.jpg"
+                }
+                """);
         startCount++;
         return new CompletedProcess("[download] 50.0%\n[download] 100.0%\n");
     }
@@ -56,7 +73,11 @@ public class FakeProcessFactory implements ProcessFactory {
         private final InputStream output;
 
         private CompletedProcess(String output) {
-            this.output = new ByteArrayInputStream(output.getBytes(StandardCharsets.UTF_8));
+            this(output.getBytes(StandardCharsets.UTF_8));
+        }
+
+        private CompletedProcess(byte[] output) {
+            this.output = new ByteArrayInputStream(output);
         }
 
         @Override

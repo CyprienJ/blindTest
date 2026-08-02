@@ -23,7 +23,9 @@
         <div>
           <a class="back-link" routerLink="/admin/tracks">← Track catalogue</a>
           <h1>Import from YouTube</h1>
-          <p>Metadata is saved first; yt-dlp and FFmpeg process the audio securely on the server.</p>
+          <p>
+            Metadata is saved first; yt-dlp and FFmpeg process the audio securely on the server.
+          </p>
         </div>
         @if (job) {
           <span class="job-badge" [class]="'job-badge ' + job.status.toLowerCase()">
@@ -35,7 +37,9 @@
       @if (monitorError) {
         <div class="notice error" role="alert">
           <span>{{ monitorError }}</span>
-          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="retryPolling()">Retry now</button>
+          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="retryPolling()">
+            Retry now
+          </button>
         </div>
       }
 
@@ -44,7 +48,7 @@
           <div class="panel-title">
             <div>
               <span class="step-number">1</span>
-              <h2>New import</h2>
+              <h2>Paste the YouTube link</h2>
             </div>
             @if (importForm.disabled) {
               <span class="locked">Locked during import</span>
@@ -59,112 +63,13 @@
                 formControlName="youtubeUrl"
                 placeholder="https://www.youtube.com/watch?v=…"
               />
-              @if (importForm.controls.youtubeUrl.invalid && importForm.controls.youtubeUrl.touched) {
+              @if (
+                importForm.controls.youtubeUrl.invalid && importForm.controls.youtubeUrl.touched
+              ) {
                 <small>Enter a supported YouTube watch, short, or Shorts URL.</small>
               }
             </label>
 
-            <div class="form-grid">
-              <label class="field">
-                <span>Title *</span>
-                <input class="bt-input" formControlName="title" />
-              </label>
-              <label class="field">
-                <span>Artist *</span>
-                <input class="bt-input" formControlName="artist" />
-              </label>
-              <label class="field">
-                <span>Album</span>
-                <input class="bt-input" formControlName="album" />
-              </label>
-              <label class="field">
-                <span>Composer</span>
-                <input class="bt-input" formControlName="composer" />
-              </label>
-              <label class="field">
-                <span>Work / film</span>
-                <input class="bt-input" formControlName="work" />
-              </label>
-              <label class="field">
-                <span>Category</span>
-                <input class="bt-input" formControlName="category" placeholder="Pop, cinema…" />
-              </label>
-              <label class="field">
-                <span>Decade</span>
-                <input class="bt-input" type="number" formControlName="decade" placeholder="1980" />
-              </label>
-              <label class="field">
-                <span>Known duration (seconds)</span>
-                <input
-                  class="bt-input"
-                  type="number"
-                  formControlName="durationSeconds"
-                  placeholder="Optional"
-                />
-              </label>
-              <label class="field wide">
-                <span>Cover image URL</span>
-                <div class="cover-input">
-                  <span class="cover-preview" aria-hidden="true">
-                    @if (importForm.controls.imageUrl.value) {
-                      <img [src]="importForm.controls.imageUrl.value" alt="" />
-                    } @else {
-                      ♪
-                    }
-                  </span>
-                  <input
-                    class="bt-input"
-                    formControlName="imageUrl"
-                    placeholder="https://…/cover.jpg"
-                  />
-                </div>
-              </label>
-            </div>
-
-            <div class="alias-section">
-              <div class="alias-heading">
-                <div>
-                  <h3>Alternative answers</h3>
-                  <p>Optional accepted variants, saved when the audio is finalized.</p>
-                </div>
-                <button
-                  class="bt-btn bt-btn-sm bt-btn-ghost"
-                  type="button"
-                  [disabled]="importForm.disabled || aliases.length >= 10"
-                  (click)="addAlias()"
-                >＋ Add alias</button>
-              </div>
-
-              <div formArrayName="aliases">
-                @if (aliases.length === 0) {
-                  <p class="empty-aliases">No alternative answers configured.</p>
-                }
-                @for (alias of aliases.controls; track $index; let index = $index) {
-                  <div class="alias-row" [formGroupName]="index">
-                    <select class="bt-input" formControlName="type" aria-label="Alias type">
-                      @for (type of aliasTypes; track type) {
-                        <option [value]="type">{{ type }}</option>
-                      }
-                    </select>
-                    <input
-                      class="bt-input"
-                      formControlName="value"
-                      aria-label="Alternative answer"
-                      placeholder="Alternative answer"
-                    />
-                    <button
-                      type="button"
-                      aria-label="Remove alternative answer"
-                      (click)="removeAlias(index)"
-                    >×</button>
-                  </div>
-                }
-              </div>
-            </div>
-
-            @if (importForm.invalid && importForm.touched) {
-              <p class="form-error">Complete the required fields with valid values.</p>
-            }
             @if (submitError) {
               <p class="form-error" role="alert">{{ submitError }}</p>
             }
@@ -172,12 +77,12 @@
             <button
               class="bt-btn bt-btn-primary bt-btn-lg submit"
               type="submit"
-              [disabled]="submitting || importForm.disabled"
+              [disabled]="submitting || importForm.disabled || !!job"
             >
               @if (submitting) {
                 <span class="spinner" aria-hidden="true"></span> Starting import…
               } @else {
-                ↥ Start import
+                ↓ Download music
               }
             </button>
           </form>
@@ -225,18 +130,21 @@
                   <div><strong>Queued</strong><small>Request accepted and persisted</small></div>
                 </div>
                 <div class="stage" [attr.data-state]="stageState('DOWNLOADING')">
-                  <span class="stage-dot">{{ stageState('DOWNLOADING') === 'done' ? '✓' : '2' }}</span>
-                  <div><strong>Downloading</strong><small>yt-dlp retrieves the source audio</small></div>
+                  <span class="stage-dot">{{
+                    stageState('DOWNLOADING') === 'done' ? '✓' : '2'
+                  }}</span>
+                  <div>
+                    <strong>Downloading</strong><small>yt-dlp retrieves the source audio</small>
+                  </div>
                 </div>
                 <div class="stage" [attr.data-state]="stageState('PROCESSING')">
-                  <span class="stage-dot">{{ stageState('PROCESSING') === 'done' ? '✓' : '3' }}</span>
+                  <span class="stage-dot">{{
+                    stageState('PROCESSING') === 'done' ? '✓' : '3'
+                  }}</span>
                   <div>
                     <strong>Processing</strong>
                     <small>FFmpeg conversion, validation and private upload</small>
-                    @if (
-                      job.status === 'DOWNLOADING' ||
-                      job.status === 'PROCESSING'
-                    ) {
+                    @if (job.status === 'DOWNLOADING' || job.status === 'PROCESSING') {
                       <div class="progress">
                         <span [style.width.%]="job.progress"></span>
                       </div>
@@ -256,7 +164,11 @@
                 <div class="failure" role="alert">
                   <strong>Import failed</strong>
                   <p>{{ job.errorMessage || 'The media import failed.' }}</p>
-                  <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="resetImport()">
+                  <button
+                    class="bt-btn bt-btn-sm bt-btn-ghost"
+                    type="button"
+                    (click)="resetImport()"
+                  >
                     Start another import
                   </button>
                 </div>
@@ -277,79 +189,279 @@
               <div class="panel-title">
                 <div>
                   <span class="step-number">3</span>
-                  <h2>Review and publish</h2>
+                  <h2>Choose the excerpt start</h2>
                 </div>
                 @if (aliasState === 'saving') {
                   <span class="saving"><span class="spinner"></span> Saving aliases…</span>
                 }
               </div>
 
-              <div class="track-preview">
-                <span class="large-cover" aria-hidden="true">
-                  @if (track.imageUrl) {
-                    <img [src]="track.imageUrl" alt="" />
-                  } @else {
-                    ♪
-                  }
-                </span>
-                <div>
-                  <h3>{{ track.title }}</h3>
-                  <p>
-                    {{ track.artist }}
-                    @if (track.decade) { · {{ track.decade }}s }
-                    @if (track.category) { · {{ track.category }} }
-                  </p>
-                  @if (track.album) {
-                    <small>{{ track.album }}</small>
-                  }
-                </div>
-              </div>
-
               @if (job!.status === 'DONE') {
+                <div class="metadata-review" [formGroup]="importForm">
+                  <div class="track-preview">
+                    <span class="large-cover" aria-hidden="true">
+                      @if (importForm.controls.imageUrl.value) {
+                        <img [src]="importForm.controls.imageUrl.value" alt="" />
+                      } @else {
+                        ♪
+                      }
+                    </span>
+                    <div>
+                      <h3>{{ importForm.controls.title.value }}</h3>
+                      <p>{{ importForm.controls.artist.value }}</p>
+                      <small>Metadata detected automatically — edit it if necessary.</small>
+                    </div>
+                  </div>
+
+                  <div class="form-grid compact-fields">
+                    <label class="field">
+                      <span>Title *</span>
+                      <input
+                        class="bt-input"
+                        formControlName="title"
+                        (input)="invalidateSelection()"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>Artist *</span>
+                      <input
+                        class="bt-input"
+                        formControlName="artist"
+                        (input)="invalidateSelection()"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>Album</span>
+                      <input
+                        class="bt-input"
+                        formControlName="album"
+                        (input)="invalidateSelection()"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>Category</span>
+                      <input
+                        class="bt-input"
+                        formControlName="category"
+                        (input)="invalidateSelection()"
+                      />
+                    </label>
+                  </div>
+
+                  <div class="excerpt-editor">
+                    <div class="excerpt-labels">
+                      <strong>60-second game window</strong>
+                      <span class="mono"
+                        >{{ formatTime(excerptStart) }} → {{ formatTime(excerptEnd) }}</span
+                      >
+                    </div>
+                    @if (waveformLoading) {
+                      <small class="preview-status">Generating the waveform display…</small>
+                    }
+                    @if (waveformError) {
+                      <div class="notice error" role="alert">
+                        <span>{{ waveformError }}</span>
+                        <button
+                          class="bt-btn bt-btn-sm bt-btn-ghost"
+                          type="button"
+                          (click)="loadWaveform()"
+                        >
+                          Retry waveform
+                        </button>
+                      </div>
+                    }
+                    @if (waveformPath) {
+                      <svg
+                        #waveformSurface
+                        viewBox="0 0 1000 100"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                        style="width: 100%; height: 96px; cursor: crosshair; touch-action: none"
+                        (pointerdown)="selectWaveformPosition($event, waveformSurface)"
+                        (pointermove)="selectWaveformPosition($event, waveformSurface)"
+                      >
+                        <line x1="0" y1="50" x2="1000" y2="50" stroke="var(--line)" />
+                        <path [attr.d]="waveformPath" fill="var(--fg-2)" opacity="0.58" />
+                        <rect
+                          [attr.x]="waveformSelectionX"
+                          y="1"
+                          [attr.width]="waveformSelectionWidth"
+                          height="98"
+                          rx="5"
+                          fill="var(--accent)"
+                          opacity="0.18"
+                          stroke="var(--accent)"
+                          stroke-width="2"
+                        />
+                        <line
+                          [attr.x1]="waveformSelectionX"
+                          y1="0"
+                          [attr.x2]="waveformSelectionX"
+                          y2="100"
+                          stroke="var(--accent)"
+                          stroke-width="4"
+                        />
+                      </svg>
+                    }
+                    <input
+                      class="excerpt-range"
+                      type="range"
+                      formControlName="excerptStartSeconds"
+                      min="0"
+                      [max]="maxExcerptStart"
+                      step="1"
+                      aria-label="Excerpt start"
+                      [disabled]="previewLoading || !preview"
+                      (input)="previewSelection()"
+                    />
+                    <div class="timeline-labels mono">
+                      <span>0:00</span>
+                      <span>{{ formatTime(track.durationSeconds || 0) }}</span>
+                    </div>
+                    @if (previewLoading) {
+                      <small class="preview-status">Loading the secure audio preview…</small>
+                    }
+                    @if (previewError) {
+                      <div class="notice error" role="alert">
+                        <span>{{ previewError }}</span>
+                        <button
+                          class="bt-btn bt-btn-sm bt-btn-ghost"
+                          type="button"
+                          (click)="loadPreview()"
+                        >
+                          Retry preview
+                        </button>
+                      </div>
+                    }
+                    @if (preview) {
+                      <audio
+                        #previewAudio
+                        class="selection-preview"
+                        controls
+                        [src]="preview.url"
+                        (loadedmetadata)="previewLoaded(previewAudio)"
+                        (timeupdate)="enforcePreviewEnd(previewAudio)"
+                      >
+                        Your browser cannot play this audio.
+                      </audio>
+                      <small class="preview-status">
+                        Move the slider to play immediately from the selected position.
+                      </small>
+                    }
+                  </div>
+
+                  <div class="alias-section">
+                    <div class="alias-heading">
+                      <div>
+                        <h3>Alternative answers</h3>
+                        <p>Optional accepted variants.</p>
+                      </div>
+                      <button
+                        class="bt-btn bt-btn-sm bt-btn-ghost"
+                        type="button"
+                        [disabled]="aliases.length >= 10"
+                        (click)="addAlias(); invalidateSelection()"
+                      >
+                        ＋ Add alias
+                      </button>
+                    </div>
+                    <div formArrayName="aliases">
+                      @for (alias of aliases.controls; track $index; let index = $index) {
+                        <div class="alias-row" [formGroupName]="index">
+                          <select
+                            class="bt-input"
+                            formControlName="type"
+                            (change)="invalidateSelection()"
+                          >
+                            @for (type of aliasTypes; track type) {
+                              <option [value]="type">{{ type }}</option>
+                            }
+                          </select>
+                          <input
+                            class="bt-input"
+                            formControlName="value"
+                            aria-label="Alternative answer"
+                            (input)="invalidateSelection()"
+                          />
+                          <button type="button" (click)="removeAlias(index); invalidateSelection()">
+                            ×
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+
                 @if (aliasState === 'error') {
                   <div class="notice error" role="alert">
                     <span>{{ aliasError }}</span>
-                    <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="retryAliases()">
+                    <button
+                      class="bt-btn bt-btn-sm bt-btn-ghost"
+                      type="button"
+                      (click)="retryAliases()"
+                    >
                       Retry aliases
                     </button>
                   </div>
                 }
-                @if (previewError) {
-                  <p class="form-error" role="alert">{{ previewError }}</p>
+                @if (selectionError) {
+                  <p class="form-error" role="alert">{{ selectionError }}</p>
                 }
-                @if (preview) {
-                  <audio controls autoplay [src]="preview.url">
-                    Your browser cannot play this audio.
-                  </audio>
-                  <small class="preview-expiry">
-                    Secure link expires at {{ preview.expiresAt | date: 'shortTime' }}.
-                  </small>
-                } @else {
-                  <button
-                    class="bt-btn bt-btn-ghost listen"
-                    type="button"
-                    [disabled]="previewLoading || !job!.previewAvailable"
-                    (click)="loadPreview()"
-                  >
-                    {{ previewLoading ? 'Preparing preview…' : '▶ Listen to imported audio' }}
-                  </button>
+                <button
+                  class="bt-btn bt-btn-primary submit"
+                  type="button"
+                  [disabled]="selectionSaving || previewLoading"
+                  (click)="validateSelection()"
+                >
+                  {{
+                    selectionSaving || previewLoading
+                      ? 'Preparing preview…'
+                      : '✓ Validate selection'
+                  }}
+                </button>
+
+                @if (selectionValidated) {
+                  <div class="preview-step">
+                    <div class="panel-title">
+                      <div>
+                        <span class="step-number">4</span>
+                        <h2>Preview the result</h2>
+                      </div>
+                    </div>
+                    <small class="preview-expiry">
+                      Selection validated: {{ formatTime(track.excerptStartSeconds) }} for up to 60
+                      seconds. The player above remains available for review.
+                    </small>
+                  </div>
                 }
                 @if (workflowError) {
                   <p class="form-error" role="alert">{{ workflowError }}</p>
                 }
-                <div class="review-actions">
-                  <button
-                    class="bt-btn bt-btn-primary"
-                    type="button"
-                    [disabled]="workflowBusy"
-                    (click)="publish()"
-                  >{{ workflowBusy ? 'Working…' : '✓ Validate and publish' }}</button>
-                  <button
-                    class="bt-btn bt-btn-danger"
-                    type="button"
-                    [disabled]="workflowBusy"
-                    (click)="confirmReject = true"
-                  >× Reject</button>
+                <div class="publish-step">
+                  <div class="panel-title">
+                    <div>
+                      <span class="step-number">5</span>
+                      <h2>Finish</h2>
+                    </div>
+                  </div>
+                  <div class="review-actions">
+                    <button
+                      class="bt-btn bt-btn-primary"
+                      type="button"
+                      [disabled]="workflowBusy || !selectionValidated || !preview"
+                      (click)="publish()"
+                    >
+                      {{ workflowBusy ? 'Publishing…' : '✓ Publish track' }}
+                    </button>
+                    <button
+                      class="bt-btn bt-btn-danger"
+                      type="button"
+                      [disabled]="workflowBusy"
+                      (click)="confirmReject = true"
+                    >
+                      × Reject
+                    </button>
+                  </div>
                 </div>
               } @else if (job!.status === 'PUBLISHED') {
                 <div class="completion success" role="status">
@@ -358,7 +470,9 @@
                 </div>
                 <div class="review-actions">
                   <a class="bt-btn bt-btn-ghost" routerLink="/admin/tracks">Open catalogue</a>
-                  <button class="bt-btn bt-btn-primary" type="button" (click)="resetImport()">New import</button>
+                  <button class="bt-btn bt-btn-primary" type="button" (click)="resetImport()">
+                    New import
+                  </button>
                 </div>
               } @else if (job!.status === 'REJECTED') {
                 <div class="completion rejected" role="status">
@@ -381,13 +495,27 @@
 
 @if (confirmReject && job?.track; as track) {
   <div class="modal-backdrop">
-    <section class="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="reject-title">
+    <section
+      class="confirm-modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="reject-title"
+    >
       <span>!</span>
       <h2 id="reject-title">Reject this import?</h2>
-      <p><strong>{{ track.title }}</strong> will not be available in the public catalogue.</p>
+      <p>
+        <strong>{{ track.title }}</strong> will not be available in the public catalogue.
+      </p>
       <div>
-        <button class="bt-btn bt-btn-ghost" type="button" (click)="confirmReject = false">Cancel</button>
-        <button class="bt-btn bt-btn-danger" type="button" [disabled]="workflowBusy" (click)="reject()">
+        <button class="bt-btn bt-btn-ghost" type="button" (click)="confirmReject = false">
+          Cancel
+        </button>
+        <button
+          class="bt-btn bt-btn-danger"
+          type="button"
+          [disabled]="workflowBusy"
+          (click)="reject()"
+        >
           {{ workflowBusy ? 'Rejecting…' : 'Reject track' }}
         </button>
       </div>

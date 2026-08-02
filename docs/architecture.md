@@ -659,6 +659,15 @@ Base URL: `/api`
 | DELETE | `/admin/playlists/{id}` | Delete a playlist | ADMIN |
 | POST | `/admin/playlists/{id}/tracks` | Add a track to the playlist | ADMIN |
 | DELETE | `/admin/playlists/{id}/tracks/{trackId}` | Remove a track | ADMIN |
+| PUT | `/admin/playlists/{id}/tracks/order` | Atomically replace the complete track order | ADMIN |
+
+Playlist positions are contiguous and zero-based. Only published tracks may be
+added, duplicate membership is rejected, and an order replacement must contain
+every current track ID exactly once. Playlist rows are locked while membership is
+changed, and the database enforces non-negative unique positions. Rejecting or
+deleting a published track removes it from every playlist and compacts the
+remaining positions in the same transaction. Public and administrator playlist
+details expose published tracks only.
 
 ### Administration — Users
 
@@ -982,16 +991,21 @@ schedulePlay(audioUrl: string, startAt: number): void {
 
 ## 12. Music Import Workflow
 
-1. The admin pastes the YouTube URL into the form and fills in the metadata
+1. The admin pastes the YouTube URL into the form
 2. **POST** `/api/admin/tracks/import` → the server creates a `TrackImportJob` and responds `202 { jobId }`
 3. The admin subscribes to `/user/queue/import/{jobId}` to track progress
-4. The server runs `yt-dlp` in the background to download the audio, then FFmpeg to convert to MP3
+4. The server runs `yt-dlp` in the background to extract bounded metadata and
+   download the audio, then FFmpeg converts it to MP3 and generates at most 800
+   normalized waveform peaks from a bounded mono PCM stream
 5. Once done, the `IMPORT_DONE` event contains `jobId` and `trackId`
-6. The admin requests `GET /api/admin/tracks/{trackId}/preview-url` and previews
-   the track with the returned short-lived URL (faithful in-game rendering)
-7. The admin validates (**POST** `/api/admin/tracks/{id}/validate`) → `status = PUBLISHED`
+6. The frontend requests `GET /api/admin/tracks/{trackId}/preview-url` and
+   `GET /api/admin/tracks/{trackId}/waveform` once, draws the waveform as SVG, then
+   immediately seeks and plays whenever the admin moves or clicks the start selector
+7. The admin corrects the extracted metadata when necessary, previews the 60-second
+   selection window, and saves it through the track endpoint
+8. The admin validates (**POST** `/api/admin/tracks/{id}/validate`) → `status = PUBLISHED`
    or rejects (**POST** `/api/admin/tracks/{id}/reject`) → `status = REJECTED`
-8. Only `PUBLISHED` tracks are available in the catalogue for sessions
+9. Only `PUBLISHED` tracks are available in the catalogue for sessions
 
 ```java
 // YtDlpWrapper.java (simplified)

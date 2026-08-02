@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 
 import com.blindtest.config.properties.ImportProperties;
 import com.blindtest.infra.YtDlpWrapper;
+import com.blindtest.infra.WaveformGenerator;
 import com.blindtest.model.dto.WsImportDoneEvent;
 import com.blindtest.model.dto.WsImportFailedEvent;
 import com.blindtest.model.dto.WsImportProgressEvent;
@@ -27,6 +28,7 @@ import com.blindtest.repository.TrackRepository;
 import com.blindtest.service.port.MediaStorage;
 import com.blindtest.service.port.MediaStorageException;
 import com.blindtest.service.port.StoredMedia;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -61,16 +63,19 @@ class ImportJobRunnerTest {
     private SimpMessagingTemplate messagingTemplate;
     private MediaStorage mediaStorage;
     private TrackMediaService trackMediaService;
+    private WaveformGenerator waveformGenerator;
     private ImportJobRunner runner;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         jobRepository = mock(TrackImportJobRepository.class);
         trackRepository = mock(TrackRepository.class);
         ytDlpWrapper = mock(YtDlpWrapper.class);
         messagingTemplate = mock(SimpMessagingTemplate.class);
         mediaStorage = mock(MediaStorage.class);
         trackMediaService = mock(TrackMediaService.class);
+        waveformGenerator = mock(WaveformGenerator.class);
+        when(waveformGenerator.generate(any(), any())).thenReturn(java.util.List.of(0, 25, 100));
         doAnswer(invocation -> {
             TrackEntity target = invocation.getArgument(0);
             target.setAudioUrl(null);
@@ -86,7 +91,9 @@ class ImportJobRunnerTest {
                 messagingTemplate,
                 mediaStorage,
                 new ImportProperties(tempRoot, 8, Duration.ofMinutes(1)),
-                trackMediaService);
+                trackMediaService,
+                new ObjectMapper(),
+                waveformGenerator);
         when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(trackRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -107,6 +114,11 @@ class ImportJobRunnerTest {
         assertThat(track.getAudioSizeBytes()).isEqualTo(VALID_MP3.length);
         assertThat(track.getAudioObjectKey()).
                 isEqualTo("tracks/" + testJob.trackId() + "/audio-" + track.getAudioChecksum() + ".mp3");
+        assertThat(track.getTitle()).isEqualTo("YouTube title");
+        assertThat(track.getArtist()).isEqualTo("YouTube channel");
+        assertThat(track.getDurationSeconds()).isEqualTo(185);
+        assertThat(track.getImageUrl()).isEqualTo("https://images.example.test/cover.jpg");
+        assertThat(track.getWaveformPeaks()).isEqualTo("[0,25,100]");
         verify(mediaStorage).store(eq(track.getAudioObjectKey()), any(Path.class), eq("audio/mpeg"));
         verify(mediaStorage).exists(track.getAudioObjectKey());
         ArgumentCaptor<Object> events = ArgumentCaptor.forClass(Object.class);
@@ -210,7 +222,9 @@ class ImportJobRunnerTest {
                 messagingTemplate,
                 mediaStorage,
                 new ImportProperties(tempRoot, maxSize, Duration.ofMinutes(1)),
-                trackMediaService);
+                trackMediaService,
+                new ObjectMapper(),
+                waveformGenerator);
         arrangeProcess(content, 0);
 
         runner.execute(testJob.jobId());
@@ -241,7 +255,9 @@ class ImportJobRunnerTest {
                 messagingTemplate,
                 mediaStorage,
                 new ImportProperties(tempRoot, 8, Duration.ofMillis(1)),
-                trackMediaService);
+                trackMediaService,
+                new ObjectMapper(),
+                waveformGenerator);
         Process process = arrangeRunningProcess(new byte[0]);
 
         runner.execute(testJob.jobId());
@@ -326,6 +342,15 @@ class ImportJobRunnerTest {
         when(ytDlpWrapper.start(any(), any())).thenAnswer(invocation -> {
             Path outputTemplate = invocation.getArgument(1);
             Files.write(Path.of(outputTemplate + ".mp3"), content);
+            Files.writeString(Path.of(outputTemplate + ".info.json"), """
+                    {
+                      "title": "YouTube title",
+                      "artist": null,
+                      "uploader": "YouTube channel",
+                      "duration": 185.9,
+                      "thumbnail": "https://images.example.test/cover.jpg"
+                    }
+                    """);
             Process process = mock(Process.class);
             String output = "50.0%\n100.0%\n";
             when(process.getInputStream()).thenReturn(

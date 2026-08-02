@@ -66,6 +66,9 @@ describe('AdminTrackService', () => {
     service.preview(id).subscribe();
     http.expectOne(`/api/admin/tracks/${id}/preview-url`).flush({});
 
+    service.waveform(id).subscribe();
+    http.expectOne(`/api/admin/tracks/${id}/waveform`).flush({ peaks: [] });
+
     service.validate(id).subscribe();
     http.expectOne(`/api/admin/tracks/${id}/validate`).flush({});
 

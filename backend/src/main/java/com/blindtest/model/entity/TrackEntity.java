@@ -71,6 +71,9 @@ public class TrackEntity {
     @Column(name = "excerpt_start_seconds", nullable = false)
     private int excerptStartSeconds;
 
+    @Column(name = "waveform_peaks", columnDefinition = "TEXT")
+    private String waveformPeaks;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TrackStatus status = TrackStatus.PENDING;

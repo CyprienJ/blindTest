@@ -1,6 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, OnDestroy, OnInit } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  inject,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   FormArray,
@@ -22,7 +30,13 @@ import {
   tap,
   timer,
 } from 'rxjs';
-import { MediaPreview, TrackAnswerType } from '../track-list/admin-track.model';
+import {
+  AdminTrack,
+  MediaPreview,
+  TrackAnswerType,
+  TrackUpdate,
+  TrackWaveform,
+} from '../track-list/admin-track.model';
 import { AdminTrackService } from '../track-list/admin-track.service';
 import { AdminImportService } from './admin-import.service';
 import { ImportRealtimeService } from './import-realtime.service';
@@ -36,6 +50,7 @@ import {
 
 const ACTIVE_JOB_KEY = 'active_admin_import_job';
 const IMPORT_ALIASES_KEY = 'active_admin_import_aliases';
+const PREVIEW_DURATION_SECONDS = 60;
 type AliasFormGroup = FormGroup<{
   type: FormControl<TrackAnswerType>;
   value: FormControl<string>;
@@ -49,6 +64,8 @@ type AliasFormGroup = FormGroup<{
   styleUrl: './track-import.component.scss',
 })
 export class TrackImportComponent implements OnInit, OnDestroy {
+  @ViewChild('previewAudio') private previewAudio?: ElementRef<HTMLAudioElement>;
+
   private readonly formBuilder = inject(FormBuilder);
   private readonly importService = inject(AdminImportService);
   private readonly trackService = inject(AdminTrackService);
@@ -74,6 +91,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     category: ['', Validators.maxLength(100)],
     decade: ['', [Validators.pattern(/^\d*$/), Validators.min(1900), Validators.max(2090)]],
     durationSeconds: ['', [Validators.pattern(/^\d*$/), Validators.min(1)]],
+    excerptStartSeconds: [0, [Validators.required, Validators.min(0)]],
     imageUrl: ['', Validators.maxLength(500)],
     aliases: this.aliasControls,
   });
@@ -93,9 +111,17 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   preview: MediaPreview | null = null;
   previewLoading = false;
   previewError = '';
+  waveform: TrackWaveform | null = null;
+  waveformPath = '';
+  waveformLoading = false;
+  waveformError = '';
   workflowBusy = false;
   workflowError = '';
   confirmReject = false;
+  selectionSaving = false;
+  selectionValidated = false;
+  selectionError = '';
+  private reviewTrackId: string | null = null;
 
   private pollingSubscription: Subscription | null = null;
   private realtimeSubscription: Subscription | null = null;
@@ -141,25 +167,14 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   }
 
   startImport(): void {
-    if (this.submitting || this.job || this.importForm.invalid) {
-      this.importForm.markAllAsTouched();
+    const youtubeUrl = this.importForm.controls.youtubeUrl;
+    if (this.submitting || this.job || youtubeUrl.invalid) {
+      youtubeUrl.markAsTouched();
       return;
     }
     const value = this.importForm.getRawValue();
-    this.aliasDrafts = value.aliases
-      .map((alias) => ({ type: alias.type, value: alias.value.trim() }))
-      .filter((alias) => alias.value.length > 0);
     const request: ImportTrackRequest = {
       youtubeUrl: value.youtubeUrl.trim(),
-      title: value.title.trim(),
-      artist: value.artist.trim(),
-      album: this.optional(value.album),
-      composer: this.optional(value.composer),
-      work: this.optional(value.work),
-      category: this.optional(value.category),
-      decade: this.optionalNumber(value.decade),
-      durationSeconds: this.optionalNumber(value.durationSeconds),
-      imageUrl: this.optional(value.imageUrl),
     };
 
     this.submitting = true;
@@ -172,7 +187,6 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       .subscribe({
         next: ({ jobId }) => {
           sessionStorage.setItem(ACTIVE_JOB_KEY, jobId);
-          sessionStorage.setItem(IMPORT_ALIASES_KEY, JSON.stringify(this.aliasDrafts));
           this.importForm.disable();
           this.appendActivity(`Import accepted · ${this.shortJobId(jobId)}.`);
           this.startMonitoring(jobId);
@@ -207,15 +221,156 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       });
   }
 
+  loadWaveform(): void {
+    const track = this.job?.track;
+    if (!track || this.waveformLoading || this.waveform) {
+      return;
+    }
+    this.waveformLoading = true;
+    this.waveformError = '';
+    this.trackService
+      .waveform(track.id)
+      .pipe(finalize(() => (this.waveformLoading = false)))
+      .subscribe({
+        next: (waveform) => {
+          this.waveform = waveform;
+          this.waveformPath = this.buildWaveformPath(waveform.peaks);
+        },
+        error: (error) => (this.waveformError = this.errorMessage(error)),
+      });
+  }
+
   retryAliases(): void {
     if (this.job?.track) {
-      this.saveAliases(this.job.track.id);
+      this.saveAliases(this.job.track.id, () => {
+        this.selectionValidated = true;
+        this.loadPreview();
+      });
     }
+  }
+
+  validateSelection(): void {
+    const track = this.job?.track;
+    if (!track || this.selectionSaving || this.reviewInvalid()) {
+      this.importForm.markAllAsTouched();
+      return;
+    }
+    this.selectionSaving = true;
+    this.selectionError = '';
+    this.previewError = '';
+    this.aliasDrafts = this.importForm
+      .getRawValue()
+      .aliases.map((alias) => ({ type: alias.type, value: alias.value.trim() }))
+      .filter((alias) => alias.value.length > 0);
+    sessionStorage.setItem(IMPORT_ALIASES_KEY, JSON.stringify(this.aliasDrafts));
+    this.trackService.update(track.id, this.trackUpdate()).subscribe({
+      next: (updated) => {
+        if (this.job) {
+          this.job = { ...this.job, track: updated };
+        }
+        this.saveAliases(
+          updated.id,
+          () => {
+            this.selectionSaving = false;
+            this.selectionValidated = true;
+            this.appendActivity(
+              `Excerpt starts at ${this.formatTime(updated.excerptStartSeconds)}.`,
+            );
+            this.loadPreview();
+          },
+          () => (this.selectionSaving = false),
+        );
+      },
+      error: (error) => {
+        this.selectionSaving = false;
+        this.selectionError = this.errorMessage(error);
+      },
+    });
+  }
+
+  invalidateSelection(): void {
+    this.selectionValidated = false;
+    this.selectionError = '';
+  }
+
+  previewLoaded(audio: HTMLAudioElement): void {
+    audio.currentTime = this.excerptStart;
+  }
+
+  enforcePreviewEnd(audio: HTMLAudioElement): void {
+    const start = this.excerptStart;
+    if (audio.currentTime >= start + PREVIEW_DURATION_SECONDS) {
+      audio.pause();
+      audio.currentTime = start;
+    }
+  }
+
+  previewSelection(): void {
+    this.invalidateSelection();
+    const audio = this.previewAudio?.nativeElement;
+    if (!audio) {
+      return;
+    }
+    audio.currentTime = this.excerptStart;
+    void audio.play().catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        this.previewError = 'Your browser blocked automatic playback. Press play to listen.';
+      }
+    });
+  }
+
+  selectWaveformPosition(event: PointerEvent, surface: HTMLElement): void {
+    if (event.type === 'pointermove' && event.buttons !== 1) {
+      return;
+    }
+    if (event.type === 'pointerdown') {
+      surface.setPointerCapture(event.pointerId);
+    }
+    const bounds = surface.getBoundingClientRect();
+    if (bounds.width === 0) {
+      return;
+    }
+    const ratio = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
+    const duration = this.waveform?.durationSeconds ?? this.job?.track?.durationSeconds ?? 0;
+    const start = Math.min(this.maxExcerptStart, Math.round(ratio * duration));
+    this.importForm.controls.excerptStartSeconds.setValue(start);
+    this.previewSelection();
+  }
+
+  get waveformSelectionX(): number {
+    const duration = this.waveformDuration;
+    return duration === 0 ? 0 : (this.excerptStart / duration) * 1_000;
+  }
+
+  get waveformSelectionWidth(): number {
+    const duration = this.waveformDuration;
+    return duration === 0 ? 1_000 : Math.min(1_000, (PREVIEW_DURATION_SECONDS / duration) * 1_000);
+  }
+
+  get maxExcerptStart(): number {
+    return Math.max(
+      0,
+      (this.job?.track?.durationSeconds ?? PREVIEW_DURATION_SECONDS) - PREVIEW_DURATION_SECONDS,
+    );
+  }
+
+  get excerptStart(): number {
+    return Number(this.importForm.controls.excerptStartSeconds.value) || 0;
+  }
+
+  get excerptEnd(): number {
+    const duration = this.job?.track?.durationSeconds ?? PREVIEW_DURATION_SECONDS;
+    return Math.min(duration, this.excerptStart + PREVIEW_DURATION_SECONDS);
+  }
+
+  formatTime(seconds: number): string {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, '0')}`;
   }
 
   publish(): void {
     const track = this.job?.track;
-    if (!track || this.workflowBusy) {
+    if (!track || this.workflowBusy || !this.selectionValidated || !this.preview) {
       return;
     }
     this.workflowBusy = true;
@@ -273,9 +428,17 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     this.workflowError = '';
     this.preview = null;
     this.previewError = '';
+    this.waveform = null;
+    this.waveformPath = '';
+    this.waveformLoading = false;
+    this.waveformError = '';
     this.aliasState = 'idle';
     this.aliasError = '';
     this.aliasDrafts = [];
+    this.selectionSaving = false;
+    this.selectionValidated = false;
+    this.selectionError = '';
+    this.reviewTrackId = null;
     this.activity = [];
     this.importForm.enable();
     this.importForm.reset({
@@ -288,6 +451,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       category: '',
       decade: '',
       durationSeconds: '',
+      excerptStartSeconds: 0,
       imageUrl: '',
     });
     this.aliases.clear();
@@ -380,9 +544,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       this.pollingSubscription?.unsubscribe();
       this.pollingSubscription = null;
       this.realtime.disconnect();
-      if (this.aliasState === 'idle') {
-        this.saveAliases(job.track?.id);
-      }
+      this.prepareReview(job.track);
     } else if (job.status === 'FAILED') {
       this.stopMonitoring();
       this.clearRecoveryState();
@@ -404,15 +566,21 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     }
   }
 
-  private saveAliases(trackId?: string): void {
+  private saveAliases(
+    trackId?: string,
+    onSaved: () => void = () => {},
+    onError: () => void = () => {},
+  ): void {
     if (!trackId) {
       this.aliasState = 'error';
       this.aliasError = 'The finalized track is missing. Refresh the import status.';
+      onError();
       return;
     }
     if (this.aliasDrafts.length === 0) {
       this.aliasState = 'saved';
       sessionStorage.removeItem(IMPORT_ALIASES_KEY);
+      onSaved();
       return;
     }
     this.aliasState = 'saving';
@@ -439,18 +607,89 @@ export class TrackImportComponent implements OnInit, OnDestroy {
             complete: () => {
               this.aliasState = 'saved';
               sessionStorage.removeItem(IMPORT_ALIASES_KEY);
+              onSaved();
             },
             error: (error) => {
               this.aliasState = 'error';
               this.aliasError = this.errorMessage(error);
+              onError();
             },
           });
       },
       error: (error) => {
         this.aliasState = 'error';
         this.aliasError = this.errorMessage(error);
+        onError();
       },
     });
+  }
+
+  private prepareReview(track: AdminTrack | null): void {
+    if (!track || this.reviewTrackId === track.id) {
+      return;
+    }
+    this.reviewTrackId = track.id;
+    this.importForm.patchValue({
+      title: track.title,
+      artist: track.artist,
+      album: track.album ?? '',
+      composer: track.composer ?? '',
+      work: track.work ?? '',
+      category: track.category ?? '',
+      decade: track.decade?.toString() ?? '',
+      durationSeconds: track.durationSeconds?.toString() ?? '',
+      excerptStartSeconds: track.excerptStartSeconds,
+      imageUrl: track.imageUrl ?? '',
+    });
+    this.importForm.enable();
+    this.importForm.controls.youtubeUrl.disable();
+    this.aliasState = 'idle';
+    this.loadPreview();
+    this.loadWaveform();
+  }
+
+  private get waveformDuration(): number {
+    return this.waveform?.durationSeconds ?? this.job?.track?.durationSeconds ?? 0;
+  }
+
+  private buildWaveformPath(peaks: number[]): string {
+    if (peaks.length === 0) {
+      return '';
+    }
+    const divisor = Math.max(1, peaks.length - 1);
+    const top = peaks.map((peak, index) => {
+      const x = (index * 1_000) / divisor;
+      const y = 50 - (Math.min(100, Math.max(0, peak)) / 100) * 46;
+      return `${x.toFixed(2)} ${y.toFixed(2)}`;
+    });
+    const bottom = peaks.map((_, reversedIndex) => {
+      const index = peaks.length - reversedIndex - 1;
+      const peak = peaks[index] ?? 0;
+      const x = (index * 1_000) / divisor;
+      const y = 50 + (Math.min(100, Math.max(0, peak)) / 100) * 46;
+      return `${x.toFixed(2)} ${y.toFixed(2)}`;
+    });
+    return `M ${top.join(' L ')} L ${bottom.join(' L ')} Z`;
+  }
+
+  private reviewInvalid(): boolean {
+    return this.importForm.invalid || this.excerptStart > this.maxExcerptStart;
+  }
+
+  private trackUpdate(): TrackUpdate {
+    const value = this.importForm.getRawValue();
+    return {
+      title: value.title.trim(),
+      artist: value.artist.trim(),
+      album: this.optional(value.album),
+      composer: this.optional(value.composer),
+      work: this.optional(value.work),
+      category: this.optional(value.category),
+      decade: this.optionalNumber(value.decade),
+      durationSeconds: this.optionalNumber(value.durationSeconds),
+      excerptStartSeconds: this.excerptStart,
+      imageUrl: this.optional(value.imageUrl),
+    };
   }
 
   private stopMonitoring(): void {

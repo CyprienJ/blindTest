@@ -4,6 +4,7 @@ import com.blindtest.model.dto.MediaPreviewResponse;
 import com.blindtest.model.dto.TrackAnswerAliasRequest;
 import com.blindtest.model.dto.TrackAnswerAliasResponse;
 import com.blindtest.model.dto.TrackAdminResponse;
+import com.blindtest.model.dto.TrackWaveformResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.service.AdminTrackService;
@@ -46,6 +47,11 @@ public class AdminTrackController {
     @GetMapping("/{id}/preview-url")
     public MediaPreviewResponse createPreviewUrl(@PathVariable UUID id) {
         return adminTrackService.createPreviewUrl(id);
+    }
+
+    @GetMapping("/{id}/waveform")
+    public TrackWaveformResponse getWaveform(@PathVariable UUID id) {
+        return adminTrackService.getWaveform(id);
     }
 
     @PutMapping("/{id}")

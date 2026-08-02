@@ -11,15 +11,6 @@ export type ImportJobStatus =
 
 export interface ImportTrackRequest {
   youtubeUrl: string;
-  title: string;
-  artist: string;
-  album: string | null;
-  composer: string | null;
-  work: string | null;
-  category: string | null;
-  decade: number | null;
-  durationSeconds: number | null;
-  imageUrl: string | null;
 }
 
 export interface ImportStartResponse {

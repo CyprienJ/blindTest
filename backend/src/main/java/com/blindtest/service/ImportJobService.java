@@ -27,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class ImportJobService {
 
+    private static final String PENDING_METADATA = "Pending YouTube metadata";
     private static final EnumSet<ImportJobStatus> ACTIVE_STATUSES = EnumSet.of(
             ImportJobStatus.QUEUED, ImportJobStatus.DOWNLOADING, ImportJobStatus.PROCESSING);
 
@@ -84,15 +85,8 @@ public class ImportJobService {
 
     private TrackEntity buildTrack(ImportTrackRequest request, String youtubeUrl) {
         TrackEntity track = new TrackEntity();
-        track.setTitle(request.getTitle());
-        track.setArtist(request.getArtist());
-        track.setAlbum(request.getAlbum());
-        track.setComposer(request.getComposer());
-        track.setWork(request.getWork());
-        track.setCategory(request.getCategory());
-        track.setDecade(request.getDecade());
-        track.setDurationSeconds(request.getDurationSeconds());
-        track.setImageUrl(request.getImageUrl());
+        track.setTitle(PENDING_METADATA);
+        track.setArtist(PENDING_METADATA);
         track.setYoutubeUrl(youtubeUrl);
         track.setAudioUrl(null);
         track.setStatus(TrackStatus.PENDING);

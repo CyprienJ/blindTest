@@ -19,7 +19,7 @@
   color: var(--fg-2);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -39,7 +39,7 @@
   color: var(--fg-3);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: .12em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -91,7 +91,7 @@
 .page-heading h1 {
   margin: 5px 0;
   font-size: 27px;
-  letter-spacing: -.03em;
+  letter-spacing: -0.03em;
 }
 
 .page-heading p,
@@ -109,7 +109,7 @@
 
 .import-grid {
   display: grid;
-  grid-template-columns: minmax(420px, .95fr) minmax(440px, 1.05fr);
+  grid-template-columns: minmax(420px, 0.95fr) minmax(440px, 1.05fr);
   gap: 18px;
   align-items: start;
 }
@@ -175,7 +175,7 @@
   color: var(--fg-1);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -190,13 +190,6 @@
   grid-column: 1 / -1;
 }
 
-.cover-input {
-  display: grid;
-  grid-template-columns: 44px 1fr;
-  gap: 9px;
-}
-
-.cover-preview,
 .large-cover {
   display: grid;
   overflow: hidden;
@@ -207,7 +200,6 @@
   background: var(--bg-2);
 }
 
-.cover-preview img,
 .large-cover img {
   width: 100%;
   height: 100%;
@@ -228,16 +220,6 @@
 .alias-heading h3 {
   margin: 0 0 3px;
   font-size: 13px;
-}
-
-.empty-aliases {
-  margin: 12px 0 0;
-  padding: 12px;
-  border: 1px dashed var(--line);
-  border-radius: var(--r-md);
-  color: var(--fg-3);
-  font-size: 11px;
-  text-align: center;
 }
 
 .alias-row {
@@ -267,11 +249,13 @@
   border: 2px solid var(--line);
   border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin .7s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .job-badge {
@@ -285,20 +269,20 @@
 
 .job-badge.done,
 .job-badge.published {
-  border-color: oklch(.38 .12 130);
+  border-color: oklch(0.38 0.12 130);
   color: var(--accent);
 }
 
 .job-badge.failed,
 .job-badge.rejected {
-  border-color: oklch(.4 .09 30);
+  border-color: oklch(0.4 0.09 30);
   color: var(--danger);
 }
 
 .job-badge.queued,
 .job-badge.downloading,
 .job-badge.processing {
-  border-color: oklch(.45 .1 80);
+  border-color: oklch(0.45 0.1 80);
   color: var(--warn);
 }
 
@@ -400,12 +384,12 @@
 
 .stage[data-state='active'] .stage-dot {
   color: var(--warn);
-  background: oklch(.3 .06 80);
+  background: oklch(0.3 0.06 80);
 }
 
 .stage[data-state='failed'] .stage-dot {
   color: var(--danger);
-  background: oklch(.28 .05 30);
+  background: oklch(0.28 0.05 30);
 }
 
 .stage b {
@@ -442,10 +426,10 @@
 .completion {
   margin-top: 12px;
   padding: 13px;
-  border: 1px solid oklch(.4 .09 30);
+  border: 1px solid oklch(0.4 0.09 30);
   border-radius: var(--r-md);
   color: var(--danger);
-  background: oklch(.23 .03 30);
+  background: oklch(0.23 0.03 30);
 }
 
 .failure p,
@@ -484,7 +468,6 @@
   font-size: 10.5px;
 }
 
-.listen,
 .review-panel audio {
   width: 100%;
   margin-top: 13px;
@@ -493,6 +476,56 @@
 .preview-expiry {
   display: block;
   margin-top: 4px;
+}
+
+.metadata-review {
+  display: grid;
+}
+
+.excerpt-editor {
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-0);
+}
+
+.excerpt-labels,
+.timeline-labels {
+  display: flex;
+  justify-content: space-between;
+}
+
+.excerpt-labels {
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+
+.excerpt-labels span {
+  color: var(--accent);
+}
+
+.excerpt-range {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.timeline-labels {
+  margin-top: 5px;
+  color: var(--fg-3);
+  font-size: 9px;
+}
+
+.preview-step,
+.publish-step {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.preview-step .panel-title,
+.publish-step .panel-title {
+  margin-bottom: 10px;
 }
 
 .review-actions {
@@ -505,9 +538,9 @@
 }
 
 .completion.success {
-  border-color: oklch(.38 .12 130);
+  border-color: oklch(0.38 0.12 130);
   color: var(--accent);
-  background: oklch(.23 .04 130);
+  background: oklch(0.23 0.04 130);
 }
 
 .notice {
@@ -523,9 +556,9 @@
 }
 
 .notice.error {
-  border-color: oklch(.4 .09 30);
+  border-color: oklch(0.4 0.09 30);
   color: var(--danger);
-  background: oklch(.23 .03 30);
+  background: oklch(0.23 0.03 30);
 }
 
 .saving {
@@ -562,7 +595,7 @@
   place-items: center;
   border-radius: 50%;
   color: var(--danger);
-  background: oklch(.27 .05 30);
+  background: oklch(0.27 0.05 30);
 }
 
 .confirm-modal h2 {

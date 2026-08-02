@@ -18,18 +18,9 @@ describe('AdminImportService', () => {
 
   afterEach(() => http.verify());
 
-  it('starts an import with metadata', () => {
+  it('starts an import from a YouTube URL', () => {
     const request = {
       youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
-      title: 'A title',
-      artist: 'An artist',
-      album: 'An album',
-      composer: null,
-      work: null,
-      category: 'Pop',
-      decade: 1980,
-      durationSeconds: null,
-      imageUrl: null,
     } satisfies ImportTrackRequest;
 
     service.start(request).subscribe((response) => expect(response.jobId).toBe('job-id'));

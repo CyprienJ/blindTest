@@ -14,6 +14,7 @@ import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.service.port.MediaStorage;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -36,6 +37,7 @@ class AdminTrackServiceTest {
     private TrackMediaService trackMediaService;
     private MediaStorage mediaStorage;
     private AdminTrackService service;
+    private AdminPlaylistService adminPlaylistService;
     private TrackEntity track;
 
     @BeforeEach
@@ -44,12 +46,13 @@ class AdminTrackServiceTest {
         importJobRepository = mock(TrackImportJobRepository.class);
         trackMediaService = mock(TrackMediaService.class);
         mediaStorage = mock(MediaStorage.class);
+        adminPlaylistService = mock(AdminPlaylistService.class);
         S3Properties properties = new S3Properties(
                 URI.create("http://minio:9000"), URI.create("https://media.example.test"),
                 "eu-west-3", "media", "access", "secret", Duration.ofMinutes(5));
         service = new AdminTrackService(
                 trackRepository, importJobRepository, trackMediaService, mediaStorage, properties,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC), new ObjectMapper(), adminPlaylistService);
 
         track = mock(TrackEntity.class);
         when(trackRepository.findById(TRACK_ID)).thenReturn(Optional.of(track));
@@ -71,6 +74,25 @@ class AdminTrackServiceTest {
         assertThat(response.url()).hasToString(
                 "https://media.example.test/audio.mp3?signature=secret");
         assertThat(response.expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(5)));
+    }
+
+    @Test
+    void returnsPersistedWaveformWithoutExposingStorageMetadata() {
+        when(track.getWaveformPeaks()).thenReturn("[0,25,100]");
+        when(track.getDurationSeconds()).thenReturn(185);
+
+        var response = service.getWaveform(TRACK_ID);
+
+        assertThat(response.durationSeconds()).isEqualTo(185);
+        assertThat(response.peaks()).containsExactly(0, 25, 100);
+    }
+
+    @Test
+    void rejectsUnavailableWaveform() {
+        assertThatThrownBy(() -> service.getWaveform(TRACK_ID)).
+                isInstanceOf(ResponseStatusException.class).
+                satisfies(exception -> assertThat(((ResponseStatusException) exception).
+                        getStatusCode().value()).isEqualTo(409));
     }
 
     @Test
@@ -111,6 +133,7 @@ class AdminTrackServiceTest {
         service.deleteTrack(TRACK_ID);
 
         verify(trackMediaService).enqueueDeletion(OBJECT_KEY);
+        verify(adminPlaylistService).removeTrackFromAllPlaylists(TRACK_ID);
         verify(trackRepository).delete(track);
     }
 

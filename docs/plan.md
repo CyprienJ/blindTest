@@ -2,7 +2,7 @@
 
 Status: proposed master plan
 
-Last reviewed: 2026-07-30
+Last reviewed: 2026-08-01
 
 Target: first public production release, followed by multiplayer and social features
 
@@ -10,15 +10,15 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-07 — Complete playlist ordering APIs](#cat-07--complete-playlist-ordering-apis)**
+**[CAT-08 — Implement playlist editor UI](#cat-08--implement-playlist-editor-ui)**
 
 Status: ready
 
-CAT-06 is complete, so CAT-07 is now the earliest ready unfinished ticket in the
-recommended execution sequence. The administrator can complete the
-import-to-publication journey through the delivered UI, including live progress
-with polling recovery. MEDIA-08 remains deferred until real legacy files require
-migration.
+CAT-07 is complete, so CAT-08 is now the earliest ready unfinished ticket in the
+recommended execution sequence. The administrator playlist API now supports
+published-track insertion, removal, atomic ordering, duplicate prevention, and
+automatic compaction after rejection or deletion. MEDIA-08 remains deferred until
+real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -849,7 +849,8 @@ Work:
 
 Acceptance:
 
-- only `DONE` tracks can be published or rejected;
+- only `DONE` tracks can be published; `DONE` or already `PUBLISHED` tracks can be
+  rejected;
 - only `PUBLISHED` tracks appear in public playlists/catalogue.
 
 #### CAT-05 — Implement the admin track catalogue UI
@@ -875,10 +876,14 @@ Status: completed on 2026-07-30.
 
 Work:
 
-- YouTube URL and metadata form;
+- URL-only import start with automatic YouTube metadata extraction;
+- editable extracted metadata and a one-handle 60-second excerpt selector with
+  immediate seek-and-play feedback;
+- bounded server-generated waveform peaks rendered as an interactive SVG with the
+  selected 60-second window overlaid;
 - album and aliases;
 - progress through STOMP with polling recovery;
-- preview and publication;
+- selected-excerpt preview followed by explicit publication;
 - prevent duplicate submission;
 - match the design reference.
 
@@ -888,6 +893,8 @@ Acceptance:
 - normal users cannot enter or invoke the flow.
 
 #### CAT-07 — Complete playlist ordering APIs
+
+Status: completed on 2026-08-01.
 
 Work:
 
