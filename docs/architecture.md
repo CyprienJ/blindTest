@@ -121,8 +121,11 @@ log lines. The complete code enumeration and reusable response definitions are i
 
 Angular 21 currently implements the authentication pages and infrastructure:
 login, registration, email verification, forgot/reset password, route protection,
-JWT interception, refresh, and local session state. Non-auth feature components
-exist as route scaffolds whose templates are placeholders.
+JWT interception, refresh, and local session state. The administrator area delivers
+the track catalogue, YouTube import workflow, and playlist editor. Playlist editing
+supports metadata, published-track search, add/remove operations, drag-and-keyboard
+ordering with rollback on failure, and unsaved-change navigation protection. Other
+non-auth feature components remain route scaffolds whose templates are placeholders.
 
 ### Not delivered
 

@@ -1,4 +1,11 @@
-import { Routes } from '@angular/router';
+import { CanDeactivateFn, Routes } from '@angular/router';
+
+interface PendingChangesComponent {
+  canDeactivate(): boolean;
+}
+
+const pendingChangesGuard: CanDeactivateFn<PendingChangesComponent> = (component) =>
+  component.canDeactivate();
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -13,6 +20,7 @@ export const ADMIN_ROUTES: Routes = [
   },
   {
     path: 'playlists',
+    canDeactivate: [pendingChangesGuard],
     loadComponent: () =>
       import('./playlist-editor/playlist-editor.component').then((m) => m.PlaylistEditorComponent),
   },

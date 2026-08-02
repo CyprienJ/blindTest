@@ -67,7 +67,7 @@ Ticket` section identifies the default implementation ticket.
 
 ## Current Implementation Snapshot
 
-Last reviewed: 2026-08-01.
+Last reviewed: 2026-08-02.
 
 ### Implemented backend features
 
@@ -194,6 +194,10 @@ The WebSocket infrastructure exists only for authentication and import progress.
   protection, authenticated STOMP progress, durable polling/reload recovery,
   interactive server-generated waveform rendering, selected-excerpt preview, and
   explicit publication/rejection actions.
+- Administrator playlist editor matching the reference design, with playlist
+  creation, metadata editing, published-track search, add/remove operations,
+  drag-and-keyboard ordering, safe optimistic rollback, deletion confirmation,
+  and unsaved-change navigation protection.
 - Administrator-only frontend route enforcement for the administration area.
 - Shared global styling based on the target visual design.
 - Playwright Chromium authentication coverage with mocked API and Turnstile
@@ -210,7 +214,7 @@ All non-auth feature components are currently scaffolds whose templates only ren
 - end screen;
 - profile and game history;
 - friends and friend requests;
-- admin playlist editor and user management;
+- admin user management;
 - notification toast.
 
 Do not treat the presence of routes or component files as feature completion.
@@ -330,8 +334,8 @@ Baseline at the review date:
 
 - backend: 0 Checkstyle violations and 248 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
-- frontend: lint passes, production build passes, 8 passing unit tests,
-  and 38 passing Playwright authentication/administration/media/smoke tests;
+- frontend: lint passes, production build passes, 10 passing unit tests,
+  and 40 passing Playwright authentication/administration/media/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.
 

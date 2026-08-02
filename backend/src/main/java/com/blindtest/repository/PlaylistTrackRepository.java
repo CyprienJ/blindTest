@@ -5,6 +5,8 @@ import com.blindtest.model.entity.PlaylistTrackId;
 import com.blindtest.model.entity.TrackStatus;
 import java.util.List;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -20,6 +22,13 @@ public interface PlaylistTrackRepository extends JpaRepository<PlaylistTrackEnti
     @Query("SELECT pt FROM PlaylistTrackEntity pt JOIN FETCH pt.track "
             + "WHERE pt.id.playlistId = :playlistId ORDER BY pt.trackOrder ASC")
     List<PlaylistTrackEntity> findAllByPlaylistIdOrdered(@Param("playlistId") UUID playlistId);
+
+    /** Locks every current membership while an ordered playlist snapshot is mutated. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT pt FROM PlaylistTrackEntity pt JOIN FETCH pt.track "
+            + "WHERE pt.id.playlistId = :playlistId ORDER BY pt.trackOrder ASC")
+    List<PlaylistTrackEntity> findAllByPlaylistIdForUpdate(
+            @Param("playlistId") UUID playlistId);
 
     /** Returns published tracks in a playlist, eagerly loaded and ordered by position. */
     @Query("SELECT pt FROM PlaylistTrackEntity pt JOIN FETCH pt.track t "
@@ -41,4 +50,8 @@ public interface PlaylistTrackRepository extends JpaRepository<PlaylistTrackEnti
     @Modifying
     @Query("DELETE FROM PlaylistTrackEntity pt WHERE pt.id.playlistId = :playlistId")
     void deleteByIdPlaylistId(@Param("playlistId") UUID playlistId);
+
+    /** Returns every playlist currently containing the given track. */
+    @Query("SELECT pt.id.playlistId FROM PlaylistTrackEntity pt WHERE pt.id.trackId = :trackId")
+    List<UUID> findPlaylistIdsByTrackId(@Param("trackId") UUID trackId);
 }

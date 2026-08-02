@@ -2,7 +2,7 @@
 
 Status: proposed master plan
 
-Last reviewed: 2026-08-01
+Last reviewed: 2026-08-02
 
 Target: first public production release, followed by multiplayer and social features
 
@@ -10,15 +10,15 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-08 — Implement playlist editor UI](#cat-08--implement-playlist-editor-ui)**
+**[CAT-09 — Implement public catalogue and playlist selection data](#cat-09--implement-public-catalogue-and-playlist-selection-data)**
 
 Status: ready
 
-CAT-07 is complete, so CAT-08 is now the earliest ready unfinished ticket in the
-recommended execution sequence. The administrator playlist API now supports
-published-track insertion, removal, atomic ordering, duplicate prevention, and
-automatic compaction after rejection or deletion. MEDIA-08 remains deferred until
-real legacy files require migration.
+CAT-08 is complete, so CAT-09 is now the earliest ready unfinished ticket in the
+recommended execution sequence. Administrators can create playlists, edit their
+metadata, search published tracks, add/remove/reorder them, and receive navigation
+warnings for unsaved metadata changes without using the API directly. MEDIA-08
+remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -910,6 +910,8 @@ Acceptance:
 - playlist detail never exposes unavailable audio metadata.
 
 #### CAT-08 — Implement playlist editor UI
+
+Status: completed on 2026-08-02.
 
 Work:
 

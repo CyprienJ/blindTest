@@ -16,6 +16,8 @@ gameplay and social features are still planned.
 - Public published-track and playlist APIs.
 - Administrator track review, YouTube import jobs, import progress over STOMP, and
   playlist management APIs.
+- Administrator playlist editor with metadata management, published-track search,
+  add/remove/reorder controls, and unsaved-change protection.
 - A non-root backend runtime with pinned `yt-dlp` and FFmpeg, plus wall-clock,
   temporary-file-size, FFmpeg thread, and container CPU limits for imports.
 - Deterministic backend adapters that exercise registration and audio import
