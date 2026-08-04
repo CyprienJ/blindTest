@@ -13,6 +13,7 @@ import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.entity.UserRole;
+import com.blindtest.service.CatalogueService;
 import com.blindtest.service.FirstAdminProvisioningResult;
 import com.blindtest.service.FirstAdminProvisioningService;
 import java.time.LocalDateTime;
@@ -46,7 +47,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
-@Import(FirstAdminProvisioningService.class)
+@Import({CatalogueService.class, FirstAdminProvisioningService.class})
 class PostgresqlSchemaIntegrationTest {
 
     private static final String LEGACY_SCHEMA = "media03_existing_schema";
@@ -81,6 +82,8 @@ class PostgresqlSchemaIntegrationTest {
     private AdminProvisioningAuditRepository adminProvisioningAuditRepository;
     @Autowired
     private FirstAdminProvisioningService firstAdminProvisioningService;
+    @Autowired
+    private CatalogueService catalogueService;
 
     @Test
     void flywayMigratesEmptyDatabaseAndHibernateValidatesMappings() {
@@ -420,6 +423,31 @@ class PostgresqlSchemaIntegrationTest {
                 containsExactly(published);
         assertThat(playlistTrackRepository.countPublishedInPlaylist(playlistId, TrackStatus.PUBLISHED)).
                 isOne();
+    }
+
+    @Test
+    void catalogueSearchEscapesPostgresLikeWildcardsAndExcludesUnpublishedTracks() {
+        TrackEntity literalMatch = buildTrack("The 100% Song", TrackStatus.PUBLISHED);
+        literalMatch.setArtist("Literal artist");
+        literalMatch.setCategory("Coverage");
+        literalMatch.setDecade((short) 1990);
+        literalMatch = trackRepository.saveAndFlush(literalMatch);
+
+        TrackEntity wildcardOnlyMatch = buildTrack("The 1000 Song", TrackStatus.PUBLISHED);
+        wildcardOnlyMatch.setArtist("Wildcard artist");
+        wildcardOnlyMatch.setCategory("Coverage");
+        wildcardOnlyMatch.setDecade((short) 1990);
+        trackRepository.saveAndFlush(wildcardOnlyMatch);
+
+        TrackEntity unavailableMatch = buildTrack("Another 100% Song", TrackStatus.PENDING);
+        unavailableMatch.setCategory("Coverage");
+        unavailableMatch.setDecade((short) 1990);
+        trackRepository.saveAndFlush(unavailableMatch);
+
+        var result = catalogueService.getTracks("100%", "Coverage", (short) 1990, 0, 20);
+
+        assertThat(result.getContent()).extracting(response -> response.id()).
+                containsExactly(literalMatch.getId());
     }
 
     private int rowCount(String table) {

@@ -2,7 +2,7 @@
 
 Status: proposed master plan
 
-Last reviewed: 2026-08-02
+Last reviewed: 2026-08-04
 
 Target: first public production release, followed by multiplayer and social features
 
@@ -10,16 +10,14 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-10 — Add catalogue/admin automated coverage](#cat-10--add-catalogueadmin-automated-coverage)**
+**[GAME-01 — Define game configuration and validation](#game-01--define-game-configuration-and-validation)**
 
 Status: ready
 
-CAT-09 is complete, so CAT-10 is now the earliest ready unfinished ticket in the
-recommended execution sequence. Public catalogue responses are ordered, searchable,
-bounded, safe for unauthenticated consumption, and explicitly cacheable. Authenticated
-players can configure a game from eligible playlists; the configuration remains a
-local draft until the server-authoritative game/session lots deliver creation.
-MEDIA-08 remains deferred until real legacy files require migration.
+CAT-10 is complete, so the catalogue and administration lot has met its exit criteria.
+GAME-01 is now the earliest ready unfinished ticket in the recommended execution
+sequence. Its catalogue and playlist dependencies are complete, and all nine decision
+gates are resolved. MEDIA-08 remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -943,6 +941,8 @@ Acceptance:
 - only an authenticated user may create a game.
 
 #### CAT-10 — Add catalogue/admin automated coverage
+
+Status: completed on 2026-08-04.
 
 Work:
 

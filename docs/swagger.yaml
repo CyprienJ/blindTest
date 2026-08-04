@@ -636,6 +636,28 @@ components:
               items:
                 $ref: '#/components/schemas/Track'
 
+    PlaylistAdminDetail:
+      type: object
+      required: [id, name, trackCount, tracks]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        trackCount:
+          type: integer
+        tracks:
+          type: array
+          description: Ordered published tracks with administrator metadata.
+          items:
+            $ref: '#/components/schemas/TrackAdmin'
+
     CreatePlaylistRequest:
       type: object
       required: [name]
@@ -1444,6 +1466,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrackAdmin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
 
@@ -1464,6 +1492,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrackAdmin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
 
@@ -1499,7 +1533,11 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/PlaylistDetail'
+                  $ref: '#/components/schemas/Playlist'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     post:
       tags: [Admin - Playlists]
       summary: Create playlist
@@ -1516,6 +1554,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Playlist'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /admin/playlists/{playlistId}:
     get:
@@ -1529,7 +1573,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlaylistDetail'
+                $ref: '#/components/schemas/PlaylistAdminDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     put:
@@ -1550,6 +1598,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Playlist'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -1560,6 +1612,10 @@ paths:
       responses:
         '204':
           description: Playlist deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1581,9 +1637,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlaylistDetail'
+                $ref: '#/components/schemas/PlaylistAdminDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -1599,6 +1659,10 @@ paths:
       responses:
         '204':
           description: Track removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1620,8 +1684,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlaylistDetail'
+                $ref: '#/components/schemas/PlaylistAdminDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'

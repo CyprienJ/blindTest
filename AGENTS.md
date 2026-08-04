@@ -67,7 +67,7 @@ Ticket` section identifies the default implementation ticket.
 
 ## Current Implementation Snapshot
 
-Last reviewed: 2026-08-02.
+Last reviewed: 2026-08-04.
 
 ### Implemented backend features
 
@@ -110,6 +110,9 @@ Last reviewed: 2026-08-02.
   package-level regression gates for security, WebSocket, and service code.
 - PostgreSQL 16 Testcontainers integration coverage for Flyway migrations,
   Hibernate schema validation, constraints, cascades, and repository queries.
+- Catalogue and administration contract coverage that detects REST/OpenAPI route
+  drift, missing authorization responses, unsafe public media fields, and incorrect
+  administrator playlist projections.
 - JWT authentication for HTTP and STOMP `CONNECT`.
 - Native STOMP is exposed at `/ws`; the SockJS fallback is exposed separately at
   `/ws-sockjs`.
@@ -337,7 +340,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 252 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 262 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 12 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
