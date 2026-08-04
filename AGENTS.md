@@ -132,6 +132,10 @@ Last reviewed: 2026-08-04.
   create/read/compare-and-set/remove/expiry operations; the process-local concurrent
   adapter prevents stale commands from overwriting newer versions and exposes only
   an aggregate active count.
+- Verified authenticated accounts can create multiple independent solo sessions
+  through `POST /api/sessions`. Creation authoritatively validates configuration,
+  randomly snapshots published private-media tracks and aliases, creates the owner
+  participant at version zero, and returns expiry plus STOMP connection destinations.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -211,6 +215,7 @@ The backend currently has controllers for:
 - `/api/auth/**`
 - `/api/tracks`
 - `/api/playlists/**`
+- `POST /api/sessions`
 - `/api/admin/tracks/**`
 - `/api/admin/tracks/import/**`
 - `/api/admin/media/**`
@@ -220,16 +225,16 @@ The backend currently has controllers for:
 
 - User profile management and user search.
 - Friends and friend requests.
-- Game session creation and joining, including guest tokens.
-- Session creation and command orchestration.
+- Session lookup/joining, including guest tokens.
+- Gameplay command orchestration.
 - Gameplay STOMP handlers, live answer handling, timers, skip votes, and
   synchronized audio playback.
 - Game history.
 - Admin user management.
 
-There is no gameplay session service/controller package yet. The `model/session`
-and `store` boundaries retain active state but do not create product sessions.
-The WebSocket infrastructure exists only for authentication and import progress.
+The solo-session creation service/controller exists, but no gameplay STOMP command
+handlers consume its active state yet. The WebSocket infrastructure currently
+supports authentication and import progress only.
 
 ### Implemented frontend features
 
@@ -318,6 +323,7 @@ Do not treat the presence of routes or component files as feature completion.
 │   └── Blindtest/
 ├── .github/workflows/
 ├── docker-compose.yml
+├── docker-compose.override.yml
 ├── docker-compose.local.yml
 └── .env.example
 ```
@@ -340,18 +346,20 @@ Copy `.env.example` to `.env` and replace every placeholder. The main variables 
 - optional image overrides used by deployment.
 
 Run the full container stack for local browser development from the repository
-root. The local override selects the development Spring profile and Cloudflare's
-matching public test key pair:
+root. Docker Compose automatically loads `docker-compose.override.yml`, which
+selects the development Spring profile and Cloudflare's matching public test key
+pair:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+docker compose build
+docker compose up -d
 docker compose ps
 docker compose logs -f backend
-docker compose -f docker-compose.yml -f docker-compose.local.yml down
+docker compose down
 ```
 
-Run `docker compose up -d --build` without the local override only for a
-production-like environment configured with the real Turnstile key pair.
+Run `docker compose -f docker-compose.yml up -d --build` only for a production-like
+environment configured with valid HTTPS endpoints and the real Turnstile key pair.
 
 For a host-based development loop:
 
@@ -394,7 +402,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 424 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 432 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;

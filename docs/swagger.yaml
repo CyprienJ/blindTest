@@ -337,12 +337,22 @@ components:
 
     CreateSessionRequest:
       type: object
-      required: [rules]
+      required: [playlistId, trackCount, maxRoundSeconds]
       properties:
-        rules:
-          $ref: '#/components/schemas/GameRules'
-        trackFilters:
-          $ref: '#/components/schemas/TrackFilters'
+        playlistId:
+          $ref: '#/components/schemas/UUID'
+        trackCount:
+          type: integer
+          minimum: 5
+          maximum: 30
+          multipleOf: 1
+          default: 15
+        maxRoundSeconds:
+          type: integer
+          minimum: 10
+          maximum: 60
+          multipleOf: 5
+          default: 30
         extensions:
           type: object
           maxProperties: 0
@@ -350,20 +360,48 @@ components:
             type: string
           description: Reserved for future game modes and rules; V1 rejects every entry.
 
-    SessionSummary:
+    SessionConnectionInstructions:
       type: object
+      required:
+        [webSocketEndpoint, sockJsEndpoint, commandDestination,
+         eventDestination, privateDestination]
       properties:
-        code:
-          $ref: '#/components/schemas/SessionCode'
+        webSocketEndpoint:
+          type: string
+          example: /ws
+        sockJsEndpoint:
+          type: string
+          example: /ws-sockjs
+        commandDestination:
+          type: string
+          example: /app/sessions/550e8400-e29b-41d4-a716-446655440000
+        eventDestination:
+          type: string
+          example: /topic/sessions/550e8400-e29b-41d4-a716-446655440000
+        privateDestination:
+          type: string
+          example: /user/queue/sessions/550e8400-e29b-41d4-a716-446655440000
+
+    SoloSessionResponse:
+      type: object
+      required: [sessionId, participantId, state, version, expiresAt, connection]
+      properties:
+        sessionId:
+          $ref: '#/components/schemas/UUID'
+        participantId:
+          $ref: '#/components/schemas/UUID'
         state:
           type: string
-          enum: [LOBBY, PLAYING, FINISHED]
-        host:
-          $ref: '#/components/schemas/UserPublic'
-        playerCount:
+          enum: [CREATED]
+        version:
           type: integer
-        rules:
-          $ref: '#/components/schemas/GameRules'
+          format: int64
+          example: 0
+        expiresAt:
+          type: string
+          format: date-time
+        connection:
+          $ref: '#/components/schemas/SessionConnectionInstructions'
 
     JoinSessionRequest:
       type: object
@@ -1064,7 +1102,12 @@ paths:
   /sessions:
     post:
       tags: [Sessions]
-      summary: Create session
+      summary: Create a solo session
+      description: |
+        Requires an authenticated account with a verified email. The server
+        validates the requested configuration, randomly selects published tracks
+        backed by snapshot-capable private media, freezes their answer/playback/media
+        metadata, and creates an independent one-player active session.
       requestBody:
         required: true
         content:
@@ -1077,7 +1120,24 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SessionSummary'
+                $ref: '#/components/schemas/SoloSessionResponse'
+          headers:
+            Location:
+              description: Canonical REST location of the created session.
+              schema:
+                type: string
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /sessions/{code}/join:
     post:

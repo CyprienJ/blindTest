@@ -61,6 +61,31 @@ class GameConfigurationOpenApiContractTest {
         assertThat(extensions.get("maxProperties")).isEqualTo(0);
     }
 
+    @Test
+    void openApiUsesTheDeliveredFlatSoloSessionRequest() {
+        Map<String, Object> createSession = schema("CreateSessionRequest");
+
+        assertThat(createSession.get("required")).isEqualTo(
+                List.of("playlistId", "trackCount", "maxRoundSeconds"));
+        assertThat(map(createSession.get("properties"))).containsOnlyKeys(
+                "playlistId", "trackCount", "maxRoundSeconds", "extensions");
+    }
+
+    @Test
+    void createEndpointReturnsConnectionInstructions() {
+        Map<String, Object> paths = map(specification.get("paths"));
+        Map<String, Object> post = map(map(paths.get("/sessions")).get("post"));
+        Map<String, Object> responses = map(post.get("responses"));
+        Map<String, Object> created = map(responses.get("201"));
+        Map<String, Object> content = map(created.get("content"));
+        Map<String, Object> schema = map(map(content.get("application/json")).get("schema"));
+
+        assertThat(schema.get("$ref")).isEqualTo(
+                "#/components/schemas/SoloSessionResponse");
+        assertThat(map(schema("SoloSessionResponse").get("properties"))).
+                containsKeys("sessionId", "participantId", "expiresAt", "connection");
+    }
+
     private Map<String, Object> gameRule(String property) {
         return map(map(schema("GameRules").get("properties")).get(property));
     }

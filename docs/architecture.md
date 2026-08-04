@@ -141,6 +141,11 @@ remains temporarily for legacy tracks during the migration window.
   removal, expiry cleanup, and safe active-count operations. The process-local
   `ConcurrentHashMap` adapter uses per-key atomic computation, lazily expires state,
   and prevents stale concurrent commands from overwriting a newer snapshot.
+- `POST /api/sessions` creates an independent solo session for a verified
+  authenticated account. It validates the flat playlist/count/duration contract,
+  selects and freezes snapshot-capable published tracks and aliases, creates the
+  owner participant at version zero with a bounded initial lifetime, and returns
+  native/SockJS endpoints plus public, private, and command STOMP destinations.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -149,7 +154,7 @@ remains temporarily for legacy tracks during the migration window.
   in [`admin-provisioning.md`](admin-provisioning.md).
 
 The delivered REST surface is limited to `/api/auth/**`, `/api/tracks`,
-`/api/playlists/**`, `/api/admin/tracks/**`,
+`/api/playlists/**`, `POST /api/sessions`, `/api/admin/tracks/**`,
 `/api/admin/tracks/import/**`, and `/api/admin/playlists/**`.
 
 ### REST errors and correlation

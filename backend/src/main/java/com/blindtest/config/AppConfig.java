@@ -2,6 +2,9 @@ package com.blindtest.config;
 
 import com.blindtest.infra.ProcessFactory;
 import com.blindtest.security.TokenGenerator;
+import com.blindtest.service.port.SessionIdentityGenerator;
+import com.blindtest.store.InMemorySessionStore;
+import com.blindtest.store.SessionStore;
 import java.time.Clock;
 import java.util.UUID;
 import org.springframework.context.annotation.Bean;
@@ -35,5 +38,17 @@ public class AppConfig {
     @Bean
     public TokenGenerator tokenGenerator() {
         return () -> UUID.randomUUID().toString();
+    }
+
+    /** Generates opaque session-domain identities. */
+    @Bean
+    public SessionIdentityGenerator sessionIdentityGenerator() {
+        return UUID::randomUUID;
+    }
+
+    /** Retains canonical active sessions behind the replaceable store port. */
+    @Bean
+    public SessionStore sessionStore() {
+        return new InMemorySessionStore();
     }
 }

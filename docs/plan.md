@@ -10,19 +10,18 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-02 — Create the solo-session REST endpoint](#session-02--create-the-solo-session-rest-endpoint)**
+**[SESSION-03 — Define STOMP commands and events](#session-03--define-stomp-commands-and-events)**
 
 Status: ready
 
-SESSION-01 is complete, so SESSION-02 is now the earliest ready unfinished ticket in
-the recommended execution sequence. Immutable active snapshots retain session and
-owner identities, participants, validated configuration, game/round and private-
-discovery state, optimistic version, and lifecycle timestamps. The replaceable store
-port supports atomic create/read/compare-and-set/remove/expiry operations; its
-process-local adapter lazily expires sessions and gives exactly one winner to
-concurrent commands using the same expected version. SESSION-02 can now authorize,
-validate, select, and create a solo session through this boundary. MEDIA-08 remains
-deferred until real legacy files require migration.
+SESSION-02 is complete, so SESSION-03 is now the earliest ready unfinished ticket in
+the recommended execution sequence. A verified authenticated account can create
+multiple independent solo sessions through `POST /api/sessions`; the server validates
+the flat configuration contract, snapshots a random selection of private-media-backed
+published tracks and aliases, creates the one-player active state, and returns its
+identity, expiry, version, and STOMP connection destinations. SESSION-03 can now
+define the versioned command and event payloads used at those destinations. MEDIA-08
+remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1189,6 +1188,8 @@ Acceptance:
 - the interface can be implemented by Redis later.
 
 #### SESSION-02 — Create the solo-session REST endpoint
+
+Status: completed on 2026-08-04.
 
 Work:
 

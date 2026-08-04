@@ -30,6 +30,17 @@ public enum ApiErrorCode {
     PLAYLIST_ORDER_INVALID(HttpStatus.BAD_REQUEST, "Playlist order must contain every track exactly once"),
     PLAYLIST_TRACK_DUPLICATE(HttpStatus.CONFLICT, "Track is already present in this playlist"),
     PLAYLIST_TRACK_NOT_PUBLISHED(HttpStatus.CONFLICT, "Only published tracks can be added to playlists"),
+    GAME_CONFIGURATION_REQUIRED(HttpStatus.BAD_REQUEST, "A game configuration is required"),
+    GAME_PLAYLIST_REQUIRED(HttpStatus.BAD_REQUEST, "A playlist must be selected"),
+    GAME_TRACK_COUNT_INVALID(HttpStatus.BAD_REQUEST, "The requested track count is invalid"),
+    GAME_ROUND_DURATION_INVALID(HttpStatus.BAD_REQUEST, "The maximum round duration is invalid"),
+    GAME_CONFIGURATION_EXTENSION_UNSUPPORTED(
+            HttpStatus.BAD_REQUEST, "The requested game configuration option is not supported"),
+    GAME_PLAYLIST_NOT_FOUND(HttpStatus.NOT_FOUND, "The selected playlist is unavailable"),
+    GAME_PLAYLIST_INELIGIBLE(
+            HttpStatus.CONFLICT, "The selected playlist has no eligible tracks"),
+    GAME_PLAYLIST_INSUFFICIENT_TRACKS(
+            HttpStatus.CONFLICT, "The selected playlist does not contain enough eligible tracks"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Media type is not supported"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 

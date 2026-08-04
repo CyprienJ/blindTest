@@ -2,6 +2,7 @@ package com.blindtest.error;
 
 import com.blindtest.config.CorrelationIdFilter;
 import com.blindtest.model.dto.ApiErrorResponse;
+import com.blindtest.model.game.GameConfigurationValidationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
@@ -78,6 +79,14 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         ApiErrorCode errorCode = ApiErrorCode.from(exception.getStatusCode(), exception.getReason());
         return build(request, errorCode, Map.of());
+    }
+
+    /** Preserves the game domain's stable configuration code at the REST boundary. */
+    @ExceptionHandler(GameConfigurationValidationException.class)
+    public ResponseEntity<ApiErrorResponse> handleGameConfiguration(
+            GameConfigurationValidationException exception,
+            HttpServletRequest request) {
+        return build(request, ApiErrorCode.valueOf(exception.code()), Map.of());
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

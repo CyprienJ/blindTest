@@ -3,8 +3,8 @@
 Blindtest is a work-in-progress music blindtest application built as a Java/Spring
 Boot and Angular monorepo. The long-term product is real-time and multiplayer. The
 repository currently delivers authentication, music catalogue administration, the
-pure solo-game domain, and the concurrency-safe active-session storage boundary;
-playable session transport/UI and social features are still planned.
+pure solo-game domain, active-session storage, and authenticated solo-session
+creation; playable command transport/UI and social features are still planned.
 
 ## Delivery status
 
@@ -20,12 +20,12 @@ each explicit work item in its post-V1 lot is counted as one provisional task.
 | Create an account | 0 | Delivered |
 | Import and publish a song | 0 | Delivered |
 | Create or edit a playlist | 0 | Delivered |
-| Configure a solo game | 0 | Delivered locally; server session creation is next |
-| Play a complete solo game | 11 | SESSION-02–06 and UI-02–07 |
-| Refresh a persisted end summary | 15 | Solo-game path plus HIST-01–03 and UI-08 |
-| Play a multiplayer game | At least 23 | Solo-game path plus the 12 provisional Lot P2 work items |
+| Configure a solo game | 0 | Delivered locally and accepted by the session endpoint |
+| Play a complete solo game | 10 | SESSION-03–06 and UI-02–07 |
+| Refresh a persisted end summary | 14 | Solo-game path plus HIST-01–03 and UI-08 |
+| Play a multiplayer game | At least 22 | Solo-game path plus the 12 provisional Lot P2 work items |
 
-The authoritative current pointer is SESSION-02. Update this table whenever ticket
+The authoritative current pointer is SESSION-03. Update this table whenever ticket
 completion or roadmap dependencies change.
 
 ### Implemented
@@ -59,6 +59,9 @@ completion or roadmap dependencies change.
   exhaustive deterministic domain coverage.
 - Immutable active-session models and a replaceable optimistic `SessionStore` port,
   with a concurrency-safe process-local implementation and expiry metadata.
+- Authenticated solo-session creation for verified accounts, with authoritative
+  configuration validation, randomized immutable track/alias/media snapshots,
+  independent sequential games, and returned STOMP connection instructions.
 - PostgreSQL persistence with Flyway migrations V1 through V15.
 - Administrator CRUD for title, artist, composer, and album answer aliases, plus
   a validated whole-second playback offset.
@@ -94,26 +97,30 @@ For a host-based development loop, also install Java 21, Maven, Node.js, and npm
 ## Run the complete Compose stack
 
 Copy the environment template and replace every placeholder before starting the
-application. For local browser development, include the local override so Angular
-and Spring use Cloudflare's matching public test key pair:
+application. `docker-compose.override.yml` is loaded automatically for local
+commands, so Angular and Spring use the development profile and Cloudflare's
+matching public test key pair:
 
 ```bash
 cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+docker compose build
+docker compose up -d
 docker compose ps
 ```
 
-The base Compose file remains production-like and uses the real Turnstile site
-key and secret:
+The base Compose file remains production-like. To test it locally without the
+automatic development override, select it explicitly and provide production-valid
+HTTPS endpoints and real credentials:
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml up -d --build
 ```
 
-Do not include `docker-compose.local.yml` in a production deployment.
+Do not copy `docker-compose.override.yml` or `docker-compose.local.yml` into a
+production deployment.
 `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of browser origins. The
-local override pins it to `http://localhost:${APP_PORT}`; production should keep
-it restricted to the public application origin.
+automatic local override pins it to `http://localhost:${APP_PORT}`; production
+should keep it restricted to the public application origin.
 
 The stack starts:
 
@@ -129,7 +136,7 @@ Follow backend logs or stop the stack with:
 
 ```bash
 docker compose logs -f backend
-docker compose -f docker-compose.yml -f docker-compose.local.yml down
+docker compose down
 ```
 
 `docker compose down` preserves the `postgres_data`, `minio_data`, and legacy

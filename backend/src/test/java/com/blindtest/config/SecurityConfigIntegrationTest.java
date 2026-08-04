@@ -17,6 +17,7 @@ import com.blindtest.service.AuthService;
 import com.blindtest.service.CatalogueService;
 import com.blindtest.service.ImportJobService;
 import com.blindtest.service.MediaReconciliationService;
+import com.blindtest.service.SoloSessionService;
 import com.blindtest.service.TrackAnswerAliasService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -72,6 +73,9 @@ class SecurityConfigIntegrationTest {
 
     @MockBean
     private MediaReconciliationService mediaReconciliationService;
+
+    @MockBean
+    private SoloSessionService soloSessionService;
 
     @Test
     void publicAuthPostRoutesAreAccessibleWithoutToken() throws Exception {
