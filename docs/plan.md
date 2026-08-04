@@ -10,17 +10,16 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-06 — Resolve playback URLs for active rounds](#session-06--resolve-playback-urls-for-active-rounds)**
+**[SESSION-07 — Enforce answer rate limits](#session-07--enforce-answer-rate-limits)**
 
 Status: ready
 
-SESSION-05 is complete. Gameplay commands now use persisted optimistic versions,
-bounded idempotency, authoritative deadline and four-second reveal timers, and
-private recovery snapshots. Concurrency tests cover title/skip at the deadline,
-duplicate timers, manual/automatic advance, and reconnect races. SESSION-06 is the
-earliest ready unfinished ticket and can add authorized short-lived playback URLs
-to the delivered round orchestration. MEDIA-08 remains deferred until real legacy
-files require migration.
+SESSION-06 is complete. Authorized round starts and playing-round recovery
+snapshots now receive freshly pre-signed URLs for the immutable snapshotted object,
+with a provider-neutral minimum validity covering the remaining round and the
+30-second reconnect buffer. SESSION-07 is the earliest ready unfinished ticket and
+can add command-rate protection to the delivered orchestration. MEDIA-08 remains
+deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1271,6 +1270,8 @@ Acceptance:
   one valid outcome.
 
 #### SESSION-06 — Resolve playback URLs for active rounds
+
+Status: completed on 2026-08-04.
 
 Work:
 

@@ -21,6 +21,7 @@ import com.blindtest.model.game.TitleScoreCalculator;
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
+import com.blindtest.service.port.MediaStorage;
 import com.blindtest.service.port.SessionIdentityGenerator;
 import com.blindtest.service.port.SessionTaskScheduler;
 import com.blindtest.store.SessionStore;
@@ -37,6 +38,7 @@ import com.blindtest.websocket.protocol.SessionCommand;
 import com.blindtest.websocket.protocol.SessionCommandType;
 import com.blindtest.websocket.protocol.SessionEventMetadata;
 import com.blindtest.websocket.protocol.SessionProtocol;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -57,6 +59,7 @@ public class SessionGameplayService {
 
     private final SessionStore sessionStore;
     private final SessionTaskScheduler scheduler;
+    private final MediaStorage mediaStorage;
     private final SessionEventPublisher eventPublisher;
     private final SessionIdentityGenerator identityGenerator;
     private final Clock clock;
@@ -66,15 +69,17 @@ public class SessionGameplayService {
     private final SecondaryDiscoveryTracker discoveryTracker = new SecondaryDiscoveryTracker();
     private final Object[] locks = new Object[LOCK_STRIPES];
 
-    /** Wires active state, scheduling, publishing, identity, and time boundaries. */
+    /** Wires active state, scheduling, private media, publishing, identity, and time boundaries. */
     public SessionGameplayService(
             SessionStore sessionStore,
             SessionTaskScheduler scheduler,
+            MediaStorage mediaStorage,
             SessionEventPublisher eventPublisher,
             SessionIdentityGenerator identityGenerator,
             Clock clock) {
         this.sessionStore = sessionStore;
         this.scheduler = scheduler;
+        this.mediaStorage = mediaStorage;
         this.eventPublisher = eventPublisher;
         this.identityGenerator = identityGenerator;
         this.clock = clock;
@@ -299,6 +304,8 @@ public class SessionGameplayService {
                 session.configuration().maximumRoundDurationSeconds());
         RoundScoringWindow window = new RoundScoringWindow(startsAt.plus(duration), duration);
         GameStateSnapshot playing = gameStateMachine.startRound(session.gameState(), window);
+        RoundStateSnapshot startedRound = playing.currentRound().orElseThrow();
+        URI playbackUrl = resolvePlaybackUrl(startedRound);
         ActiveSessionSnapshot persisted = session.next(
                 playing,
                 session.discoveries(),
@@ -317,7 +324,7 @@ public class SessionGameplayService {
                         window.startsAt(),
                         window.deadline(),
                         round.track().playback().excerptStartSeconds(),
-                        Optional.empty()));
+                        Optional.of(playbackUrl)));
         scheduleDeadline(persisted, roundIndex, window.deadline());
         return true;
     }
@@ -494,12 +501,15 @@ public class SessionGameplayService {
         Optional<Instant> advanceAt = revealed
                 ? round.revealedAt().map(value -> value.plus(REVEAL_DURATION))
                 : Optional.empty();
+        Optional<URI> playbackUrl = round.status() == RoundStatus.PLAYING
+                ? Optional.of(resolvePlaybackUrl(round))
+                : Optional.empty();
         return new PrivateSessionEventPayload.CurrentRound(
                 roundIndex,
                 round.status(),
                 startsAt,
                 deadline,
-                Optional.empty(),
+                playbackUrl,
                 round.playbackWindow().map(window -> window.excerptStartSeconds()),
                 round.outcome(),
                 revealed ? Optional.of(round.track().answers().title()) : Optional.empty(),
@@ -512,6 +522,17 @@ public class SessionGameplayService {
                         : Optional.empty(),
                 advanceAt,
                 round.scoreState().totalPoints());
+    }
+
+    private URI resolvePlaybackUrl(RoundStateSnapshot round) {
+        var window = round.playbackWindow().orElseThrow();
+        Duration minimumValidity = Duration.between(
+                clock.instant(), window.minimumUrlExpiresAt());
+        if (minimumValidity.isNegative()) {
+            minimumValidity = Duration.ZERO;
+        }
+        return mediaStorage.presignedGetUrl(
+                round.track().media().objectKey(), minimumValidity);
     }
 
     private ActiveSessionSnapshot nextForCommand(

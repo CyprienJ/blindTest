@@ -16,6 +16,7 @@ import io.minio.messages.Item;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -77,17 +78,40 @@ public class MinioMediaStorage implements MediaStorage {
 
     @Override
     public URI presignedGetUrl(String objectKey) {
+        return presignedGetUrl(objectKey, Duration.ZERO);
+    }
+
+    @Override
+    public URI presignedGetUrl(String objectKey, Duration minimumValidity) {
+        Duration effectiveValidity = requiredValidity(minimumValidity);
         try {
             String url = publicUrlClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder().
                     method(Method.GET).
                     bucket(properties.bucket()).
                     object(objectKey).
-                    expiry(Math.toIntExact(properties.presignedUrlTtl().toSeconds())).
+                    expiry(toCeilingSeconds(effectiveValidity)).
                     build());
             return URI.create(url);
         } catch (Exception exception) {
             throw new MediaStorageException("presign", exception);
         }
+    }
+
+    private Duration requiredValidity(Duration minimumValidity) {
+        if (minimumValidity == null || minimumValidity.isNegative()) {
+            throw new IllegalArgumentException("minimumValidity cannot be negative");
+        }
+        return properties.presignedUrlTtl().compareTo(minimumValidity) >= 0
+                ? properties.presignedUrlTtl()
+                : minimumValidity;
+    }
+
+    private int toCeilingSeconds(Duration validity) {
+        long seconds = validity.toSeconds();
+        if (validity.minusSeconds(seconds).isPositive()) {
+            seconds = Math.addExact(seconds, 1);
+        }
+        return Math.toIntExact(seconds);
     }
 
     @Override

@@ -120,6 +120,28 @@ class MinioMediaStorageTest {
     }
 
     @Test
+    void signsGetUrlForAtLeastRequestedValidityAndRoundsUpPartialSeconds()
+            throws Exception {
+        when(publicUrlClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class))).
+                thenReturn("https://media.example.test/audio.mp3?signature=value");
+
+        storage.presignedGetUrl(OBJECT_KEY, Duration.ofMillis(300_001));
+
+        ArgumentCaptor<GetPresignedObjectUrlArgs> arguments =
+                ArgumentCaptor.forClass(GetPresignedObjectUrlArgs.class);
+        verify(publicUrlClient).getPresignedObjectUrl(arguments.capture());
+        assertThat(arguments.getValue().expiry()).isEqualTo(301);
+    }
+
+    @Test
+    void rejectsNegativeRequestedValidityBeforeCallingProvider() {
+        assertThatThrownBy(() -> storage.presignedGetUrl(
+                OBJECT_KEY, Duration.ofSeconds(-1))).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessageContaining("minimumValidity");
+    }
+
+    @Test
     void deletesObjectUsingPrivateClient() throws Exception {
         storage.delete(OBJECT_KEY);
 

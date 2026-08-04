@@ -2,8 +2,14 @@ package com.blindtest.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.blindtest.model.game.GameAnswerSnapshot;
 import com.blindtest.model.game.GameConfiguration;
@@ -24,6 +30,7 @@ import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.ProcessedCommandLedger;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
+import com.blindtest.service.port.MediaStorage;
 import com.blindtest.service.port.SessionIdentityGenerator;
 import com.blindtest.service.port.SessionTaskScheduler;
 import com.blindtest.store.InMemorySessionStore;
@@ -39,6 +46,7 @@ import com.blindtest.websocket.protocol.PublicSessionEventType;
 import com.blindtest.websocket.protocol.SessionCommand;
 import com.blindtest.websocket.protocol.SessionCommandType;
 import com.blindtest.websocket.protocol.SessionProtocol;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -59,6 +67,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class SessionGameplayServiceTest {
 
@@ -77,6 +86,7 @@ class SessionGameplayServiceTest {
     private final List<PrivateSessionEvent> privateEvents = new CopyOnWriteArrayList<>();
 
     private SessionGameplayService service;
+    private MediaStorage mediaStorage;
 
     @BeforeEach
     void setUp() {
@@ -95,7 +105,13 @@ class SessionGameplayServiceTest {
         }).when(publisher).publishPrivate(any(UUID.class), any(PrivateSessionEvent.class));
         AtomicLong identity = new AtomicLong(100);
         SessionIdentityGenerator identities = () -> new UUID(0, identity.incrementAndGet());
-        service = new SessionGameplayService(store, scheduler, publisher, identities, clock);
+        AtomicLong signature = new AtomicLong();
+        mediaStorage = mock(MediaStorage.class);
+        when(mediaStorage.presignedGetUrl(anyString(), any(Duration.class))).thenAnswer(invocation ->
+                URI.create("https://media.example.test/audio.mp3?signature="
+                        + signature.incrementAndGet()));
+        service = new SessionGameplayService(
+                store, scheduler, mediaStorage, publisher, identities, clock);
         assertThat(store.create(createdSession(), clock.instant())).
                 isEqualTo(SessionCreateOutcome.CREATED);
     }
@@ -116,9 +132,51 @@ class SessionGameplayServiceTest {
                         PublicSessionEventType.ROUND_STARTED);
         PublicSessionEventPayload.RoundStarted started =
                 (PublicSessionEventPayload.RoundStarted) publicEvents.get(1).payload();
-        assertThat(started.playbackUrl()).isEmpty();
+        assertThat(started.playbackUrl()).contains(
+                URI.create("https://media.example.test/audio.mp3?signature=1"));
+        assertThat(started.startsAt()).isEqualTo(NOW);
+        assertThat(started.deadline()).isEqualTo(NOW.plusSeconds(30));
+        assertThat(started.excerptStartSeconds()).isZero();
+        ArgumentCaptor<Duration> validity = ArgumentCaptor.forClass(Duration.class);
+        verify(mediaStorage).presignedGetUrl(eq("tracks/0/audio.mp3"), validity.capture());
+        assertThat(validity.getValue()).isEqualTo(Duration.ofSeconds(60));
         assertThat(scheduler.tasks()).singleElement().satisfies(task ->
                 assertThat(task.executeAt()).isEqualTo(NOW.plusSeconds(30)));
+    }
+
+    @Test
+    void authorizedReconnectRegeneratesPlayingUrlForTheRemainingWindow() {
+        startGame();
+        clock.advance(Duration.ofSeconds(10));
+
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.REQUEST_SNAPSHOT, 0, null, UUID.randomUUID()));
+
+        assertThat(privateEvents).singleElement().satisfies(event -> {
+            PrivateSessionEventPayload.CurrentSnapshot snapshot =
+                    (PrivateSessionEventPayload.CurrentSnapshot) event.payload();
+            assertThat(snapshot.currentRound().orElseThrow().playbackUrl()).contains(
+                    URI.create("https://media.example.test/audio.mp3?signature=2"));
+            assertThat(snapshot.currentRound().orElseThrow().startsAt()).contains(NOW);
+            assertThat(snapshot.currentRound().orElseThrow().deadline()).
+                    contains(NOW.plusSeconds(30));
+            assertThat(snapshot.currentRound().orElseThrow().excerptStartSeconds()).contains(0);
+        });
+        ArgumentCaptor<Duration> validities = ArgumentCaptor.forClass(Duration.class);
+        verify(mediaStorage, times(2)).presignedGetUrl(
+                eq("tracks/0/audio.mp3"), validities.capture());
+        assertThat(validities.getAllValues()).containsExactly(
+                Duration.ofSeconds(60), Duration.ofSeconds(50));
+    }
+
+    @Test
+    void nonParticipantCannotTriggerPlaybackUrlIssuance() {
+        boolean handled = service.handle(SESSION_ID, UUID.randomUUID(), command(
+                SessionCommandType.START_GAME, 0, null, UUID.randomUUID()));
+
+        assertThat(handled).isFalse();
+        verifyNoInteractions(mediaStorage);
+        assertThat(current().version()).isZero();
     }
 
     @Test

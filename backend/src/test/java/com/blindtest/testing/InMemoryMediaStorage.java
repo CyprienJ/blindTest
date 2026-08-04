@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +49,14 @@ public class InMemoryMediaStorage implements MediaStorage {
             throw new IllegalArgumentException("Unknown media object");
         }
         return publicEndpoint.resolve("/" + objectKey + "?signature=test");
+    }
+
+    @Override
+    public synchronized URI presignedGetUrl(String objectKey, Duration minimumValidity) {
+        if (minimumValidity == null || minimumValidity.isNegative()) {
+            throw new IllegalArgumentException("minimumValidity cannot be negative");
+        }
+        return presignedGetUrl(objectKey);
     }
 
     @Override

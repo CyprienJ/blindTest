@@ -3,7 +3,7 @@
 Status: V1 contract defined by SESSION-03. Authentication, membership authorization,
 and private user-queue routing are implemented by SESSION-04. SESSION-05 delivers
 the authoritative command orchestration, timers, versioning, and recovery snapshot.
-SESSION-06 will add signed playback URLs.
+SESSION-06 adds participant-authorized signed playback URLs.
 
 ## Connection and destinations
 
@@ -113,7 +113,8 @@ session topic:
     "totalRounds": 10,
     "startsAt": "2026-08-04T13:00:02Z",
     "deadline": "2026-08-04T13:00:32Z",
-    "excerptStartSeconds": 15
+    "excerptStartSeconds": 15,
+    "playbackUrl": "https://media.example/audio.mp3?signature=short-lived"
   }
 }
 ```
@@ -122,14 +123,15 @@ session topic:
 |---|---|
 | `SESSION_READY` | game `state`, `totalRounds`, `expiresAt` |
 | `ROUND_PREPARING` | `roundIndex`, `totalRounds` |
-| `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset, optional short-lived `playbackUrl` |
+| `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset, short-lived `playbackUrl` |
 | `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, round and total points, `transitionAt` |
 | `SCORE_UPDATED` | `participantId`, round points, total score |
 | `GAME_FINISHED` | total score and title/skip/timeout aggregate counts |
 
-The server never publishes an object-storage key. During SESSION-05,
-`playbackUrl` is unavailable (`null` or omitted). SESSION-06 supplies it after
-authorizing the participant and signing the snapshotted media reference.
+The server never publishes an object-storage key as a separate browser credential.
+For each round start it signs the immutable media snapshot only after session
+authorization. The URL remains valid through the round deadline plus the fixed
+30-second reconnect buffer and is treated as a short-lived bearer credential.
 
 ## Private events
 
@@ -187,6 +189,9 @@ the private queue and in only that participant's recovery snapshot.
   reveal it also contains the canonical title, artist, optional composer/album,
   outcome, points, and `advanceAt`, plus only the requesting participant's private
   discoveries.
+- An authorized `REQUEST_SNAPSHOT` during `PLAYING` generates a fresh signed URL
+  whose validity covers the remaining playback window and reconnect buffer. A
+  reconnect never reuses or exposes the raw object key.
 
 ## Evolution rules
 

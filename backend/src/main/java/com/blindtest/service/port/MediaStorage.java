@@ -2,6 +2,7 @@ package com.blindtest.service.port;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Set;
 
 /** Provider-neutral boundary for private audio object storage. */
@@ -15,6 +16,9 @@ public interface MediaStorage {
 
     /** Creates a short-lived browser-accessible GET URL for an object. */
     URI presignedGetUrl(String objectKey);
+
+    /** Creates a GET URL valid for at least the requested duration. */
+    URI presignedGetUrl(String objectKey, Duration minimumValidity);
 
     /** Deletes an object. Deleting a missing object is idempotent. */
     void delete(String objectKey);

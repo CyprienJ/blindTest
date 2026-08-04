@@ -214,6 +214,9 @@ Last reviewed: 2026-08-04.
 - Solo-session gameplay commands run through an optimistic, per-session serialized
   orchestrator with bounded command idempotency, authoritative deadline and reveal
   timers, persist-before-publish event versions, and private reconnect snapshots.
+- Active playing rounds expose participant-authorized, short-lived pre-signed media
+  URLs at start and reconnect. The storage port accepts a minimum validity so URLs
+  cover the remaining round plus the 30-second reconnect buffer.
 - Flyway migrations V1 through V15 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
   metadata, the media-deletion outbox, extended track metadata, active-import
@@ -237,15 +240,15 @@ The backend currently has controllers for:
 - User profile management and user search.
 - Friends and friend requests.
 - Session lookup/joining, including guest tokens.
-- Signed active-round playback URLs and synchronized browser audio playback.
+- Synchronized browser audio playback.
 - Gameplay command rate limiting.
 - Game history.
 - Admin user management.
 
 The solo-session creation service/controller, gameplay protocol payloads,
-destination authorization, command orchestration, authoritative timers, and
-recovery snapshots exist. SESSION-06 still needs to authorize and sign private
-media URLs for active rounds before browser playback is possible.
+destination authorization, command orchestration, authoritative timers, recovery
+snapshots, and signed active-round URLs exist. The frontend gameplay flow still
+needs to consume them before browser playback is possible.
 
 ### Implemented frontend features
 
