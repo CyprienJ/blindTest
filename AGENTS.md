@@ -116,6 +116,11 @@ Last reviewed: 2026-08-04.
   exact excerpt bounds and a minimum URL expiry covering the round plus a 30-second
   reconnect buffer; actual bearer URL authorization and signing remain deferred to
   the session layer.
+- Participant-private secondary discoveries use an immutable ledger keyed by opaque
+  game-participant IDs. Only participant-scoped projections are exposed; new artist,
+  composer, or album discoveries disclose their category, while repeats return
+  `ALREADY_FOUND` without a category. Title and rejected matches leave discovery,
+  round, and score state unchanged.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -378,7 +383,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 383 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 389 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;

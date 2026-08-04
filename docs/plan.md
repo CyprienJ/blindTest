@@ -10,18 +10,18 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-09 — Implement private secondary discoveries](#game-09--implement-private-secondary-discoveries)**
+**[GAME-10 — Add exhaustive domain tests](#game-10--add-exhaustive-domain-tests)**
 
 Status: ready
 
-GAME-08 is complete, so GAME-09 is now the earliest ready unfinished ticket in the
-recommended execution sequence. Every started round now snapshots deterministic,
-non-secret media timing from its selected track: authoritative start and deadline,
-administrator-configured excerpt bounds, and a minimum signed-URL expiry covering
-the round plus a 30-second reconnect buffer. The actual bearer URL remains delegated
-to SESSION-06. GAME-09 can now add participant-private secondary discoveries without
-changing these round outcomes or scores. MEDIA-08 remains deferred until real legacy
-files require migration.
+GAME-09 is complete, so GAME-10 is now the earliest ready unfinished ticket in the
+recommended execution sequence. An immutable discovery ledger uses opaque game-
+participant identities and exposes only participant-scoped projections. New artist,
+composer, and album discoveries return their category privately; repeats return
+`ALREADY_FOUND` without a category, and title/no-match routing preserves the ledger,
+round lifecycle, and score. GAME-10 can now consolidate exhaustive tests across the
+complete pure solo-game domain. MEDIA-08 remains deferred until real legacy files
+require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1125,6 +1125,8 @@ Acceptance:
 - every round has deterministic media timing metadata.
 
 #### GAME-09 — Implement private secondary discoveries
+
+Status: completed on 2026-08-04.
 
 Work:
 
