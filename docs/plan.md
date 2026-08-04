@@ -10,19 +10,19 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-01 — Add active session models and store port](#session-01--add-active-session-models-and-store-port)**
+**[SESSION-02 — Create the solo-session REST endpoint](#session-02--create-the-solo-session-rest-endpoint)**
 
 Status: ready
 
-GAME-10 is complete, closing the pure solo-game domain lot, so SESSION-01 is now the
-earliest ready unfinished ticket in the recommended execution sequence. The domain
-suite combines reviewed normalization/matching corpora, a 10,000-match performance
-guard, deterministic property sweeps for scoring/normalization/selection, an
-exhaustive round-transition matrix, and a complete five-round scenario driven by an
-injected test clock and seeded randomness. Its imports remain free of Spring,
-persistence, WebSocket, PostgreSQL, Testcontainers, and MinIO. SESSION-01 can now
-wrap this domain in concurrency-safe active session state. MEDIA-08 remains deferred
-until real legacy files require migration.
+SESSION-01 is complete, so SESSION-02 is now the earliest ready unfinished ticket in
+the recommended execution sequence. Immutable active snapshots retain session and
+owner identities, participants, validated configuration, game/round and private-
+discovery state, optimistic version, and lifecycle timestamps. The replaceable store
+port supports atomic create/read/compare-and-set/remove/expiry operations; its
+process-local adapter lazily expires sessions and gives exactly one winner to
+concurrent commands using the same expected version. SESSION-02 can now authorize,
+validate, select, and create a solo session through this boundary. MEDIA-08 remains
+deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1173,6 +1173,8 @@ Dependencies: Lots 3 and 4.
 ### Tickets
 
 #### SESSION-01 — Add active session models and store port
+
+Status: completed on 2026-08-04.
 
 Work:
 

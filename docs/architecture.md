@@ -134,6 +134,13 @@ remains temporarily for legacy tracks during the migration window.
   scoring, and seeded selection, all 20 round action/state combinations, and a full
   five-round solo scenario using explicit test time. The game-test package imports
   no Spring, persistence, WebSocket, PostgreSQL, Testcontainers, or MinIO APIs.
+- Immutable active-session snapshots retain an opaque session ID, owner and
+  participant identities, validated configuration, game/round and private-discovery
+  state, optimistic version, and creation/update/expiry timestamps. A replaceable
+  `SessionStore` port exposes atomic create, read, compare-and-set, version-guarded
+  removal, expiry cleanup, and safe active-count operations. The process-local
+  `ConcurrentHashMap` adapter uses per-key atomic computation, lazily expires state,
+  and prevents stale concurrent commands from overwriting a newer snapshot.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -191,8 +198,8 @@ placeholders.
 
 ### Not delivered
 
-There is no `SessionStore`, gameplay controller, gameplay STOMP handler, timer
-orchestration,
+There is no session creation/orchestration service, gameplay controller, gameplay
+STOMP handler, timer orchestration,
 synchronized playback, game history, profile management, friends, guest joining,
 or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key

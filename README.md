@@ -1,11 +1,32 @@
 # Blindtest
 
 Blindtest is a work-in-progress music blindtest application built as a Java/Spring
-Boot and Angular monorepo. The long-term product is real-time and multiplayer, but
-the repository currently delivers authentication and music catalogue administration;
-gameplay and social features are still planned.
+Boot and Angular monorepo. The long-term product is real-time and multiplayer. The
+repository currently delivers authentication, music catalogue administration, the
+pure solo-game domain, and the concurrency-safe active-session storage boundary;
+playable session transport/UI and social features are still planned.
 
 ## Delivery status
+
+### Minimum ticket distance to features
+
+These counts follow the shortest functional dependency path in
+[`docs/plan.md`](docs/plan.md), not the larger production-release checklist. One
+unfinished roadmap ticket counts as one task. Multiplayer is not ticketed yet, so
+each explicit work item in its post-V1 lot is counted as one provisional task.
+
+| Feature | Minimum tasks remaining | Shortest remaining path |
+|---|---:|---|
+| Create an account | 0 | Delivered |
+| Import and publish a song | 0 | Delivered |
+| Create or edit a playlist | 0 | Delivered |
+| Configure a solo game | 0 | Delivered locally; server session creation is next |
+| Play a complete solo game | 11 | SESSION-02–06 and UI-02–07 |
+| Refresh a persisted end summary | 15 | Solo-game path plus HIST-01–03 and UI-08 |
+| Play a multiplayer game | At least 23 | Solo-game path plus the 12 provisional Lot P2 work items |
+
+The authoritative current pointer is SESSION-02. Update this table whenever ticket
+completion or roadmap dependencies change.
 
 ### Implemented
 
@@ -33,6 +54,11 @@ gameplay and social features are still planned.
 - Authenticated game-configuration UI for choosing an eligible public playlist,
   track count, and round duration; it retains a local draft until gameplay APIs
   are delivered.
+- Pure gameplay configuration, track snapshotting, answer normalization/matching,
+  scoring, state machines, playback windows, private secondary discoveries, and
+  exhaustive deterministic domain coverage.
+- Immutable active-session models and a replaceable optimistic `SessionStore` port,
+  with a concurrency-safe process-local implementation and expiry metadata.
 - PostgreSQL persistence with Flyway migrations V1 through V15.
 - Administrator CRUD for title, artist, composer, and album answer aliases, plus
   a validated whole-second playback offset.

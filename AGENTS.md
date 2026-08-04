@@ -126,6 +126,12 @@ Last reviewed: 2026-08-04.
   exhaustive 20-cell round transition matrix, and a five-round solo scenario using
   an explicit test clock and seeded randomness. The package has no Spring,
   persistence, WebSocket, PostgreSQL, Testcontainers, or MinIO imports.
+- Immutable active-session snapshots retain opaque session/participant identities,
+  validated configuration, game and discovery state, optimistic version, and
+  lifecycle timestamps. A replaceable `SessionStore` port provides atomic
+  create/read/compare-and-set/remove/expiry operations; the process-local concurrent
+  adapter prevents stale commands from overwriting newer versions and exposes only
+  an aggregate active count.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -215,14 +221,14 @@ The backend currently has controllers for:
 - User profile management and user search.
 - Friends and friend requests.
 - Game session creation and joining, including guest tokens.
-- In-memory `SessionStore` and session command orchestration.
+- Session creation and command orchestration.
 - Gameplay STOMP handlers, live answer handling, timers, skip votes, and
   synchronized audio playback.
 - Game history.
 - Admin user management.
 
-There are no `model/session`, `store`, or gameplay service/controller packages yet.
-The pure `model/game` boundary does not create or retain sessions.
+There is no gameplay session service/controller package yet. The `model/session`
+and `store` boundaries retain active state but do not create product sessions.
 The WebSocket infrastructure exists only for authentication and import progress.
 
 ### Implemented frontend features
@@ -388,7 +394,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 413 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 424 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
