@@ -114,6 +114,14 @@ components:
             - PLAYLIST_ORDER_INVALID
             - PLAYLIST_TRACK_DUPLICATE
             - PLAYLIST_TRACK_NOT_PUBLISHED
+            - GAME_CONFIGURATION_REQUIRED
+            - GAME_PLAYLIST_REQUIRED
+            - GAME_TRACK_COUNT_INVALID
+            - GAME_ROUND_DURATION_INVALID
+            - GAME_CONFIGURATION_EXTENSION_UNSUPPORTED
+            - GAME_PLAYLIST_NOT_FOUND
+            - GAME_PLAYLIST_INELIGIBLE
+            - GAME_PLAYLIST_INSUFFICIENT_TRACKS
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
         message:
@@ -331,6 +339,12 @@ components:
           $ref: '#/components/schemas/GameRules'
         trackFilters:
           $ref: '#/components/schemas/TrackFilters'
+        extensions:
+          type: object
+          maxProperties: 0
+          additionalProperties:
+            type: string
+          description: Reserved for future game modes and rules; V1 rejects every entry.
 
     SessionSummary:
       type: object

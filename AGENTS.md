@@ -80,6 +80,9 @@ Last reviewed: 2026-08-04.
 - Public published-track catalogue and public playlists with case-insensitive
   metadata search, deterministic ordering, bounded pagination, safe projections,
   and explicit short-lived public caching.
+- A pure immutable game-configuration domain boundary with stable structural,
+  playlist eligibility, sufficient-track, and unsupported-extension errors; it
+  retains no mutable playlist or persistence objects.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -176,6 +179,7 @@ The backend currently has controllers for:
 - Admin user management.
 
 There are no `model/session`, `store`, or gameplay service/controller packages yet.
+The pure `model/game` configuration boundary does not create or retain sessions.
 The WebSocket infrastructure exists only for authentication and import progress.
 
 ### Implemented frontend features
@@ -340,7 +344,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 262 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 276 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 12 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;

@@ -79,6 +79,10 @@ remains temporarily for legacy tracks during the migration window.
 - PostgreSQL entities and Flyway migrations for users, refresh tokens, tracks,
   playlists, playlist membership, import jobs, and safe first-administrator
   provisioning audit records.
+- A pure `model/game` boundary validates immutable playlist, requested-track-count,
+  and maximum-round-duration configuration snapshots. It consumes only an immutable
+  playlist-eligibility projection, rejects every reserved extension for V1, and
+  exposes stable domain errors without Spring, JPA, or transport dependencies.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -134,7 +138,7 @@ remain route scaffolds whose templates are placeholders.
 
 ### Not delivered
 
-There is no session or round domain model, `SessionStore`, gameplay controller,
+There is no session or round state model, `SessionStore`, gameplay controller,
 gameplay STOMP handler, scoring/timer/answer logic, synchronized playback, game
 history, profile management, friends, guest joining, or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key
@@ -887,6 +891,7 @@ src/main/java/com/blindtest/
 │   │   ├── SessionPlayer.java
 │   │   ├── Round.java
 │   │   └── GameRules.java
+│   ├── game/                       # pure validated configuration and game rules
 │   └── dto/
 │       ├── request/
 │       └── response/

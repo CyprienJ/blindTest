@@ -10,14 +10,16 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-01 — Define game configuration and validation](#game-01--define-game-configuration-and-validation)**
+**[GAME-02 — Approve and enforce configuration limits](#game-02--approve-and-enforce-configuration-limits)**
 
 Status: ready
 
-CAT-10 is complete, so the catalogue and administration lot has met its exit criteria.
-GAME-01 is now the earliest ready unfinished ticket in the recommended execution
-sequence. Its catalogue and playlist dependencies are complete, and all nine decision
-gates are resolved. MEDIA-08 remains deferred until real legacy files require migration.
+GAME-01 is complete, so GAME-02 is now the earliest ready unfinished ticket in the
+recommended execution sequence. The pure configuration model enforces structural,
+playlist-eligibility, sufficient-track, and unsupported-extension rules without
+depending on transport or persistence. GAME-02 will add the approved numeric limits,
+increments, and defaults from ADR-0008. MEDIA-08 remains deferred until real legacy
+files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -972,6 +974,8 @@ Dependencies: CAT-01, CAT-02, CAT-07.
 ### Tickets
 
 #### GAME-01 — Define game configuration and validation
+
+Status: completed on 2026-08-04.
 
 Work:
 
