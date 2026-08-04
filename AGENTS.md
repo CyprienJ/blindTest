@@ -82,7 +82,9 @@ Last reviewed: 2026-08-04.
   and explicit short-lived public caching.
 - A pure immutable game-configuration domain boundary with stable structural,
   playlist eligibility, sufficient-track, and unsupported-extension errors; it
-  retains no mutable playlist or persistence objects.
+  retains no mutable playlist or persistence objects. Backend-authoritative limits
+  enforce 5–30 tracks and 10–60 seconds in five-second increments, with defaults of
+  15 tracks and 30 seconds; OpenAPI contract tests protect those values from drift.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -208,8 +210,9 @@ The WebSocket infrastructure exists only for authentication and import progress.
   drag-and-keyboard ordering, safe optimistic rollback, deletion confirmation,
   and unsaved-change navigation protection.
 - Authenticated game-configuration page with eligible public-playlist selection,
-  ordered track preview, track-count and round-duration controls, and a local
-  configuration draft pending delivery of the gameplay session endpoint.
+  ordered track preview, shared bounded track-count and round-duration controls,
+  five-track playlist eligibility, and a local configuration draft pending delivery
+  of the gameplay session endpoint.
 - Administrator-only frontend route enforcement for the administration area.
 - Shared global styling based on the target visual design.
 - Playwright Chromium authentication coverage with mocked API and Turnstile
@@ -344,9 +347,9 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 276 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 293 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
-- frontend: lint passes, production build passes, 12 passing unit tests,
+- frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are
   ignored.

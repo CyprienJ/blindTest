@@ -303,11 +303,15 @@ components:
         timerSeconds:
           type: integer
           minimum: 10
-          maximum: 120
+          maximum: 60
+          multipleOf: 5
+          default: 30
         trackCount:
           type: integer
-          minimum: 1
-          maximum: 50
+          minimum: 5
+          maximum: 30
+          multipleOf: 1
+          default: 15
         speedBonus:
           type: boolean
           default: true

@@ -10,16 +10,16 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-02 — Approve and enforce configuration limits](#game-02--approve-and-enforce-configuration-limits)**
+**[GAME-03 — Select and snapshot tracks](#game-03--select-and-snapshot-tracks)**
 
 Status: ready
 
-GAME-01 is complete, so GAME-02 is now the earliest ready unfinished ticket in the
-recommended execution sequence. The pure configuration model enforces structural,
-playlist-eligibility, sufficient-track, and unsupported-extension rules without
-depending on transport or persistence. GAME-02 will add the approved numeric limits,
-increments, and defaults from ADR-0008. MEDIA-08 remains deferred until real legacy
-files require migration.
+GAME-02 is complete, so GAME-03 is now the earliest ready unfinished ticket in the
+recommended execution sequence. The backend authoritatively enforces the approved
+5–30 track range and 10–60 second five-second increments, while the frontend and
+OpenAPI expose matching defaults and boundaries. GAME-03 can now select and snapshot
+tracks from a validated configuration using the randomization rule in ADR-0014.
+MEDIA-08 remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -991,6 +991,8 @@ Acceptance:
 - valid configuration is independent from subsequent playlist edits.
 
 #### GAME-02 — Approve and enforce configuration limits
+
+Status: completed on 2026-08-04.
 
 Decision: [ADR-0008](adr/0008-solo-game-configuration-limits.md).
 

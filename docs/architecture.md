@@ -82,7 +82,9 @@ remains temporarily for legacy tracks during the migration window.
 - A pure `model/game` boundary validates immutable playlist, requested-track-count,
   and maximum-round-duration configuration snapshots. It consumes only an immutable
   playlist-eligibility projection, rejects every reserved extension for V1, and
-  exposes stable domain errors without Spring, JPA, or transport dependencies.
+  exposes stable domain errors without Spring, JPA, or transport dependencies. The
+  backend-authoritative limits are 5–30 tracks and 10–60 seconds in five-second
+  increments, with defaults of 15 tracks and 30 seconds.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -132,9 +134,11 @@ the track catalogue, YouTube import workflow, and playlist editor. Playlist edit
 supports metadata, published-track search, add/remove operations, drag-and-keyboard
 ordering with rollback on failure, and unsaved-change navigation protection. The
 authenticated game-configuration page lists eligible public playlists, previews
-their published tracks, and saves track-count and round-duration choices as a local
-draft. It does not create a server session yet. Other non-auth feature components
-remain route scaffolds whose templates are placeholders.
+their published tracks, filters out playlists with fewer than five eligible tracks,
+and saves bounded track-count and round-duration choices as a local draft. Its controls
+share the backend's approved limits and defaults. It does not create a server session
+yet. Other non-auth feature components remain route scaffolds whose templates are
+placeholders.
 
 ### Not delivered
 

@@ -11,24 +11,24 @@ const player = {
 const playlists = [
   {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    name: 'Empty playlist',
+    name: 'Too small playlist',
     description: null,
     imageUrl: null,
-    trackCount: 0,
+    trackCount: 4,
   },
   {
     id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     name: 'Eighties essentials',
     description: 'Synth-pop classics',
     imageUrl: null,
-    trackCount: 2,
+    trackCount: 8,
   },
   {
     id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     name: 'Rock anthems',
     description: 'Guitars and big choruses',
     imageUrl: null,
-    trackCount: 1,
+    trackCount: 6,
   },
 ];
 
@@ -38,11 +38,15 @@ const details = {
     tracks: [
       track('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'Take On Me', 'a-ha', 225),
       track('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'Africa', 'Toto', 295),
+      ...fillerTracks('eighties', 6),
     ],
   },
   [playlists[2].id]: {
     ...playlists[2],
-    tracks: [track('ffffffff-ffff-4fff-8fff-ffffffffffff', 'The Final Countdown', 'Europe', 310)],
+    tracks: [
+      track('ffffffff-ffff-4fff-8fff-ffffffffffff', 'The Final Countdown', 'Europe', 310),
+      ...fillerTracks('rock', 5),
+    ],
   },
 };
 
@@ -60,6 +64,12 @@ function track(id: string, title: string, artist: string, durationSeconds: numbe
     excerptStartSeconds: 0,
     imageUrl: null,
   };
+}
+
+function fillerTracks(prefix: string, count: number) {
+  return Array.from({ length: count }, (_, index) =>
+    track(`${prefix}-${index}`, `${prefix} track ${index + 1}`, 'Test artist', 180),
+  );
 }
 
 async function installPlayerSession(page: Page): Promise<void> {
@@ -81,26 +91,40 @@ test.describe('game configuration', () => {
     await page.goto('/lobby/create');
 
     await expect(page.getByRole('heading', { name: 'Configure a new game' })).toBeVisible();
-    await expect(page.getByRole('radio', { name: /Empty playlist/ })).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: /Too small playlist/ })).toHaveCount(0);
     await expect(page.getByRole('radio', { name: /Eighties essentials/ })).toHaveAttribute(
       'aria-checked',
       'true',
     );
     await expect(page.locator('.track-preview > div').first()).toContainText('Take On Me');
 
+    const trackCount = page.getByRole('slider', { name: 'Number of tracks' });
+    await expect(trackCount).toHaveAttribute('min', '5');
+    await expect(trackCount).toHaveAttribute('max', '8');
+    await expect(trackCount).toHaveAttribute('step', '1');
+    await expect(trackCount).toHaveValue('8');
+    const roundDuration = page.getByRole('slider', { name: 'Maximum answer time' });
+    await expect(roundDuration).toHaveAttribute('min', '10');
+    await expect(roundDuration).toHaveAttribute('max', '60');
+    await expect(roundDuration).toHaveAttribute('step', '5');
+    await expect(roundDuration).toHaveValue('30');
+
     await page.getByRole('radio', { name: /Rock anthems/ }).click();
     await expect(
       page.getByRole('complementary').getByRole('heading', { name: 'Rock anthems' }),
     ).toBeVisible();
-    await page.getByRole('slider', { name: 'Maximum answer time' }).fill('45');
+    await expect(trackCount).toHaveAttribute('max', '6');
+    await trackCount.fill('5');
+    await roundDuration.fill('45');
     await page.getByRole('button', { name: 'Create session' }).click();
 
     await expect(page.locator('.notice.success')).toContainText('Configuration saved');
     const draft = await page.evaluate(() => sessionStorage.getItem('pending_game_configuration'));
     expect(JSON.parse(draft ?? '{}')).toEqual({
       playlistId: playlists[2].id,
-      trackCount: 1,
+      trackCount: 5,
       maxRoundSeconds: 45,
+      extensions: {},
     });
   });
 

@@ -54,7 +54,10 @@
             <div class="state-panel">
               <span class="state-symbol" aria-hidden="true">♫</span>
               <h3>No playable playlist yet</h3>
-              <p>A playlist becomes eligible as soon as it contains a published track.</p>
+              <p>
+                A playlist needs at least {{ limits.trackCount.minimum }} published tracks to
+                become eligible.
+              </p>
               @if (auth.isAdmin()) {
                 <a class="bt-btn bt-btn-ghost" routerLink="/admin/playlists">Open playlist editor</a>
               }
@@ -137,12 +140,15 @@
               <input
                 type="range"
                 formControlName="trackCount"
-                min="1"
-                [max]="selected?.trackCount || 1"
-                step="1"
+                [min]="limits.trackCount.minimum"
+                [max]="trackCountMaximum()"
+                [step]="limits.trackCount.increment"
                 aria-label="Number of tracks"
               />
-              <small>Between 1 and {{ selected?.trackCount || 1 }}, without repeating a track.</small>
+              <small>
+                Between {{ limits.trackCount.minimum }} and {{ trackCountMaximum() }}, without
+                repeating a track.
+              </small>
             </label>
 
             <label class="range-field">
@@ -153,9 +159,9 @@
               <input
                 type="range"
                 formControlName="maxRoundSeconds"
-                min="10"
-                max="120"
-                step="5"
+                [min]="limits.roundDurationSeconds.minimum"
+                [max]="limits.roundDurationSeconds.maximum"
+                [step]="limits.roundDurationSeconds.increment"
                 aria-label="Maximum answer time"
               />
               <small>Each round ends sooner when the title is found.</small>

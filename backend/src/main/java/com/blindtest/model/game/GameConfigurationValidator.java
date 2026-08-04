@@ -4,9 +4,7 @@ package com.blindtest.model.game;
 public final class GameConfigurationValidator {
 
     /**
-     * Validates structural rules and an immutable catalogue eligibility projection.
-     *
-     * <p>Exact product limits and increments are deliberately added by GAME-02.
+     * Validates authoritative product limits and an immutable catalogue eligibility projection.
      */
     public GameConfiguration validate(
             RequestedGameConfiguration requested,
@@ -17,10 +15,11 @@ public final class GameConfigurationValidator {
         if (requested.playlistId() == null) {
             throw failure(GameConfigurationError.PLAYLIST_REQUIRED);
         }
-        if (requested.requestedTrackCount() <= 0) {
+        if (!GameConfigurationLimits.isAllowedTrackCount(requested.requestedTrackCount())) {
             throw failure(GameConfigurationError.TRACK_COUNT_INVALID);
         }
-        if (requested.maximumRoundDurationSeconds() <= 0) {
+        if (!GameConfigurationLimits.isAllowedRoundDuration(
+                requested.maximumRoundDurationSeconds())) {
             throw failure(GameConfigurationError.ROUND_DURATION_INVALID);
         }
         if (!requested.extensions().isEmpty()) {
