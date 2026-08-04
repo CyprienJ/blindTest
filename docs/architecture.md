@@ -111,6 +111,12 @@ remains temporarily for legacy tracks during the migration window.
   floor. Immutable per-round score state prevents duplicate awards; secondary or
   rejected answers, skips, timeouts, and deadline-or-later titles award zero. The
   arithmetic remains exact even when a duration's nanoseconds exceed `long` range.
+- Pure immutable game and round state machines enforce `CREATED` through terminal
+  game transitions and `PREPARING` through `COMPLETED` round transitions. Title,
+  timeout, and skip resolution uses the authoritative deadline; each completed round
+  either prepares the next snapshotted track or finishes the game with one ordered,
+  immutable score summary. Stable domain errors reject illegal transitions, and no
+  scheduler or transport dependency participates in these rules.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -168,8 +174,8 @@ placeholders.
 
 ### Not delivered
 
-There is no session or round state model, `SessionStore`, gameplay controller,
-gameplay STOMP handler, round/timer logic,
+There is no `SessionStore`, gameplay controller, gameplay STOMP handler, timer
+orchestration,
 synchronized playback, game history, profile management, friends, guest joining,
 or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key

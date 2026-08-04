@@ -10,18 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-07 — Implement round and game state machines](#game-07--implement-round-and-game-state-machines)**
+**[GAME-08 — Define playback window](#game-08--define-playback-window)**
 
 Status: ready
 
-GAME-06 is complete, so GAME-07 is now the earliest ready unfinished ticket in the
-recommended execution sequence. The pure scoring boundary awards a correct in-time
-title from authoritative server timing with exact integer half-up arithmetic, a
-1,000-point maximum, a 100-point floor, immutable duplicate protection, and a stable
-rule version. Secondary answers, rejected guesses, skips, timeouts, and deadline-or-
-later titles award zero. GAME-07 can now compose matching and scoring into explicit
-round and game transitions. MEDIA-08 remains deferred until real legacy files require
-migration.
+GAME-07 is complete, so GAME-08 is now the earliest ready unfinished ticket in the
+recommended execution sequence. Pure immutable game and round state machines enforce
+the approved lifecycles, resolve title, timeout, and skip outcomes against the
+authoritative deadline, advance through the snapshotted tracks, and create one final
+summary when the last round completes. GAME-08 can now attach deterministic private-
+media timing metadata to each round. MEDIA-08 remains deferred until real legacy
+files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1085,6 +1084,8 @@ Acceptance:
   and secondary answers.
 
 #### GAME-07 — Implement round and game state machines
+
+Status: completed on 2026-08-04.
 
 States:
 

@@ -106,6 +106,11 @@ Last reviewed: 2026-08-04.
   100-point pre-deadline minimum. Immutable per-round score state makes the title
   award idempotent; secondary/rejected answers, skips, timeouts, and deadline-or-later
   submissions award zero.
+- Pure immutable game and round state machines enforce explicit lifecycle
+  transitions, resolve title, timeout, and skip outcomes against the authoritative
+  deadline, progress through snapshotted tracks, and produce one ordered final score
+  summary when the last round completes. Stable domain errors reject illegal
+  transitions without transport or scheduler dependencies.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -195,14 +200,14 @@ The backend currently has controllers for:
 - User profile management and user search.
 - Friends and friend requests.
 - Game session creation and joining, including guest tokens.
-- In-memory `SessionStore` and the session/round state machines.
-- Gameplay STOMP handlers, answer validation, scoring, timers, skip votes, and
+- In-memory `SessionStore` and session command orchestration.
+- Gameplay STOMP handlers, live answer handling, timers, skip votes, and
   synchronized audio playback.
 - Game history.
 - Admin user management.
 
 There are no `model/session`, `store`, or gameplay service/controller packages yet.
-The pure `model/game` configuration boundary does not create or retain sessions.
+The pure `model/game` boundary does not create or retain sessions.
 The WebSocket infrastructure exists only for authentication and import progress.
 
 ### Implemented frontend features
@@ -368,7 +373,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 366 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 379 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
