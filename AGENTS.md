@@ -95,6 +95,12 @@ Last reviewed: 2026-08-04.
   removal, punctuation/symbol separation, whitespace collapse, and configurable
   removal of one common French or English leading article. One-token answers are
   never emptied by the article policy.
+- Pure gameplay matching checks canonical answers and snapshotted aliases through
+  deterministic exact, token-boundary, and length-sensitive unrestricted
+  Damerau–Levenshtein tiers. Answers through five code points are exact-only, then
+  tolerate one edit through 12, two through 20, and three beyond 20. Results expose
+  only the matched title, artist, composer, or album type and reveal no answer text
+  on failure.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -357,7 +363,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 323 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 351 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;

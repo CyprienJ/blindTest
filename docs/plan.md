@@ -10,17 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-05 — Implement tolerant matching and aliases](#game-05--implement-tolerant-matching-and-aliases)**
+**[GAME-06 — Implement scoring](#game-06--implement-scoring)**
 
 Status: ready
 
-GAME-04 is complete, so GAME-05 is now the earliest ready unfinished ticket in the
-recommended execution sequence. Gameplay normalization is locale-independent and
-produces immutable normalized text and tokens after Unicode compatibility handling,
-case/accent folding, punctuation separation, whitespace collapse, and an explicit
-common-leading-article policy. GAME-05 can now build exact and tolerant matching over
-that stable boundary and the aliases snapshotted by GAME-03. MEDIA-08 remains deferred
-until real legacy files require migration.
+GAME-05 is complete, so GAME-06 is now the earliest ready unfinished ticket in the
+recommended execution sequence. The pure matcher deterministically checks normalized
+canonical answers and aliases, token-boundary equivalence, then length-bounded
+Unicode Damerau–Levenshtein tolerance. It returns only the matched title, artist,
+composer, or album type and keeps rejected answers opaque. GAME-06 can now award
+points only for title results under ADR-0007. MEDIA-08 remains deferred until real
+legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1045,6 +1045,8 @@ Acceptance:
   digits, and short answers.
 
 #### GAME-05 — Implement tolerant matching and aliases
+
+Status: completed on 2026-08-04.
 
 Work:
 

@@ -97,6 +97,14 @@ remains temporarily for legacy tracks during the migration window.
   removal of one common French or English leading article without emptying a
   one-token answer. The output retains immutable normalized text and tokens for the
   later matcher.
+- The pure answer matcher evaluates normalized canonical values and snapshotted
+  aliases in deterministic title, artist, composer, then album order. It completes
+  each exact, token-boundary, and typo-tolerant tier before moving to the next, so an
+  exact secondary match wins over a fuzzy title. Damerau–Levenshtein tolerance is
+  exact-only through five code points, one edit through 12, two through 20, and three
+  beyond 20. Results contain only an optional matched answer type; failures retain no
+  canonical or alias text. A reviewed positive/negative corpus and a 10,000-match
+  regression budget cover behavior and performance.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -155,7 +163,7 @@ placeholders.
 ### Not delivered
 
 There is no session or round state model, `SessionStore`, gameplay controller,
-gameplay STOMP handler, answer matching, scoring/timer logic,
+gameplay STOMP handler, scoring/timer logic,
 synchronized playback, game history, profile management, friends, guest joining,
 or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key
@@ -1076,7 +1084,11 @@ The Turnstile widget is displayed on the registration form. The frontend obtains
 - **Session token** (guest): TTL = session lifetime
 
 ### Answer Validation (anti-cheat)
-Comparison is done **server-side only** with normalisation + Levenshtein distance ≤ 2.
+Comparison remains **server-side only**. The delivered pure matcher applies the
+normalization and deterministic tiered policy documented under
+[Delivered backend](#delivered-backend), including aliases, token boundaries, and
+length-sensitive Damerau–Levenshtein thresholds. It never returns answer text for a
+failed guess.
 
 ### WebSocket Authorization
 The `JwtAuthFilter` validates the token in the STOMP `CONNECT` header. Each `@MessageMapping` verifies that the `Principal` belongs to the target session.
