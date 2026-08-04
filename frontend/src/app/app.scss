@@ -1,0 +1,24 @@
+.app-session-control {
+  position: fixed;
+  top: 8px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-session-username {
+  color: var(--fg-2);
+  font-size: 13px;
+}
+
+@media (max-width: 580px) {
+  .app-session-control {
+    right: 12px;
+  }
+
+  .app-session-username {
+    display: none;
+  }
+}

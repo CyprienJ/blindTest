@@ -26,6 +26,6 @@ export class App {
 
   private finishSignOut(): void {
     this.signingOut = false;
-    void this.router.navigate(['/auth/login']);
+    void this.router.navigate(['/']);
   }
 }

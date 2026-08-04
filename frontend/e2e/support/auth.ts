@@ -23,13 +23,13 @@ export async function mockJson(
   });
 }
 
-export async function installSession(page: Page): Promise<void> {
+export async function installSession(page: Page, user = testUser): Promise<void> {
   await page.addInitScript(
     ({ user }) => {
       localStorage.setItem('access_token', 'existing-access-token');
       localStorage.setItem('current_user', JSON.stringify(user));
     },
-    { user: testUser },
+    { user },
   );
 }
 

@@ -42,7 +42,7 @@ test.describe('authentication session', () => {
 
       await page.getByRole('button', { name: 'Sign out' }).click();
 
-      await expect(page).toHaveURL(/\/auth\/login$/);
+      await expect(page).toHaveURL(/\/$/);
       await expect
         .poll(() =>
           page.evaluate(() => ({

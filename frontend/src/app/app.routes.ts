@@ -30,8 +30,11 @@ export const routes: Routes = [
   },
   {
     path: 'home',
-    redirectTo: 'lobby/create',
-    pathMatch: 'full',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/home/authenticated-home/authenticated-home.component').then(
+        (m) => m.AuthenticatedHomeComponent,
+      ),
   },
   {
     path: 'lobby',

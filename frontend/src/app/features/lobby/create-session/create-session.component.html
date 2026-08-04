@@ -1,6 +1,6 @@
 <div class="bt-screen session-screen">
   <header class="bt-topbar">
-    <a class="bt-logo" routerLink="/lobby" aria-label="Blindtest home">
+    <a class="bt-logo" routerLink="/home" aria-label="Blindtest home">
       <span class="bt-logo-mark" aria-hidden="true"></span>
       Blindtest
     </a>
@@ -55,11 +55,13 @@
               <span class="state-symbol" aria-hidden="true">♫</span>
               <h3>No playable playlist yet</h3>
               <p>
-                A playlist needs at least {{ limits.trackCount.minimum }} published tracks to
-                become eligible.
+                A playlist needs at least {{ limits.trackCount.minimum }} published tracks to become
+                eligible.
               </p>
               @if (auth.isAdmin()) {
-                <a class="bt-btn bt-btn-ghost" routerLink="/admin/playlists">Open playlist editor</a>
+                <a class="bt-btn bt-btn-ghost" routerLink="/admin/playlists"
+                  >Open playlist editor</a
+                >
               }
             </div>
           } @else {

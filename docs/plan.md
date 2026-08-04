@@ -10,17 +10,18 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[HOME-02 — Implement the authenticated home page](#home-02--implement-the-authenticated-home-page)**
+**[SESSION-03 — Define STOMP commands and events](#session-03--define-stomp-commands-and-events)**
 
 Status: ready
 
-HOME-01 is complete, so HOME-02 is now the earliest ready unfinished ticket in the
-prioritized entry-page sequence. The public `/` route presents the product and
-account actions without backend calls, recognizes a complete local authenticated
-session, and uses a protected transitional `/home` redirect to the delivered game
-configuration experience. HOME-02 can replace that redirect with the role-aware
-authenticated landing page before work resumes at SESSION-03. MEDIA-08 remains
-deferred until real legacy files require migration.
+HOME-01 and HOME-02 are complete, so SESSION-03 is again the earliest ready
+unfinished ticket in the recommended execution sequence. Public and authenticated
+entry points now route users to delivered features, restore authenticated access,
+and expose administrator playlist navigation only by role. A verified authenticated
+account can already create independent solo sessions through `POST /api/sessions`;
+SESSION-03 can now define the versioned commands and events used by the returned
+STOMP destinations. MEDIA-08 remains deferred until real legacy files require
+migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1413,12 +1414,15 @@ Acceptance:
 
 #### HOME-02 — Implement the authenticated home page
 
+Status: completed on 2026-08-04.
+
 Priority: implement immediately after HOME-01 and before resuming SESSION-03.
 
 Work:
 
 - add a guarded `/home` route and make it the default destination after login;
-- present primary actions to create a game and join a game;
+- present a primary action to create a game and show multiplayer joining as
+  unavailable until its post-V1 implementation exists;
 - expose playlist administration only to users whose authenticated role permits
   it, while retaining route-level authorization as the security boundary;
 - provide navigation to the public playlist catalogue and logout;
@@ -1432,7 +1436,8 @@ Work:
 Acceptance:
 
 - a successful login and an authenticated visit to the application reach `/home`;
-- every authenticated user can reach game creation and joining;
+- every authenticated user can reach game creation, while joining is clearly
+  identified as unavailable and never links to its placeholder route;
 - administrators can reach playlist editing, while non-administrators neither see
   the action nor bypass the existing admin guard;
 - navigation remains correct after refresh and logout returns the user to a public

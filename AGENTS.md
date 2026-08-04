@@ -240,6 +240,9 @@ supports authentication and import progress only.
 
 - Responsive public home page with login and registration actions, session-aware
   continuation, and focused Angular/Playwright coverage.
+- Guarded authenticated home page as the default post-login destination, with
+  delivered player actions, role-aware playlist administration, explicit disabled
+  multiplayer joining, refresh recovery, and logout back to the public entry point.
 - Login.
 - Registration with Turnstile widget integration, explicit challenge lifecycle
   handling, and single-use token submission guards.

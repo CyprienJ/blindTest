@@ -15,7 +15,6 @@
 }
 
 .admin-label {
-  margin-right: 210px;
   color: var(--fg-2);
   font-size: 12px;
   font-weight: 700;
@@ -362,7 +361,9 @@ button:disabled {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .notice {

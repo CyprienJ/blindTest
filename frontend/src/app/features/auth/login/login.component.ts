@@ -139,7 +139,7 @@ export class LoginComponent {
 
     this.authService.login(email, password).subscribe({
       next: () => {
-        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/lobby';
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/home';
         this.router.navigateByUrl(returnUrl);
       },
       error: (err) => {

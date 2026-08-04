@@ -1,6 +1,6 @@
 <div class="admin-shell">
   <header class="bt-topbar admin-topbar">
-    <a class="bt-logo" routerLink="/lobby" aria-label="Blindtest home">
+    <a class="bt-logo" routerLink="/home" aria-label="Blindtest home">
       <span class="bt-logo-mark" aria-hidden="true"></span>
       Blindtest
     </a>
@@ -24,19 +24,25 @@
           <h1>Track catalogue</h1>
           <p>Review imported tracks, improve their answers and control publication.</p>
         </div>
-        <a class="bt-btn bt-btn-primary" routerLink="/admin/tracks/import">＋ Import from YouTube</a>
+        <a class="bt-btn bt-btn-primary" routerLink="/admin/tracks/import"
+          >＋ Import from YouTube</a
+        >
       </div>
 
       @if (successMessage) {
         <div class="notice notice-success" role="status">
           <span>{{ successMessage }}</span>
-          <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">×</button>
+          <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
+            ×
+          </button>
         </div>
       }
       @if (listError) {
         <div class="notice notice-error" role="alert">
           <span>{{ listError }}</span>
-          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">Retry</button>
+          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">
+            Retry
+          </button>
         </div>
       }
 
@@ -121,7 +127,10 @@
                     <td class="mono">{{ track.decade ? track.decade + 's' : '—' }}</td>
                     <td class="mono">{{ formatDuration(track.durationSeconds) }}</td>
                     <td>
-                      <span class="status-badge" [class]="'status-badge ' + track.status.toLowerCase()">
+                      <span
+                        class="status-badge"
+                        [class]="'status-badge ' + track.status.toLowerCase()"
+                      >
                         {{ statusLabel(track.status) }}
                       </span>
                     </td>
@@ -129,7 +138,11 @@
                     <td>
                       <div class="row-actions">
                         @if (actionTrackId === track.id) {
-                          <span class="mini-spinner" role="status" aria-label="Updating track"></span>
+                          <span
+                            class="mini-spinner"
+                            role="status"
+                            aria-label="Updating track"
+                          ></span>
                         }
                         @if (track.status === 'PENDING') {
                           <button
@@ -137,14 +150,18 @@
                             title="Preview audio"
                             [disabled]="actionTrackId === track.id"
                             (click)="openPreview(track)"
-                          >▶</button>
+                          >
+                            ▶
+                          </button>
                         }
                         <button
                           type="button"
                           title="Edit track"
                           [disabled]="actionTrackId === track.id"
                           (click)="openEdit(track)"
-                        >✎</button>
+                        >
+                          ✎
+                        </button>
                         @if (track.status === 'PENDING') {
                           <button
                             class="publish"
@@ -152,14 +169,18 @@
                             title="Publish track"
                             [disabled]="actionTrackId === track.id"
                             (click)="validate(track)"
-                          >✓</button>
+                          >
+                            ✓
+                          </button>
                           <button
                             class="danger"
                             type="button"
                             title="Reject track"
                             [disabled]="actionTrackId === track.id"
                             (click)="requestConfirmation(track, 'reject')"
-                          >×</button>
+                          >
+                            ×
+                          </button>
                         }
                         <button
                           class="danger"
@@ -167,7 +188,9 @@
                           title="Delete track"
                           [disabled]="actionTrackId === track.id"
                           (click)="requestConfirmation(track, 'delete')"
-                        >⌫</button>
+                        >
+                          ⌫
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -184,14 +207,18 @@
                 type="button"
                 [disabled]="page === 0"
                 (click)="goToPage(page - 1)"
-              >Previous</button>
+              >
+                Previous
+              </button>
               <span>Page {{ page + 1 }} of {{ totalPages }}</span>
               <button
                 class="bt-btn bt-btn-sm bt-btn-ghost"
                 type="button"
                 [disabled]="page + 1 >= totalPages"
                 (click)="goToPage(page + 1)"
-              >Next</button>
+              >
+                Next
+              </button>
             </div>
           </footer>
         }
@@ -202,12 +229,7 @@
 
 @if (editingTrack) {
   <div class="modal-backdrop">
-    <section
-      class="modal edit-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-title"
-    >
+    <section class="modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
       <header>
         <div>
           <span class="eyebrow">Track details</span>
@@ -225,13 +247,17 @@
           <label>Work / film <input class="bt-input" formControlName="work" /></label>
           <label>Category <input class="bt-input" formControlName="category" /></label>
           <label>Decade <input class="bt-input" type="number" formControlName="decade" /></label>
-          <label>Duration (seconds)
+          <label
+            >Duration (seconds)
             <input class="bt-input" type="number" formControlName="durationSeconds" />
           </label>
-          <label>Excerpt start (seconds)
+          <label
+            >Excerpt start (seconds)
             <input class="bt-input" type="number" formControlName="excerptStartSeconds" />
           </label>
-          <label class="wide">Cover image URL <input class="bt-input" formControlName="imageUrl" /></label>
+          <label class="wide"
+            >Cover image URL <input class="bt-input" formControlName="imageUrl"
+          /></label>
         </div>
         @if (editForm.invalid && editForm.touched) {
           <p class="form-error">Complete the required fields with valid values.</p>
@@ -264,7 +290,9 @@
                   <span class="alias-type">{{ alias.type }}</span>
                   <span>{{ alias.value }}</span>
                   <button type="button" (click)="editAlias(alias)">Edit</button>
-                  <button class="danger-text" type="button" (click)="deleteAlias(alias)">Delete</button>
+                  <button class="danger-text" type="button" (click)="deleteAlias(alias)">
+                    Delete
+                  </button>
                 </li>
               }
             </ul>
@@ -285,7 +313,9 @@
               {{ aliasSaving ? 'Saving…' : editingAliasId ? 'Save alias' : 'Add alias' }}
             </button>
             @if (editingAliasId) {
-              <button class="bt-btn bt-btn-ghost" type="button" (click)="cancelAliasEdit()">Cancel</button>
+              <button class="bt-btn bt-btn-ghost" type="button" (click)="cancelAliasEdit()">
+                Cancel
+              </button>
             }
           </form>
           @if (aliasError) {
@@ -314,13 +344,20 @@
         <button type="button" aria-label="Close preview" (click)="closePreview()">×</button>
       </header>
       @if (previewLoading) {
-        <div class="state-panel" role="status"><span class="spinner"></span><p>Preparing audio…</p></div>
+        <div class="state-panel" role="status">
+          <span class="spinner"></span>
+          <p>Preparing audio…</p>
+        </div>
       } @else if (previewError) {
         <div class="notice notice-error" role="alert">{{ previewError }}</div>
-        <button class="bt-btn bt-btn-ghost" type="button" (click)="openPreview(previewTrack)">Retry</button>
+        <button class="bt-btn bt-btn-ghost" type="button" (click)="openPreview(previewTrack)">
+          Retry
+        </button>
       } @else if (preview) {
         <audio controls autoplay [src]="preview.url">Your browser cannot play this audio.</audio>
-        <p class="muted">This secure preview link expires at {{ preview.expiresAt | date: 'shortTime' }}.</p>
+        <p class="muted">
+          This secure preview link expires at {{ preview.expiresAt | date: 'shortTime' }}.
+        </p>
       }
     </section>
   </div>
@@ -340,14 +377,24 @@
       </h2>
       <p>
         <strong>{{ confirmation.track.title }}</strong>
-        {{ confirmation.action === 'delete'
-          ? 'will be removed from the catalogue. Its stored media will be queued for deletion.'
-          : 'will stay in the catalogue as rejected and will not be public.' }}
+        {{
+          confirmation.action === 'delete'
+            ? 'will be removed from the catalogue. Its stored media will be queued for deletion.'
+            : 'will stay in the catalogue as rejected and will not be public.'
+        }}
       </p>
       <div class="form-actions">
-        <button class="bt-btn bt-btn-ghost" type="button" (click)="closeConfirmation()">Cancel</button>
+        <button class="bt-btn bt-btn-ghost" type="button" (click)="closeConfirmation()">
+          Cancel
+        </button>
         <button class="bt-btn bt-btn-danger" type="button" (click)="confirmAction()">
-          {{ actionTrackId ? 'Working…' : confirmation.action === 'delete' ? 'Delete track' : 'Reject track' }}
+          {{
+            actionTrackId
+              ? 'Working…'
+              : confirmation.action === 'delete'
+                ? 'Delete track'
+                : 'Reject track'
+          }}
         </button>
       </div>
     </section>

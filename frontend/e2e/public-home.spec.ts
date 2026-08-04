@@ -18,18 +18,17 @@ test.describe('public home', () => {
     await expect(page.getByRole('heading', { name: 'Trust your ears.' })).toBeVisible();
   });
 
-  test('lets an authenticated visitor continue to the existing player experience', async ({
-    page,
-  }) => {
+  test('lets an authenticated visitor continue to the player home', async ({ page }) => {
     await installSession(page);
-    await page.route('**/api/playlists', (route) => route.fulfill({ json: [] }));
     await page.goto('/');
 
     const continueLink = page.getByRole('link', { name: 'Continue as musicfan' });
     await expect(continueLink).toHaveAttribute('href', '/home');
     await continueLink.click();
 
-    await expect(page).toHaveURL(/\/lobby\/create$/);
-    await expect(page.getByRole('heading', { name: 'Configure a new game' })).toBeVisible();
+    await expect(page).toHaveURL(/\/home$/);
+    await expect(
+      page.getByRole('heading', { name: /Ready for the next track, musicfan/ }),
+    ).toBeVisible();
   });
 });

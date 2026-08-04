@@ -1,6 +1,6 @@
 <div class="admin-shell">
   <header class="bt-topbar admin-topbar">
-    <a class="bt-logo" routerLink="/lobby" aria-label="Blindtest home">
+    <a class="bt-logo" routerLink="/home" aria-label="Blindtest home">
       <span class="bt-logo-mark" aria-hidden="true"></span>
       Blindtest
     </a>
@@ -150,7 +150,11 @@
                 </p>
               </div>
               @if (selected) {
-                <button class="bt-btn bt-btn-danger bt-btn-sm" type="button" (click)="requestDelete()">
+                <button
+                  class="bt-btn bt-btn-danger bt-btn-sm"
+                  type="button"
+                  (click)="requestDelete()"
+                >
                   Delete playlist
                 </button>
               }
@@ -212,7 +216,9 @@
                           <strong>{{ track.title }}</strong>
                           <small>{{ track.artist }}</small>
                         </span>
-                        <span class="duration mono">{{ formatDuration(track.durationSeconds) }}</span>
+                        <span class="duration mono">{{
+                          formatDuration(track.durationSeconds)
+                        }}</span>
                         <span class="order-actions">
                           <button
                             type="button"
@@ -267,7 +273,9 @@
                     <label class="field">
                       <span>Name *</span>
                       <input class="bt-input" formControlName="name" aria-label="Playlist name" />
-                      @if (metadataForm.controls.name.invalid && metadataForm.controls.name.touched) {
+                      @if (
+                        metadataForm.controls.name.invalid && metadataForm.controls.name.touched
+                      ) {
                         <small>Use between 2 and 100 characters.</small>
                       }
                     </label>
@@ -289,9 +297,15 @@
                         aria-label="Playlist cover URL"
                       />
                     </label>
-                    <div class="cover-preview" [class.empty]="!metadataForm.controls.imageUrl.value">
+                    <div
+                      class="cover-preview"
+                      [class.empty]="!metadataForm.controls.imageUrl.value"
+                    >
                       @if (metadataForm.controls.imageUrl.value) {
-                        <img [src]="metadataForm.controls.imageUrl.value" alt="Playlist cover preview" />
+                        <img
+                          [src]="metadataForm.controls.imageUrl.value"
+                          alt="Playlist cover preview"
+                        />
                       } @else {
                         <span aria-hidden="true">♪</span>
                         <small>Playlist cover</small>
@@ -300,7 +314,9 @@
                     <button
                       class="bt-btn bt-btn-primary save-details"
                       type="submit"
-                      [disabled]="savingMetadata || metadataForm.invalid || (!creating && !metadataForm.dirty)"
+                      [disabled]="
+                        savingMetadata || metadataForm.invalid || (!creating && !metadataForm.dirty)
+                      "
                     >
                       @if (savingMetadata) {
                         <span class="spinner" aria-hidden="true"></span> Saving…
@@ -335,7 +351,11 @@
                   } @else if (catalogueError) {
                     <div class="catalogue-state error-text" role="alert">
                       <p>{{ catalogueError }}</p>
-                      <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="loadAvailableTracks()">
+                      <button
+                        class="bt-btn bt-btn-sm bt-btn-ghost"
+                        type="button"
+                        (click)="loadAvailableTracks()"
+                      >
                         Retry
                       </button>
                     </div>
@@ -402,7 +422,12 @@
           <button class="bt-btn bt-btn-ghost" type="button" (click)="deleteConfirmation = false">
             Cancel
           </button>
-          <button class="bt-btn bt-btn-danger" type="button" [disabled]="deleting" (click)="confirmDelete()">
+          <button
+            class="bt-btn bt-btn-danger"
+            type="button"
+            [disabled]="deleting"
+            (click)="confirmDelete()"
+          >
             {{ deleting ? 'Deleting…' : 'Delete playlist' }}
           </button>
         </div>
