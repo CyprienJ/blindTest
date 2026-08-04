@@ -85,6 +85,12 @@ remains temporarily for legacy tracks during the migration window.
   exposes stable domain errors without Spring, JPA, or transport dependencies. The
   backend-authoritative limits are 5–30 tracks and 10–60 seconds in five-second
   increments, with defaults of 15 tracks and 30 seconds.
+- The same pure game boundary uniformly samples eligible published playlist tracks
+  without replacement and independently shuffles their play order through an
+  injectable random port. Selected tracks retain detached canonical and alternative
+  answers, playback metadata, and private-media object key/checksum versions; a
+  cryptographic production adapter and deterministic seeded tests keep the policy
+  unpredictable in production and reproducible in tests.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -143,8 +149,9 @@ placeholders.
 ### Not delivered
 
 There is no session or round state model, `SessionStore`, gameplay controller,
-gameplay STOMP handler, scoring/timer/answer logic, synchronized playback, game
-history, profile management, friends, guest joining, or admin user management.
+gameplay STOMP handler, answer normalization or matching, scoring/timer logic,
+synchronized playback, game history, profile management, friends, guest joining,
+or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key
 schema, and import-pipeline integration are delivered. Legacy media can still use
 the Docker volume and `/media` URLs during migration.

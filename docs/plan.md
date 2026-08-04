@@ -10,16 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-03 — Select and snapshot tracks](#game-03--select-and-snapshot-tracks)**
+**[GAME-04 — Implement answer normalization](#game-04--implement-answer-normalization)**
 
 Status: ready
 
-GAME-02 is complete, so GAME-03 is now the earliest ready unfinished ticket in the
-recommended execution sequence. The backend authoritatively enforces the approved
-5–30 track range and 10–60 second five-second increments, while the frontend and
-OpenAPI expose matching defaults and boundaries. GAME-03 can now select and snapshot
-tracks from a validated configuration using the randomization rule in ADR-0014.
-MEDIA-08 remains deferred until real legacy files require migration.
+GAME-03 is complete, so GAME-04 is now the earliest ready unfinished ticket in the
+recommended execution sequence. The pure game boundary uniformly samples eligible
+published tracks without replacement, shuffles their play order through injectable
+randomness, and retains immutable answer, playback, and versioned private-media
+snapshots. GAME-04 can now normalize those snapshotted answers without depending on
+mutable catalogue entities. MEDIA-08 remains deferred until real legacy files require
+migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1008,6 +1009,8 @@ Acceptance:
 - boundary tests cover exact limits.
 
 #### GAME-03 — Select and snapshot tracks
+
+Status: completed on 2026-08-04.
 
 Decision: [ADR-0014](adr/0014-randomize-game-track-selection-and-order.md).
 

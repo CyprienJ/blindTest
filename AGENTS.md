@@ -85,6 +85,11 @@ Last reviewed: 2026-08-04.
   retains no mutable playlist or persistence objects. Backend-authoritative limits
   enforce 5–30 tracks and 10–60 seconds in five-second increments, with defaults of
   15 tracks and 30 seconds; OpenAPI contract tests protect those values from drift.
+- Pure game-track selection uniformly samples eligible published tracks without
+  replacement and shuffles their play order through injectable randomness. Immutable
+  snapshots retain canonical and alternative answers, playback metadata, and
+  private-media object key/checksum versions; production uses cryptographic randomness
+  while seeded tests remain deterministic.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -347,7 +352,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 293 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 305 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
