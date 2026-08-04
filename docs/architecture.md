@@ -105,6 +105,12 @@ remains temporarily for legacy tracks during the migration window.
   beyond 20. Results contain only an optional matched answer type; failures retain no
   canonical or alias text. A reviewed positive/negative corpus and a 10,000-match
   regression budget cover behavior and performance.
+- Pure title scoring uses the authoritative server acceptance instant, round
+  deadline, and configured duration. The versioned `title-linear-v1` rule awards up
+  to 1,000 points with exact integer half-up rounding and a 100-point pre-deadline
+  floor. Immutable per-round score state prevents duplicate awards; secondary or
+  rejected answers, skips, timeouts, and deadline-or-later titles award zero. The
+  arithmetic remains exact even when a duration's nanoseconds exceed `long` range.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -163,7 +169,7 @@ placeholders.
 ### Not delivered
 
 There is no session or round state model, `SessionStore`, gameplay controller,
-gameplay STOMP handler, scoring/timer logic,
+gameplay STOMP handler, round/timer logic,
 synchronized playback, game history, profile management, friends, guest joining,
 or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key

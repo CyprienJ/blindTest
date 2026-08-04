@@ -10,17 +10,18 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-06 — Implement scoring](#game-06--implement-scoring)**
+**[GAME-07 — Implement round and game state machines](#game-07--implement-round-and-game-state-machines)**
 
 Status: ready
 
-GAME-05 is complete, so GAME-06 is now the earliest ready unfinished ticket in the
-recommended execution sequence. The pure matcher deterministically checks normalized
-canonical answers and aliases, token-boundary equivalence, then length-bounded
-Unicode Damerau–Levenshtein tolerance. It returns only the matched title, artist,
-composer, or album type and keeps rejected answers opaque. GAME-06 can now award
-points only for title results under ADR-0007. MEDIA-08 remains deferred until real
-legacy files require migration.
+GAME-06 is complete, so GAME-07 is now the earliest ready unfinished ticket in the
+recommended execution sequence. The pure scoring boundary awards a correct in-time
+title from authoritative server timing with exact integer half-up arithmetic, a
+1,000-point maximum, a 100-point floor, immutable duplicate protection, and a stable
+rule version. Secondary answers, rejected guesses, skips, timeouts, and deadline-or-
+later titles award zero. GAME-07 can now compose matching and scoring into explicit
+round and game transitions. MEDIA-08 remains deferred until real legacy files require
+migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -84,8 +85,9 @@ The first release must provide:
 - A short server-enforced anti-spam cooldown may reject overly frequent attempts.
 - Timeout reveals the answer and awards zero title points.
 - Skip reveals the answer and awards zero title points.
-- The baseline scoring model is up to 1,000 points, decreasing approximately
-  linearly with elapsed time. The exact rounding rule remains a decision gate.
+- The scoring model awards up to 1,000 points, decreasing linearly with authoritative
+  elapsed server time. Correct titles accepted before the deadline receive at least
+  100 points and use positive-half-up integer rounding under ADR-0007.
 
 ### Product administration
 
@@ -1064,6 +1066,8 @@ Acceptance:
 - matching is deterministic and benchmarked.
 
 #### GAME-06 — Implement scoring
+
+Status: completed on 2026-08-04.
 
 Decision: [ADR-0007](adr/0007-title-score-rounding-and-minimum.md).
 

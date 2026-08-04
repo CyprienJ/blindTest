@@ -101,6 +101,11 @@ Last reviewed: 2026-08-04.
   tolerate one edit through 12, two through 20, and three beyond 20. Results expose
   only the matched title, artist, composer, or album type and reveal no answer text
   on failure.
+- Pure title scoring implements versioned rule `title-linear-v1` with authoritative
+  server timing, exact integer half-up arithmetic, a 1,000-point maximum, and a
+  100-point pre-deadline minimum. Immutable per-round score state makes the title
+  award idempotent; secondary/rejected answers, skips, timeouts, and deadline-or-later
+  submissions award zero.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -363,7 +368,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 351 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 366 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
