@@ -10,23 +10,34 @@ public final class SessionProtocol {
     public static final int VERSION = 1;
     public static final String WEB_SOCKET_ENDPOINT = "/ws";
     public static final String SOCK_JS_ENDPOINT = "/ws-sockjs";
+    public static final String COMMAND_DESTINATION_PREFIX = "/app/sessions/";
+    public static final String PUBLIC_EVENT_DESTINATION_PREFIX = "/topic/sessions/";
+    public static final String PRIVATE_EVENT_DESTINATION_PREFIX = "/user/queue/sessions/";
 
     private SessionProtocol() {
     }
 
     /** Returns the single inbound command destination for a session. */
     public static String commandDestination(UUID sessionId) {
-        return "/app/sessions/" + Objects.requireNonNull(sessionId, "sessionId is required");
+        return COMMAND_DESTINATION_PREFIX
+                + Objects.requireNonNull(sessionId, "sessionId is required");
     }
 
     /** Returns the shared outbound event destination for session members. */
     public static String publicEventDestination(UUID sessionId) {
-        return "/topic/sessions/" + Objects.requireNonNull(sessionId, "sessionId is required");
+        return PUBLIC_EVENT_DESTINATION_PREFIX
+                + Objects.requireNonNull(sessionId, "sessionId is required");
     }
 
     /** Returns the per-user outbound queue destination for private feedback. */
     public static String privateEventDestination(UUID sessionId) {
-        return "/user/queue/sessions/" + Objects.requireNonNull(sessionId, "sessionId is required");
+        return PRIVATE_EVENT_DESTINATION_PREFIX
+                + Objects.requireNonNull(sessionId, "sessionId is required");
+    }
+
+    /** Returns the server-side user queue suffix used with convertAndSendToUser. */
+    public static String privateEventQueue(UUID sessionId) {
+        return "/queue/sessions/" + Objects.requireNonNull(sessionId, "sessionId is required");
     }
 
     static void requireProtocolVersion(int protocolVersion) {

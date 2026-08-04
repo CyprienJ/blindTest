@@ -10,16 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-04 — Authorize WebSocket destinations](#session-04--authorize-websocket-destinations)**
+**[SESSION-05 — Orchestrate server timers](#session-05--orchestrate-server-timers)**
 
 Status: ready
 
-SESSION-03 is complete. The versioned gameplay protocol now defines idempotent
-commands, ordered public session events, participant-private feedback, recovery
-snapshots, and stable STOMP destinations. SESSION-04 is the earliest ready
-unfinished ticket and can implement membership authorization and real-connection
-integration coverage against that contract. MEDIA-08 remains deferred until real
-legacy files require migration.
+SESSION-04 is complete. STOMP connections require a valid JWT, gameplay commands
+and subscriptions are checked against active session membership, private feedback
+uses principal-scoped user queues, and real WebSocket integration tests cover both
+allowed and denied access. SESSION-05 is the earliest ready unfinished ticket and
+can orchestrate authoritative deadlines and reconnect recovery on top of the
+secured protocol. MEDIA-08 remains deferred until real legacy files require
+migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1234,6 +1235,8 @@ Acceptance:
 - commands include idempotency IDs.
 
 #### SESSION-04 — Authorize WebSocket destinations
+
+Status: completed on 2026-08-04.
 
 Work:
 

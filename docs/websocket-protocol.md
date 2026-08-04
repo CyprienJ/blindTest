@@ -1,7 +1,8 @@
 # Gameplay STOMP Protocol
 
-Status: V1 contract defined by SESSION-03. Message handling and destination
-authorization are delivered by later SESSION tickets.
+Status: V1 contract defined by SESSION-03. Authentication, membership authorization,
+and private user-queue routing are implemented by SESSION-04. Gameplay command
+handling is delivered by later SESSION tickets.
 
 ## Connection and destinations
 
@@ -24,7 +25,27 @@ the created UUID session:
 
 The client subscribes to both outbound destinations before sending `START_GAME`.
 STOMP `CONNECT` and `SUBSCRIBE` are protocol frames, not application command
-payloads. SESSION-04 adds membership authorization to these destinations.
+payloads.
+
+## Authentication and authorization
+
+- `CONNECT` must carry a valid access JWT in the native `Authorization` header.
+- Every gameplay `SEND` and `SUBSCRIBE` resolves the canonical UUID destination
+  against the active `SessionStore` and verifies that the authenticated account is
+  a participant.
+- Only the exact destinations returned by `POST /api/sessions` are accepted.
+  Malformed UUIDs, added path segments, cross-channel use, direct sends to topics or
+  queues, and attempts to name another user's queue are rejected.
+- Missing, expired, and non-member sessions share the same denial response so the
+  WebSocket boundary does not disclose whether a session identifier exists.
+- Private events are routed server-side with the authenticated principal name and
+  `convertAndSendToUser`; a client-provided recipient path is never trusted.
+
+Access-token validity is checked when the STOMP connection is established. An
+already authenticated connection may finish its active game after that token's
+expiry, subject to session membership and session expiry checks on every gameplay
+frame. A disconnected client must obtain a valid access token before reconnecting;
+tokens cannot be refreshed inside an existing STOMP connection.
 
 ## Versioning and ordering
 

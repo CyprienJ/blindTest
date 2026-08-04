@@ -775,6 +775,12 @@ Native WebSocket clients connect to `/ws`. SockJS clients use the separate
 The authoritative V1 payload contract, versioning, idempotency, and recovery rules
 are documented in [`websocket-protocol.md`](websocket-protocol.md).
 
+Gameplay `SEND` and `SUBSCRIBE` frames are authorized against the active in-memory
+session snapshot. Only exact UUID destinations are accepted, and private feedback
+uses Spring's principal-scoped user queues. JWT validity is enforced at `CONNECT`;
+an established connection remains authenticated through token expiry, while a
+reconnect requires a fresh valid token.
+
 | Destination | Recipients | Content |
 |---|---|---|
 | `/topic/sessions/{sessionId}` | Authorized session members | Shared game events |

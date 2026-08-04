@@ -1,6 +1,7 @@
 package com.blindtest.config;
 
 import com.blindtest.websocket.JwtChannelInterceptor;
+import com.blindtest.websocket.SessionDestinationAuthorizationInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -16,6 +17,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtChannelInterceptor jwtChannelInterceptor;
+    private final SessionDestinationAuthorizationInterceptor sessionAuthorizationInterceptor;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -32,6 +34,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(jwtChannelInterceptor);
+        registration.interceptors(jwtChannelInterceptor, sessionAuthorizationInterceptor);
     }
 }

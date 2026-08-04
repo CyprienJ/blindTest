@@ -140,6 +140,10 @@ Last reviewed: 2026-08-04.
   session events, participant-private feedback, and reconnect snapshots. Its Java
   payloads and destination contract are documented independently of transport
   handlers.
+- Gameplay STOMP commands and subscriptions require active session membership,
+  reject malformed or cross-channel destinations, and route private events through
+  principal-scoped user queues. Access JWTs are validated at `CONNECT`; an existing
+  connection survives token expiry, while reconnecting requires a valid token.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -236,9 +240,10 @@ The backend currently has controllers for:
 - Game history.
 - Admin user management.
 
-The solo-session creation service/controller and gameplay protocol payloads exist,
-but no gameplay STOMP command handlers consume active state yet. The WebSocket
-infrastructure currently supports authentication and import progress only.
+The solo-session creation service/controller, gameplay protocol payloads, and
+destination authorization exist, but no production gameplay command handlers
+consume active state yet. The WebSocket infrastructure can securely route gameplay
+frames but does not orchestrate them until SESSION-05.
 
 ### Implemented frontend features
 
