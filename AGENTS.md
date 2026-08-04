@@ -220,12 +220,16 @@ Last reviewed: 2026-08-04.
 - Gameplay input is bounded by a 300 ms per-player answer cooldown and a 20-command
   per-session one-second window. Repeated rate feedback is suppressed, and aggregate
   Micrometer counters contain no session, participant, account, or answer labels.
-- Flyway migrations V1 through V15 for users, refresh tokens, tracks, playlists,
+- Flyway migrations V1 through V16 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
   metadata, the media-deletion outbox, extended track metadata, active-import
   deduplication, import workflow timestamps, administrator-provisioning audit,
-  answer aliases, excerpt offsets, persisted waveform peaks, and enforced playlist
-  ordering.
+  answer aliases, excerpt offsets, persisted waveform peaks, enforced playlist
+  ordering, and catalogue-independent completed-game history snapshots.
+- Finished solo sessions are persisted as one transactional history aggregate,
+  idempotently keyed by session UUID. Concurrent duplicate inserts are confirmed
+  after rollback, transient database failures use deduplicated bounded-backoff
+  retries, and active state remains until durable completion succeeds.
 
 The backend currently has controllers for:
 
@@ -244,7 +248,7 @@ The backend currently has controllers for:
 - Friends and friend requests.
 - Session lookup/joining, including guest tokens.
 - Synchronized browser audio playback.
-- Game history.
+- Game-history REST endpoints.
 - Admin user management.
 
 The solo-session creation service/controller, gameplay protocol payloads,
@@ -423,7 +427,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 432 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 485 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;

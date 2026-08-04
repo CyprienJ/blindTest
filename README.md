@@ -24,10 +24,10 @@ each explicit work item in its post-V1 lot is counted as one provisional task.
 | Create or edit a playlist | 0 | Delivered |
 | Configure a solo game | 0 | Delivered locally and accepted by the session endpoint |
 | Play a complete solo game | 6 | UI-02–07 |
-| Refresh a persisted end summary | 10 | Solo-game path plus HIST-01–03 and UI-08 |
+| Refresh a persisted end summary | 8 | Solo-game path plus HIST-03 and UI-08 |
 | Play a multiplayer game | At least 18 | Solo-game path plus the 12 provisional Lot P2 work items |
 
-The authoritative current pointer is HIST-01. Update this table whenever ticket
+The authoritative current pointer is HIST-03. Update this table whenever ticket
 completion or roadmap dependencies change.
 
 ### Implemented
@@ -81,7 +81,11 @@ completion or roadmap dependencies change.
   media snapshots for round starts and reconnects with round-plus-buffer validity.
 - Gameplay anti-spam controls with a short per-player answer cooldown, a bounded
   per-session command burst, feedback suppression, and safe aggregate metrics.
-- PostgreSQL persistence with Flyway migrations V1 through V15.
+- PostgreSQL persistence with Flyway migrations V1 through V16, including durable
+  completed-game, participant, and ordered round snapshot tables.
+- Transactional, idempotent game-completion snapshots keyed by session identity,
+  with concurrent-insert confirmation, bounded transient retry backoff, retained
+  active state until durable success, and safe aggregate outcome metrics.
 - Administrator CRUD for title, artist, composer, and album answer aliases, plus
   a validated whole-second playback offset.
 - A Docker Compose stack containing PostgreSQL, MinIO, the Spring Boot backend,
@@ -91,7 +95,7 @@ completion or roadmap dependencies change.
 
 - A server-authoritative solo game with playlist and round configuration, answer
   matching, scoring, skip, timeout, reveal, and an end-of-game summary.
-- Persistence of completed games.
+- A refresh-safe current-game summary API backed by completed-game history.
 - Migration of imported audio to private S3-compatible storage.
 - Production hardening, broader automated tests, and complete operational checks.
 

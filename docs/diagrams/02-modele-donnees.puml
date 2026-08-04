@@ -94,33 +94,58 @@ entity FriendRequest {
 entity GameHistory {
   * id : UUID <<PK>>
   --
-  * rules_version : VARCHAR
-  * started_at : TIMESTAMP
-  * completed_at : TIMESTAMP
-  * track_count : INTEGER
-  * player_count : INTEGER
+  * session_id : UUID <<UNIQUE>>
+  * history_version : VARCHAR
+  * game_mode : VARCHAR
+  * protocol_version : SMALLINT
+  * configuration_version : VARCHAR
+  * playlist_id_snapshot : UUID
+  * requested_track_count : INTEGER
+  * maximum_round_duration_seconds : INTEGER
+  * configuration_extensions : JSON text
+  * total_score : INTEGER
+  * total_rounds : INTEGER
+  * titles_found : INTEGER
+  * skipped_rounds : INTEGER
+  * timed_out_rounds : INTEGER
+  * started_at : TIMESTAMPTZ
+  * completed_at : TIMESTAMPTZ
+  * retention_expires_at : TIMESTAMPTZ
 }
 
 entity GameHistoryPlayer {
   * id : UUID <<PK>>
   --
-  * game_id : UUID <<FK>>
+  * game_history_id : UUID <<FK>>
+  * participant_id : UUID
     user_id : UUID <<FK>>
-    guest_name : VARCHAR(50)
+  * display_name : VARCHAR(100)
+  * participant_kind : ENUM(AUTHENTICATED, GUEST)
+  * owner : BOOLEAN
   * final_score : INTEGER
-  * rank : INTEGER
+  * final_rank : INTEGER
 }
 
 entity GameHistoryRound {
   * id : UUID <<PK>>
   --
-  * game_id : UUID <<FK>>
-  * round_number : INTEGER
+  * game_history_id : UUID <<FK>>
+  * round_index : INTEGER
+    track_id_snapshot : UUID
   * title_snapshot : VARCHAR
-    artist_snapshot : VARCHAR
-  * outcome : VARCHAR
-  * score_awarded : INTEGER
-  * elapsed_millis : BIGINT
+  * artist_snapshot : VARCHAR
+    composer_snapshot : VARCHAR
+    album_snapshot : VARCHAR
+  * answer_aliases_snapshot : JSON text
+  * answer_snapshot_version : VARCHAR
+  * excerpt_start_seconds : INTEGER
+  * outcome : ENUM(TITLE_FOUND, SKIPPED, TIMEOUT)
+  * points : INTEGER
+  * scoring_rule_version : VARCHAR
+  * started_at : TIMESTAMPTZ
+  * deadline : TIMESTAMPTZ
+  * revealed_at : TIMESTAMPTZ
+  * completed_at : TIMESTAMPTZ
 }
 
 ' ── Relationships ─────────────────────────────────────────────────────
@@ -162,15 +187,17 @@ note right of Track
 end note
 
 note right of GameHistoryPlayer
-  guest_name not null
-  if user_id is null
-  (guest player)
+  user_id is nullable for future guests
+  and becomes null on account deletion.
+  Display name remains a snapshot.
 end note
 
 note bottom of GameHistory
   Immutable completed-game snapshot.
   No guesses, credentials, media URLs,
   or active-session state.
+  Playlist and track snapshot UUIDs have
+  no catalogue foreign key.
   [[../adr/0006-postgresql-history-snapshots.md ADR-0006]]
 end note
 

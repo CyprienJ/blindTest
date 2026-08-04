@@ -163,6 +163,21 @@ remains temporarily for legacy tracks during the migration window.
   window and further abusive frames are silently dropped, bounding answer matching,
   media signing, and feedback publication. Aggregate Micrometer counters use only
   the safe `player_cooldown` and `session_command` scope labels.
+- Flyway V16 and matching JPA repositories define append-oriented completed-game,
+  participant, and ordered-round snapshots. History rows retain versioned
+  configuration, canonical answers and aliases, outcome/timing/score facts, and
+  UTC retention metadata. Track and playlist UUIDs are copied without catalogue
+  foreign keys, user references are nullable with `ON DELETE SET NULL`, and owned
+  participant/round rows cascade only when their history is removed.
+- Terminal solo gameplay publishes its final version and then writes the complete
+  history aggregate in one transaction under the unique active-session UUID.
+  Ordinary replay returns the existing history; a concurrent uniqueness conflict
+  is accepted only after a fresh durable existence check. Transient database
+  failures schedule one process-local retry per session with bounded exponential
+  backoff while retaining both the immutable completion snapshot and active state.
+  Active state is version-guarded and removed only after durable success. Aggregate
+  Micrometer outcomes and identifier-free logs make failures observable without
+  exposing session, account, track, media, or answer data.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -220,8 +235,8 @@ scaffolds whose templates are placeholders.
 
 ### Not delivered
 
-There is no session lookup/join flow, synchronized browser playback, game history,
-profile management, friends, guest joining, or admin user management.
+There is no session lookup/join flow, synchronized browser playback, history REST
+API, profile management, friends, guest joining, or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key
 schema, and import-pipeline integration are delivered. Legacy media can still use
 the Docker volume and `/media` URLs during migration.

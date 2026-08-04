@@ -90,6 +90,7 @@ class SessionGameplayServiceTest {
     private SessionGameplayService service;
     private MediaStorage mediaStorage;
     private GameplayRateLimitMetrics rateLimitMetrics;
+    private GameHistoryCompletionService historyCompletionService;
 
     @BeforeEach
     void setUp() {
@@ -116,8 +117,10 @@ class SessionGameplayServiceTest {
         rateLimitMetrics = mock(GameplayRateLimitMetrics.class);
         GameplayCommandRateLimiter rateLimiter =
                 new GameplayCommandRateLimiter(rateLimitMetrics);
+        historyCompletionService = mock(GameHistoryCompletionService.class);
         service = new SessionGameplayService(
-                store, scheduler, mediaStorage, rateLimiter, publisher, identities, clock);
+                store, scheduler, mediaStorage, rateLimiter, historyCompletionService,
+                publisher, identities, clock);
         assertThat(store.create(createdSession(), clock.instant())).
                 isEqualTo(SessionCreateOutcome.CREATED);
     }
@@ -410,6 +413,7 @@ class SessionGameplayServiceTest {
                     assertThat(payload.skippedRounds()).isEqualTo(5);
                     assertThat(payload.totalScore()).isZero();
                 });
+        verify(historyCompletionService).complete(finished);
     }
 
     private void startGame() {

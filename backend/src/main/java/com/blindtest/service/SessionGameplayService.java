@@ -61,6 +61,7 @@ public class SessionGameplayService {
     private final SessionTaskScheduler scheduler;
     private final MediaStorage mediaStorage;
     private final GameplayCommandRateLimiter rateLimiter;
+    private final GameHistoryCompletionService historyCompletionService;
     private final SessionEventPublisher eventPublisher;
     private final SessionIdentityGenerator identityGenerator;
     private final Clock clock;
@@ -76,6 +77,7 @@ public class SessionGameplayService {
             SessionTaskScheduler scheduler,
             MediaStorage mediaStorage,
             GameplayCommandRateLimiter rateLimiter,
+            GameHistoryCompletionService historyCompletionService,
             SessionEventPublisher eventPublisher,
             SessionIdentityGenerator identityGenerator,
             Clock clock) {
@@ -83,6 +85,7 @@ public class SessionGameplayService {
         this.scheduler = scheduler;
         this.mediaStorage = mediaStorage;
         this.rateLimiter = rateLimiter;
+        this.historyCompletionService = historyCompletionService;
         this.eventPublisher = eventPublisher;
         this.identityGenerator = identityGenerator;
         this.clock = clock;
@@ -506,6 +509,7 @@ public class SessionGameplayService {
                             summary.titlesFound(),
                             summary.skippedRounds(),
                             summary.timedOutRounds()));
+            historyCompletionService.complete(session);
             return;
         }
         int roundIndex = session.gameState().currentRoundIndex();

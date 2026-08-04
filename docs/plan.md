@@ -10,16 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[HIST-01 — Add durable history schema](#hist-01--add-durable-history-schema)**
+**[HIST-03 — Add current-game summary endpoint](#hist-03--add-current-game-summary-endpoint)**
 
 Status: ready
 
-SESSION-07 is complete. Gameplay answers now have a 300 ms per-player cooldown,
-each session accepts a bounded burst of 20 commands per second, repeated rejection
-feedback is suppressed, and safe aggregate metrics count abusive traffic without
-identifiers or answers. HIST-01 is the earliest ready unfinished ticket and can add
-the durable schema required before completed games are persisted. MEDIA-08 remains
-deferred until real legacy files require migration.
+HIST-02 is complete. Finished solo sessions are now snapshotted transactionally
+under their unique session identity, duplicate or concurrent completion is
+idempotent, and transient database failures retain the immutable result while a
+deduplicated bounded-backoff retry is scheduled. Active state is removed only
+after durable success. HIST-03 is the earliest ready unfinished ticket and can now
+expose that durable summary after refresh. MEDIA-08 remains deferred until real
+legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1303,6 +1304,8 @@ Acceptance:
 
 #### HIST-01 — Add durable history schema
 
+Status: completed on 2026-08-04.
+
 Decision: [ADR-0011](adr/0011-data-and-rejected-media-retention.md).
 
 Work:
@@ -1319,6 +1322,8 @@ Acceptance:
 - deleting a track does not destroy historical summaries.
 
 #### HIST-02 — Persist game completion idempotently
+
+Status: completed on 2026-08-04.
 
 Work:
 

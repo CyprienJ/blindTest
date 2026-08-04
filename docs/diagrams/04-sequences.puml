@@ -122,6 +122,7 @@ actor "Player 1" as p1
 actor "Player 2" as p2
 participant "GameService" as gs
 participant "ScheduledExecutor" as sched
+database "PostgreSQL" as pg
 
 legend bottom
   Deferred post-V1 multiplayer scoring/reveal mode.
@@ -165,9 +166,17 @@ alt More tracks remaining
   gs -->> p1 : broadcast ROUND_STARTED { playbackUrl, startsAt, deadline }
   gs -->> p2 : broadcast ROUND_STARTED { playbackUrl, startsAt, deadline }
 else Last track finished
-  gs ->> gs : state = FINISHED\npersist GameHistory to DB
+  gs ->> gs : state = FINISHED
   gs -->> p1 : broadcast GAME_FINISHED { finalScores }
   gs -->> p2 : broadcast GAME_FINISHED { finalScores }
+  gs ->> pg : transactionally insert history\n(unique session_id)
+  alt durable insert or confirmed duplicate
+    pg -->> gs : durable success
+    gs ->> gs : remove active state\n(expected version)
+  else transient database failure
+    pg --x gs : transient failure
+    gs ->> sched : schedule one bounded-backoff retry\nretain immutable result and active state
+  end
 end
 
 @enduml

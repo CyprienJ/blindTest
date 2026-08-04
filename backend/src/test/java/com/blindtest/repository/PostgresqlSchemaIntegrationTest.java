@@ -17,6 +17,8 @@ import com.blindtest.service.CatalogueService;
 import com.blindtest.service.FirstAdminProvisioningResult;
 import com.blindtest.service.FirstAdminProvisioningService;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -92,7 +94,7 @@ class PostgresqlSchemaIntegrationTest {
                 Integer.class);
 
         assertThat(installedRanks).containsExactly(
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
     }
 
     @Test
@@ -133,7 +135,137 @@ class PostgresqlSchemaIntegrationTest {
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
                 """, Integer.class)).containsExactly(
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void historySnapshotsSurviveCatalogueDeletionAndAnonymizeDeletedUsers() {
+        UUID userId = UUID.randomUUID();
+        UUID trackId = UUID.randomUUID();
+        UUID historyId = UUID.randomUUID();
+        UUID sessionId = UUID.randomUUID();
+        UUID participantId = UUID.randomUUID();
+        OffsetDateTime startedAt = OffsetDateTime.of(
+                2026, 8, 4, 15, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime completedAt = startedAt.plusMinutes(3);
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO users (id, username, email, password_hash)
+                    VALUES (?, 'history-user', 'history-user@example.com', 'hash')
+                    """, userId);
+            jdbcTemplate.update("""
+                    INSERT INTO tracks (id, title, artist, audio_url, status)
+                    VALUES (?, 'Current title', 'Current artist', '/history.mp3', 'PUBLISHED')
+                    """, trackId);
+            jdbcTemplate.update("""
+                    INSERT INTO game_histories (
+                        id, session_id, history_version, game_mode, protocol_version,
+                        configuration_version, playlist_id_snapshot, requested_track_count,
+                        maximum_round_duration_seconds, configuration_extensions,
+                        total_score, total_rounds, titles_found, skipped_rounds,
+                        timed_out_rounds, started_at, completed_at, retention_expires_at
+                    ) VALUES (?, ?, 'history-v1', 'SOLO', 1, 'solo-v1', ?, 5, 30,
+                        '{"theme":"films"}', 1000, 5, 1, 2, 2, ?, ?, ?)
+                    """, historyId, sessionId, UUID.randomUUID(), startedAt, completedAt,
+                    completedAt.plusMonths(24));
+            jdbcTemplate.update("""
+                    INSERT INTO game_history_participants (
+                        game_history_id, participant_id, user_id, display_name,
+                        participant_kind, owner, final_score, final_rank
+                    ) VALUES (?, ?, ?, 'Historical player', 'AUTHENTICATED', TRUE, 1000, 1)
+                    """, historyId, participantId, userId);
+            jdbcTemplate.update("""
+                    INSERT INTO game_history_rounds (
+                        game_history_id, round_index, track_id_snapshot, title_snapshot,
+                        artist_snapshot, composer_snapshot, album_snapshot,
+                        answer_aliases_snapshot, answer_snapshot_version,
+                        excerpt_start_seconds, outcome, points, scoring_rule_version,
+                        started_at, deadline, revealed_at, completed_at
+                    ) VALUES (?, 0, ?, 'Snapshot title', 'Snapshot artist',
+                        'Snapshot composer', 'Snapshot album', '{"TITLE":["Alias title"]}',
+                        'answers-v1', 12, 'TITLE_FOUND', 1000, 'title-linear-v1', ?, ?, ?, ?)
+                    """, historyId, trackId, startedAt, startedAt.plusSeconds(30),
+                    startedAt.plusSeconds(1), startedAt.plusSeconds(5));
+
+            jdbcTemplate.update("DELETE FROM tracks WHERE id = ?", trackId);
+
+            assertThat(jdbcTemplate.queryForObject("""
+                    SELECT title_snapshot FROM game_history_rounds
+                    WHERE game_history_id = ? AND round_index = 0
+                    """, String.class, historyId)).isEqualTo("Snapshot title");
+            assertThat(jdbcTemplate.queryForObject("""
+                    SELECT track_id_snapshot FROM game_history_rounds
+                    WHERE game_history_id = ? AND round_index = 0
+                    """, UUID.class, historyId)).isEqualTo(trackId);
+            assertThat(jdbcTemplate.queryForObject("""
+                    SELECT answer_aliases_snapshot FROM game_history_rounds
+                    WHERE game_history_id = ? AND round_index = 0
+                    """, String.class, historyId)).contains("Alias title");
+
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
+            assertThat(jdbcTemplate.queryForObject("""
+                    SELECT user_id FROM game_history_participants
+                    WHERE game_history_id = ?
+                    """, UUID.class, historyId)).isNull();
+            assertThat(jdbcTemplate.queryForObject("""
+                    SELECT display_name FROM game_history_participants
+                    WHERE game_history_id = ?
+                    """, String.class, historyId)).isEqualTo("Historical player");
+        } finally {
+            jdbcTemplate.update("DELETE FROM game_histories WHERE id = ?", historyId);
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
+            jdbcTemplate.update("DELETE FROM tracks WHERE id = ?", trackId);
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void databaseRejectsInvalidHistoryRetentionAndRoundFacts() {
+        UUID historyId = UUID.randomUUID();
+        OffsetDateTime completedAt = OffsetDateTime.of(
+                2026, 8, 4, 15, 5, 0, 0, ZoneOffset.UTC);
+
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO game_histories (
+                    id, session_id, history_version, game_mode, protocol_version,
+                    configuration_version, playlist_id_snapshot, requested_track_count,
+                    maximum_round_duration_seconds, total_score, total_rounds,
+                    titles_found, skipped_rounds, timed_out_rounds, started_at,
+                    completed_at, retention_expires_at
+                ) VALUES (?, ?, 'history-v1', 'SOLO', 1, 'solo-v1', ?, 5, 30,
+                    0, 5, 0, 0, 5, ?, ?, ?)
+                """, historyId, UUID.randomUUID(), UUID.randomUUID(),
+                completedAt.minusMinutes(3), completedAt, completedAt.plusMonths(24).plusDays(1))).
+                isInstanceOf(DataIntegrityViolationException.class).
+                hasMessageContaining("chk_game_histories_retention");
+
+        jdbcTemplate.update("""
+                INSERT INTO game_histories (
+                    id, session_id, history_version, game_mode, protocol_version,
+                    configuration_version, playlist_id_snapshot, requested_track_count,
+                    maximum_round_duration_seconds, total_score, total_rounds,
+                    titles_found, skipped_rounds, timed_out_rounds, started_at,
+                    completed_at, retention_expires_at
+                ) VALUES (?, ?, 'history-v1', 'SOLO', 1, 'solo-v1', ?, 5, 30,
+                    0, 5, 0, 0, 5, ?, ?, ?)
+                """, historyId, UUID.randomUUID(), UUID.randomUUID(),
+                completedAt.minusMinutes(3), completedAt, completedAt.plusMonths(24));
+        try {
+            assertThatThrownBy(() -> jdbcTemplate.update("""
+                    INSERT INTO game_history_rounds (
+                        game_history_id, round_index, title_snapshot, artist_snapshot,
+                        answer_snapshot_version, excerpt_start_seconds, outcome, points,
+                        scoring_rule_version, started_at, deadline, revealed_at, completed_at
+                    ) VALUES (?, 0, 'Title', 'Artist', 'answers-v1', 0, 'TIMEOUT', 100,
+                        'title-linear-v1', ?, ?, ?, ?)
+                    """, historyId, completedAt.minusSeconds(30), completedAt,
+                    completedAt, completedAt)).
+                    isInstanceOf(DataIntegrityViolationException.class).
+                    hasMessageContaining("chk_game_history_round_points");
+        } finally {
+            jdbcTemplate.update("DELETE FROM game_histories WHERE id = ?", historyId);
+        }
     }
 
     @Test
