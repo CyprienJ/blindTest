@@ -129,6 +129,11 @@ remains temporarily for legacy tracks during the migration window.
   categories. A new discovery discloses its category privately; `ALREADY_FOUND`,
   title, and rejected outcomes disclose no secondary category and do not mutate
   round lifecycle or score state. Title remains available to the round state machine.
+- The pure game suite closes the domain lot with reviewed matching corpora, the
+  10,000-match regression budget, deterministic property sweeps over normalization,
+  scoring, and seeded selection, all 20 round action/state combinations, and a full
+  five-round solo scenario using explicit test time. The game-test package imports
+  no Spring, persistence, WebSocket, PostgreSQL, Testcontainers, or MinIO APIs.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts

@@ -10,18 +10,19 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-10 — Add exhaustive domain tests](#game-10--add-exhaustive-domain-tests)**
+**[SESSION-01 — Add active session models and store port](#session-01--add-active-session-models-and-store-port)**
 
 Status: ready
 
-GAME-09 is complete, so GAME-10 is now the earliest ready unfinished ticket in the
-recommended execution sequence. An immutable discovery ledger uses opaque game-
-participant identities and exposes only participant-scoped projections. New artist,
-composer, and album discoveries return their category privately; repeats return
-`ALREADY_FOUND` without a category, and title/no-match routing preserves the ledger,
-round lifecycle, and score. GAME-10 can now consolidate exhaustive tests across the
-complete pure solo-game domain. MEDIA-08 remains deferred until real legacy files
-require migration.
+GAME-10 is complete, closing the pure solo-game domain lot, so SESSION-01 is now the
+earliest ready unfinished ticket in the recommended execution sequence. The domain
+suite combines reviewed normalization/matching corpora, a 10,000-match performance
+guard, deterministic property sweeps for scoring/normalization/selection, an
+exhaustive round-transition matrix, and a complete five-round scenario driven by an
+injected test clock and seeded randomness. Its imports remain free of Spring,
+persistence, WebSocket, PostgreSQL, Testcontainers, and MinIO. SESSION-01 can now
+wrap this domain in concurrency-safe active session state. MEDIA-08 remains deferred
+until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1141,6 +1142,8 @@ Acceptance:
   projections prepared for future multiplayer.
 
 #### GAME-10 — Add exhaustive domain tests
+
+Status: completed on 2026-08-04.
 
 Work:
 

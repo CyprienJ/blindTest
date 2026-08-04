@@ -121,6 +121,11 @@ Last reviewed: 2026-08-04.
   composer, or album discoveries disclose their category, while repeats return
   `ALREADY_FOUND` without a category. Title and rejected matches leave discovery,
   round, and score state unchanged.
+- Pure game-domain tests include reviewed answer corpora, a 10,000-match performance
+  budget, deterministic property sweeps for normalization/scoring/selection, an
+  exhaustive 20-cell round transition matrix, and a five-round solo scenario using
+  an explicit test clock and seeded randomness. The package has no Spring,
+  persistence, WebSocket, PostgreSQL, Testcontainers, or MinIO imports.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -383,7 +388,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 389 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 413 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
