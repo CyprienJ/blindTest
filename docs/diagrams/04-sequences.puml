@@ -27,7 +27,7 @@ ss -->> rest : GameSession { code: "XK9F2A" }
 rest -->> host : 201 { sessionCode, state: LOBBY }
 
 host ->> ws : CONNECT (JWT)
-host ->> ws : SUBSCRIBE /topic/session/XK9F2A
+host ->> ws : SUBSCRIBE /topic/sessions/{sessionId}
 ws -->> host : CONNECTED
 
 == Join via Friend Invite ==
@@ -43,7 +43,7 @@ ss -->> rest : { sessionToken }
 rest -->> friend : 200 { sessionToken, userId }
 
 friend ->> ws : CONNECT (sessionToken)
-friend ->> ws : SUBSCRIBE /topic/session/XK9F2A
+friend ->> ws : SUBSCRIBE /topic/sessions/{sessionId}
 ws ->> ss : registerSocket(userId: B, sessionId)
 ss ->> ws : broadcast PLAYER_JOINED
 ws -->> host : PLAYER_JOINED { displayName: B }
@@ -58,7 +58,7 @@ ss -->> rest : { sessionToken, userId: guest_xyz }
 rest -->> guest : 200 { sessionToken, userId }
 
 guest ->> ws : CONNECT (sessionToken)
-guest ->> ws : SUBSCRIBE /topic/session/XK9F2A
+guest ->> ws : SUBSCRIBE /topic/sessions/{sessionId}
 ss ->> ws : broadcast PLAYER_JOINED
 ws -->> host : PLAYER_JOINED { displayName: "Bob" }
 ws -->> friend : PLAYER_JOINED { displayName: "Bob" }
@@ -83,15 +83,15 @@ legend bottom
   [[../adr/0005-private-s3-media-and-presigned-playback.md ADR-0005]] pre-signed playback
 endlegend
 
-host ->> gs : SEND /app/session/XK9F2A/start
+host ->> gs : SEND /app/sessions/{sessionId}\n{ protocolVersion: 1, commandId, expectedSessionVersion, type: START_GAME }
 
 gs ->> gs : state = PLAYING\nstartAt = now() + 3000ms
 
 gs ->> sched : schedule(onTimerExpired,\n  startAt + timerSeconds * 1000)
 
-gs -->> host : broadcast ROUND_START\n{ audioUrl, startAt: T, timerSeconds: 30 }
-gs -->> p1 : broadcast ROUND_START\n{ audioUrl, startAt: T }
-gs -->> p2 : broadcast ROUND_START\n{ audioUrl, startAt: T }
+gs -->> host : broadcast ROUND_STARTED\n{ playbackUrl, startsAt: T, deadline }
+gs -->> p1 : broadcast ROUND_STARTED\n{ playbackUrl, startsAt: T, deadline }
+gs -->> p2 : broadcast ROUND_STARTED\n{ playbackUrl, startsAt: T, deadline }
 
 note over host, p2
   Each client computes: delay = startAt - Date.now()
@@ -131,14 +131,14 @@ endlegend
 
 == Round in Progress ==
 
-p1 ->> gs : SEND /app/session/XK9F2A/answer\n{ text: "Smells Like Teen Spirit" }
+p1 ->> gs : SEND /app/sessions/{sessionId}\n{ protocolVersion: 1, commandId, expectedSessionVersion,\n  type: SUBMIT_ANSWER, answer: "Smells Like Teen Spirit" }
 gs ->> gs : normalize() → correct ✓\nscore P1 += 100 + speedBonus\nfoundPlayers.add(P1)
-gs -->> p1 : broadcast PLAYER_FOUND\n{ userId: P1, score: 850 }
-gs -->> p2 : broadcast PLAYER_FOUND\n{ userId: P1, score: 850 }
+gs -->> p1 : broadcast SCORE_UPDATED\n{ participantId: P1, roundPoints: 850, totalScore }
+gs -->> p2 : broadcast SCORE_UPDATED\n{ participantId: P1, roundPoints: 850, totalScore }
 
 note over gs : Mode 2 → waiting for P2 or timer
 
-p2 ->> gs : SEND answer\n{ text: "smells like teen spirit" }
+p2 ->> gs : SEND /app/sessions/{sessionId}\n{ protocolVersion: 1, commandId, expectedSessionVersion,\n  type: SUBMIT_ANSWER, answer: "smells like teen spirit" }
 gs ->> gs : normalize() → correct ✓\nscore P2 += 60\nfoundPlayers.add(P2)\nallPlayersFound() → true
 gs ->> sched : cancel timer
 gs ->> gs : roundState = REVEALED
@@ -162,8 +162,8 @@ gs -->> p2 : broadcast ROUND_REVEALED
 sched ->> gs : nextRound()
 gs ->> gs : currentTrackIndex++
 alt More tracks remaining
-  gs -->> p1 : broadcast ROUND_START { audioUrl, startAt }
-  gs -->> p2 : broadcast ROUND_START { audioUrl, startAt }
+  gs -->> p1 : broadcast ROUND_STARTED { playbackUrl, startsAt, deadline }
+  gs -->> p2 : broadcast ROUND_STARTED { playbackUrl, startsAt, deadline }
 else Last track finished
   gs ->> gs : state = FINISHED\npersist GameHistory to DB
   gs -->> p1 : broadcast GAME_FINISHED { finalScores }

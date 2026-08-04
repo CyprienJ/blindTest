@@ -363,9 +363,14 @@ components:
     SessionConnectionInstructions:
       type: object
       required:
-        [webSocketEndpoint, sockJsEndpoint, commandDestination,
+        [protocolVersion, webSocketEndpoint, sockJsEndpoint, commandDestination,
          eventDestination, privateDestination]
       properties:
+        protocolVersion:
+          type: integer
+          minimum: 1
+          example: 1
+          description: Gameplay STOMP payload protocol version.
         webSocketEndpoint:
           type: string
           example: /ws

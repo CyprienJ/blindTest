@@ -166,6 +166,7 @@ class SessionControllerIntegrationTest {
                 andExpect(jsonPath("$.state").value("CREATED")).
                 andExpect(jsonPath("$.version").value(0)).
                 andExpect(jsonPath("$.expiresAt").isNotEmpty()).
+                andExpect(jsonPath("$.connection.protocolVersion").value(1)).
                 andExpect(jsonPath("$.connection.webSocketEndpoint").value("/ws")).
                 andExpect(jsonPath("$.connection.sockJsEndpoint").value("/ws-sockjs")).
                 andExpect(jsonPath("$.connection.commandDestination").

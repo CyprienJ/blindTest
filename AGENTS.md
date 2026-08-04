@@ -136,6 +136,10 @@ Last reviewed: 2026-08-04.
   through `POST /api/sessions`. Creation authoritatively validates configuration,
   randomly snapshots published private-media tracks and aliases, creates the owner
   participant at version zero, and returns expiry plus STOMP connection destinations.
+- Gameplay STOMP protocol V1 defines versioned idempotent commands, ordered public
+  session events, participant-private feedback, and reconnect snapshots. Its Java
+  payloads and destination contract are documented independently of transport
+  handlers.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -232,9 +236,9 @@ The backend currently has controllers for:
 - Game history.
 - Admin user management.
 
-The solo-session creation service/controller exists, but no gameplay STOMP command
-handlers consume its active state yet. The WebSocket infrastructure currently
-supports authentication and import progress only.
+The solo-session creation service/controller and gameplay protocol payloads exist,
+but no gameplay STOMP command handlers consume active state yet. The WebSocket
+infrastructure currently supports authentication and import progress only.
 
 ### Implemented frontend features
 

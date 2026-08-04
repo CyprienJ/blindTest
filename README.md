@@ -23,11 +23,11 @@ each explicit work item in its post-V1 lot is counted as one provisional task.
 | Import and publish a song | 0 | Delivered |
 | Create or edit a playlist | 0 | Delivered |
 | Configure a solo game | 0 | Delivered locally and accepted by the session endpoint |
-| Play a complete solo game | 10 | SESSION-03–06 and UI-02–07 |
-| Refresh a persisted end summary | 14 | Solo-game path plus HIST-01–03 and UI-08 |
-| Play a multiplayer game | At least 22 | Solo-game path plus the 12 provisional Lot P2 work items |
+| Play a complete solo game | 9 | SESSION-04–06 and UI-02–07 |
+| Refresh a persisted end summary | 13 | Solo-game path plus HIST-01–03 and UI-08 |
+| Play a multiplayer game | At least 21 | Solo-game path plus the 12 provisional Lot P2 work items |
 
-The authoritative current pointer is SESSION-03. Update this table whenever ticket
+The authoritative current pointer is SESSION-04. Update this table whenever ticket
 completion or roadmap dependencies change.
 
 ### Implemented
@@ -69,6 +69,8 @@ completion or roadmap dependencies change.
 - Authenticated solo-session creation for verified accounts, with authoritative
   configuration validation, randomized immutable track/alias/media snapshots,
   independent sequential games, and returned STOMP connection instructions.
+- A documented, versioned gameplay STOMP contract with idempotent commands,
+  ordered public events, participant-private feedback, and recovery snapshots.
 - PostgreSQL persistence with Flyway migrations V1 through V15.
 - Administrator CRUD for title, artist, composer, and album answer aliases, plus
   a validated whole-second playback offset.

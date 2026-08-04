@@ -37,6 +37,7 @@ import com.blindtest.repository.UserRepository;
 import com.blindtest.service.port.SessionIdentityGenerator;
 import com.blindtest.store.SessionCreateOutcome;
 import com.blindtest.store.SessionStore;
+import com.blindtest.websocket.protocol.SessionProtocol;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -217,7 +218,6 @@ public class SoloSessionService {
     private SoloSessionResponse response(
             ActiveSessionSnapshot snapshot,
             GameParticipantId participantId) {
-        String id = snapshot.sessionId().value().toString();
         return new SoloSessionResponse(
                 snapshot.sessionId().value(),
                 participantId.value(),
@@ -225,11 +225,12 @@ public class SoloSessionService {
                 snapshot.version(),
                 snapshot.expiresAt(),
                 new SessionConnectionInstructions(
-                        "/ws",
-                        "/ws-sockjs",
-                        "/app/sessions/" + id,
-                        "/topic/sessions/" + id,
-                        "/user/queue/sessions/" + id));
+                        SessionProtocol.VERSION,
+                        SessionProtocol.WEB_SOCKET_ENDPOINT,
+                        SessionProtocol.SOCK_JS_ENDPOINT,
+                        SessionProtocol.commandDestination(snapshot.sessionId().value()),
+                        SessionProtocol.publicEventDestination(snapshot.sessionId().value()),
+                        SessionProtocol.privateEventDestination(snapshot.sessionId().value())));
     }
 
     private boolean hasText(String value) {

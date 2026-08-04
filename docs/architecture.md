@@ -770,37 +770,37 @@ Header: Authorization: Bearer <JWT or sessionToken>
 Native WebSocket clients connect to `/ws`. SockJS clients use the separate
 `/ws-sockjs` fallback endpoint.
 
-### Subscription Topics (server → clients)
+### Gameplay destinations
 
-| Topic | Recipients | Content |
+The authoritative V1 payload contract, versioning, idempotency, and recovery rules
+are documented in [`websocket-protocol.md`](websocket-protocol.md).
+
+| Destination | Recipients | Content |
 |---|---|---|
-| `/topic/session/{code}` | All players in a session | Game events |
+| `/topic/sessions/{sessionId}` | Authorized session members | Shared game events |
+| `/user/queue/sessions/{sessionId}` | One authenticated participant | Private feedback and recovery |
 | `/user/queue/notifications` | 1 connected user | Invitations, friend requests |
-| `/user/queue/private` | 1 user (ACK, errors) | Private messages |
 | `/user/queue/import/{jobId}` | 1 admin | Import progress |
 
-### Send Destinations (client → server)
+### Gameplay commands (client → server)
 
 | Destination | Description |
 |---|---|
-| `/app/session/{code}/start` | Host starts the game |
-| `/app/session/{code}/answer` | Submit an answer `{ text }` |
-| `/app/session/{code}/vote-skip` | Vote to skip |
-| `/app/session/{code}/next` | Host skips manually |
+| `/app/sessions/{sessionId}` | Versioned `START_GAME`, `SUBMIT_ANSWER`, `SKIP_ROUND`, or `REQUEST_SNAPSHOT` command |
 
-### Game Event Types (`/topic/session/{code}`)
+### Shared gameplay event types (`/topic/sessions/{sessionId}`)
 
 | Type | Trigger |
 |---|---|
-| `PLAYER_JOINED` | A player joins the lobby |
-| `PLAYER_LEFT` | A player leaves |
-| `GAME_STARTED` | The game starts |
-| `ROUND_START` | New round (contains `audioUrl` + `startAt`) |
-| `PLAYER_FOUND` | A player found the answer |
+| `SESSION_READY` | Initial safe session projection |
+| `ROUND_PREPARING` | New round is being prepared |
+| `ROUND_STARTED` | New round with playback URL and authoritative timestamps |
 | `ROUND_REVEALED` | Reveal of the correct answer + scores |
-| `ROUND_END` | End of round |
-| `SKIP_VOTE` | Skip vote update |
+| `SCORE_UPDATED` | Authoritative participant score changed |
 | `GAME_FINISHED` | End of game |
+
+Private `SECONDARY_MATCH`, `ANSWER_REJECTED`, `CURRENT_SNAPSHOT`, and `ERROR`
+events use `/user/queue/sessions/{sessionId}` and are never broadcast to the topic.
 
 ### Notification Events (`/user/queue/notifications`)
 
@@ -838,7 +838,7 @@ sequenceDiagram
     Friend->>REST: POST /api/sessions/XK9F2A/join
     Note over Friend,REST: With their JWT (no guestName required)
     REST-->>Friend: 200 { sessionToken }
-    Friend->>WS: CONNECT + SUBSCRIBE /topic/session/XK9F2A
+    Friend->>WS: CONNECT + SUBSCRIBE /topic/sessions/{sessionId}
     WS-->>Host: PLAYER_JOINED { displayName: B }
 ```
 
@@ -886,12 +886,12 @@ sequenceDiagram
     actor P2 as Player 2
     participant GS as GameService
 
-    Host->>GS: SEND /app/session/XK9F2A/start
+    Host->>GS: SEND /app/sessions/{sessionId} { protocolVersion: 1, commandId, expectedSessionVersion, type: START_GAME }
     GS->>GS: startAt = now() + 3000ms
     GS->>GS: scheduleTimer(startAt + timerSeconds * 1000)
-    GS-->>Host: ROUND_START { audioUrl, startAt, timerSeconds }
-    GS-->>P1: ROUND_START { audioUrl, startAt }
-    GS-->>P2: ROUND_START { audioUrl, startAt }
+    GS-->>Host: ROUND_STARTED { playbackUrl, startsAt, deadline }
+    GS-->>P1: ROUND_STARTED { playbackUrl, startsAt, deadline }
+    GS-->>P2: ROUND_STARTED { playbackUrl, startsAt, deadline }
 
     Note over Host,P2: All load and play at the exact startAt
     Host->>Host: audio.play() at startAt
@@ -1038,7 +1038,7 @@ src/app/
 Server                          Clients
    │                               │
    │  startAt = now() + 3000ms     │
-   │──── ROUND_START ─────────────►│
+   │──── ROUND_STARTED ───────────►│
    │                               │ audio.load(url)
    │                               │ setTimeout(play, startAt - Date.now())
    │  scheduleRoundEnd(startAt     │
@@ -1063,7 +1063,7 @@ schedulePlay(audioUrl: string, startAt: number): void {
 | Case | Behaviour |
 |---|---|
 | Arrival after `startAt` | Immediate play with `currentTime = lag / 1000` |
-| Reconnection mid-round | Server sends `ROUND_START` with original `startAt` + `elapsed` |
+| Reconnection mid-round | Client requests `CURRENT_SNAPSHOT`, which retains original `startsAt`, `deadline`, and playback URL |
 | Slow network | 3s buffer absorbs typical latencies |
 
 ---

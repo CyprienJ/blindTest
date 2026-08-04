@@ -10,18 +10,16 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-03 — Define STOMP commands and events](#session-03--define-stomp-commands-and-events)**
+**[SESSION-04 — Authorize WebSocket destinations](#session-04--authorize-websocket-destinations)**
 
 Status: ready
 
-HOME-01 and HOME-02 are complete, so SESSION-03 is again the earliest ready
-unfinished ticket in the recommended execution sequence. Public and authenticated
-entry points now route users to delivered features, restore authenticated access,
-and expose administrator playlist navigation only by role. A verified authenticated
-account can already create independent solo sessions through `POST /api/sessions`;
-SESSION-03 can now define the versioned commands and events used by the returned
-STOMP destinations. MEDIA-08 remains deferred until real legacy files require
-migration.
+SESSION-03 is complete. The versioned gameplay protocol now defines idempotent
+commands, ordered public session events, participant-private feedback, recovery
+snapshots, and stable STOMP destinations. SESSION-04 is the earliest ready
+unfinished ticket and can implement membership authorization and real-connection
+integration coverage against that contract. MEDIA-08 remains deferred until real
+legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1207,6 +1205,8 @@ Acceptance:
 - one user can create multiple sequential games safely.
 
 #### SESSION-03 — Define STOMP commands and events
+
+Status: completed on 2026-08-04.
 
 Commands:
 

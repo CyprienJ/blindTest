@@ -1,0 +1,158 @@
+# Gameplay STOMP Protocol
+
+Status: V1 contract defined by SESSION-03. Message handling and destination
+authorization are delivered by later SESSION tickets.
+
+## Connection and destinations
+
+Clients use STOMP 1.2 and authenticate the `CONNECT` frame:
+
+```text
+WebSocket: /ws
+SockJS fallback: /ws-sockjs
+Authorization: Bearer <access-token>
+```
+
+`POST /api/sessions` returns the protocol version and the exact destinations for
+the created UUID session:
+
+| Direction | Destination | Purpose |
+|---|---|---|
+| client → server | `/app/sessions/{sessionId}` | All gameplay commands |
+| server → session | `/topic/sessions/{sessionId}` | Shared authoritative events |
+| server → player | `/user/queue/sessions/{sessionId}` | Private feedback and recovery |
+
+The client subscribes to both outbound destinations before sending `START_GAME`.
+STOMP `CONNECT` and `SUBSCRIBE` are protocol frames, not application command
+payloads. SESSION-04 adds membership authorization to these destinations.
+
+## Versioning and ordering
+
+The current `protocolVersion` is `1`. Every command includes it directly and every
+event includes it in `metadata`. A server supporting only V1 rejects another
+version rather than guessing its shape.
+
+Every command contains:
+
+- `commandId`: client-generated UUID used as its idempotency identity;
+- `expectedSessionVersion`: last authoritative session version rendered by the
+  client;
+- `type`: stable command discriminator;
+- `answer`: required only for `SUBMIT_ANSWER`, otherwise `null` or omitted.
+
+Every event contains metadata with a server-generated `eventId`, `sessionId`,
+monotonically increasing `sessionVersion`, and authoritative `occurredAt` instant.
+Clients ignore an event older than their rendered session version and replace
+local state from `CURRENT_SNAPSHOT` after reconnect.
+
+## Commands
+
+```json
+{
+  "protocolVersion": 1,
+  "commandId": "33333333-3333-4333-8333-333333333333",
+  "expectedSessionVersion": 7,
+  "type": "SUBMIT_ANSWER",
+  "answer": "Take on me"
+}
+```
+
+| Type | Additional data | Meaning |
+|---|---|---|
+| `START_GAME` | none | Owner requests the first round |
+| `SUBMIT_ANSWER` | non-blank `answer` | Participant submits one guess |
+| `SKIP_ROUND` | none | Participant requests the current round to be skipped |
+| `REQUEST_SNAPSHOT` | none | Requests private recovery state from the expected version |
+
+All four command types carry an idempotency UUID. Duplicate, stale, unauthorized,
+and out-of-state behavior is enforced by the command-handling tickets; this
+contract ensures the required correlation data is always present.
+
+## Shared events
+
+Shared events use this envelope and are published only to the member-authorized
+session topic:
+
+```json
+{
+  "metadata": {
+    "protocolVersion": 1,
+    "eventId": "44444444-4444-4444-8444-444444444444",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "sessionVersion": 8,
+    "occurredAt": "2026-08-04T13:00:00Z"
+  },
+  "type": "ROUND_STARTED",
+  "payload": {
+    "roundIndex": 2,
+    "totalRounds": 10,
+    "startsAt": "2026-08-04T13:00:02Z",
+    "deadline": "2026-08-04T13:00:32Z",
+    "excerptStartSeconds": 15,
+    "playbackUrl": "https://media.example/audio.mp3?signature=short-lived"
+  }
+}
+```
+
+| Type | Payload |
+|---|---|
+| `SESSION_READY` | game `state`, `totalRounds`, `expiresAt` |
+| `ROUND_PREPARING` | `roundIndex`, `totalRounds` |
+| `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset, short-lived `playbackUrl` |
+| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, round and total points, `transitionAt` |
+| `SCORE_UPDATED` | `participantId`, round points, total score |
+| `GAME_FINISHED` | total score and title/skip/timeout aggregate counts |
+
+The server never publishes an object-storage key. SESSION-06 supplies the
+short-lived playback URL when it implements round playback resolution.
+
+## Private events
+
+Private events are sent through the recipient's user queue. They add
+`recipientParticipantId` and an optional `commandId` to the common metadata. The
+command ID is mandatory for command feedback and may be absent only for an
+asynchronous `ERROR`.
+
+```json
+{
+  "metadata": {
+    "protocolVersion": 1,
+    "eventId": "44444444-4444-4444-8444-444444444444",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "sessionVersion": 8,
+    "occurredAt": "2026-08-04T13:00:00Z"
+  },
+  "recipientParticipantId": "22222222-2222-4222-8222-222222222222",
+  "commandId": "33333333-3333-4333-8333-333333333333",
+  "type": "SECONDARY_MATCH",
+  "payload": {
+    "answerType": "ARTIST",
+    "matchedValue": "a-ha",
+    "alreadyFound": false
+  }
+}
+```
+
+| Type | Payload |
+|---|---|
+| `SECONDARY_MATCH` | secondary `answerType`, display value, `alreadyFound` |
+| `ANSWER_REJECTED` | stable rejection `reason`, optional cooldown `retryAt` |
+| `CURRENT_SNAPSHOT` | game/round state, score, playback/reveal projection, only this player's secondary discoveries, expiry |
+| `ERROR` | stable `code`, safe `message`, `recoverable` |
+
+`ANSWER_REJECTED.reason` is one of `WRONG_ANSWER`, `ALREADY_FOUND`, `COOLDOWN`,
+`STALE_SESSION_VERSION`, `INVALID_ROUND_STATE`, or `DUPLICATE_COMMAND`.
+`retryAt` is present only for `COOLDOWN`.
+
+Title success is never a `SECONDARY_MATCH`: it ends the round and is represented by
+the shared reveal/score events. Artist, composer, and album discoveries remain in
+the private queue and in only that participant's recovery snapshot.
+
+## Evolution rules
+
+- Existing discriminator meanings and required fields do not change within V1.
+- Additive optional fields may be introduced only when old clients can ignore them.
+- Breaking shape or semantic changes require a new `protocolVersion` and explicit
+  server/client support during rollout.
+- Event timestamps and versions are server authoritative; browser clocks and local
+  ordering never decide score or state transitions.
