@@ -91,6 +91,12 @@ remains temporarily for legacy tracks during the migration window.
   answers, playback metadata, and private-media object key/checksum versions; a
   cryptographic production adapter and deterministic seeded tests keep the policy
   unpredictable in production and reproducible in tests.
+- Gameplay answer normalization is also pure and locale-independent. It performs
+  Unicode compatibility decomposition, root-locale case folding, accent removal,
+  punctuation and symbol separation, whitespace/token normalization, and optional
+  removal of one common French or English leading article without emptying a
+  one-token answer. The output retains immutable normalized text and tokens for the
+  later matcher.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -149,7 +155,7 @@ placeholders.
 ### Not delivered
 
 There is no session or round state model, `SessionStore`, gameplay controller,
-gameplay STOMP handler, answer normalization or matching, scoring/timer logic,
+gameplay STOMP handler, answer matching, scoring/timer logic,
 synchronized playback, game history, profile management, friends, guest joining,
 or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key

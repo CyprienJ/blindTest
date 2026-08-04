@@ -10,17 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-04 — Implement answer normalization](#game-04--implement-answer-normalization)**
+**[GAME-05 — Implement tolerant matching and aliases](#game-05--implement-tolerant-matching-and-aliases)**
 
 Status: ready
 
-GAME-03 is complete, so GAME-04 is now the earliest ready unfinished ticket in the
-recommended execution sequence. The pure game boundary uniformly samples eligible
-published tracks without replacement, shuffles their play order through injectable
-randomness, and retains immutable answer, playback, and versioned private-media
-snapshots. GAME-04 can now normalize those snapshotted answers without depending on
-mutable catalogue entities. MEDIA-08 remains deferred until real legacy files require
-migration.
+GAME-04 is complete, so GAME-05 is now the earliest ready unfinished ticket in the
+recommended execution sequence. Gameplay normalization is locale-independent and
+produces immutable normalized text and tokens after Unicode compatibility handling,
+case/accent folding, punctuation separation, whitespace collapse, and an explicit
+common-leading-article policy. GAME-05 can now build exact and tolerant matching over
+that stable boundary and the aliases snapshotted by GAME-03. MEDIA-08 remains deferred
+until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1027,6 +1027,8 @@ Acceptance:
 - active game answers do not change after catalogue edits.
 
 #### GAME-04 — Implement answer normalization
+
+Status: completed on 2026-08-04.
 
 Work:
 

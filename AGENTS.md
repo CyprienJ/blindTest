@@ -90,6 +90,11 @@ Last reviewed: 2026-08-04.
   snapshots retain canonical and alternative answers, playback metadata, and
   private-media object key/checksum versions; production uses cryptographic randomness
   while seeded tests remain deterministic.
+- Pure gameplay answer normalization produces immutable normalized text and tokens
+  using Unicode compatibility decomposition, root-locale case folding, accent
+  removal, punctuation/symbol separation, whitespace collapse, and configurable
+  removal of one common French or English leading article. One-token answers are
+  never emptied by the article policy.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -352,7 +357,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 305 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 323 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
