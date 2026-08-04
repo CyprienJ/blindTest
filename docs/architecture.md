@@ -146,6 +146,14 @@ remains temporarily for legacy tracks during the migration window.
   selects and freezes snapshot-capable published tracks and aliases, creates the
   owner participant at version zero with a bounded initial lifetime, and returns
   native/SockJS endpoints plus public, private, and command STOMP destinations.
+- Gameplay commands are handled against the active snapshot by a per-session
+  serialized orchestration service. It records bounded idempotency identities,
+  persists every optimistic version before publication, owns authoritative round
+  deadline and four-second reveal timers through injectable clock/scheduler ports,
+  and makes stale duplicate callbacks harmless. Private recovery snapshots retain
+  the original playback window, reveal transition time, score, answer projection,
+  and only the requesting participant's secondary discoveries. Playback URLs stay
+  absent until SESSION-06 supplies authorized short-lived signatures.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts
@@ -197,16 +205,15 @@ ordering with rollback on failure, and unsaved-change navigation protection. The
 authenticated game-configuration page lists eligible public playlists, previews
 their published tracks, filters out playlists with fewer than five eligible tracks,
 and saves bounded track-count and round-duration choices as a local draft. Its controls
-share the backend's approved limits and defaults. It does not create a server session
-yet. Other non-auth feature components remain route scaffolds whose templates are
-placeholders.
+share the backend's approved limits and defaults; the frontend does not yet call the
+delivered solo-session endpoint. Other non-auth feature components remain route
+scaffolds whose templates are placeholders.
 
 ### Not delivered
 
-There is no session creation/orchestration service, gameplay controller, gameplay
-STOMP handler, timer orchestration,
-synchronized playback, game history, profile management, friends, guest joining,
-or admin user management.
+There is no session lookup/join flow, signed active-round playback URL,
+synchronized browser playback, game history, profile management, friends, guest
+joining, or admin user management.
 The private-media port, MinIO SDK adapter and deployment, database object-key
 schema, and import-pipeline integration are delivered. Legacy media can still use
 the Docker volume and `/media` URLs during migration.
@@ -792,7 +799,7 @@ reconnect requires a fresh valid token.
 
 | Destination | Description |
 |---|---|
-| `/app/sessions/{sessionId}` | Versioned `START_GAME`, `SUBMIT_ANSWER`, `SKIP_ROUND`, or `REQUEST_SNAPSHOT` command |
+| `/app/sessions/{sessionId}` | Versioned `START_GAME`, `SUBMIT_ANSWER`, `SKIP_ROUND`, `ADVANCE_ROUND`, or `REQUEST_SNAPSHOT` command |
 
 ### Shared gameplay event types (`/topic/sessions/{sessionId}`)
 

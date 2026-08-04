@@ -18,6 +18,7 @@ public record ActiveSessionSnapshot(
         GameConfiguration configuration,
         GameStateSnapshot gameState,
         SecondaryDiscoveryState discoveries,
+        ProcessedCommandLedger processedCommands,
         long version,
         Instant createdAt,
         Instant updatedAt,
@@ -31,6 +32,7 @@ public record ActiveSessionSnapshot(
         Objects.requireNonNull(configuration, "configuration is required");
         Objects.requireNonNull(gameState, "gameState is required");
         Objects.requireNonNull(discoveries, "discoveries are required");
+        Objects.requireNonNull(processedCommands, "processedCommands are required");
         Objects.requireNonNull(createdAt, "createdAt is required");
         Objects.requireNonNull(updatedAt, "updatedAt is required");
         Objects.requireNonNull(expiresAt, "expiresAt is required");
@@ -69,6 +71,21 @@ public record ActiveSessionSnapshot(
             SecondaryDiscoveryState nextDiscoveries,
             Instant nextUpdatedAt,
             Instant nextExpiresAt) {
+        return next(
+                nextGameState,
+                nextDiscoveries,
+                processedCommands,
+                nextUpdatedAt,
+                nextExpiresAt);
+    }
+
+    /** Creates the next version with updated game, discoveries, and idempotency state. */
+    public ActiveSessionSnapshot next(
+            GameStateSnapshot nextGameState,
+            SecondaryDiscoveryState nextDiscoveries,
+            ProcessedCommandLedger nextProcessedCommands,
+            Instant nextUpdatedAt,
+            Instant nextExpiresAt) {
         return new ActiveSessionSnapshot(
                 sessionId,
                 ownerParticipantId,
@@ -76,6 +93,7 @@ public record ActiveSessionSnapshot(
                 configuration,
                 nextGameState,
                 nextDiscoveries,
+                nextProcessedCommands,
                 Math.addExact(version, 1),
                 createdAt,
                 nextUpdatedAt,

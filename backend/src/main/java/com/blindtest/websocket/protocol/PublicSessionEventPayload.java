@@ -45,7 +45,7 @@ public sealed interface PublicSessionEventPayload permits
             Instant startsAt,
             Instant deadline,
             int excerptStartSeconds,
-            URI playbackUrl) implements PublicSessionEventPayload {
+            Optional<URI> playbackUrl) implements PublicSessionEventPayload {
 
         /** Validates the playback window without treating the browser clock as authoritative. */
         public RoundStarted {

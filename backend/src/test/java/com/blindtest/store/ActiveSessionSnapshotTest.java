@@ -34,6 +34,7 @@ class ActiveSessionSnapshotTest {
                 isInstanceOf(UnsupportedOperationException.class);
         assertThat(initial.version()).isZero();
         assertThat(next.version()).isOne();
+        assertThat(next.processedCommands()).isEqualTo(initial.processedCommands());
         assertThat(next.sessionId()).isEqualTo(initial.sessionId());
         assertThat(next.ownerParticipantId()).isEqualTo(initial.ownerParticipantId());
     }

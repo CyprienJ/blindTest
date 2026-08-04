@@ -28,6 +28,7 @@ import com.blindtest.model.game.PlaylistEligibilitySnapshot;
 import com.blindtest.model.game.RequestedGameConfiguration;
 import com.blindtest.model.game.SecondaryDiscoveryState;
 import com.blindtest.model.session.ActiveSessionSnapshot;
+import com.blindtest.model.session.ProcessedCommandLedger;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
 import com.blindtest.repository.PlaylistRepository;
@@ -204,6 +205,7 @@ public class SoloSessionService {
                     configuration,
                     GameStateSnapshot.created(configuration, selection),
                     SecondaryDiscoveryState.empty(),
+                    ProcessedCommandLedger.empty(),
                     0,
                     now,
                     now,

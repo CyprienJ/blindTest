@@ -1,8 +1,9 @@
 # Gameplay STOMP Protocol
 
 Status: V1 contract defined by SESSION-03. Authentication, membership authorization,
-and private user-queue routing are implemented by SESSION-04. Gameplay command
-handling is delivered by later SESSION tickets.
+and private user-queue routing are implemented by SESSION-04. SESSION-05 delivers
+the authoritative command orchestration, timers, versioning, and recovery snapshot.
+SESSION-06 will add signed playback URLs.
 
 ## Connection and destinations
 
@@ -82,12 +83,15 @@ local state from `CURRENT_SNAPSHOT` after reconnect.
 |---|---|---|
 | `START_GAME` | none | Owner requests the first round |
 | `SUBMIT_ANSWER` | non-blank `answer` | Participant submits one guess |
-| `SKIP_ROUND` | none | Participant requests the current round to be skipped |
+| `SKIP_ROUND` | none | Owner requests the current round to be skipped |
+| `ADVANCE_ROUND` | none | Owner requests an idempotent early transition during the reveal window |
 | `REQUEST_SNAPSHOT` | none | Requests private recovery state from the expected version |
 
-All four command types carry an idempotency UUID. Duplicate, stale, unauthorized,
-and out-of-state behavior is enforced by the command-handling tickets; this
-contract ensures the required correlation data is always present.
+All five command types carry an idempotency UUID. The server keeps a bounded
+per-session ledger for state-changing commands. It rejects duplicate, stale,
+unauthorized, and out-of-state commands without applying a second transition.
+`REQUEST_SNAPSHOT` is read-only and always returns the latest private projection,
+even when the caller's expected version is stale.
 
 ## Shared events
 
@@ -109,8 +113,7 @@ session topic:
     "totalRounds": 10,
     "startsAt": "2026-08-04T13:00:02Z",
     "deadline": "2026-08-04T13:00:32Z",
-    "excerptStartSeconds": 15,
-    "playbackUrl": "https://media.example/audio.mp3?signature=short-lived"
+    "excerptStartSeconds": 15
   }
 }
 ```
@@ -119,13 +122,14 @@ session topic:
 |---|---|
 | `SESSION_READY` | game `state`, `totalRounds`, `expiresAt` |
 | `ROUND_PREPARING` | `roundIndex`, `totalRounds` |
-| `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset, short-lived `playbackUrl` |
+| `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset, optional short-lived `playbackUrl` |
 | `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, round and total points, `transitionAt` |
 | `SCORE_UPDATED` | `participantId`, round points, total score |
 | `GAME_FINISHED` | total score and title/skip/timeout aggregate counts |
 
-The server never publishes an object-storage key. SESSION-06 supplies the
-short-lived playback URL when it implements round playback resolution.
+The server never publishes an object-storage key. During SESSION-05,
+`playbackUrl` is unavailable (`null` or omitted). SESSION-06 supplies it after
+authorizing the participant and signing the snapshotted media reference.
 
 ## Private events
 
@@ -168,6 +172,21 @@ asynchronous `ERROR`.
 Title success is never a `SECONDARY_MATCH`: it ends the round and is represented by
 the shared reveal/score events. Artist, composer, and album discoveries remain in
 the private queue and in only that participant's recovery snapshot.
+
+## Authoritative timing and recovery
+
+- A round deadline is scheduled from the persisted `startsAt` and `deadline`; the
+  browser never decides that a round timed out.
+- Title, skip, and deadline commands race through one compare-and-set transition.
+  The winning snapshot is persisted with its new session version before any event
+  carrying that version is published.
+- A revealed round exposes `transitionAt`, exactly four seconds after `revealedAt`.
+  The server advances automatically then; an owner `ADVANCE_ROUND` command may win
+  the same transition earlier, and duplicate or late timer callbacks are harmless.
+- `CURRENT_SNAPSHOT` retains the original playback window while playing. During
+  reveal it also contains the canonical title, artist, optional composer/album,
+  outcome, points, and `advanceAt`, plus only the requesting participant's private
+  discoveries.
 
 ## Evolution rules
 

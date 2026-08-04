@@ -18,6 +18,7 @@ import com.blindtest.model.game.PlaylistEligibilitySnapshot;
 import com.blindtest.model.game.RequestedGameConfiguration;
 import com.blindtest.model.game.SecondaryDiscoveryState;
 import com.blindtest.model.session.ActiveSessionSnapshot;
+import com.blindtest.model.session.ProcessedCommandLedger;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
 import com.blindtest.security.JwtTokenProvider;
@@ -67,9 +68,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.ApplicationListener;
 import org.springframework.http.MediaType;
-import org.springframework.messaging.handler.annotation.DestinationVariable;
-import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.stereotype.Controller;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
@@ -119,9 +117,6 @@ class SessionWebSocketAuthorizationIntegrationTest {
     private SessionEventPublisher eventPublisher;
 
     @Autowired
-    private CommandProbe commandProbe;
-
-    @Autowired
     private SubscriptionProbe subscriptionProbe;
 
     @Autowired
@@ -136,7 +131,6 @@ class SessionWebSocketAuthorizationIntegrationTest {
     @BeforeEach
     void setUp() {
         clock.set(INITIAL_TIME);
-        commandProbe.clear();
         subscriptionProbe.clear();
         if (stompClient == null) {
             stompClient = new WebSocketStompClient(new StandardWebSocketClient());
@@ -196,7 +190,8 @@ class SessionWebSocketAuthorizationIntegrationTest {
         StompSession commandConnection = connect(accessToken(intruderId), commandHandler);
         sendCommand(commandConnection, activeSession, SessionCommandType.START_GAME);
         assertThat(commandHandler.awaitFailure()).isNotNull();
-        assertThat(commandProbe.poll(Duration.ofMillis(300))).isNull();
+        assertThat(sessionStore.find(activeSession.sessionId(), clock.instant()).orElseThrow().
+                version()).isZero();
     }
 
     @Test
@@ -205,14 +200,18 @@ class SessionWebSocketAuthorizationIntegrationTest {
         ActiveSessionSnapshot activeSession = createSession(accountId);
         RecordingSessionHandler handler = new RecordingSessionHandler();
         StompSession connection = connect(accessToken(accountId), handler);
+        BlockingQueue<byte[]> privateFrames = new LinkedBlockingQueue<>();
+        subscribeAndAwait(
+                connection,
+                SessionProtocol.privateEventDestination(activeSession.sessionId().value()),
+                bytesHandler(privateFrames));
 
         sendCommand(connection, activeSession, SessionCommandType.REQUEST_SNAPSHOT);
 
-        ProbedCommand received = commandProbe.poll(WAIT);
-        assertThat(received).isNotNull();
-        assertThat(received.sessionId()).isEqualTo(activeSession.sessionId().value());
-        assertThat(received.accountId()).isEqualTo(accountId);
-        assertThat(received.command().type()).isEqualTo(SessionCommandType.REQUEST_SNAPSHOT);
+        JsonNode received = readFrame(privateFrames);
+        assertThat(received.get("type").asText()).isEqualTo("CURRENT_SNAPSHOT");
+        assertThat(received.at("/metadata/sessionId").asText()).
+                isEqualTo(activeSession.sessionId().value().toString());
         assertThat(handler.failure()).isNull();
         connection.disconnect();
     }
@@ -224,11 +223,17 @@ class SessionWebSocketAuthorizationIntegrationTest {
         String token = accessToken(accountId);
         RecordingSessionHandler connectedHandler = new RecordingSessionHandler();
         StompSession connected = connect(token, connectedHandler);
+        BlockingQueue<byte[]> privateFrames = new LinkedBlockingQueue<>();
+        subscribeAndAwait(
+                connected,
+                SessionProtocol.privateEventDestination(activeSession.sessionId().value()),
+                bytesHandler(privateFrames));
 
         clock.advance(Duration.ofSeconds(61));
         sendCommand(connected, activeSession, SessionCommandType.REQUEST_SNAPSHOT);
 
-        assertThat(commandProbe.poll(WAIT)).isNotNull();
+        assertThat(readFrame(privateFrames).get("type").asText()).
+                isEqualTo("CURRENT_SNAPSHOT");
         assertThat(connectedHandler.failure()).isNull();
         RecordingSessionHandler reconnectHandler = new RecordingSessionHandler();
         assertThatThrownBy(() -> connect(token, reconnectHandler)).
@@ -300,6 +305,7 @@ class SessionWebSocketAuthorizationIntegrationTest {
                 configuration,
                 state,
                 SecondaryDiscoveryState.empty(),
+                ProcessedCommandLedger.empty(),
                 0,
                 clock.instant(),
                 clock.instant(),
@@ -416,33 +422,7 @@ class SessionWebSocketAuthorizationIntegrationTest {
         }
     }
 
-    record ProbedCommand(UUID sessionId, UUID accountId, SessionCommand command) {
-    }
-
     record ProbedSubscription(UUID accountId, String destination) {
-    }
-
-    @Controller
-    static class CommandProbe {
-
-        private final BlockingQueue<ProbedCommand> commands = new LinkedBlockingQueue<>();
-
-        @MessageMapping("/sessions/{sessionId}")
-        void receive(
-                @DestinationVariable UUID sessionId,
-                SessionCommand command,
-                Principal principal) {
-            commands.add(new ProbedCommand(
-                    sessionId, UUID.fromString(principal.getName()), command));
-        }
-
-        ProbedCommand poll(Duration timeout) throws InterruptedException {
-            return commands.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        }
-
-        void clear() {
-            commands.clear();
-        }
     }
 
     static class SubscriptionProbe implements ApplicationListener<SessionSubscribeEvent> {
@@ -471,11 +451,6 @@ class SessionWebSocketAuthorizationIntegrationTest {
 
     @TestConfiguration
     static class ProbeConfiguration {
-
-        @Bean
-        CommandProbe commandProbe() {
-            return new CommandProbe();
-        }
 
         @Bean
         SubscriptionProbe subscriptionProbe() {

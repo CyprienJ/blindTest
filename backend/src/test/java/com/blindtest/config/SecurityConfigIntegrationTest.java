@@ -17,6 +17,7 @@ import com.blindtest.service.AuthService;
 import com.blindtest.service.CatalogueService;
 import com.blindtest.service.ImportJobService;
 import com.blindtest.service.MediaReconciliationService;
+import com.blindtest.service.SessionGameplayService;
 import com.blindtest.service.SoloSessionService;
 import com.blindtest.service.TrackAnswerAliasService;
 import java.util.UUID;
@@ -76,6 +77,9 @@ class SecurityConfigIntegrationTest {
 
     @MockBean
     private SoloSessionService soloSessionService;
+
+    @MockBean
+    private SessionGameplayService sessionGameplayService;
 
     @Test
     void publicAuthPostRoutesAreAccessibleWithoutToken() throws Exception {

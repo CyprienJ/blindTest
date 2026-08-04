@@ -10,17 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-05 — Orchestrate server timers](#session-05--orchestrate-server-timers)**
+**[SESSION-06 — Resolve playback URLs for active rounds](#session-06--resolve-playback-urls-for-active-rounds)**
 
 Status: ready
 
-SESSION-04 is complete. STOMP connections require a valid JWT, gameplay commands
-and subscriptions are checked against active session membership, private feedback
-uses principal-scoped user queues, and real WebSocket integration tests cover both
-allowed and denied access. SESSION-05 is the earliest ready unfinished ticket and
-can orchestrate authoritative deadlines and reconnect recovery on top of the
-secured protocol. MEDIA-08 remains deferred until real legacy files require
-migration.
+SESSION-05 is complete. Gameplay commands now use persisted optimistic versions,
+bounded idempotency, authoritative deadline and four-second reveal timers, and
+private recovery snapshots. Concurrency tests cover title/skip at the deadline,
+duplicate timers, manual/automatic advance, and reconnect races. SESSION-06 is the
+earliest ready unfinished ticket and can add authorized short-lived playback URLs
+to the delivered round orchestration. MEDIA-08 remains deferred until real legacy
+files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1252,6 +1252,8 @@ Acceptance:
 - integration tests use a real STOMP connection.
 
 #### SESSION-05 — Orchestrate server timers
+
+Status: completed on 2026-08-04.
 
 Decision: [ADR-0015](adr/0015-four-second-automatic-reveal-transition.md).
 

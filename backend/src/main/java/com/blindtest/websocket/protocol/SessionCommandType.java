@@ -5,5 +5,6 @@ public enum SessionCommandType {
     START_GAME,
     SUBMIT_ANSWER,
     SKIP_ROUND,
+    ADVANCE_ROUND,
     REQUEST_SNAPSHOT
 }

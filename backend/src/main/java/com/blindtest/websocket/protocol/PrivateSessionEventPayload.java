@@ -85,6 +85,9 @@ public sealed interface PrivateSessionEventPayload permits
             Optional<RoundOutcome> outcome,
             Optional<String> title,
             Optional<String> artist,
+            Optional<String> composer,
+            Optional<String> album,
+            Optional<Instant> advanceAt,
             int roundPoints) {
 
         /** Defensively validates optional values without exposing object-storage keys. */
@@ -99,6 +102,9 @@ public sealed interface PrivateSessionEventPayload permits
             outcome = Objects.requireNonNull(outcome, "outcome is required");
             title = requireOptionalText(title, "title");
             artist = requireOptionalText(artist, "artist");
+            composer = requireOptionalText(composer, "composer");
+            album = requireOptionalText(album, "album");
+            advanceAt = Objects.requireNonNull(advanceAt, "advanceAt is required");
             excerptStartSeconds.ifPresent(
                     value -> SessionProtocol.requireNonNegative(value, "excerptStartSeconds"));
             SessionProtocol.requireNonNegative(roundPoints, "roundPoints");

@@ -50,6 +50,7 @@ class SessionProtocolTest {
                 command(SessionCommandType.START_GAME, null),
                 command(SessionCommandType.SUBMIT_ANSWER, "Take on me"),
                 command(SessionCommandType.SKIP_ROUND, null),
+                command(SessionCommandType.ADVANCE_ROUND, null),
                 command(SessionCommandType.REQUEST_SNAPSHOT, null))) {
             String json = OBJECT_MAPPER.writeValueAsString(command);
             SessionCommand restored = OBJECT_MAPPER.readValue(json, SessionCommand.class);
@@ -92,7 +93,8 @@ class SessionProtocolTest {
                 NOW.plusSeconds(2),
                 NOW.plusSeconds(32),
                 15,
-                URI.create("https://media.example.test/audio.mp3?signature=safe"));
+                Optional.of(URI.create(
+                        "https://media.example.test/audio.mp3?signature=safe")));
         var event = new PublicSessionEvent(
                 metadata(), PublicSessionEventType.ROUND_STARTED, payload);
 
@@ -103,6 +105,8 @@ class SessionProtocolTest {
         assertThat(json.at("/metadata/sessionVersion").asLong()).isEqualTo(8L);
         assertThat(json.at("/payload/roundIndex").asInt()).isEqualTo(2);
         assertThat(json.at("/payload/startsAt").asText()).isEqualTo("2026-08-04T13:00:02Z");
+        assertThat(json.at("/payload/playbackUrl").asText()).
+                contains("signature=safe");
         assertThat(json.toString()).doesNotContain("objectKey");
     }
 
@@ -200,6 +204,9 @@ class SessionProtocolTest {
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
                 0);
         var snapshot = new PrivateSessionEventPayload.CurrentSnapshot(
                 GameStatus.PLAYING,
@@ -227,7 +234,12 @@ class SessionProtocolTest {
     @Test
     void validatesSharedPayloadLifecycleShapes() {
         assertThatThrownBy(() -> new PublicSessionEventPayload.RoundStarted(
-                0, 5, NOW, NOW, 0, URI.create("https://media.example.test/audio.mp3"))).
+                0,
+                5,
+                NOW,
+                NOW,
+                0,
+                Optional.of(URI.create("https://media.example.test/audio.mp3")))).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("deadline");
         assertThatThrownBy(() -> new PublicSessionEventPayload.GameFinished(

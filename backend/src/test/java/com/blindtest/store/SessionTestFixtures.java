@@ -13,6 +13,7 @@ import com.blindtest.model.game.PlaylistEligibilitySnapshot;
 import com.blindtest.model.game.RequestedGameConfiguration;
 import com.blindtest.model.game.SecondaryDiscoveryState;
 import com.blindtest.model.session.ActiveSessionSnapshot;
+import com.blindtest.model.session.ProcessedCommandLedger;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
 import java.time.Duration;
@@ -66,6 +67,7 @@ final class SessionTestFixtures {
                 source.configuration(),
                 source.gameState(),
                 source.discoveries(),
+                source.processedCommands(),
                 version,
                 source.createdAt(),
                 updatedAt,
@@ -82,6 +84,7 @@ final class SessionTestFixtures {
                 source.configuration(),
                 source.gameState(),
                 SecondaryDiscoveryState.empty(),
+                ProcessedCommandLedger.empty(),
                 0,
                 createdAt,
                 createdAt,
@@ -104,6 +107,7 @@ final class SessionTestFixtures {
                 configuration,
                 gameState,
                 SecondaryDiscoveryState.empty(),
+                ProcessedCommandLedger.empty(),
                 0,
                 NOW,
                 NOW,

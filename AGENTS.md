@@ -211,6 +211,9 @@ Last reviewed: 2026-08-04.
 - Interactive first-administrator provisioning promotes one verified account only
   when no administrator exists, with concurrency-safe locking, idempotent replay,
   and safe persistent outcome auditing.
+- Solo-session gameplay commands run through an optimistic, per-session serialized
+  orchestrator with bounded command idempotency, authoritative deadline and reveal
+  timers, persist-before-publish event versions, and private reconnect snapshots.
 - Flyway migrations V1 through V15 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
   metadata, the media-deletion outbox, extended track metadata, active-import
@@ -234,16 +237,15 @@ The backend currently has controllers for:
 - User profile management and user search.
 - Friends and friend requests.
 - Session lookup/joining, including guest tokens.
-- Gameplay command orchestration.
-- Gameplay STOMP handlers, live answer handling, timers, skip votes, and
-  synchronized audio playback.
+- Signed active-round playback URLs and synchronized browser audio playback.
+- Gameplay command rate limiting.
 - Game history.
 - Admin user management.
 
-The solo-session creation service/controller, gameplay protocol payloads, and
-destination authorization exist, but no production gameplay command handlers
-consume active state yet. The WebSocket infrastructure can securely route gameplay
-frames but does not orchestrate them until SESSION-05.
+The solo-session creation service/controller, gameplay protocol payloads,
+destination authorization, command orchestration, authoritative timers, and
+recovery snapshots exist. SESSION-06 still needs to authorize and sign private
+media URLs for active rounds before browser playback is possible.
 
 ### Implemented frontend features
 
