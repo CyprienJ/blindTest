@@ -17,15 +17,17 @@ each explicit work item in its post-V1 lot is counted as one provisional task.
 
 | Feature | Minimum tasks remaining | Shortest remaining path |
 |---|---:|---|
+| Visit the public home page | 1 | HOME-01 |
+| Reach the authenticated home page | 2 | HOME-01–02 (prioritized order) |
 | Create an account | 0 | Delivered |
 | Import and publish a song | 0 | Delivered |
 | Create or edit a playlist | 0 | Delivered |
 | Configure a solo game | 0 | Delivered locally and accepted by the session endpoint |
-| Play a complete solo game | 10 | SESSION-03–06 and UI-02–07 |
-| Refresh a persisted end summary | 14 | Solo-game path plus HIST-01–03 and UI-08 |
-| Play a multiplayer game | At least 22 | Solo-game path plus the 12 provisional Lot P2 work items |
+| Play a complete solo game | 12 | HOME-01–02, SESSION-03–06, and UI-02–07 |
+| Refresh a persisted end summary | 16 | Solo-game path plus HIST-01–03 and UI-08 |
+| Play a multiplayer game | At least 24 | Solo-game path plus the 12 provisional Lot P2 work items |
 
-The authoritative current pointer is SESSION-03. Update this table whenever ticket
+The authoritative current pointer is HOME-01. Update this table whenever ticket
 completion or roadmap dependencies change.
 
 ### Implemented
@@ -70,6 +72,7 @@ completion or roadmap dependencies change.
 
 ### Planned for the first production release
 
+- Public and authenticated home pages with role-aware navigation.
 - A server-authoritative solo game with playlist and round configuration, answer
   matching, scoring, skip, timeout, reveal, and an end-of-game summary.
 - Persistence of completed games.

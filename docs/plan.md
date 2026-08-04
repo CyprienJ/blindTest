@@ -10,18 +10,16 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-03 — Define STOMP commands and events](#session-03--define-stomp-commands-and-events)**
+**[HOME-01 — Implement the public home page](#home-01--implement-the-public-home-page)**
 
 Status: ready
 
-SESSION-02 is complete, so SESSION-03 is now the earliest ready unfinished ticket in
-the recommended execution sequence. A verified authenticated account can create
-multiple independent solo sessions through `POST /api/sessions`; the server validates
-the flat configuration contract, snapshots a random selection of private-media-backed
-published tracks and aliases, creates the one-player active state, and returns its
-identity, expiry, version, and STOMP connection destinations. SESSION-03 can now
-define the versioned command and event payloads used at those destinations. MEDIA-08
-remains deferred until real legacy files require migration.
+HOME-01 and HOME-02 have been promoted ahead of the remaining gameplay work so the
+application has clear public and authenticated entry points before more routes are
+added. HOME-01 is ready because authentication and the public catalogue already
+exist and the page requires no new backend contract. After HOME-01, implement
+HOME-02 before resuming SESSION-03. MEDIA-08 remains deferred until real legacy
+files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -143,11 +141,13 @@ not mean implementing unused infrastructure in advance.
 
 ### Visitor and account
 
-1. A visitor registers with username, email, password, and Turnstile.
-2. The user receives an email and verifies the account.
-3. The user logs in.
-4. The user can recover a forgotten password.
-5. The authenticated user reaches the game configuration page.
+1. A visitor reaches a public home page with clear login and registration actions.
+2. The visitor registers with username, email, password, and Turnstile.
+3. The user receives an email and verifies the account.
+4. The user logs in.
+5. The user can recover a forgotten password.
+6. The authenticated user reaches a role-aware home page and can continue to game
+   creation or joining.
 
 ### Administrator catalogue
 
@@ -1378,9 +1378,62 @@ Acceptance:
 
 Deliver the playable desktop experience using the reference visual design.
 
-Dependencies: Lot 5.
+Dependencies: HOME-01 and HOME-02 depend only on the delivered authentication and
+route infrastructure. UI-01 and the remaining gameplay tickets depend on Lot 5.
 
 ### Tickets
+
+#### HOME-01 — Implement the public home page
+
+Priority: implement before HOME-02 and before resuming SESSION-03.
+
+Work:
+
+- make `/` a real public landing page rather than redirecting immediately to login;
+- provide a concise product introduction without depending on unfinished gameplay
+  or social data;
+- expose clear login and registration actions;
+- when a valid local session is already available, expose a direct action to the
+  authenticated home page;
+- use the shared visual language and provide responsive, keyboard-accessible
+  semantics;
+- add focused Angular and Playwright coverage for anonymous and authenticated
+  visitors.
+
+Acceptance:
+
+- an unauthenticated visitor can understand the application and reach login or
+  registration without encountering a protected route;
+- an authenticated visitor can continue to `/home` without being forced through
+  login again;
+- refreshing `/` works through the deployed SPA fallback.
+
+#### HOME-02 — Implement the authenticated home page
+
+Priority: implement immediately after HOME-01 and before resuming SESSION-03.
+
+Work:
+
+- add a guarded `/home` route and make it the default destination after login;
+- present primary actions to create a game and join a game;
+- expose playlist administration only to users whose authenticated role permits
+  it, while retaining route-level authorization as the security boundary;
+- provide navigation to the public playlist catalogue and logout;
+- handle restored-session loading, invalid/expired authentication, and navigation
+  errors without showing stale privileged actions;
+- keep unfinished post-V1 actions absent or clearly disabled rather than linking
+  to placeholder components;
+- add role-aware Angular and Playwright coverage, including refresh and direct URL
+  access.
+
+Acceptance:
+
+- a successful login and an authenticated visit to the application reach `/home`;
+- every authenticated user can reach game creation and joining;
+- administrators can reach playlist editing, while non-administrators neither see
+  the action nor bypass the existing admin guard;
+- navigation remains correct after refresh and logout returns the user to a public
+  entry point.
 
 #### UI-01 — Implement authenticated application shell
 
@@ -2085,11 +2138,12 @@ Start in this order:
 4. CAT-01 through CAT-10;
 5. decision gates DG-01 through DG-09 are resolved;
 6. GAME-01 through GAME-10;
-7. SESSION/HIST tickets;
-8. UI tickets;
-9. complete full-stack and operations lots;
-10. beta, recovery rehearsal, then production launch;
-11. MEDIA-08 when real legacy files require migration, before removing `/media`.
+7. HOME-01, then HOME-02;
+8. SESSION/HIST tickets, starting again at SESSION-03;
+9. remaining UI tickets;
+10. complete full-stack and operations lots;
+11. beta, recovery rehearsal, then production launch;
+12. MEDIA-08 when real legacy files require migration, before removing `/media`.
 
 TEST-06 should be completed before automated beta deployment resumes. Operations
 work for secrets, backups, and reverse proxy should begin early rather than waiting
