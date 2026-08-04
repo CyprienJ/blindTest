@@ -188,7 +188,22 @@ the private queue and in only that participant's recovery snapshot.
 - `CURRENT_SNAPSHOT` retains the original playback window while playing. During
   reveal it also contains the canonical title, artist, optional composer/album,
   outcome, points, and `advanceAt`, plus only the requesting participant's private
-  discoveries.
+discoveries.
+
+## Command-rate limits
+
+- Accepted answer attempts establish a 300 ms cooldown for that participant. The
+  first faster attempt receives `ANSWER_REJECTED` with reason `COOLDOWN` and the
+  authoritative `retryAt`; further attempts before that instant are silently
+  dropped and never reach normalization, matching, scoring, or event publication.
+- Each session accepts at most 20 authenticated command frames in a fixed
+  one-second window. The first excess frame receives a private `ERROR` with code
+  `SESSION_RATE_LIMITED`; later excess frames in that window are silently dropped.
+- Rate rejection never changes the session version or score. Normal commands at
+  the boundary are accepted, and rate state is isolated between sessions and
+  participants.
+- Operational counters are aggregate-only and never label answers, session IDs,
+  participant IDs, or account IDs.
 - An authorized `REQUEST_SNAPSHOT` during `PLAYING` generates a fresh signed URL
   whose validity covers the remaining playback window and reconnect buffer. A
   reconnect never reuses or exposes the raw object key.

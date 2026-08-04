@@ -10,15 +10,15 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-07 — Enforce answer rate limits](#session-07--enforce-answer-rate-limits)**
+**[HIST-01 — Add durable history schema](#hist-01--add-durable-history-schema)**
 
 Status: ready
 
-SESSION-06 is complete. Authorized round starts and playing-round recovery
-snapshots now receive freshly pre-signed URLs for the immutable snapshotted object,
-with a provider-neutral minimum validity covering the remaining round and the
-30-second reconnect buffer. SESSION-07 is the earliest ready unfinished ticket and
-can add command-rate protection to the delivered orchestration. MEDIA-08 remains
+SESSION-07 is complete. Gameplay answers now have a 300 ms per-player cooldown,
+each session accepts a bounded burst of 20 commands per second, repeated rejection
+feedback is suppressed, and safe aggregate metrics count abusive traffic without
+identifiers or answers. HIST-01 is the earliest ready unfinished ticket and can add
+the durable schema required before completed games are persisted. MEDIA-08 remains
 deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -1286,6 +1286,8 @@ Acceptance:
 - object key is never sent to the browser as an authorization mechanism.
 
 #### SESSION-07 — Enforce answer rate limits
+
+Status: completed on 2026-08-04.
 
 Work:
 

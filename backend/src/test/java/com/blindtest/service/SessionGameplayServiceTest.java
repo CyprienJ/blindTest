@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -37,6 +38,7 @@ import com.blindtest.store.InMemorySessionStore;
 import com.blindtest.store.SessionCreateOutcome;
 import com.blindtest.store.SessionStore;
 import com.blindtest.websocket.SessionEventPublisher;
+import com.blindtest.websocket.protocol.AnswerRejectionReason;
 import com.blindtest.websocket.protocol.PrivateSessionEvent;
 import com.blindtest.websocket.protocol.PrivateSessionEventPayload;
 import com.blindtest.websocket.protocol.PrivateSessionEventType;
@@ -87,6 +89,7 @@ class SessionGameplayServiceTest {
 
     private SessionGameplayService service;
     private MediaStorage mediaStorage;
+    private GameplayRateLimitMetrics rateLimitMetrics;
 
     @BeforeEach
     void setUp() {
@@ -110,8 +113,11 @@ class SessionGameplayServiceTest {
         when(mediaStorage.presignedGetUrl(anyString(), any(Duration.class))).thenAnswer(invocation ->
                 URI.create("https://media.example.test/audio.mp3?signature="
                         + signature.incrementAndGet()));
+        rateLimitMetrics = mock(GameplayRateLimitMetrics.class);
+        GameplayCommandRateLimiter rateLimiter =
+                new GameplayCommandRateLimiter(rateLimitMetrics);
         service = new SessionGameplayService(
-                store, scheduler, mediaStorage, publisher, identities, clock);
+                store, scheduler, mediaStorage, rateLimiter, publisher, identities, clock);
         assertThat(store.create(createdSession(), clock.instant())).
                 isEqualTo(SessionCreateOutcome.CREATED);
     }
@@ -175,6 +181,68 @@ class SessionGameplayServiceTest {
                 SessionCommandType.START_GAME, 0, null, UUID.randomUUID()));
 
         assertThat(handled).isFalse();
+        verifyNoInteractions(mediaStorage);
+        assertThat(current().version()).isZero();
+    }
+
+    @Test
+    void normalAnswerTypingAfterCooldownRemainsUnaffected() {
+        startGame();
+
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SUBMIT_ANSWER, 2, "wrong one", UUID.randomUUID()));
+        clock.advance(GameplayCommandRateLimiter.PLAYER_ANSWER_COOLDOWN);
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SUBMIT_ANSWER, 3, "wrong two", UUID.randomUUID()));
+
+        assertThat(current().version()).isEqualTo(4);
+        assertThat(privateEvents).extracting(event ->
+                ((PrivateSessionEventPayload.AnswerRejected) event.payload()).reason()).
+                containsExactly(
+                        AnswerRejectionReason.WRONG_ANSWER,
+                        AnswerRejectionReason.WRONG_ANSWER);
+        verify(rateLimitMetrics, never()).recordPlayerCooldownRejected();
+    }
+
+    @Test
+    void rapidAnswersReceiveOneStableCooldownAndThenProduceNoMoreEvents() {
+        startGame();
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SUBMIT_ANSWER, 2, "wrong one", UUID.randomUUID()));
+        clock.advance(Duration.ofMillis(100));
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SUBMIT_ANSWER, 3, "wrong two", UUID.randomUUID()));
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SUBMIT_ANSWER, 3, "wrong three", UUID.randomUUID()));
+
+        assertThat(current().version()).isEqualTo(3);
+        assertThat(current().gameState().currentRound().orElseThrow().scoreState().totalPoints()).
+                isZero();
+        assertThat(privateEvents).hasSize(2);
+        PrivateSessionEventPayload.AnswerRejected cooldown =
+                (PrivateSessionEventPayload.AnswerRejected) privateEvents.get(1).payload();
+        assertThat(cooldown.reason()).isEqualTo(AnswerRejectionReason.COOLDOWN);
+        assertThat(cooldown.retryAt()).contains(NOW.plusMillis(300));
+        verify(rateLimitMetrics, times(2)).recordPlayerCooldownRejected();
+    }
+
+    @Test
+    void sessionCommandSpamHasBoundedFeedbackAndSkipsExpensiveSnapshotSigning() {
+        for (int index = 0; index < 100; index++) {
+            service.handle(SESSION_ID, ACCOUNT_ID, command(
+                    SessionCommandType.REQUEST_SNAPSHOT, 0, null, UUID.randomUUID()));
+        }
+
+        assertThat(privateEvents).hasSize(21);
+        assertThat(privateEvents).filteredOn(event ->
+                event.type() == PrivateSessionEventType.CURRENT_SNAPSHOT).hasSize(20);
+        assertThat(privateEvents).filteredOn(event ->
+                event.type() == PrivateSessionEventType.ERROR).singleElement().satisfies(event -> {
+                    PrivateSessionEventPayload.Error error =
+                            (PrivateSessionEventPayload.Error) event.payload();
+                    assertThat(error.code()).isEqualTo("SESSION_RATE_LIMITED");
+                });
+        verify(rateLimitMetrics, times(80)).recordSessionCommandRejected();
         verifyNoInteractions(mediaStorage);
         assertThat(current().version()).isZero();
     }

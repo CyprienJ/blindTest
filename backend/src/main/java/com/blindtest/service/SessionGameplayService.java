@@ -60,6 +60,7 @@ public class SessionGameplayService {
     private final SessionStore sessionStore;
     private final SessionTaskScheduler scheduler;
     private final MediaStorage mediaStorage;
+    private final GameplayCommandRateLimiter rateLimiter;
     private final SessionEventPublisher eventPublisher;
     private final SessionIdentityGenerator identityGenerator;
     private final Clock clock;
@@ -74,12 +75,14 @@ public class SessionGameplayService {
             SessionStore sessionStore,
             SessionTaskScheduler scheduler,
             MediaStorage mediaStorage,
+            GameplayCommandRateLimiter rateLimiter,
             SessionEventPublisher eventPublisher,
             SessionIdentityGenerator identityGenerator,
             Clock clock) {
         this.sessionStore = sessionStore;
         this.scheduler = scheduler;
         this.mediaStorage = mediaStorage;
+        this.rateLimiter = rateLimiter;
         this.eventPublisher = eventPublisher;
         this.identityGenerator = identityGenerator;
         this.clock = clock;
@@ -94,9 +97,31 @@ public class SessionGameplayService {
         SessionId sessionId = new SessionId(rawSessionId);
         synchronized (lockFor(sessionId)) {
             ActiveSessionSnapshot session = find(sessionId);
-            SessionParticipant participant = session == null ? null : participant(session, accountId);
-            return session != null && participant != null
-                    && handleAuthenticated(session, participant, accountId, command);
+            if (session == null) {
+                rateLimiter.forget(sessionId);
+                return false;
+            }
+            SessionParticipant participant = participant(session, accountId);
+            if (participant == null) {
+                return false;
+            }
+            var rateDecision = rateLimiter.checkSession(sessionId, clock.instant());
+            if (rateDecision.action()
+                    == GameplayCommandRateLimiter.RateLimitAction.DROP_SILENTLY) {
+                return true;
+            }
+            if (rateDecision.action()
+                    == GameplayCommandRateLimiter.RateLimitAction.REJECT_SESSION_WITH_FEEDBACK) {
+                commandError(
+                        session,
+                        participant,
+                        accountId,
+                        command,
+                        "SESSION_RATE_LIMITED",
+                        "Too many gameplay commands. Try again shortly.");
+                return true;
+            }
+            return handleAuthenticated(session, participant, accountId, command);
         }
     }
 
@@ -173,6 +198,9 @@ public class SessionGameplayService {
             return true;
         }
         Instant acceptedAt = clock.instant();
+        if (answerRateLimited(session, participant, accountId, command, acceptedAt)) {
+            return true;
+        }
         AnswerMatchResult match = answerMatcher.match(command.answer(), round.track().answers());
         Optional<GameAnswerType> matchedType = match.matchedType();
         if (matchedType.filter(type -> type == GameAnswerType.TITLE).isPresent()) {
@@ -208,6 +236,32 @@ public class SessionGameplayService {
             answerRejected(persisted, participant, accountId, command.commandId(), reason);
         }
         return true;
+    }
+
+    private boolean answerRateLimited(
+            ActiveSessionSnapshot session,
+            SessionParticipant participant,
+            UUID accountId,
+            SessionCommand command,
+            Instant acceptedAt) {
+        var rateDecision = rateLimiter.checkAnswer(
+                session.sessionId(), participant.participantId(), acceptedAt);
+        if (rateDecision.action()
+                == GameplayCommandRateLimiter.RateLimitAction.DROP_SILENTLY) {
+            return true;
+        }
+        if (rateDecision.action()
+                == GameplayCommandRateLimiter.RateLimitAction.REJECT_WITH_COOLDOWN) {
+            answerRejected(
+                    session,
+                    participant,
+                    accountId,
+                    command.commandId(),
+                    AnswerRejectionReason.COOLDOWN,
+                    rateDecision.retryAt());
+            return true;
+        }
+        return false;
     }
 
     private boolean resolveTitle(
@@ -600,13 +654,24 @@ public class SessionGameplayService {
             UUID accountId,
             UUID commandId,
             AnswerRejectionReason reason) {
+        answerRejected(
+                session, participant, accountId, commandId, reason, Optional.empty());
+    }
+
+    private void answerRejected(
+            ActiveSessionSnapshot session,
+            SessionParticipant participant,
+            UUID accountId,
+            UUID commandId,
+            AnswerRejectionReason reason,
+            Optional<Instant> retryAt) {
         publishPrivate(
                 session,
                 participant,
                 accountId,
                 Optional.of(commandId),
                 PrivateSessionEventType.ANSWER_REJECTED,
-                new PrivateSessionEventPayload.AnswerRejected(reason, Optional.empty()));
+                new PrivateSessionEventPayload.AnswerRejected(reason, retryAt));
     }
 
     private void commandError(

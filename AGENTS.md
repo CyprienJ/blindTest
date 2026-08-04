@@ -217,6 +217,9 @@ Last reviewed: 2026-08-04.
 - Active playing rounds expose participant-authorized, short-lived pre-signed media
   URLs at start and reconnect. The storage port accepts a minimum validity so URLs
   cover the remaining round plus the 30-second reconnect buffer.
+- Gameplay input is bounded by a 300 ms per-player answer cooldown and a 20-command
+  per-session one-second window. Repeated rate feedback is suppressed, and aggregate
+  Micrometer counters contain no session, participant, account, or answer labels.
 - Flyway migrations V1 through V15 for users, refresh tokens, tracks, playlists,
   playlist tracks, import jobs, database enum constraints, object-storage track
   metadata, the media-deletion outbox, extended track metadata, active-import
@@ -241,7 +244,6 @@ The backend currently has controllers for:
 - Friends and friend requests.
 - Session lookup/joining, including guest tokens.
 - Synchronized browser audio playback.
-- Gameplay command rate limiting.
 - Game history.
 - Admin user management.
 

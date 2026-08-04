@@ -157,6 +157,12 @@ remains temporarily for legacy tracks during the migration window.
   immutable object-key snapshots after membership authorization. The storage port
   enforces a requested minimum validity covering the remaining playback window and
   reconnect buffer while preserving a longer configured TTL.
+- Authenticated gameplay input is guarded before expensive work by a 300 ms
+  per-player answer cooldown and a fixed one-second, 20-command session budget.
+  One stable cooldown or session-limit response is emitted per active rejection
+  window and further abusive frames are silently dropped, bounding answer matching,
+  media signing, and feedback publication. Aggregate Micrometer counters use only
+  the safe `player_cooldown` and `session_command` scope labels.
 - JWT authentication for HTTP requests and STOMP `CONNECT` frames.
 - A non-web operator command promotes one existing verified account when no
   administrator exists. Pessimistic database locking makes concurrent attempts

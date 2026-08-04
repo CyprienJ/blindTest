@@ -27,7 +27,7 @@ each explicit work item in its post-V1 lot is counted as one provisional task.
 | Refresh a persisted end summary | 10 | Solo-game path plus HIST-01–03 and UI-08 |
 | Play a multiplayer game | At least 18 | Solo-game path plus the 12 provisional Lot P2 work items |
 
-The authoritative current pointer is SESSION-07. Update this table whenever ticket
+The authoritative current pointer is HIST-01. Update this table whenever ticket
 completion or roadmap dependencies change.
 
 ### Implemented
@@ -79,6 +79,8 @@ completion or roadmap dependencies change.
   race-safe skip and answer resolution, and private reconnect snapshots.
 - Participant-authorized active-round playback URLs, freshly signed from immutable
   media snapshots for round starts and reconnects with round-plus-buffer validity.
+- Gameplay anti-spam controls with a short per-player answer cooldown, a bounded
+  per-session command burst, feedback suppression, and safe aggregate metrics.
 - PostgreSQL persistence with Flyway migrations V1 through V15.
 - Administrator CRUD for title, artist, composer, and album answer aliases, plus
   a validated whole-second playback offset.
