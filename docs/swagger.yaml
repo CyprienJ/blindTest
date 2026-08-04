@@ -408,6 +408,83 @@ components:
         connection:
           $ref: '#/components/schemas/SessionConnectionInstructions'
 
+    GameSummaryRound:
+      type: object
+      required:
+        [roundIndex, outcome, points, title, artist, composer, album,
+         startedAt, revealedAt, completedAt]
+      properties:
+        roundIndex:
+          type: integer
+          minimum: 0
+        outcome:
+          type: string
+          enum: [TITLE_FOUND, TIMEOUT, SKIPPED]
+        points:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        title:
+          type: string
+          description: Canonical title snapshotted when the game was created.
+        artist:
+          type: string
+          description: Canonical artist snapshotted when the game was created.
+        composer:
+          type: string
+          nullable: true
+          description: Optional canonical composer snapshot.
+        album:
+          type: string
+          nullable: true
+          description: Optional canonical album snapshot.
+        startedAt:
+          type: string
+          format: date-time
+        revealedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    CurrentGameSummary:
+      type: object
+      required:
+        [sessionId, totalScore, totalRounds, titlesFound, skippedRounds,
+         timedOutRounds, startedAt, completedAt, rounds]
+      description: |
+        Owner-only durable end-of-game projection. It contains no provider URL,
+        private object key, checksum, raw guess, or internal answer alias data.
+      properties:
+        sessionId:
+          $ref: '#/components/schemas/UUID'
+        totalScore:
+          type: integer
+          minimum: 0
+        totalRounds:
+          type: integer
+          minimum: 1
+        titlesFound:
+          type: integer
+          minimum: 0
+        skippedRounds:
+          type: integer
+          minimum: 0
+        timedOutRounds:
+          type: integer
+          minimum: 0
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        rounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameSummaryRound'
+
     JoinSessionRequest:
       type: object
       properties:
@@ -909,6 +986,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/SessionCode'
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
     TrackId:
       name: trackId
       in: path
@@ -1143,6 +1226,40 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+
+  /sessions/{sessionId}/summary:
+    get:
+      tags: [Sessions, History]
+      summary: Read the completed solo-game summary
+      description: |
+        Returns the ordered durable result snapshot to the authenticated account
+        that owned the session. Missing sessions and sessions owned by another
+        account both return 404. Responses use `Cache-Control: no-store` and never
+        expose provider URLs, private object keys, checksums, raw guesses, or
+        internal answer aliases.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Durable completed-game summary
+          headers:
+            Cache-Control:
+              description: Prevents storage of the owner-only completed-game response.
+              schema:
+                type: string
+                example: no-store
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentGameSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /sessions/{code}/join:
     post:

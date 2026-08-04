@@ -230,6 +230,9 @@ Last reviewed: 2026-08-04.
   idempotently keyed by session UUID. Concurrent duplicate inserts are confirmed
   after rollback, transient database failures use deduplicated bounded-backoff
   retries, and active state remains until durable completion succeeds.
+- Authenticated game owners can read their durable completed-game snapshot from
+  `GET /api/sessions/{sessionId}/summary`; responses are ordered, non-cacheable,
+  and exclude provider URLs, private media identifiers, raw guesses, and aliases.
 
 The backend currently has controllers for:
 
@@ -237,6 +240,7 @@ The backend currently has controllers for:
 - `/api/tracks`
 - `/api/playlists/**`
 - `POST /api/sessions`
+- `GET /api/sessions/{sessionId}/summary`
 - `/api/admin/tracks/**`
 - `/api/admin/tracks/import/**`
 - `/api/admin/media/**`
@@ -248,7 +252,7 @@ The backend currently has controllers for:
 - Friends and friend requests.
 - Session lookup/joining, including guest tokens.
 - Synchronized browser audio playback.
-- Game-history REST endpoints.
+- General game-history browsing REST endpoints.
 - Admin user management.
 
 The solo-session creation service/controller, gameplay protocol payloads,
@@ -427,7 +431,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 485 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 490 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;

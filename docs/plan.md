@@ -10,17 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[HIST-03 — Add current-game summary endpoint](#hist-03--add-current-game-summary-endpoint)**
+**[SESSION-08 — Expire and clean abandoned sessions](#session-08--expire-and-clean-abandoned-sessions)**
 
 Status: ready
 
-HIST-02 is complete. Finished solo sessions are now snapshotted transactionally
-under their unique session identity, duplicate or concurrent completion is
-idempotent, and transient database failures retain the immutable result while a
-deduplicated bounded-backoff retry is scheduled. Active state is removed only
-after durable success. HIST-03 is the earliest ready unfinished ticket and can now
-expose that durable summary after refresh. MEDIA-08 remains deferred until real
-legacy files require migration.
+HIST-03 is complete. `GET /api/sessions/{sessionId}/summary` now returns an
+ordered, refresh-safe durable result only to the authenticated game owner, uses
+`Cache-Control: no-store`, and exposes canonical answer metadata without provider
+URLs, storage keys, checksums, raw guesses, or internal aliases. SESSION-08 is the
+earliest ready unfinished ticket and can now bound abandoned active state without
+removing completed history. MEDIA-08 remains deferred until real legacy files
+require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1338,6 +1338,8 @@ Acceptance:
 - failure does not silently lose a completed result.
 
 #### HIST-03 — Add current-game summary endpoint
+
+Status: completed on 2026-08-04.
 
 Work:
 

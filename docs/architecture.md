@@ -186,8 +186,16 @@ remains temporarily for legacy tracks during the migration window.
   in [`admin-provisioning.md`](admin-provisioning.md).
 
 The delivered REST surface is limited to `/api/auth/**`, `/api/tracks`,
-`/api/playlists/**`, `POST /api/sessions`, `/api/admin/tracks/**`,
+`/api/playlists/**`, `POST /api/sessions`,
+`GET /api/sessions/{sessionId}/summary`, `/api/admin/tracks/**`,
 `/api/admin/tracks/import/**`, and `/api/admin/playlists/**`.
+
+The completed-session summary reads only durable history and combines session UUID
+and authenticated owner account in the repository predicate. Missing and foreign
+sessions both return `404`. Its ordered round projection contains scores, outcomes,
+timing, and canonical title/artist/composer/album snapshots. It deliberately omits
+track IDs, provider URLs, object keys, checksums, raw guesses, and answer aliases,
+and is returned with `Cache-Control: no-store`.
 
 ### REST errors and correlation
 
@@ -235,8 +243,9 @@ scaffolds whose templates are placeholders.
 
 ### Not delivered
 
-There is no session lookup/join flow, synchronized browser playback, history REST
-API, profile management, friends, guest joining, or admin user management.
+There is no session lookup/join flow, synchronized browser playback, general
+history browsing API, profile management, friends, guest joining, or admin user
+management.
 The private-media port, MinIO SDK adapter and deployment, database object-key
 schema, and import-pipeline integration are delivered. Legacy media can still use
 the Docker volume and `/media` URLs during migration.

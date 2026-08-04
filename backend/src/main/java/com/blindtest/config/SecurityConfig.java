@@ -56,6 +56,7 @@ public class SecurityConfig {
             auth.requestMatchers("/actuator/metrics/**").hasRole("ADMIN");
             auth.requestMatchers("/api/auth/**").permitAll();
             auth.requestMatchers("/ws/**").permitAll();
+            auth.requestMatchers(HttpMethod.GET, "/api/sessions/*/summary").authenticated();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*", "/api/tracks",
                     "/api/playlists/**", "/media/**").permitAll();
             auth.requestMatchers("/api/admin/**").hasRole("ADMIN");

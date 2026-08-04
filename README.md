@@ -24,10 +24,10 @@ each explicit work item in its post-V1 lot is counted as one provisional task.
 | Create or edit a playlist | 0 | Delivered |
 | Configure a solo game | 0 | Delivered locally and accepted by the session endpoint |
 | Play a complete solo game | 6 | UI-02–07 |
-| Refresh a persisted end summary | 8 | Solo-game path plus HIST-03 and UI-08 |
+| Refresh a persisted end summary | 7 | Solo-game path plus UI-08 |
 | Play a multiplayer game | At least 18 | Solo-game path plus the 12 provisional Lot P2 work items |
 
-The authoritative current pointer is HIST-03. Update this table whenever ticket
+The authoritative current pointer is SESSION-08. Update this table whenever ticket
 completion or roadmap dependencies change.
 
 ### Implemented
@@ -86,6 +86,9 @@ completion or roadmap dependencies change.
 - Transactional, idempotent game-completion snapshots keyed by session identity,
   with concurrent-insert confirmation, bounded transient retry backoff, retained
   active state until durable success, and safe aggregate outcome metrics.
+- An owner-only, refresh-safe completed-game summary endpoint with ordered score,
+  outcome, timing, title, artist, composer, and album snapshots; private media,
+  provider, raw-guess, and internal alias data are excluded.
 - Administrator CRUD for title, artist, composer, and album answer aliases, plus
   a validated whole-second playback offset.
 - A Docker Compose stack containing PostgreSQL, MinIO, the Spring Boot backend,
@@ -95,7 +98,7 @@ completion or roadmap dependencies change.
 
 - A server-authoritative solo game with playlist and round configuration, answer
   matching, scoring, skip, timeout, reveal, and an end-of-game summary.
-- A refresh-safe current-game summary API backed by completed-game history.
+- The browser end-summary experience backed by the durable summary API.
 - Migration of imported audio to private S3-compatible storage.
 - Production hardening, broader automated tests, and complete operational checks.
 
