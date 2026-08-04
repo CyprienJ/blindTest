@@ -10,15 +10,16 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-09 — Implement public catalogue and playlist selection data](#cat-09--implement-public-catalogue-and-playlist-selection-data)**
+**[CAT-10 — Add catalogue/admin automated coverage](#cat-10--add-catalogueadmin-automated-coverage)**
 
 Status: ready
 
-CAT-08 is complete, so CAT-09 is now the earliest ready unfinished ticket in the
-recommended execution sequence. Administrators can create playlists, edit their
-metadata, search published tracks, add/remove/reorder them, and receive navigation
-warnings for unsaved metadata changes without using the API directly. MEDIA-08
-remains deferred until real legacy files require migration.
+CAT-09 is complete, so CAT-10 is now the earliest ready unfinished ticket in the
+recommended execution sequence. Public catalogue responses are ordered, searchable,
+bounded, safe for unauthenticated consumption, and explicitly cacheable. Authenticated
+players can configure a game from eligible playlists; the configuration remains a
+local draft until the server-authoritative game/session lots deliver creation.
+MEDIA-08 remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -926,6 +927,8 @@ Acceptance:
 - an administrator can create a playable ordered playlist without direct API use.
 
 #### CAT-09 — Implement public catalogue and playlist selection data
+
+Status: completed on 2026-08-02.
 
 Work:
 

@@ -34,6 +34,7 @@ test.describe('login', () => {
         body: JSON.stringify({ accessToken: 'login-access-token', user: testUser }),
       });
     });
+    await page.route('**/api/playlists', (route) => route.fulfill({ json: [] }));
     await page.goto('/auth/login?returnUrl=%2Flobby%2Fcreate');
 
     await page.getByLabel('Email').fill('musicfan@example.com');
@@ -41,7 +42,7 @@ test.describe('login', () => {
     await page.getByLabel('Password', { exact: true }).press('Enter');
 
     await expect(page).toHaveURL(/\/lobby\/create$/);
-    await expect(page.getByText('CreateSession works')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Configure a new game' })).toBeVisible();
     expect(requestBody).toEqual({ email: 'musicfan@example.com', password: 'correct-horse' });
     await expect
       .poll(() => page.evaluate(() => localStorage.getItem('access_token')))

@@ -1,0 +1,434 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.session-screen {
+  background:
+    radial-gradient(circle at 75% 10%, oklch(0.23 0.04 130 / 35%), transparent 32%),
+    var(--bg-0);
+}
+
+.bt-topbar nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.bt-topbar nav a {
+  color: var(--fg-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.bt-topbar nav a:hover {
+  color: var(--fg-0);
+}
+
+.session-page {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 32px 80px;
+}
+
+.page-heading,
+.section-heading,
+.preview-heading,
+.range-field > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-heading {
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.page-heading h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  letter-spacing: -0.035em;
+}
+
+.page-heading p,
+.preview-heading p,
+.summary-card > p {
+  margin: 0;
+  color: var(--fg-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: var(--r-md);
+  font-size: 12.5px;
+}
+
+.notice.error {
+  border-color: oklch(0.42 0.1 30);
+  color: var(--danger);
+  background: oklch(0.23 0.035 30);
+}
+
+.notice.success {
+  border-color: oklch(0.42 0.1 130);
+  color: var(--accent);
+  background: oklch(0.23 0.035 130);
+}
+
+.configuration-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(290px, 0.65fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.configuration-column {
+  display: grid;
+  gap: 18px;
+}
+
+.music-card,
+.rules-card,
+.summary-card {
+  padding: 20px;
+}
+
+.section-heading {
+  margin-bottom: 16px;
+}
+
+.section-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--accent-ink);
+  background: var(--accent);
+  font: 700 11px var(--font-mono);
+}
+
+.playlist-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.playlist-grid button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  color: var(--fg-0);
+  background: var(--bg-1);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.playlist-grid button:hover,
+.playlist-grid button.selected {
+  border-color: var(--accent);
+  background: var(--bg-2);
+}
+
+.playlist-grid button > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+}
+
+.playlist-grid strong,
+.track-copy strong {
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlist-grid small,
+.track-copy small {
+  color: var(--fg-3);
+  font-size: 10.5px;
+}
+
+.playlist-cover {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 8px;
+  color: var(--fg-3);
+  background: var(--bg-3);
+}
+
+.playlist-cover img,
+.summary-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.radio-mark {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+}
+
+.selected .radio-mark {
+  border: 4px solid var(--accent);
+}
+
+.playlist-preview {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+}
+
+.preview-heading h3 {
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+
+.track-preview {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+}
+
+.track-preview > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 3px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.track-index {
+  width: 18px;
+  color: var(--fg-3);
+  font: 10px var(--font-mono);
+}
+
+.track-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.track-preview .mono {
+  color: var(--fg-3);
+  font-size: 10px;
+}
+
+.track-preview > p {
+  margin: 7px 0 0;
+  color: var(--fg-3);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+.rules-card form {
+  display: grid;
+  gap: 22px;
+}
+
+.range-field {
+  display: grid;
+  gap: 8px;
+}
+
+.range-field strong {
+  font-size: 13px;
+}
+
+.range-field output {
+  color: var(--accent);
+  font: 700 14px var(--font-mono);
+}
+
+.range-field input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.range-field small,
+.delivery-note {
+  color: var(--fg-3);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.summary-card {
+  position: sticky;
+  top: 76px;
+}
+
+.summary-cover {
+  display: grid;
+  place-items: center;
+  height: 150px;
+  margin: 16px 0;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  color: var(--fg-3);
+  background: var(--bg-2);
+  font-size: 34px;
+}
+
+.summary-card h2 {
+  margin: 0 0 5px;
+  font-size: 18px;
+}
+
+.summary-card dl {
+  margin: 18px 0 0;
+}
+
+.summary-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12px;
+}
+
+.summary-card dt {
+  color: var(--fg-2);
+}
+
+.summary-card dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+.create-button {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.delivery-note {
+  display: block;
+  margin-top: 9px;
+  text-align: center;
+}
+
+.state-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  color: var(--fg-2);
+  text-align: center;
+}
+
+.state-panel p {
+  max-width: 380px;
+  margin: 5px 0 14px;
+  font-size: 12px;
+}
+
+.state-panel h3 {
+  margin: 8px 0 0;
+  color: var(--fg-0);
+}
+
+.state-symbol {
+  font-size: 24px;
+}
+
+.inline-error {
+  margin: 12px 0 0;
+  color: var(--danger);
+  font-size: 11.5px;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 860px) {
+  .configuration-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card {
+    position: static;
+  }
+}
+
+@media (max-width: 580px) {
+  .session-page {
+    padding: 28px 16px 60px;
+  }
+
+  .page-heading {
+    align-items: flex-start;
+  }
+
+  .page-heading > a,
+  .bt-topbar nav {
+    display: none;
+  }
+
+  .playlist-grid {
+    grid-template-columns: 1fr;
+  }
+}

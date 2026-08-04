@@ -57,6 +57,11 @@ components:
       schema:
         type: string
         format: uuid
+    PublicCacheControl:
+      description: Public catalogue responses are fresh for 60 seconds and may be served stale while revalidating for 5 minutes.
+      schema:
+        type: string
+        example: public, max-age=60, stale-while-revalidate=300
 
   schemas:
     UUID:
@@ -857,12 +862,14 @@ components:
       schema:
         type: integer
         default: 0
+        minimum: 0
     SizeParam:
       name: size
       in: query
       schema:
         type: integer
         default: 20
+        minimum: 1
         maximum: 100
 
 paths:
@@ -1060,13 +1067,25 @@ paths:
       parameters:
         - name: q
           in: query
+          description: Case-insensitive search across published title, artist, album, composer, work, and category metadata.
           schema:
             type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: decade
+          in: query
+          schema:
+            type: integer
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/SizeParam'
       responses:
         '200':
           description: OK
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
           content:
             application/json:
               schema:
@@ -1078,6 +1097,56 @@ paths:
                       $ref: '#/components/schemas/Track'
                   totalElements:
                     type: integer
+                  totalPages:
+                    type: integer
+                  number:
+                    type: integer
+                  size:
+                    type: integer
+                  first:
+                    type: boolean
+                  last:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /playlists:
+    get:
+      tags: [Playlists]
+      summary: List public playlists with their published-track count
+      security: []
+      responses:
+        '200':
+          description: Stable name-ordered public playlist list
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Playlist'
+
+  /playlists/{playlistId}:
+    get:
+      tags: [Playlists]
+      summary: Get a public playlist with ordered published tracks
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '200':
+          description: Public playlist detail
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /admin/tracks:
     get:

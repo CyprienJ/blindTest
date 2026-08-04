@@ -13,7 +13,8 @@ gameplay and social features are still planned.
   password reset.
 - Interactive, concurrency-safe provisioning of the first administrator from an
   existing verified account.
-- Public published-track and playlist APIs.
+- Public published-track and playlist APIs with bounded search, deterministic
+  ordering, safe metadata projections, and explicit short-lived cache headers.
 - Administrator track review, YouTube import jobs, import progress over STOMP, and
   playlist management APIs.
 - Administrator playlist editor with metadata management, published-track search,
@@ -29,6 +30,9 @@ gameplay and social features are still planned.
 - A pinned local MinIO service with persistent storage, automatic private-bucket
   initialization, application-origin CORS, and localhost-only API and console ports.
 - Angular authentication pages and client-side authentication infrastructure.
+- Authenticated game-configuration UI for choosing an eligible public playlist,
+  track count, and round duration; it retains a local draft until gameplay APIs
+  are delivered.
 - PostgreSQL persistence with Flyway migrations V1 through V15.
 - Administrator CRUD for title, artist, composer, and album answer aliases, plus
   a validated whole-second playback offset.

@@ -57,7 +57,9 @@ remains temporarily for legacy tracks during the migration window.
 - Java 21 and Spring Boot 3.2 with Spring Security, JPA, Flyway, and STOMP.
 - Registration with Turnstile, email verification, login, rotating opaque refresh
   tokens, logout, and password reset.
-- Public published-track and playlist catalogue endpoints.
+- Public published-track and playlist catalogue endpoints with deterministic
+  ordering, bounded metadata search, safe public projections, and `Cache-Control:
+  public, max-age=60, stale-while-revalidate=300`.
 - Administrator track review, asynchronous YouTube import jobs, per-user STOMP
   import progress, and ordered playlist management.
 - Imports accept only HTTPS YouTube watch, short-link, and Shorts URLs with
@@ -124,8 +126,11 @@ login, registration, email verification, forgot/reset password, route protection
 JWT interception, refresh, and local session state. The administrator area delivers
 the track catalogue, YouTube import workflow, and playlist editor. Playlist editing
 supports metadata, published-track search, add/remove operations, drag-and-keyboard
-ordering with rollback on failure, and unsaved-change navigation protection. Other
-non-auth feature components remain route scaffolds whose templates are placeholders.
+ordering with rollback on failure, and unsaved-change navigation protection. The
+authenticated game-configuration page lists eligible public playlists, previews
+their published tracks, and saves track-count and round-duration choices as a local
+draft. It does not create a server session yet. Other non-auth feature components
+remain route scaffolds whose templates are placeholders.
 
 ### Not delivered
 
