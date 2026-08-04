@@ -32,9 +32,18 @@ class GameStateMachineTest {
         assertThat(first.progression()).isEqualTo(GameProgression.NEXT_ROUND_PREPARED);
         assertThat(first.game().currentRoundIndex()).isEqualTo(1);
         assertThat(first.game().currentRound().orElseThrow().track().playOrder()).isEqualTo(1);
+        assertThat(first.game().completedRounds().getFirst().playbackWindow()).
+                contains(RoundPlaybackWindow.from(
+                        first.game().trackSelection().tracks().getFirst().playback(),
+                        window(START)));
+        assertThat(first.game().currentRound().orElseThrow().playbackWindow()).isEmpty();
         assertThat(first.game().completedRounds()).hasSize(1);
 
         game = machine.startRound(first.game(), window(START.plusSeconds(70)));
+        assertThat(game.currentRound().orElseThrow().playbackWindow()).
+                contains(RoundPlaybackWindow.from(
+                        game.trackSelection().tracks().get(1).playback(),
+                        window(START.plusSeconds(70))));
         game = machine.timeoutRound(game, START.plusSeconds(130));
         RoundCompletionTransition second =
                 machine.completeRound(game, START.plusSeconds(131));

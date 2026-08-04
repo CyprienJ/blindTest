@@ -111,6 +111,11 @@ Last reviewed: 2026-08-04.
   deadline, progress through snapshotted tracks, and produce one ordered final score
   summary when the last round completes. Stable domain errors reject illegal
   transitions without transport or scheduler dependencies.
+- Started rounds retain immutable non-secret playback windows derived from the
+  snapshotted administrator offset and authoritative round timing. Windows include
+  exact excerpt bounds and a minimum URL expiry covering the round plus a 30-second
+  reconnect buffer; actual bearer URL authorization and signing remain deferred to
+  the session layer.
 - Admin track listing, update, delete, validate, and reject operations.
 - Administrator track listing supports paginated status filtering and
   case-insensitive metadata search.
@@ -373,7 +378,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 379 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 383 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;

@@ -20,10 +20,13 @@ public final class RoundStateMachine {
             RoundScoringWindow scoringWindow) {
         requireStatus(round, RoundStatus.PREPARING);
         Objects.requireNonNull(scoringWindow, "scoringWindow is required");
+        RoundPlaybackWindow playbackWindow =
+                RoundPlaybackWindow.from(round.track().playback(), scoringWindow);
         return new RoundStateSnapshot(
                 round.track(),
                 RoundStatus.PLAYING,
                 Optional.of(scoringWindow),
+                Optional.of(playbackWindow),
                 Optional.empty(),
                 round.scoreState(),
                 Optional.empty(),
@@ -97,6 +100,7 @@ public final class RoundStateMachine {
                 round.track(),
                 RoundStatus.COMPLETED,
                 round.scoringWindow(),
+                round.playbackWindow(),
                 round.outcome(),
                 round.scoreState(),
                 round.revealedAt(),
@@ -112,6 +116,7 @@ public final class RoundStateMachine {
                 round.track(),
                 RoundStatus.REVEALED,
                 round.scoringWindow(),
+                round.playbackWindow(),
                 Optional.of(outcome),
                 scoreState,
                 Optional.of(revealedAt),

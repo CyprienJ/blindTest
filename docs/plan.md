@@ -10,16 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[GAME-08 — Define playback window](#game-08--define-playback-window)**
+**[GAME-09 — Implement private secondary discoveries](#game-09--implement-private-secondary-discoveries)**
 
 Status: ready
 
-GAME-07 is complete, so GAME-08 is now the earliest ready unfinished ticket in the
-recommended execution sequence. Pure immutable game and round state machines enforce
-the approved lifecycles, resolve title, timeout, and skip outcomes against the
-authoritative deadline, advance through the snapshotted tracks, and create one final
-summary when the last round completes. GAME-08 can now attach deterministic private-
-media timing metadata to each round. MEDIA-08 remains deferred until real legacy
+GAME-08 is complete, so GAME-09 is now the earliest ready unfinished ticket in the
+recommended execution sequence. Every started round now snapshots deterministic,
+non-secret media timing from its selected track: authoritative start and deadline,
+administrator-configured excerpt bounds, and a minimum signed-URL expiry covering
+the round plus a 30-second reconnect buffer. The actual bearer URL remains delegated
+to SESSION-06. GAME-09 can now add participant-private secondary discoveries without
+changing these round outcomes or scores. MEDIA-08 remains deferred until real legacy
 files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
@@ -1108,6 +1109,8 @@ Acceptance:
 - the last round produces exactly one game completion.
 
 #### GAME-08 — Define playback window
+
+Status: completed on 2026-08-04.
 
 Decision: [ADR-0009](adr/0009-admin-configured-playback-offset.md).
 

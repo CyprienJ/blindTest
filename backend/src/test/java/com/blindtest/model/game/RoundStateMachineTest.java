@@ -31,6 +31,8 @@ class RoundStateMachineTest {
 
         assertThat(preparing.status()).isEqualTo(RoundStatus.PREPARING);
         assertThat(playing.status()).isEqualTo(RoundStatus.PLAYING);
+        assertThat(playing.playbackWindow()).contains(
+                RoundPlaybackWindow.from(track(0).playback(), WINDOW));
         assertThat(revealed.status()).isEqualTo(RoundStatus.REVEALED);
         assertThat(revealed.outcome()).contains(RoundOutcome.TITLE_FOUND);
         assertThat(revealed.scoreState().totalPoints()).isEqualTo(750);
@@ -130,6 +132,7 @@ class RoundStateMachineTest {
                         track(0),
                         RoundStatus.PREPARING,
                         java.util.Optional.of(WINDOW),
+                        java.util.Optional.empty(),
                         java.util.Optional.empty(),
                         RoundScoreState.unscored(),
                         java.util.Optional.empty(),
