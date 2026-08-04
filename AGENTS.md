@@ -238,6 +238,8 @@ supports authentication and import progress only.
 
 ### Implemented frontend features
 
+- Responsive public home page with login and registration actions, session-aware
+  continuation, and focused Angular/Playwright coverage.
 - Login.
 - Registration with Turnstile widget integration, explicit challenge lifecycle
   handling, and single-use token submission guards.

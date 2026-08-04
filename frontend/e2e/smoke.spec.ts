@@ -1,9 +1,9 @@
 import { expect, test } from './fixtures/test';
 
-test('renders the login page', async ({ page }) => {
+test('renders the public home page', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page).toHaveURL(/\/auth\/login$/);
-  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: /Hear it\. Name it\./ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Start playing' })).toBeVisible();
 });

@@ -10,16 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[HOME-01 — Implement the public home page](#home-01--implement-the-public-home-page)**
+**[HOME-02 — Implement the authenticated home page](#home-02--implement-the-authenticated-home-page)**
 
 Status: ready
 
-HOME-01 and HOME-02 have been promoted ahead of the remaining gameplay work so the
-application has clear public and authenticated entry points before more routes are
-added. HOME-01 is ready because authentication and the public catalogue already
-exist and the page requires no new backend contract. After HOME-01, implement
-HOME-02 before resuming SESSION-03. MEDIA-08 remains deferred until real legacy
-files require migration.
+HOME-01 is complete, so HOME-02 is now the earliest ready unfinished ticket in the
+prioritized entry-page sequence. The public `/` route presents the product and
+account actions without backend calls, recognizes a complete local authenticated
+session, and uses a protected transitional `/home` redirect to the delivered game
+configuration experience. HOME-02 can replace that redirect with the role-aware
+authenticated landing page before work resumes at SESSION-03. MEDIA-08 remains
+deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1384,6 +1385,8 @@ route infrastructure. UI-01 and the remaining gameplay tickets depend on Lot 5.
 ### Tickets
 
 #### HOME-01 — Implement the public home page
+
+Status: completed on 2026-08-04.
 
 Priority: implement before HOME-02 and before resuming SESSION-03.
 

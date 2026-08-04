@@ -17,17 +17,17 @@ each explicit work item in its post-V1 lot is counted as one provisional task.
 
 | Feature | Minimum tasks remaining | Shortest remaining path |
 |---|---:|---|
-| Visit the public home page | 1 | HOME-01 |
-| Reach the authenticated home page | 2 | HOME-01–02 (prioritized order) |
+| Visit the public home page | 0 | Delivered |
+| Reach the authenticated home page | 1 | HOME-02 |
 | Create an account | 0 | Delivered |
 | Import and publish a song | 0 | Delivered |
 | Create or edit a playlist | 0 | Delivered |
 | Configure a solo game | 0 | Delivered locally and accepted by the session endpoint |
-| Play a complete solo game | 12 | HOME-01–02, SESSION-03–06, and UI-02–07 |
-| Refresh a persisted end summary | 16 | Solo-game path plus HIST-01–03 and UI-08 |
-| Play a multiplayer game | At least 24 | Solo-game path plus the 12 provisional Lot P2 work items |
+| Play a complete solo game | 11 | HOME-02, SESSION-03–06, and UI-02–07 |
+| Refresh a persisted end summary | 15 | Solo-game path plus HIST-01–03 and UI-08 |
+| Play a multiplayer game | At least 23 | Solo-game path plus the 12 provisional Lot P2 work items |
 
-The authoritative current pointer is HOME-01. Update this table whenever ticket
+The authoritative current pointer is HOME-02. Update this table whenever ticket
 completion or roadmap dependencies change.
 
 ### Implemented
@@ -53,6 +53,8 @@ completion or roadmap dependencies change.
 - A pinned local MinIO service with persistent storage, automatic private-bucket
   initialization, application-origin CORS, and localhost-only API and console ports.
 - Angular authentication pages and client-side authentication infrastructure.
+- A responsive public home page with anonymous account actions and a direct path
+  into the existing player experience for authenticated visitors.
 - Authenticated game-configuration UI for choosing an eligible public playlist,
   track count, and round duration; it retains a local draft until gameplay APIs
   are delivered.

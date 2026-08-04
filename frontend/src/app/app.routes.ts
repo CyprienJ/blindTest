@@ -5,8 +5,10 @@ import { adminGuard } from './core/guards/admin.guard';
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'auth/login',
-    pathMatch: 'full',
+    loadComponent: () =>
+      import('./features/home/public-home/public-home.component').then(
+        (m) => m.PublicHomeComponent,
+      ),
   },
   {
     path: 'auth',
@@ -25,6 +27,11 @@ export const routes: Routes = [
       import('./features/auth/reset-password/reset-password.component').then(
         (m) => m.ResetPasswordComponent,
       ),
+  },
+  {
+    path: 'home',
+    redirectTo: 'lobby/create',
+    pathMatch: 'full',
   },
   {
     path: 'lobby',
