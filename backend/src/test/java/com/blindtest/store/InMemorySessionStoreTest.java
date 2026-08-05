@@ -89,13 +89,16 @@ class InMemorySessionStoreTest {
     }
 
     @Test
-    void readAndCreateLazilyReplaceAnExpiredSession() {
+    void expiredIdentityCannotBeReusedUntilCleanupReleasesItsResources() {
         ActiveSessionSnapshot expired = SessionTestFixtures.session();
         store.create(expired, SessionTestFixtures.NOW);
         Instant expiry = expired.expiresAt();
 
         assertThat(store.find(expired.sessionId(), expiry)).isEmpty();
         ActiveSessionSnapshot replacement = SessionTestFixtures.recreatedAt(expired, expiry);
+        assertThat(store.create(replacement, expiry)).
+                isEqualTo(SessionCreateOutcome.ALREADY_EXISTS);
+        assertThat(store.removeExpired(expiry)).isOne();
         assertThat(store.create(replacement, expiry)).isEqualTo(SessionCreateOutcome.CREATED);
         assertThat(store.find(replacement.sessionId(), expiry)).contains(replacement);
     }

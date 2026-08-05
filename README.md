@@ -27,7 +27,7 @@ each explicit work item in its post-V1 lot is counted as one provisional task.
 | Refresh a persisted end summary | 7 | Solo-game path plus UI-08 |
 | Play a multiplayer game | At least 18 | Solo-game path plus the 12 provisional Lot P2 work items |
 
-The authoritative current pointer is SESSION-08. Update this table whenever ticket
+The authoritative current pointer is SESSION-09. Update this table whenever ticket
 completion or roadmap dependencies change.
 
 ### Implemented
@@ -66,6 +66,9 @@ completion or roadmap dependencies change.
   exhaustive deterministic domain coverage.
 - Immutable active-session models and a replaceable optimistic `SessionStore` port,
   with a concurrency-safe process-local implementation and expiry metadata.
+- Sliding 30-minute inactive and five-minute terminal session retention, with
+  scheduled cleanup of abandoned state, queued gameplay timers, anti-spam ledgers,
+  and identifier-free aggregate metrics; durable history is retained separately.
 - Authenticated solo-session creation for verified accounts, with authoritative
   configuration validation, randomized immutable track/alias/media snapshots,
   independent sequential games, and returned STOMP connection instructions.

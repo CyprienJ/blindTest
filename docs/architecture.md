@@ -139,8 +139,9 @@ remains temporarily for legacy tracks during the migration window.
   state, optimistic version, and creation/update/expiry timestamps. A replaceable
   `SessionStore` port exposes atomic create, read, compare-and-set, version-guarded
   removal, expiry cleanup, and safe active-count operations. The process-local
-  `ConcurrentHashMap` adapter uses per-key atomic computation, lazily expires state,
-  and prevents stale concurrent commands from overwriting a newer snapshot.
+  `ConcurrentHashMap` adapter uses per-key atomic computation, rejects access after
+  expiry until scheduled resource cleanup, and prevents stale concurrent commands
+  from overwriting a newer snapshot.
 - `POST /api/sessions` creates an independent solo session for a verified
   authenticated account. It validates the flat playlist/count/duration contract,
   selects and freezes snapshot-capable published tracks and aliases, creates the
@@ -163,6 +164,15 @@ remains temporarily for legacy tracks during the migration window.
   window and further abusive frames are silently dropped, bounding answer matching,
   media signing, and feedback publication. Aggregate Micrometer counters use only
   the safe `player_cooldown` and `session_command` scope labels.
+- Active session expiry is sliding: created and playing snapshots retain 30 minutes
+  from their latest accepted state transition, while terminal snapshots retain five
+  minutes. A one-minute scheduled pass atomically removes expired process state,
+  applies the domain `ABORTED` transition to unfinished games, cancels session-owned
+  deadline/reveal tasks, and clears rate-limit ledgers. Pre-signed bearer URLs are
+  never retained in the store; releasing the snapshot removes private media keys
+  and answers from memory. Low-cardinality counters and an active-session gauge
+  expose cleanup results without identifiers. PostgreSQL history is not a cleanup
+  dependency or target.
 - Flyway V16 and matching JPA repositories define append-oriented completed-game,
   participant, and ordered-round snapshots. History rows retain versioned
   configuration, canonical answers and aliases, outcome/timing/score facts, and

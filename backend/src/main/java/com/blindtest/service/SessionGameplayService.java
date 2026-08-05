@@ -39,7 +39,6 @@ import com.blindtest.websocket.protocol.SessionCommandType;
 import com.blindtest.websocket.protocol.SessionEventMetadata;
 import com.blindtest.websocket.protocol.SessionProtocol;
 import java.net.URI;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -59,12 +58,12 @@ public class SessionGameplayService {
 
     private final SessionStore sessionStore;
     private final SessionTaskScheduler scheduler;
+    private final SessionExpirationPolicy expirationPolicy;
     private final MediaStorage mediaStorage;
     private final GameplayCommandRateLimiter rateLimiter;
     private final GameHistoryCompletionService historyCompletionService;
     private final SessionEventPublisher eventPublisher;
     private final SessionIdentityGenerator identityGenerator;
-    private final Clock clock;
     private final GameStateMachine gameStateMachine = new GameStateMachine(
             new RoundStateMachine(new TitleScoreCalculator()));
     private final AnswerMatcher answerMatcher = new AnswerMatcher();
@@ -75,20 +74,20 @@ public class SessionGameplayService {
     public SessionGameplayService(
             SessionStore sessionStore,
             SessionTaskScheduler scheduler,
+            SessionExpirationPolicy expirationPolicy,
             MediaStorage mediaStorage,
             GameplayCommandRateLimiter rateLimiter,
             GameHistoryCompletionService historyCompletionService,
             SessionEventPublisher eventPublisher,
-            SessionIdentityGenerator identityGenerator,
-            Clock clock) {
+            SessionIdentityGenerator identityGenerator) {
         this.sessionStore = sessionStore;
         this.scheduler = scheduler;
+        this.expirationPolicy = expirationPolicy;
         this.mediaStorage = mediaStorage;
         this.rateLimiter = rateLimiter;
         this.historyCompletionService = historyCompletionService;
         this.eventPublisher = eventPublisher;
         this.identityGenerator = identityGenerator;
-        this.clock = clock;
         Arrays.setAll(locks, ignored -> new Object());
     }
 
@@ -108,7 +107,7 @@ public class SessionGameplayService {
             if (participant == null) {
                 return false;
             }
-            var rateDecision = rateLimiter.checkSession(sessionId, clock.instant());
+            var rateDecision = rateLimiter.checkSession(sessionId, expirationPolicy.instant());
             if (rateDecision.action()
                     == GameplayCommandRateLimiter.RateLimitAction.DROP_SILENTLY) {
                 return true;
@@ -172,7 +171,8 @@ public class SessionGameplayService {
         }
         try {
             GameStateSnapshot started = gameStateMachine.start(session.gameState());
-            ActiveSessionSnapshot persisted = nextForCommand(session, started, command, clock.instant());
+            ActiveSessionSnapshot persisted = nextForCommand(
+                    session, started, command, expirationPolicy.instant());
             if (!persist(session, persisted)) {
                 staleAfterConflict(session, participant, accountId, command);
                 return true;
@@ -200,7 +200,7 @@ public class SessionGameplayService {
             invalidState(session, participant, accountId, command);
             return true;
         }
-        Instant acceptedAt = clock.instant();
+        Instant acceptedAt = expirationPolicy.instant();
         if (answerRateLimited(session, participant, accountId, command, acceptedAt)) {
             return true;
         }
@@ -216,7 +216,7 @@ public class SessionGameplayService {
                 discovery.state(),
                 session.processedCommands().record(command.commandId()),
                 acceptedAt,
-                session.expiresAt());
+                expirationPolicy.expiresAt(session.gameState().status(), acceptedAt));
         if (!persist(session, persisted)) {
             staleAfterConflict(session, participant, accountId, command);
             return true;
@@ -302,7 +302,7 @@ public class SessionGameplayService {
             return true;
         }
         try {
-            Instant skippedAt = clock.instant();
+            Instant skippedAt = expirationPolicy.instant();
             GameStateSnapshot revealed = gameStateMachine.skipRound(
                     session.gameState(), skippedAt);
             ActiveSessionSnapshot persisted = nextForCommand(
@@ -334,7 +334,7 @@ public class SessionGameplayService {
             invalidState(session, participant, accountId, command);
             return true;
         }
-        Instant now = clock.instant();
+        Instant now = expirationPolicy.instant();
         RoundCompletionTransition completion = gameStateMachine.completeRound(
                 session.gameState(), now);
         ActiveSessionSnapshot persisted = nextForCommand(
@@ -356,7 +356,7 @@ public class SessionGameplayService {
         if (round == null || round.status() != RoundStatus.PREPARING) {
             return false;
         }
-        Instant startsAt = clock.instant();
+        Instant startsAt = expirationPolicy.instant();
         Duration duration = Duration.ofSeconds(
                 session.configuration().maximumRoundDurationSeconds());
         RoundScoringWindow window = new RoundScoringWindow(startsAt.plus(duration), duration);
@@ -368,7 +368,7 @@ public class SessionGameplayService {
                 session.discoveries(),
                 session.processedCommands(),
                 startsAt,
-                session.expiresAt());
+                expirationPolicy.expiresAt(playing.status(), startsAt));
         if (!persist(session, persisted)) {
             return false;
         }
@@ -390,7 +390,9 @@ public class SessionGameplayService {
             ActiveSessionSnapshot session,
             int roundIndex,
             Instant deadline) {
-        scheduler.schedule(deadline, () -> onDeadline(session.sessionId(), roundIndex, deadline));
+        scheduler.schedule(
+                session.sessionId(), deadline,
+                () -> onDeadline(session.sessionId(), roundIndex, deadline));
     }
 
     private boolean onDeadline(SessionId sessionId, int roundIndex, Instant deadline) {
@@ -405,7 +407,7 @@ public class SessionGameplayService {
                     isEmpty()) {
                 return false;
             }
-            Instant now = clock.instant();
+            Instant now = expirationPolicy.instant();
             if (now.isBefore(deadline)) {
                 scheduleDeadline(session, roundIndex, deadline);
                 return true;
@@ -416,7 +418,7 @@ public class SessionGameplayService {
                     session.discoveries(),
                     session.processedCommands(),
                     now,
-                    session.expiresAt());
+                    expirationPolicy.expiresAt(timedOut.status(), now));
             if (persist(session, persisted)) {
                 publishRevealAndSchedule(persisted);
                 return true;
@@ -456,7 +458,7 @@ public class SessionGameplayService {
                         round.scoreState().totalPoints(),
                         totalScore,
                         advanceAt));
-        scheduler.schedule(advanceAt, () -> onAdvance(
+        scheduler.schedule(session.sessionId(), advanceAt, () -> onAdvance(
                 session.sessionId(),
                 session.gameState().currentRoundIndex(),
                 round.revealedAt().orElseThrow()));
@@ -474,9 +476,11 @@ public class SessionGameplayService {
                 return false;
             }
             Instant advanceAt = revealedAt.plus(REVEAL_DURATION);
-            Instant now = clock.instant();
+            Instant now = expirationPolicy.instant();
             if (now.isBefore(advanceAt)) {
-                scheduler.schedule(advanceAt, () -> onAdvance(sessionId, roundIndex, revealedAt));
+                scheduler.schedule(
+                        sessionId, advanceAt,
+                        () -> onAdvance(sessionId, roundIndex, revealedAt));
                 return true;
             }
             RoundCompletionTransition completion = gameStateMachine.completeRound(
@@ -486,7 +490,7 @@ public class SessionGameplayService {
                     session.discoveries(),
                     session.processedCommands(),
                     now,
-                    session.expiresAt());
+                    expirationPolicy.expiresAt(completion.game().status(), now));
             if (persist(session, persisted)) {
                 publishProgression(persisted, completion.progression());
                 return true;
@@ -509,6 +513,8 @@ public class SessionGameplayService {
                             summary.titlesFound(),
                             summary.skippedRounds(),
                             summary.timedOutRounds()));
+            scheduler.cancelSessionTasks(session.sessionId());
+            rateLimiter.forget(session.sessionId());
             historyCompletionService.complete(session);
             return;
         }
@@ -585,7 +591,7 @@ public class SessionGameplayService {
     private URI resolvePlaybackUrl(RoundStateSnapshot round) {
         var window = round.playbackWindow().orElseThrow();
         Duration minimumValidity = Duration.between(
-                clock.instant(), window.minimumUrlExpiresAt());
+                expirationPolicy.instant(), window.minimumUrlExpiresAt());
         if (minimumValidity.isNegative()) {
             minimumValidity = Duration.ZERO;
         }
@@ -603,7 +609,7 @@ public class SessionGameplayService {
                 session.discoveries(),
                 session.processedCommands().record(command.commandId()),
                 now,
-                session.expiresAt());
+                expirationPolicy.expiresAt(game.status(), now));
     }
 
     private void reject(
@@ -718,7 +724,7 @@ public class SessionGameplayService {
                 identityGenerator.nextId(),
                 session.sessionId().value(),
                 session.version(),
-                clock.instant());
+                expirationPolicy.instant());
     }
 
     private boolean persist(
@@ -728,11 +734,11 @@ public class SessionGameplayService {
                 previous.sessionId(),
                 previous.version(),
                 replacement,
-                clock.instant()) == SessionUpdateOutcome.UPDATED;
+                expirationPolicy.instant()) == SessionUpdateOutcome.UPDATED;
     }
 
     private ActiveSessionSnapshot find(SessionId sessionId) {
-        return sessionStore.find(sessionId, clock.instant()).orElse(null);
+        return sessionStore.find(sessionId, expirationPolicy.instant()).orElse(null);
     }
 
     private SessionParticipant participant(

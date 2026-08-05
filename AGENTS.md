@@ -130,8 +130,8 @@ Last reviewed: 2026-08-04.
   validated configuration, game and discovery state, optimistic version, and
   lifecycle timestamps. A replaceable `SessionStore` port provides atomic
   create/read/compare-and-set/remove/expiry operations; the process-local concurrent
-  adapter prevents stale commands from overwriting newer versions and exposes only
-  an aggregate active count.
+  adapter prevents stale commands from overwriting newer versions, denies expired
+  reads until scheduled resource cleanup, and exposes only an aggregate active count.
 - Verified authenticated accounts can create multiple independent solo sessions
   through `POST /api/sessions`. Creation authoritatively validates configuration,
   randomly snapshots published private-media tracks and aliases, creates the owner
@@ -233,6 +233,10 @@ Last reviewed: 2026-08-04.
 - Authenticated game owners can read their durable completed-game snapshot from
   `GET /api/sessions/{sessionId}/summary`; responses are ordered, non-cacheable,
   and exclude provider URLs, private media identifiers, raw guesses, and aliases.
+- Process-local sessions use configurable sliding 30-minute inactive and five-minute
+  terminal TTLs. A scheduled one-minute cleanup applies the aborted transition,
+  cancels queued gameplay timers, clears anti-spam state, and publishes only safe
+  aggregate Micrometer metrics without deleting durable completed-game history.
 
 The backend currently has controllers for:
 
@@ -431,7 +435,7 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 490 passing tests; JaCoCo coverage gates
+- backend: 0 Checkstyle violations and 497 passing tests; JaCoCo coverage gates
   pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;

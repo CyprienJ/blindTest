@@ -3,10 +3,11 @@ package com.blindtest.store;
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionId;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Process-local session adapter with atomic per-session compare-and-set operations. */
@@ -22,7 +23,7 @@ public final class InMemorySessionStore implements SessionStore {
         requireActive(session, now);
         AtomicReference<SessionCreateOutcome> outcome = new AtomicReference<>();
         sessions.compute(session.sessionId(), (sessionId, existing) -> {
-            if (existing == null || existing.isExpiredAt(now)) {
+            if (existing == null) {
                 outcome.set(SessionCreateOutcome.CREATED);
                 return session;
             }
@@ -36,15 +37,8 @@ public final class InMemorySessionStore implements SessionStore {
     public Optional<ActiveSessionSnapshot> find(SessionId sessionId, Instant now) {
         Objects.requireNonNull(sessionId, "sessionId is required");
         requireNow(now);
-        AtomicReference<ActiveSessionSnapshot> found = new AtomicReference<>();
-        sessions.computeIfPresent(sessionId, (ignored, existing) -> {
-            if (existing.isExpiredAt(now)) {
-                return null;
-            }
-            found.set(existing);
-            return existing;
-        });
-        return Optional.ofNullable(found.get());
+        ActiveSessionSnapshot found = sessions.get(sessionId);
+        return found == null || found.isExpiredAt(now) ? Optional.empty() : Optional.of(found);
     }
 
     @Override
@@ -62,7 +56,7 @@ public final class InMemorySessionStore implements SessionStore {
                 new AtomicReference<>(SessionUpdateOutcome.NOT_FOUND);
         sessions.compute(sessionId, (ignored, existing) -> {
             if (existing == null || existing.isExpiredAt(now)) {
-                return null;
+                return existing;
             }
             if (existing.version() != expectedVersion) {
                 outcome.set(SessionUpdateOutcome.VERSION_CONFLICT);
@@ -85,7 +79,7 @@ public final class InMemorySessionStore implements SessionStore {
         AtomicReference<SessionRemoveOutcome> outcome =
                 new AtomicReference<>(SessionRemoveOutcome.NOT_FOUND);
         sessions.compute(sessionId, (ignored, existing) -> {
-            if (existing == null || existing.isExpiredAt(now)) {
+            if (existing == null) {
                 return null;
             }
             if (existing.version() != expectedVersion) {
@@ -99,24 +93,25 @@ public final class InMemorySessionStore implements SessionStore {
     }
 
     @Override
-    public int removeExpired(Instant now) {
+    public List<ActiveSessionSnapshot> removeExpiredSessions(Instant now) {
         requireNow(now);
-        AtomicInteger removed = new AtomicInteger();
+        List<ActiveSessionSnapshot> removed = new ArrayList<>();
         sessions.forEach((sessionId, observed) -> sessions.computeIfPresent(
                 sessionId, (ignored, current) -> {
                     if (current.isExpiredAt(now)) {
-                        removed.incrementAndGet();
+                        removed.add(current);
                         return null;
                     }
                     return current;
                 }));
-        return removed.get();
+        return List.copyOf(removed);
     }
 
     @Override
     public int activeCount(Instant now) {
-        removeExpired(now);
-        return sessions.size();
+        requireNow(now);
+        return Math.toIntExact(sessions.values().stream().
+                filter(session -> !session.isExpiredAt(now)).count());
     }
 
     private void validateReplacementIdentity(

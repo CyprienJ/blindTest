@@ -21,6 +21,7 @@ import com.blindtest.model.game.GameParticipantId;
 import com.blindtest.model.game.GamePlaybackSnapshot;
 import com.blindtest.model.game.GameRandom;
 import com.blindtest.model.game.GameStateSnapshot;
+import com.blindtest.model.game.GameStatus;
 import com.blindtest.model.game.GameTrackCandidate;
 import com.blindtest.model.game.GameTrackSelection;
 import com.blindtest.model.game.GameTrackSelector;
@@ -39,8 +40,6 @@ import com.blindtest.service.port.SessionIdentityGenerator;
 import com.blindtest.store.SessionCreateOutcome;
 import com.blindtest.store.SessionStore;
 import com.blindtest.websocket.protocol.SessionProtocol;
-import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -57,7 +56,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class SoloSessionService {
 
-    private static final Duration INITIAL_SESSION_LIFETIME = Duration.ofHours(6);
     private static final int MAXIMUM_ID_ATTEMPTS = 5;
 
     private final UserRepository userRepository;
@@ -66,10 +64,10 @@ public class SoloSessionService {
     private final TrackAnswerAliasRepository aliasRepository;
     private final SessionStore sessionStore;
     private final SessionIdentityGenerator identityGenerator;
+    private final SessionExpirationPolicy expirationPolicy;
     private final GameTrackSelector trackSelector;
     private final GameConfigurationValidator configurationValidator =
             new GameConfigurationValidator();
-    private final Clock clock;
 
     /** Wires catalogue, identity, random-selection, time, and active-state boundaries. */
     public SoloSessionService(
@@ -79,16 +77,16 @@ public class SoloSessionService {
             TrackAnswerAliasRepository aliasRepository,
             SessionStore sessionStore,
             SessionIdentityGenerator identityGenerator,
-            GameRandom gameRandom,
-            Clock clock) {
+            SessionExpirationPolicy expirationPolicy,
+            GameRandom gameRandom) {
         this.userRepository = userRepository;
         this.playlistRepository = playlistRepository;
         this.playlistTrackRepository = playlistTrackRepository;
         this.aliasRepository = aliasRepository;
         this.sessionStore = sessionStore;
         this.identityGenerator = identityGenerator;
+        this.expirationPolicy = expirationPolicy;
         this.trackSelector = new GameTrackSelector(gameRandom);
-        this.clock = clock;
     }
 
     /** Validates and snapshots a new solo session owned by the authenticated account. */
@@ -191,7 +189,7 @@ public class SoloSessionService {
             UserEntity owner,
             GameConfiguration configuration,
             GameTrackSelection selection) {
-        Instant now = clock.instant();
+        Instant now = expirationPolicy.instant();
         GameParticipantId participantId =
                 new GameParticipantId(identityGenerator.nextId());
         SessionParticipant participant = new SessionParticipant(
@@ -209,7 +207,7 @@ public class SoloSessionService {
                     0,
                     now,
                     now,
-                    now.plus(INITIAL_SESSION_LIFETIME));
+                    expirationPolicy.expiresAt(GameStatus.CREATED, now));
             if (sessionStore.create(snapshot, now) == SessionCreateOutcome.CREATED) {
                 return response(snapshot, participantId);
             }

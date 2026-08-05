@@ -10,17 +10,16 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[SESSION-08 — Expire and clean abandoned sessions](#session-08--expire-and-clean-abandoned-sessions)**
+**[SESSION-09 — Add backend integration and concurrency tests](#session-09--add-backend-integration-and-concurrency-tests)**
 
 Status: ready
 
-HIST-03 is complete. `GET /api/sessions/{sessionId}/summary` now returns an
-ordered, refresh-safe durable result only to the authenticated game owner, uses
-`Cache-Control: no-store`, and exposes canonical answer metadata without provider
-URLs, storage keys, checksums, raw guesses, or internal aliases. SESSION-08 is the
-earliest ready unfinished ticket and can now bound abandoned active state without
-removing completed history. MEDIA-08 remains deferred until real legacy files
-require migration.
+SESSION-08 is complete. Active sessions now use a sliding 30-minute inactivity TTL
+and a five-minute terminal TTL, with a scheduled one-minute cleanup that applies
+the aborted domain transition, releases queued gameplay timers and rate-limit
+state, and reports safe aggregate Micrometer metrics. Durable PostgreSQL history is
+outside this process-local cleanup. SESSION-09 is the earliest ready unfinished
+ticket. MEDIA-08 remains deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](#definition-of-done), replace it with the next ready,
@@ -1353,6 +1352,8 @@ Acceptance:
 - summary survives browser refresh after completion.
 
 #### SESSION-08 — Expire and clean abandoned sessions
+
+Status: completed on 2026-08-04.
 
 Work:
 

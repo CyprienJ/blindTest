@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.blindtest.config.properties.SessionProperties;
 import com.blindtest.model.game.GameAnswerSnapshot;
 import com.blindtest.model.game.GameConfiguration;
 import com.blindtest.model.game.GameConfigurationValidator;
@@ -117,10 +118,15 @@ class SessionGameplayServiceTest {
         rateLimitMetrics = mock(GameplayRateLimitMetrics.class);
         GameplayCommandRateLimiter rateLimiter =
                 new GameplayCommandRateLimiter(rateLimitMetrics);
+        SessionExpirationPolicy expirationPolicy = new SessionExpirationPolicy(
+                new SessionProperties(
+                        Duration.ofMinutes(30), Duration.ofMinutes(5), Duration.ofMinutes(1)),
+                clock);
         historyCompletionService = mock(GameHistoryCompletionService.class);
         service = new SessionGameplayService(
-                store, scheduler, mediaStorage, rateLimiter, historyCompletionService,
-                publisher, identities, clock);
+                store, scheduler, expirationPolicy, mediaStorage, rateLimiter,
+                historyCompletionService,
+                publisher, identities);
         assertThat(store.create(createdSession(), clock.instant())).
                 isEqualTo(SessionCreateOutcome.CREATED);
     }
@@ -135,6 +141,7 @@ class SessionGameplayServiceTest {
         assertThat(state.gameState().status()).isEqualTo(GameStatus.PLAYING);
         assertThat(state.gameState().currentRound().orElseThrow().status()).
                 isEqualTo(RoundStatus.PLAYING);
+        assertThat(state.expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(30)));
         assertThat(publicEvents).extracting(PublicSessionEvent::type).
                 containsExactly(
                         PublicSessionEventType.ROUND_PREPARING,
@@ -405,6 +412,9 @@ class SessionGameplayServiceTest {
         ActiveSessionSnapshot finished = current();
         assertThat(finished.gameState().status()).isEqualTo(GameStatus.FINISHED);
         assertThat(finished.gameState().completedRounds()).hasSize(5);
+        assertThat(finished.expiresAt()).
+                isEqualTo(clock.instant().plus(Duration.ofMinutes(5)));
+        assertThat(scheduler.cancelledSessions()).containsExactly(new SessionId(SESSION_ID));
         assertThat(publicEvents).filteredOn(event ->
                 event.type() == PublicSessionEventType.GAME_FINISHED).singleElement().
                 satisfies(event -> {
@@ -522,14 +532,25 @@ class SessionGameplayServiceTest {
     private static final class RecordingScheduler implements SessionTaskScheduler {
 
         private final List<ScheduledTask> tasks = new CopyOnWriteArrayList<>();
+        private final List<SessionId> cancelledSessions = new CopyOnWriteArrayList<>();
 
         @Override
         public void schedule(Instant executeAt, Runnable task) {
             tasks.add(new ScheduledTask(executeAt, task));
         }
 
+        @Override
+        public int cancelSessionTasks(SessionId sessionId) {
+            cancelledSessions.add(sessionId);
+            return 0;
+        }
+
         List<ScheduledTask> tasks() {
             return tasks;
+        }
+
+        List<SessionId> cancelledSessions() {
+            return cancelledSessions;
         }
     }
 
