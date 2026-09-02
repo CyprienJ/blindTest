@@ -18,7 +18,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import {
   catchError,
   concatMap,
@@ -59,7 +59,7 @@ type AliasFormGroup = FormGroup<{
 @Component({
   selector: 'app-track-import',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, RouterLinkActive],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './track-import.component.html',
   styleUrl: './track-import.component.scss',
 })

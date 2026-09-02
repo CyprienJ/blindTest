@@ -1,0 +1,9 @@
+:host {
+  display: block;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-sidebar a.active {
+  box-shadow: inset 2px 0 var(--accent);
+}

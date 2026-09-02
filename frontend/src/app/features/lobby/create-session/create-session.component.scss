@@ -1,29 +1,13 @@
 :host {
   display: block;
-  min-height: 100vh;
+  min-height: calc(100vh - 56px);
 }
 
 .session-screen {
+  min-height: calc(100vh - 56px);
   background:
     radial-gradient(circle at 75% 10%, oklch(0.23 0.04 130 / 35%), transparent 32%),
     var(--bg-0);
-}
-
-.bt-topbar nav {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.bt-topbar nav a {
-  color: var(--fg-2);
-  font-size: 12.5px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.bt-topbar nav a:hover {
-  color: var(--fg-0);
 }
 
 .session-page {

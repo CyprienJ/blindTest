@@ -4,7 +4,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, HostListener, inject, OnInit } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
 import { debounceTime, distinctUntilChanged, finalize } from 'rxjs';
 import { AdminTrack } from '../track-list/admin-track.model';
 import { AdminTrackService } from '../track-list/admin-track.service';
@@ -18,7 +17,7 @@ import { AdminPlaylistService } from './admin-playlist.service';
 @Component({
   selector: 'app-playlist-editor',
   standalone: true,
-  imports: [CommonModule, DragDropModule, ReactiveFormsModule, RouterLink, RouterLinkActive],
+  imports: [CommonModule, DragDropModule, ReactiveFormsModule],
   templateUrl: './playlist-editor.component.html',
   styleUrl: './playlist-editor.component.scss',
 })

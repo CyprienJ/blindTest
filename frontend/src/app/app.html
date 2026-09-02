@@ -1,9 +1,1 @@
-@if (currentUser$ | async; as currentUser) {
-<div class="app-session-control">
-  <span class="app-session-username">{{ currentUser.username }}</span>
-  <button type="button" class="bt-btn bt-btn-ghost" [disabled]="signingOut" (click)="signOut()">
-    {{ signingOut ? 'Signing out…' : 'Sign out' }}
-  </button>
-</div>
-}
 <router-outlet />

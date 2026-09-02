@@ -1,231 +1,198 @@
-<div class="admin-shell">
-  <header class="bt-topbar admin-topbar">
-    <a class="bt-logo" routerLink="/home" aria-label="Blindtest home">
-      <span class="bt-logo-mark" aria-hidden="true"></span>
-      Blindtest
-    </a>
-    <span class="admin-label">Admin console</span>
-  </header>
+<main class="catalogue">
+  <div class="page-heading">
+    <div>
+      <h1>Track catalogue</h1>
+      <p>Review imported tracks, improve their answers and control publication.</p>
+    </div>
+    <a class="bt-btn bt-btn-primary" routerLink="/admin/tracks/import">＋ Import from YouTube</a>
+  </div>
 
-  <div class="admin-layout">
-    <aside class="admin-sidebar" aria-label="Administration">
-      <p class="nav-heading">Manage</p>
-      <nav>
-        <a routerLink="/admin/tracks" routerLinkActive="active">♫ <span>Track catalogue</span></a>
-        <a routerLink="/admin/tracks/import" routerLinkActive="active">↥ <span>Imports</span></a>
-        <a routerLink="/admin/playlists" routerLinkActive="active">☷ <span>Playlists</span></a>
-        <a routerLink="/admin/users" routerLinkActive="active">♙ <span>Users</span></a>
-      </nav>
-    </aside>
+  @if (successMessage) {
+    <div class="notice notice-success" role="status">
+      <span>{{ successMessage }}</span>
+      <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
+        ×
+      </button>
+    </div>
+  }
+  @if (listError) {
+    <div class="notice notice-error" role="alert">
+      <span>{{ listError }}</span>
+      <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">Retry</button>
+    </div>
+  }
 
-    <main class="catalogue">
-      <div class="page-heading">
-        <div>
-          <h1>Track catalogue</h1>
-          <p>Review imported tracks, improve their answers and control publication.</p>
-        </div>
-        <a class="bt-btn bt-btn-primary" routerLink="/admin/tracks/import"
-          >＋ Import from YouTube</a
+  <section class="catalogue-card">
+    <div class="status-tabs" aria-label="Filter tracks by status">
+      @for (filter of filters; track filter.label) {
+        <button
+          type="button"
+          [class.active]="activeStatus === filter.value"
+          [attr.aria-pressed]="activeStatus === filter.value"
+          (click)="selectStatus(filter.value)"
         >
+          {{ filter.label }}
+          <span>{{ countFor(filter.value) }}</span>
+        </button>
+      }
+    </div>
+
+    <div class="toolbar">
+      <label class="search-field">
+        <span aria-hidden="true">⌕</span>
+        <span class="sr-only">Search tracks</span>
+        <input
+          type="search"
+          [formControl]="searchControl"
+          placeholder="Search title, artist, album or category…"
+        />
+      </label>
+      <button class="bt-btn bt-btn-ghost" type="button" (click)="refresh()">↻ Refresh</button>
+    </div>
+
+    @if (loading) {
+      <div class="state-panel" role="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>Loading catalogue…</p>
+      </div>
+    } @else if (!listError && tracks.length === 0) {
+      <div class="state-panel">
+        <span class="state-icon" aria-hidden="true">♫</span>
+        <h2>No tracks found</h2>
+        <p>
+          @if (searchControl.value || activeStatus) {
+            Try another search or status.
+          } @else {
+            Import your first track to start the catalogue.
+          }
+        </p>
+      </div>
+    } @else if (tracks.length > 0) {
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Track</th>
+              <th>Category</th>
+              <th>Decade</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th>Added</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (track of tracks; track trackById($index, track)) {
+              <tr>
+                <td>
+                  <div class="track-cell">
+                    <span class="cover" aria-hidden="true">
+                      @if (track.imageUrl) {
+                        <img [src]="track.imageUrl" alt="" />
+                      } @else {
+                        ♫
+                      }
+                    </span>
+                    <span>
+                      <strong>{{ track.title }}</strong>
+                      <small>{{ track.artist }}</small>
+                    </span>
+                  </div>
+                </td>
+                <td>{{ track.category || '—' }}</td>
+                <td class="mono">{{ track.decade ? track.decade + 's' : '—' }}</td>
+                <td class="mono">{{ formatDuration(track.durationSeconds) }}</td>
+                <td>
+                  <span class="status-badge" [class]="'status-badge ' + track.status.toLowerCase()">
+                    {{ statusLabel(track.status) }}
+                  </span>
+                </td>
+                <td>{{ track.createdAt | date: 'mediumDate' }}</td>
+                <td>
+                  <div class="row-actions">
+                    @if (actionTrackId === track.id) {
+                      <span class="mini-spinner" role="status" aria-label="Updating track"></span>
+                    }
+                    @if (track.status === 'PENDING') {
+                      <button
+                        type="button"
+                        title="Preview audio"
+                        [disabled]="actionTrackId === track.id"
+                        (click)="openPreview(track)"
+                      >
+                        ▶
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      title="Edit track"
+                      [disabled]="actionTrackId === track.id"
+                      (click)="openEdit(track)"
+                    >
+                      ✎
+                    </button>
+                    @if (track.status === 'PENDING') {
+                      <button
+                        class="publish"
+                        type="button"
+                        title="Publish track"
+                        [disabled]="actionTrackId === track.id"
+                        (click)="validate(track)"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        class="danger"
+                        type="button"
+                        title="Reject track"
+                        [disabled]="actionTrackId === track.id"
+                        (click)="requestConfirmation(track, 'reject')"
+                      >
+                        ×
+                      </button>
+                    }
+                    <button
+                      class="danger"
+                      type="button"
+                      title="Delete track"
+                      [disabled]="actionTrackId === track.id"
+                      (click)="requestConfirmation(track, 'delete')"
+                    >
+                      ⌫
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
       </div>
 
-      @if (successMessage) {
-        <div class="notice notice-success" role="status">
-          <span>{{ successMessage }}</span>
-          <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
-            ×
+      <footer class="pagination">
+        <p>{{ totalElements }} track{{ totalElements === 1 ? '' : 's' }}</p>
+        <div>
+          <button
+            class="bt-btn bt-btn-sm bt-btn-ghost"
+            type="button"
+            [disabled]="page === 0"
+            (click)="goToPage(page - 1)"
+          >
+            Previous
+          </button>
+          <span>Page {{ page + 1 }} of {{ totalPages }}</span>
+          <button
+            class="bt-btn bt-btn-sm bt-btn-ghost"
+            type="button"
+            [disabled]="page + 1 >= totalPages"
+            (click)="goToPage(page + 1)"
+          >
+            Next
           </button>
         </div>
-      }
-      @if (listError) {
-        <div class="notice notice-error" role="alert">
-          <span>{{ listError }}</span>
-          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">
-            Retry
-          </button>
-        </div>
-      }
-
-      <section class="catalogue-card">
-        <div class="status-tabs" aria-label="Filter tracks by status">
-          @for (filter of filters; track filter.label) {
-            <button
-              type="button"
-              [class.active]="activeStatus === filter.value"
-              [attr.aria-pressed]="activeStatus === filter.value"
-              (click)="selectStatus(filter.value)"
-            >
-              {{ filter.label }}
-              <span>{{ countFor(filter.value) }}</span>
-            </button>
-          }
-        </div>
-
-        <div class="toolbar">
-          <label class="search-field">
-            <span aria-hidden="true">⌕</span>
-            <span class="sr-only">Search tracks</span>
-            <input
-              type="search"
-              [formControl]="searchControl"
-              placeholder="Search title, artist, album or category…"
-            />
-          </label>
-          <button class="bt-btn bt-btn-ghost" type="button" (click)="refresh()">↻ Refresh</button>
-        </div>
-
-        @if (loading) {
-          <div class="state-panel" role="status">
-            <span class="spinner" aria-hidden="true"></span>
-            <p>Loading catalogue…</p>
-          </div>
-        } @else if (!listError && tracks.length === 0) {
-          <div class="state-panel">
-            <span class="state-icon" aria-hidden="true">♫</span>
-            <h2>No tracks found</h2>
-            <p>
-              @if (searchControl.value || activeStatus) {
-                Try another search or status.
-              } @else {
-                Import your first track to start the catalogue.
-              }
-            </p>
-          </div>
-        } @else if (tracks.length > 0) {
-          <div class="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Track</th>
-                  <th>Category</th>
-                  <th>Decade</th>
-                  <th>Duration</th>
-                  <th>Status</th>
-                  <th>Added</th>
-                  <th><span class="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (track of tracks; track trackById($index, track)) {
-                  <tr>
-                    <td>
-                      <div class="track-cell">
-                        <span class="cover" aria-hidden="true">
-                          @if (track.imageUrl) {
-                            <img [src]="track.imageUrl" alt="" />
-                          } @else {
-                            ♫
-                          }
-                        </span>
-                        <span>
-                          <strong>{{ track.title }}</strong>
-                          <small>{{ track.artist }}</small>
-                        </span>
-                      </div>
-                    </td>
-                    <td>{{ track.category || '—' }}</td>
-                    <td class="mono">{{ track.decade ? track.decade + 's' : '—' }}</td>
-                    <td class="mono">{{ formatDuration(track.durationSeconds) }}</td>
-                    <td>
-                      <span
-                        class="status-badge"
-                        [class]="'status-badge ' + track.status.toLowerCase()"
-                      >
-                        {{ statusLabel(track.status) }}
-                      </span>
-                    </td>
-                    <td>{{ track.createdAt | date: 'mediumDate' }}</td>
-                    <td>
-                      <div class="row-actions">
-                        @if (actionTrackId === track.id) {
-                          <span
-                            class="mini-spinner"
-                            role="status"
-                            aria-label="Updating track"
-                          ></span>
-                        }
-                        @if (track.status === 'PENDING') {
-                          <button
-                            type="button"
-                            title="Preview audio"
-                            [disabled]="actionTrackId === track.id"
-                            (click)="openPreview(track)"
-                          >
-                            ▶
-                          </button>
-                        }
-                        <button
-                          type="button"
-                          title="Edit track"
-                          [disabled]="actionTrackId === track.id"
-                          (click)="openEdit(track)"
-                        >
-                          ✎
-                        </button>
-                        @if (track.status === 'PENDING') {
-                          <button
-                            class="publish"
-                            type="button"
-                            title="Publish track"
-                            [disabled]="actionTrackId === track.id"
-                            (click)="validate(track)"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            class="danger"
-                            type="button"
-                            title="Reject track"
-                            [disabled]="actionTrackId === track.id"
-                            (click)="requestConfirmation(track, 'reject')"
-                          >
-                            ×
-                          </button>
-                        }
-                        <button
-                          class="danger"
-                          type="button"
-                          title="Delete track"
-                          [disabled]="actionTrackId === track.id"
-                          (click)="requestConfirmation(track, 'delete')"
-                        >
-                          ⌫
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-
-          <footer class="pagination">
-            <p>{{ totalElements }} track{{ totalElements === 1 ? '' : 's' }}</p>
-            <div>
-              <button
-                class="bt-btn bt-btn-sm bt-btn-ghost"
-                type="button"
-                [disabled]="page === 0"
-                (click)="goToPage(page - 1)"
-              >
-                Previous
-              </button>
-              <span>Page {{ page + 1 }} of {{ totalPages }}</span>
-              <button
-                class="bt-btn bt-btn-sm bt-btn-ghost"
-                type="button"
-                [disabled]="page + 1 >= totalPages"
-                (click)="goToPage(page + 1)"
-              >
-                Next
-              </button>
-            </div>
-          </footer>
-        }
-      </section>
-    </main>
-  </div>
-</div>
+      </footer>
+    }
+  </section>
+</main>
 
 @if (editingTrack) {
   <div class="modal-backdrop">

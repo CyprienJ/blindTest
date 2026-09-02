@@ -1,17 +1,4 @@
-<div class="bt-screen session-screen">
-  <header class="bt-topbar">
-    <a class="bt-logo" routerLink="/home" aria-label="Blindtest home">
-      <span class="bt-logo-mark" aria-hidden="true"></span>
-      Blindtest
-    </a>
-    <nav aria-label="Primary navigation">
-      <a routerLink="/lobby/join">Join a game</a>
-      @if (auth.isAdmin()) {
-        <a routerLink="/admin/playlists">Administration</a>
-      }
-    </nav>
-  </header>
-
+<div class="session-screen">
   <main class="session-page">
     <div class="page-heading">
       <div>

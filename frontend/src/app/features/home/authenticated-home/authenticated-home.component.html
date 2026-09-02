@@ -1,12 +1,4 @@
 <main class="dashboard-shell">
-  <header class="dashboard-header" aria-label="Authenticated navigation">
-    <a class="bt-logo" routerLink="/home" aria-label="Blindtest home">
-      <span class="bt-logo-mark" aria-hidden="true"></span>
-      <span>Blindtest</span>
-    </a>
-    <a class="public-link" routerLink="/">Public home</a>
-  </header>
-
   @if (currentUser$ | async; as currentUser) {
     <section class="welcome" aria-labelledby="dashboard-title">
       <p class="eyebrow">Player home</p>
