@@ -1,8 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { ActiveSoloSession } from '../../../core/models/game-session.model';
+import { GAME_SOCKET_CLIENT, GameSocketService } from '../../../core/services/game-socket.service';
 import { GameRoomComponent } from './game-room.component';
 
 const active: ActiveSoloSession = {
@@ -24,46 +26,76 @@ const active: ActiveSoloSession = {
   maxRoundSeconds: 25,
 };
 
-async function render(sessionId: string): Promise<{
-  fixture: ComponentFixture<GameRoomComponent>;
-  navigate: jasmine.Spy;
-}> {
+function fakeClient() {
+  return {
+    connectionState$: new BehaviorSubject(3),
+    configure: () => undefined,
+    activate: () => undefined,
+    deactivate: () => Promise.resolve(),
+    watch: () => new Subject(),
+    publish: () => undefined,
+    stompClient: { connectHeaders: {} },
+  };
+}
+
+async function setup(sessionId: string) {
   await TestBed.configureTestingModule({
     imports: [GameRoomComponent],
     providers: [
       provideHttpClient(),
       provideHttpClientTesting(),
       provideRouter([]),
+      { provide: GAME_SOCKET_CLIENT, useValue: fakeClient },
       {
         provide: ActivatedRoute,
         useValue: { snapshot: { paramMap: convertToParamMap({ sessionId }) } },
       },
     ],
   }).compileComponents();
-  const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
-  const fixture = TestBed.createComponent(GameRoomComponent);
-  fixture.detectChanges();
-  return { fixture, navigate };
+
+  const socket = TestBed.inject(GameSocketService);
+  return {
+    socket,
+    navigate: spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true),
+    connect: spyOn(socket, 'connect').and.callThrough(),
+    disconnect: spyOn(socket, 'disconnect').and.callThrough(),
+    create: () => {
+      const fixture = TestBed.createComponent(GameRoomComponent);
+      fixture.detectChanges();
+      return fixture;
+    },
+  };
 }
 
 describe('GameRoomComponent', () => {
   beforeEach(() => sessionStorage.clear());
   afterEach(() => sessionStorage.clear());
 
-  it('shows the setup placeholder for a known active session', async () => {
+  it('shows the setup placeholder and connects for a known active session', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+    const harness = await setup(active.sessionId);
 
-    const { fixture, navigate } = await render(active.sessionId);
-
+    const fixture = harness.create();
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
     expect(text).toContain('Setting up your game');
     expect(text).toContain('Eighties essentials');
     expect(text).toContain('12 tracks');
-    expect(navigate).not.toHaveBeenCalled();
+    expect(harness.connect).toHaveBeenCalledWith(active);
+    expect(harness.navigate).not.toHaveBeenCalled();
   });
 
   it('redirects to configuration when there is no matching session', async () => {
-    const { navigate } = await render('unknown-session');
-    expect(navigate).toHaveBeenCalledWith(['/lobby/create']);
+    const harness = await setup('unknown-session');
+    harness.create();
+    expect(harness.navigate).toHaveBeenCalledWith(['/lobby/create']);
+    expect(harness.connect).not.toHaveBeenCalled();
+  });
+
+  it('disconnects the socket on destroy', async () => {
+    sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+    const harness = await setup(active.sessionId);
+    harness.create().destroy();
+    expect(harness.disconnect).toHaveBeenCalled();
   });
 });

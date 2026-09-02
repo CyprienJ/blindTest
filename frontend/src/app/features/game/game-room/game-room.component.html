@@ -8,7 +8,19 @@
       <p class="rules">
         {{ session.trackCount }} tracks · {{ session.maxRoundSeconds }}s per track
       </p>
-      <p class="hint">Connecting you to the live game…</p>
+      <p class="hint">
+        @switch (status$ | async) {
+          @case ('connected') {
+            Connected. Waiting for the live game…
+          }
+          @case ('reconnecting') {
+            Connection lost — reconnecting…
+          }
+          @default {
+            Connecting you to the live game…
+          }
+        }
+      </p>
       <a class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
     </section>
   </main>
