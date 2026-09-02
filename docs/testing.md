@@ -51,6 +51,35 @@ byte ranges, idempotent overwrite/deletion retries, and unavailable-storage erro
 translation. It runs as part of the normal Maven `test` phase and therefore
 requires a Docker-compatible container runtime.
 
+## Backend solo-game flow
+
+`com.blindtest.session.SoloGameBackendFlowIntegrationTest` exercises the complete
+server-authoritative solo game without a browser. It boots the full application on
+a random port against a PostgreSQL Testcontainers database with Flyway migrations
+and Hibernate `ddl-auto=validate`, then:
+
+- creates a session through `POST /api/sessions` as a verified account;
+- opens a real STOMP connection over `/ws`, subscribes to the shared and private
+  destinations, and plays five rounds (correct title, secondary artist match then
+  timeout, skip, reconnect snapshot, duplicate-command idempotency);
+- drives authoritative deadline and reveal timers through a controllable
+  `SessionTaskScheduler` and a mutable `Clock`, including a duplicate-timer race
+  that must yield exactly one reveal;
+- confirms cross-session authorization: a non-member cannot subscribe to or
+  command another owner's session;
+- asserts durable history is written once to PostgreSQL on completion, the active
+  session is removed, and `GET /api/sessions/{sessionId}/summary` returns the
+  ordered, refresh-safe owner projection while hiding it from other accounts.
+
+Media playback URLs resolve through the in-memory storage adapter, so the suite
+needs a Docker-compatible container runtime only for PostgreSQL. Run it on JDK 21
+with the rest of the backend tests:
+
+```bash
+cd backend
+mvn --batch-mode checkstyle:check test
+```
+
 ## Browser media seek
 
 `frontend/e2e/media-playback.spec.ts` serves a deterministic range-capable WAV

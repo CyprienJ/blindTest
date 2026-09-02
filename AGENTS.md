@@ -67,7 +67,7 @@ Ticket` section identifies the default implementation ticket.
 
 ## Current Implementation Snapshot
 
-Last reviewed: 2026-08-04.
+Last reviewed: 2026-09-02.
 
 ### Implemented backend features
 
@@ -233,6 +233,11 @@ Last reviewed: 2026-08-04.
 - Authenticated game owners can read their durable completed-game snapshot from
   `GET /api/sessions/{sessionId}/summary`; responses are ordered, non-cacheable,
   and exclude provider URLs, private media identifiers, raw guesses, and aliases.
+- A browserless backend integration suite plays a full solo game end to end over
+  REST session creation, a real STOMP connection, authoritative deadline/reveal
+  timers with a duplicate-timer race, a reconnect snapshot, command idempotency,
+  cross-session authorization rejection, and durable PostgreSQL history completion
+  on a Testcontainers database, then reads back the owner summary endpoint.
 - Process-local sessions use configurable sliding 30-minute inactive and five-minute
   terminal TTLs. A scheduled one-minute cleanup applies the aborted transition,
   cancels queued gameplay timers, clears anti-spam state, and publishes only safe
@@ -435,8 +440,8 @@ CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHea
 
 Baseline at the review date:
 
-- backend: 0 Checkstyle violations and 497 passing tests; JaCoCo coverage gates
-  pass for security, WebSocket, and service packages;
+- backend: 0 Checkstyle violations and 500 passing tests on JDK 21; JaCoCo
+  coverage gates pass for security, WebSocket, and service packages;
 - frontend: lint passes, production build passes, 15 passing unit tests,
   and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
 - Docker Compose configuration parses successfully when unset secret warnings are
