@@ -13,13 +13,6 @@ export const GAME_CONFIGURATION_LIMITS = {
   },
 } as const;
 
-export interface PendingGameConfiguration {
-  playlistId: string;
-  trackCount: number;
-  maxRoundSeconds: number;
-  extensions: Readonly<Record<string, never>>;
-}
-
 export function isAllowedTrackCount(value: number): boolean {
   const limits = GAME_CONFIGURATION_LIMITS.trackCount;
   return (

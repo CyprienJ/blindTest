@@ -1,0 +1,15 @@
+@if (session; as session) {
+  <main class="room-shell">
+    <section class="bt-card setup-card" aria-live="polite">
+      <span class="setup-spinner" aria-hidden="true"></span>
+      <p class="eyebrow">Solo blindtest</p>
+      <h1>Setting up your game…</h1>
+      <p class="playlist">{{ session.playlistName }}</p>
+      <p class="rules">
+        {{ session.trackCount }} tracks · {{ session.maxRoundSeconds }}s per track
+      </p>
+      <p class="hint">Connecting you to the live game…</p>
+      <a class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+    </section>
+  </main>
+}

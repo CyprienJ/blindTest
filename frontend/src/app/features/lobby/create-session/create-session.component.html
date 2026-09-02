@@ -17,9 +17,6 @@
         </button>
       </div>
     }
-    @if (readyMessage) {
-      <div class="notice success" role="status">{{ readyMessage }}</div>
-    }
 
     <div class="configuration-grid">
       <div class="configuration-column">
@@ -190,17 +187,18 @@
           </div>
         </dl>
 
+        @if (submitError) {
+          <p class="notice error submit-error" role="alert">{{ submitError }}</p>
+        }
+
         <button
           class="bt-btn bt-btn-primary bt-btn-lg create-button"
           type="button"
-          [disabled]="!selected || loadingDetail || form.invalid"
-          (click)="prepareSession()"
+          [disabled]="!selected || loadingDetail || form.invalid || submitting"
+          (click)="createSession()"
         >
-          Create session →
+          {{ submitting ? 'Creating game…' : 'Create session →' }}
         </button>
-        <small class="delivery-note">
-          The configuration is saved locally until the gameplay session endpoint is delivered.
-        </small>
       </aside>
     </div>
   </main>

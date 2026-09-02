@@ -2,19 +2,17 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, OnInit } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
+import { GameSessionService } from '../../../core/services/game-session.service';
 import { PublicPlaylist, PublicPlaylistDetail } from './catalogue.model';
 import { CatalogueService } from './catalogue.service';
 import {
   GAME_CONFIGURATION_LIMITS,
   isAllowedRoundDuration,
   isAllowedTrackCount,
-  PendingGameConfiguration,
 } from './game-configuration.model';
-
-const PENDING_GAME_CONFIGURATION_KEY = 'pending_game_configuration';
 
 @Component({
   selector: 'app-create-session',
@@ -25,6 +23,8 @@ const PENDING_GAME_CONFIGURATION_KEY = 'pending_game_configuration';
 })
 export class CreateSessionComponent implements OnInit {
   private readonly catalogue = inject(CatalogueService);
+  private readonly gameSessions = inject(GameSessionService);
+  private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
   readonly auth = inject(AuthService);
   readonly limits = GAME_CONFIGURATION_LIMITS;
@@ -51,9 +51,10 @@ export class CreateSessionComponent implements OnInit {
   selected: PublicPlaylistDetail | null = null;
   loading = true;
   loadingDetail = false;
+  submitting = false;
   errorMessage = '';
   detailError = '';
-  readyMessage = '';
+  submitError = '';
 
   ngOnInit(): void {
     this.loadPlaylists();
@@ -92,7 +93,7 @@ export class CreateSessionComponent implements OnInit {
     this.form.controls.playlistId.setValue(playlist.id);
     this.loadingDetail = true;
     this.detailError = '';
-    this.readyMessage = '';
+    this.submitError = '';
     this.catalogue
       .playlist(playlist.id)
       .pipe(finalize(() => (this.loadingDetail = false)))
@@ -120,16 +121,79 @@ export class CreateSessionComponent implements OnInit {
       });
   }
 
-  prepareSession(): void {
+  createSession(): void {
     if (this.form.invalid || !this.selected) {
       this.form.markAllAsTouched();
       return;
     }
-    const values = this.form.getRawValue();
-    const configuration: PendingGameConfiguration = { ...values, extensions: {} };
-    sessionStorage.setItem(PENDING_GAME_CONFIGURATION_KEY, JSON.stringify(configuration));
-    this.readyMessage =
-      'Configuration saved. Session creation will become available with the gameplay service.';
+    const { playlistId, trackCount, maxRoundSeconds } = this.form.getRawValue();
+    const playlistName = this.selected.name;
+    this.submitting = true;
+    this.submitError = '';
+    this.gameSessions
+      .createSolo({ playlistId, trackCount, maxRoundSeconds, extensions: {} })
+      .pipe(finalize(() => (this.submitting = false)))
+      .subscribe({
+        next: (session) => {
+          this.gameSessions.setActiveSession({
+            ...session,
+            playlistName,
+            trackCount,
+            maxRoundSeconds,
+          });
+          void this.router.navigate(['/game', session.sessionId]);
+        },
+        error: (error) => this.handleCreateError(error, trackCount),
+      });
+  }
+
+  private handleCreateError(error: unknown, trackCount: number): void {
+    this.submitError = this.describeCreateError(error, trackCount);
+    if (error instanceof HttpErrorResponse) {
+      const code = error.error?.code as string | undefined;
+      if (
+        code === 'GAME_PLAYLIST_NOT_FOUND' ||
+        code === 'GAME_PLAYLIST_INELIGIBLE' ||
+        code === 'GAME_PLAYLIST_INSUFFICIENT_TRACKS'
+      ) {
+        this.loadPlaylists();
+      }
+    }
+  }
+
+  private describeCreateError(error: unknown, trackCount: number): string {
+    if (error instanceof HttpErrorResponse) {
+      const code = error.error?.code as string | undefined;
+      const message = error.error?.message as string | undefined;
+      switch (code) {
+        case 'GAME_PLAYLIST_REQUIRED':
+          return 'Choose a playlist before starting a game.';
+        case 'GAME_TRACK_COUNT_INVALID':
+          return 'The track count is outside the allowed range.';
+        case 'GAME_ROUND_DURATION_INVALID':
+          return 'The answer time is outside the allowed range.';
+        case 'GAME_CONFIGURATION_EXTENSION_UNSUPPORTED':
+          return "That game option isn't available yet.";
+        case 'GAME_PLAYLIST_NOT_FOUND':
+          return 'That playlist is no longer available. The list has been refreshed.';
+        case 'GAME_PLAYLIST_INELIGIBLE':
+          return 'This playlist has no tracks ready to play right now.';
+        case 'GAME_PLAYLIST_INSUFFICIENT_TRACKS':
+          return (
+            `This playlist doesn't have enough ready tracks for ${trackCount} rounds. ` +
+            'Pick fewer tracks or another playlist.'
+          );
+        case 'EMAIL_NOT_VERIFIED':
+          return 'Verify your email address before starting a game.';
+        default:
+          break;
+      }
+      if (error.status === 0) {
+        return 'The server can’t be reached. Check your connection and try again.';
+      }
+      return message || 'The game could not be created. Please try again.';
+    }
+    return 'The game could not be created. Please try again.';
   }
 
   estimatedMinutes(): number {

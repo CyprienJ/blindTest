@@ -6,8 +6,7 @@
 .session-screen {
   min-height: calc(100vh - 56px);
   background:
-    radial-gradient(circle at 75% 10%, oklch(0.23 0.04 130 / 35%), transparent 32%),
-    var(--bg-0);
+    radial-gradient(circle at 75% 10%, oklch(0.23 0.04 130 / 35%), transparent 32%), var(--bg-0);
 }
 
 .session-page {
@@ -278,8 +277,7 @@
   accent-color: var(--accent);
 }
 
-.range-field small,
-.delivery-note {
+.range-field small {
   color: var(--fg-3);
   font-size: 10.5px;
   line-height: 1.45;
@@ -335,10 +333,9 @@
   margin-top: 18px;
 }
 
-.delivery-note {
-  display: block;
-  margin-top: 9px;
-  text-align: center;
+.submit-error {
+  margin: 18px 0 0;
+  line-height: 1.45;
 }
 
 .state-panel {
