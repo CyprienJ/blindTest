@@ -17,8 +17,15 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
+  // Visual snapshots are taken on Linux (local and CI both run Ubuntu), but font
+  // hinting still drifts a little between machines; tolerate a small pixel diff
+  // instead of chasing per-machine baselines.
+  expect: {
+    toHaveScreenshot: { maxDiffPixelRatio: 0.02 },
+  },
   projects: [
     {
+      // The only browser required to pass on every push; see e2e/README.md.
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
@@ -26,6 +33,16 @@ export default defineConfig({
           ? { executablePath: chromiumExecutablePath }
           : undefined,
       },
+    },
+    {
+      // Scheduled coverage only (nightly workflow), not required on every push.
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      // Scheduled coverage only (nightly workflow), not required on every push.
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
     },
   ],
   webServer: {
