@@ -1,5 +1,8 @@
 package com.blindtest.testing.e2e;
 
+import com.blindtest.model.entity.UserEntity;
+import com.blindtest.model.entity.UserRole;
+import com.blindtest.repository.UserRepository;
 import com.blindtest.service.FirstAdminProvisioningResult;
 import com.blindtest.service.FirstAdminProvisioningService;
 import java.util.List;
@@ -25,6 +28,7 @@ public class E2eTestSupportController {
 
     private final FakeEmailSender fakeEmailSender;
     private final FirstAdminProvisioningService firstAdminProvisioningService;
+    private final UserRepository userRepository;
 
     /** Returns every captured email sent to {@code to}, oldest first. */
     @GetMapping("/api/e2e/emails")
@@ -49,5 +53,20 @@ public class E2eTestSupportController {
     @PostMapping("/api/e2e/admin-provisioning")
     public FirstAdminProvisioningResult provisionFirstAdmin(@RequestParam String email) {
         return firstAdminProvisioningService.provision(email);
+    }
+
+    /**
+     * Demotes every administrator back to a regular user, mirroring the reset pattern above for
+     * the fake inbox. Full-stack spec files share one Postgres instance and the first-administrator
+     * rule only allows one bootstrap promotion per stack, so a spec running after another has
+     * already promoted an admin resets that state first to promote its own account the same way
+     * the operator CLI would (E2E-04).
+     */
+    @DeleteMapping("/api/e2e/admin-provisioning")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetAdministrators() {
+        List<UserEntity> administrators = userRepository.findByRole(UserRole.ADMIN);
+        administrators.forEach(admin -> admin.setRole(UserRole.USER));
+        userRepository.saveAll(administrators);
     }
 }

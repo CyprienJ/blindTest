@@ -25,6 +25,20 @@ const BASE_RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 
 /**
+ * `crypto.randomUUID()` only exists in secure contexts (HTTPS, or http://localhost);
+ * `crypto.getRandomValues()` has no such restriction, so build a v4 UUID from it instead. This
+ * keeps command IDs working when the app is served over plain HTTP on a non-localhost origin,
+ * such as an internal Docker network.
+ */
+function randomCommandId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/**
  * Owns the single gameplay STOMP connection: access-token connect headers,
  * a typed command API, exponential reconnect, automatic resubscription and
  * post-reconnect snapshot recovery, and teardown on route exit or logout.
@@ -162,7 +176,7 @@ export class GameSocketService implements OnDestroy {
     }
     const command: SessionCommand = {
       protocolVersion: GAME_PROTOCOL_VERSION,
-      commandId: crypto.randomUUID(),
+      commandId: randomCommandId(),
       expectedSessionVersion: this.sessionVersion,
       type,
     };

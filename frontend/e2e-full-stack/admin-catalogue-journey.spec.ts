@@ -91,7 +91,7 @@ test('completes the admin catalogue journey: import, publish, and build a playli
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page).toHaveURL(/\/home$/);
-    await page.getByRole('link', { name: 'Admin' }).click();
+    await page.getByRole('link', { name: 'Admin', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/tracks$/);
     await expect(page.getByRole('heading', { name: 'Track catalogue' })).toBeVisible();
   });
@@ -122,7 +122,7 @@ test('completes the admin catalogue journey: import, publish, and build a playli
     await expect(publishButton).toBeEnabled({ timeout: 15_000 });
     await publishButton.click();
 
-    await expect(page.getByText('Track published')).toBeVisible();
+    await expect(page.getByText('Track published', { exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'Open catalogue' }).click();
     await expect(page).toHaveURL(/\/admin\/tracks$/);
   });
@@ -137,7 +137,7 @@ test('completes the admin catalogue journey: import, publish, and build a playli
     await page.getByRole('link', { name: '☷ Playlists' }).click();
     await expect(page).toHaveURL(/\/admin\/playlists$/);
 
-    await page.getByRole('button', { name: '＋ New playlist' }).click();
+    await page.getByRole('button', { name: '＋ New playlist' }).first().click();
     await page.getByLabel('Playlist name').fill(playlistName);
     await page.getByRole('button', { name: 'Create playlist' }).click();
     await expect(page.getByRole('heading', { name: playlistName })).toBeVisible();
