@@ -15,10 +15,10 @@ export class AppShellComponent {
   private readonly router = inject(Router);
 
   readonly currentUser$ = this.authService.currentUser$;
-  readonly isAdmin = this.authService.isAdmin();
   signingOut = false;
 
   signOut(): void {
+    if (this.signingOut) return;
     this.signingOut = true;
     this.authService.logout().subscribe({
       next: () => this.finishSignOut(),

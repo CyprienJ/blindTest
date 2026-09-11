@@ -75,3 +75,24 @@
     display: none;
   }
 }
+
+.bt-topbar a:focus-visible,
+.bt-topbar button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .bt-topbar {
+    height: auto;
+    min-height: 56px;
+    padding-block: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .bt-topbar-lead {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}

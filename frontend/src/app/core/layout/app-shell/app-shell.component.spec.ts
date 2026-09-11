@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { UserSummary } from '../../models/user.model';
 import { AuthService } from '../../services/auth.service';
 import { AppShellComponent } from './app-shell.component';
@@ -43,6 +43,8 @@ describe('AppShellComponent', () => {
     expect(nav).not.toBeNull();
     expect(nav?.querySelector('a[href="/lobby/create"]')?.textContent).toContain('Play');
 
+    expect(nav?.querySelector('a[href="/lobby/create#public-playlists"]')).not.toBeNull();
+
     const disabled = Array.from(element.querySelectorAll('.bt-nav-item[aria-disabled="true"]')).map(
       (item) => item.textContent?.trim(),
     );
@@ -73,6 +75,26 @@ describe('AppShellComponent', () => {
     button.click();
 
     expect(logout).toHaveBeenCalled();
+  });
+
+  it('removes privileged navigation when the session is cleared', async () => {
+    const element = await render('ADMIN');
+    TestBed.inject(AuthService).clearSession();
+    fixture.detectChanges();
+    expect(element.querySelector('a[href="/admin"]')).toBeNull();
+    expect(element.querySelector('.bt-topbar-account')).toBeNull();
+  });
+
+  it('prevents duplicate logout requests while sign-out is pending', async () => {
+    await render('USER');
+    const pending = new Subject<void>();
+    const logout = spyOn(TestBed.inject(AuthService), 'logout').and.returnValue(pending);
+    fixture.componentInstance.signOut();
+    fixture.componentInstance.signOut();
+    fixture.detectChanges();
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(fixture.nativeElement.querySelector('button').disabled).toBeTrue();
+    pending.complete();
   });
 
   it('omits the account cluster when no session is restored', async () => {

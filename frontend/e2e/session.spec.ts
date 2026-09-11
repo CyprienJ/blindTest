@@ -1,8 +1,11 @@
 import { expect, test } from './fixtures/test';
-import { installSession, mockJson } from './support/auth';
+import { installSession, mockJson, testUser } from './support/auth';
 
 test.describe('authentication session', () => {
   test('refreshes an access token before entering a protected route', async ({ page }) => {
+    await page.addInitScript((user) => {
+      localStorage.setItem('current_user', JSON.stringify(user));
+    }, testUser);
     await mockJson(page, '/api/auth/refresh', 200, { accessToken: 'refreshed-access-token' });
 
     await page.goto('/lobby');

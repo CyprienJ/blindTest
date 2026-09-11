@@ -201,5 +201,5 @@ test('normal users cannot enter the administration routes', async ({ page }) => 
   });
 
   await page.goto('/admin/tracks');
-  await expect(page).toHaveURL(/\/lobby/);
+  await expect(page).toHaveURL(/\/home$/);
 });

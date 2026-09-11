@@ -266,6 +266,6 @@ test('normal users cannot enter or submit the import flow', async ({ page }) => 
   });
 
   await page.goto('/admin/tracks/import');
-  await expect(page).toHaveURL(/\/lobby/);
+  await expect(page).toHaveURL(/\/home$/);
   expect(submitted).toBe(false);
 });

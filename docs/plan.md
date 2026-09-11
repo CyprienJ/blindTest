@@ -10,20 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[UI-01 — Implement authenticated application shell](roadmap/lot-6-frontend.md#ui-01--implement-authenticated-application-shell)**
+**[UI-02 — Implement game configuration](roadmap/lot-6-frontend.md#ui-02--implement-game-configuration)**
 
 Status: ready
 
-SESSION-09 is complete, closing Lot 5. A JDK 21 backend integration suite now
-drives the full solo game without a browser: REST session creation, a real STOMP
-connection, authoritative deadline/reveal timers, a duplicate-timer race, a
-reconnect snapshot, command idempotency, cross-session authorization rejection,
-durable PostgreSQL history completion on a Testcontainers database, and the
-refresh-safe owner summary endpoint. HOME-01 and HOME-02 already ship, so UI-01 is
-the next ready ticket in the recommended sequence, beginning the Lot 6 frontend
-gameplay experience on top of the delivered session backend. TEST-06 remains an
-outstanding CI prerequisite before automated beta deployment resumes, and MEDIA-08
-stays deferred until real legacy files require migration.
+UI-01 is complete: the authenticated shell provides play and public playlist
+navigation, reactive administrator access, safe authentication redirects, and
+sign-out. Refresh, role, logout failure, and layout checks passed alongside the
+required application validation. UI-02 is the next ready ticket; existing game
+configuration code must be reviewed against its acceptance criteria and ADR-0008.
+TEST-06 remains an outstanding CI prerequisite before automated beta deployment
+resumes, and MEDIA-08 stays deferred until real legacy files require migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](roadmap/completion-rules.md#definition-of-done), replace it with the next ready,
