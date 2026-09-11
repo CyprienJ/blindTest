@@ -240,6 +240,16 @@ Acceptance:
 
 #### UI-09 — Add frontend game Playwright coverage
 
+Status: complete (2026-09-11). `game-finish.spec.ts` and `end-screen.spec.ts`
+were added, exercising the last-round finish view, its link to the end-screen
+route, and the durable summary states (loaded, not-found, server error)
+alongside the mocked-WebSocket coverage already present in
+`answer-feedback.spec.ts` and `game-room.spec.ts`.
+
+Validation: Playwright suite passed on Chromium (the only required browser at
+the time). Backend and Angular unit suites were not re-run; this ticket only
+added end-to-end specs.
+
 Mocked-API coverage:
 
 - configuration validation;
@@ -258,6 +268,27 @@ Acceptance:
 - state rendering is deterministic without real timers or audio networks.
 
 #### UI-10 — Add desktop browser and accessibility checks
+
+Status: complete (2026-09-11). `playwright.config.ts` now configures Firefox
+and WebKit projects alongside the required Chromium project; the full existing
+suite passes unmodified on all three. Chromium remains the only browser
+required on every push (`npm run test:e2e`, wired into `ci.yml`); a new
+scheduled workflow (`e2e-cross-browser.yml`, nightly cron) runs
+`npm run test:e2e:all-browsers` so a Firefox/WebKit regression is caught
+without gating every push. `e2e/accessibility.spec.ts` adds keyboard-reach and
+visible-focus-ring checks (sign-in form, public home hero, in-game answer
+field), asserts the answer feedback region's semantics
+(`role="status"`, `aria-atomic`, `aria-describedby`), and checks that four core
+routes render without a page error at a 360×740 viewport. `e2e/visual.spec.ts`
+adds two Chromium-only screenshot baselines (public home, sign-in) for screens
+with no timers or animation. The global focus-visible outline and the
+`.bt-input` focus box-shadow were added/strengthened in `styles.scss` so
+keyboard focus is visible beyond the existing border-color change. See
+[`e2e/README.md`](../../frontend/e2e/README.md) for the browser/test policy.
+
+Validation: full Playwright suite (224 specs) passed on Chromium, Firefox, and
+WebKit locally; Angular unit tests (79) and production build passed. Backend
+was not touched and not re-run.
 
 Work:
 

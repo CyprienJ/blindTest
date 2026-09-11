@@ -38,9 +38,10 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 Git history confirms UI-01 through UI-05 were implemented on 2026-09-02. The
 subsequent shell fixes are maintenance of UI-01, not its original implementation.
 The roadmap now records those implementation commits explicitly. UI-06 private
-answer feedback, UI-07 reveal/round transitions, and UI-08 persisted end summary
-are complete and validated; the next ticket is UI-09. Later tickets
-still require their own acceptance validation.
+answer feedback, UI-07 reveal/round transitions, UI-08 persisted end summary,
+UI-09 Playwright game coverage, and UI-10 desktop-browser/accessibility checks
+are complete and validated, closing Lot 6; the next ticket is E2E-01 (Lot 7).
+Later tickets still require their own acceptance validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).
 
