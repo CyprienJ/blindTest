@@ -1,238 +1,64 @@
 # Blindtest
 
-Blindtest is a work-in-progress music blindtest application built as a Java/Spring
-Boot and Angular monorepo. The long-term product is real-time and multiplayer. The
-repository currently delivers authentication, music catalogue administration, the
-pure solo-game domain, active-session storage, and authenticated solo-session
-creation; playable command transport/UI and social features are still planned.
+Blindtest is a music guessing web application. Administrators import audio,
+review its metadata and accepted answers, then publish tracks into public
+playlists. Players choose a playlist and try to identify each title before time
+runs out. Faster correct answers earn more points.
 
-## Delivery status
+The first release targets authenticated solo play. Multiplayer rooms, guests,
+friends, and profiles belong to later releases. The project is still in development;
+[implementation status](docs/product/status.md) separates working code from
+unfinished experiences and roadmap acceptance.
 
-### Minimum ticket distance to features
+## How it works
 
-These counts follow the shortest functional dependency path in
-[`docs/plan.md`](docs/plan.md), not the larger production-release checklist. One
-unfinished roadmap ticket counts as one task. Multiplayer is not ticketed yet, so
-each explicit work item in its post-V1 lot is counted as one provisional task.
+1. A player registers, verifies their email, and signs in.
+2. An administrator imports a YouTube track, previews the audio, configures the
+   excerpt and alternative answers, and publishes it into the catalogue.
+3. The administrator creates public playlists from published tracks.
+4. A player configures a solo game. The backend randomly selects and snapshots
+   eligible tracks so later catalogue edits cannot change that game's answers.
+5. The browser receives game events over WebSocket, plays private audio through
+   short-lived signed URLs, and sends guesses to the backend.
+6. The backend controls deadlines, matches answers, awards points, and saves a
+   completed-game summary in PostgreSQL.
 
-| Feature | Minimum tasks remaining | Shortest remaining path |
-|---|---:|---|
-| Visit the public home page | 0 | Delivered |
-| Reach the authenticated home page | 0 | Delivered |
-| Create an account | 0 | Delivered |
-| Import and publish a song | 0 | Delivered |
-| Create or edit a playlist | 0 | Delivered |
-| Configure a solo game | 0 | Delivered locally and accepted by the session endpoint |
-| Play a complete solo game | 6 | UI-02–07 |
-| Refresh a persisted end summary | 7 | Solo-game path plus UI-08 |
-| Play a multiplayer game | At least 18 | Solo-game path plus the 12 provisional Lot P2 work items |
+Angular provides the browser interface. A Java/Spring Boot backend owns security
+and game rules. PostgreSQL stores durable records; MinIO stores private audio.
+Active games live in backend memory. Docker Compose runs these services behind
+Nginx. See [architecture](docs/architecture.md) for the connections and boundaries.
 
-The authoritative current pointer is SESSION-09. Update this table whenever ticket
-completion or roadmap dependencies change.
+## Documentation tree
 
-### Implemented
+Read this page first, then open the branch relevant to your task. Each branch
+links to deeper explanations and source files; reading the whole tree is unnecessary.
 
-- Account registration, email verification, login, token refresh, logout, and
-  password reset.
-- Interactive, concurrency-safe provisioning of the first administrator from an
-  existing verified account.
-- Public published-track and playlist APIs with bounded search, deterministic
-  ordering, safe metadata projections, and explicit short-lived cache headers.
-- Administrator track review, YouTube import jobs, import progress over STOMP, and
-  playlist management APIs.
-- Administrator playlist editor with metadata management, published-track search,
-  add/remove/reorder controls, and unsaved-change protection.
-- A non-root backend runtime with pinned `yt-dlp` and FFmpeg, plus wall-clock,
-  temporary-file-size, FFmpeg thread, and container CPU limits for imports.
-- Deterministic backend adapters that exercise registration and audio import
-  without Resend, Cloudflare, YouTube, `yt-dlp`, or FFmpeg.
-- A provider-neutral private-media storage API with a typed MinIO SDK adapter and
-  an in-memory test implementation.
-- Real-MinIO integration coverage for storage lifecycle, signed byte-range reads,
-  retry safety, and unavailable storage, plus a Chromium audio-seek smoke test.
-- A pinned local MinIO service with persistent storage, automatic private-bucket
-  initialization, application-origin CORS, and localhost-only API and console ports.
-- Angular authentication pages and client-side authentication infrastructure.
-- A responsive public home page with anonymous account actions and a direct path
-  into the existing player experience for authenticated visitors.
-- A guarded, role-aware authenticated home page with solo-game creation, public
-  playlist discovery, administrator playlist editing, and explicit multiplayer
-  availability state.
-- Authenticated game-configuration UI for choosing an eligible public playlist,
-  track count, and round duration; it retains a local draft until gameplay APIs
-  are delivered.
-- Pure gameplay configuration, track snapshotting, answer normalization/matching,
-  scoring, state machines, playback windows, private secondary discoveries, and
-  exhaustive deterministic domain coverage.
-- Immutable active-session models and a replaceable optimistic `SessionStore` port,
-  with a concurrency-safe process-local implementation and expiry metadata.
-- Sliding 30-minute inactive and five-minute terminal session retention, with
-  scheduled cleanup of abandoned state, queued gameplay timers, anti-spam ledgers,
-  and identifier-free aggregate metrics; durable history is retained separately.
-- Authenticated solo-session creation for verified accounts, with authoritative
-  configuration validation, randomized immutable track/alias/media snapshots,
-  independent sequential games, and returned STOMP connection instructions.
-- A documented, versioned gameplay STOMP contract with idempotent commands,
-  ordered public events, participant-private feedback, and recovery snapshots.
-- JWT-authenticated gameplay WebSockets with active-session membership checks,
-  manipulation-resistant destinations, principal-scoped private queues, and real
-  STOMP integration coverage.
-- Server-authoritative solo gameplay command handling with optimistic event
-  versioning, bounded command idempotency, deterministic deadline/reveal timers,
-  race-safe skip and answer resolution, and private reconnect snapshots.
-- Participant-authorized active-round playback URLs, freshly signed from immutable
-  media snapshots for round starts and reconnects with round-plus-buffer validity.
-- Gameplay anti-spam controls with a short per-player answer cooldown, a bounded
-  per-session command burst, feedback suppression, and safe aggregate metrics.
-- PostgreSQL persistence with Flyway migrations V1 through V16, including durable
-  completed-game, participant, and ordered round snapshot tables.
-- Transactional, idempotent game-completion snapshots keyed by session identity,
-  with concurrent-insert confirmation, bounded transient retry backoff, retained
-  active state until durable success, and safe aggregate outcome metrics.
-- An owner-only, refresh-safe completed-game summary endpoint with ordered score,
-  outcome, timing, title, artist, composer, and album snapshots; private media,
-  provider, raw-guess, and internal alias data are excluded.
-- Administrator CRUD for title, artist, composer, and album answer aliases, plus
-  a validated whole-second playback offset.
-- A Docker Compose stack containing PostgreSQL, MinIO, the Spring Boot backend,
-  and the Nginx-served Angular frontend.
+| Branch | What you will find |
+|---|---|
+| [Product](docs/product/README.md) | User journeys → current status → gameplay rules |
+| [Architecture](docs/architecture.md) | Runtime and boundaries → data model → decisions and historical design |
+| [Backend](docs/backend/README.md) | Request flow → authentication, catalogue/imports, sessions → STOMP contract |
+| [Frontend](docs/frontend/README.md) | Routes and state → gameplay client and audio → source and tests |
+| [Development](docs/development/README.md) | Local setup → environment configuration → testing |
+| [Operations](docs/operations/README.md) | Deployment → administrator provisioning → media runbooks |
+| [Roadmap](docs/plan.md) | Next ticket → decisions, individual delivery lots, completion rules |
 
-### Planned for the first production release
+Contributors and AI agents should also read [AGENTS.md](AGENTS.md) for operating
+rules. Pages aim for roughly 200 lines, with up to 300 for a cohesive topic.
+The [OpenAPI contract](docs/swagger.yaml) and generated UI references are technical
+artifacts rather than prose guides and retain their native structure.
 
-- A server-authoritative solo game with playlist and round configuration, answer
-  matching, scoring, skip, timeout, reveal, and an end-of-game summary.
-- The browser end-summary experience backed by the durable summary API.
-- Migration of imported audio to private S3-compatible storage.
-- Production hardening, broader automated tests, and complete operational checks.
+## Start locally
 
-### Deferred until after the first production release
-
-- Real-time multiplayer sessions and guest players.
-- Friends, invitations, profiles, and the full game-history experience.
-- Advanced administration, moderation, and horizontal scaling.
-
-The authoritative delivery scope and next ticket are in
-[`docs/plan.md`](docs/plan.md). [`docs/architecture.md`](docs/architecture.md)
-separates the architecture currently present in code from the original target
-design. The target sections are not evidence that a feature has been implemented.
-
-## Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) 24+
-- [Docker Compose](https://docs.docker.com/compose/install/) v2+
-
-For a host-based development loop, also install Java 21, Maven, Node.js, and npm.
-
-## Run the complete Compose stack
-
-Copy the environment template and replace every placeholder before starting the
-application. `docker-compose.override.yml` is loaded automatically for local
-commands, so Angular and Spring use the development profile and Cloudflare's
-matching public test key pair:
+Install Docker and Docker Compose, copy `.env.example` to `.env`, and replace its
+placeholders. Then, from the repository root:
 
 ```bash
-cp .env.example .env
 docker compose build
 docker compose up -d
-docker compose ps
 ```
 
-The base Compose file remains production-like. To test it locally without the
-automatic development override, select it explicitly and provide production-valid
-HTTPS endpoints and real credentials:
-
-```bash
-docker compose -f docker-compose.yml up -d --build
-```
-
-Do not copy `docker-compose.override.yml` or `docker-compose.local.yml` into a
-production deployment.
-`CORS_ALLOWED_ORIGINS` accepts a comma-separated list of browser origins. The
-automatic local override pins it to `http://localhost:${APP_PORT}`; production
-should keep it restricted to the public application origin.
-
-The stack starts:
-
-| Service | Purpose | Host access |
-|---|---|---|
-| `postgres` | PostgreSQL 16 | Internal Compose network only |
-| `minio` | Private S3-compatible object storage | API `127.0.0.1:${MINIO_API_PORT}`; console `127.0.0.1:${MINIO_CONSOLE_PORT}` |
-| `minio-init` | One-shot private bucket initializer | None |
-| `backend` | Spring Boot API and WebSocket endpoint | Through the frontend proxy |
-| `frontend` | Angular SPA, Nginx reverse proxy, and `/media` serving | `http://localhost:${APP_PORT}` (default `8090`) |
-
-Follow backend logs or stop the stack with:
-
-```bash
-docker compose logs -f backend
-docker compose down
-```
-
-`docker compose down` preserves the `postgres_data`, `minio_data`, and legacy
-`media` volumes. Adding `--volumes` deletes all three volumes and their data.
-
-Flyway migrations run automatically when the backend starts. Migration files are
-under `backend/src/main/resources/db/migration/`.
-
-After registering and verifying the first administrator account, follow the
-operator procedure in
-[`docs/admin-provisioning.md`](docs/admin-provisioning.md). It uses a one-shot
-backend command and does not require a manual role update in PostgreSQL.
-
-The backend image pins and smoke-tests `yt-dlp` and FFmpeg. Imports default to a
-10-minute wall-clock limit, a 25 MiB temporary-file limit, one FFmpeg worker
-thread, and a 1.0-CPU container quota. Configure these with `APP_IMPORT_TIMEOUT`,
-`APP_IMPORT_MAX_SIZE_BYTES`, and `BACKEND_CPU_LIMIT`.
-
-## Run services on the host
-
-Start PostgreSQL separately and make the variables used by
-`backend/src/main/resources/application.properties` available in your shell. Then:
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-In another terminal:
-
-```bash
-cd frontend
-npm ci
-npm start
-```
-
-The Angular development server runs at `http://localhost:4200` and proxies `/api`
-and `/media` to `http://localhost:8080`.
-
-## Validation
-
-Run checks for every changed area. The full local validation is:
-
-```bash
-cd backend
-mvn --batch-mode checkstyle:check test
-
-cd ../frontend
-npm run lint
-npm run build
-npm run test -- --watch=false --browsers=ChromeHeadless
-npm run test:e2e
-
-cd ..
-docker compose config --quiet
-```
-
-On this workstation, the frontend tests may require
-`CHROME_BIN=/snap/bin/chromium`.
-
-## Repository documentation
-
-- [`AGENTS.md`](AGENTS.md): contributor and coding-agent operating guide.
-- [`docs/plan.md`](docs/plan.md): authoritative product decisions, roadmap, and
-  ticket sequence.
-- [`docs/architecture.md`](docs/architecture.md): current architecture snapshot and
-  original target architecture.
-- [`docs/swagger.yaml`](docs/swagger.yaml): intended API contract; it currently
-  mixes implemented and planned operations.
-- [`docs/adr/`](docs/adr/): architecture decision records and template.
+Open `http://localhost:8090` unless you changed `APP_PORT`. The automatic local
+override configures the development profile and Turnstile test keys.
+[Local development](docs/development/README.md) explains configuration, host-based
+execution, logs, and shutdown. [Testing](docs/testing.md) lists validation commands.

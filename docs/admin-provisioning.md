@@ -1,5 +1,7 @@
 # First-administrator provisioning
 
+[Up: Operations](operations/README.md)
+
 The first administrator is an existing, verified account promoted by an operator.
 There is no bootstrap HTTP endpoint, default administrator, or password accepted
 by the provisioning command.

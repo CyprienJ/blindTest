@@ -70,7 +70,7 @@ must tolerate newly added nullable/versioned fields during mixed-version deploys
 
 ## References
 
-- [Roadmap persistence split](../plan.md#44-persistence-split)
+- [Roadmap persistence split](../roadmap/target-architecture.md#44-active-and-durable-state)
 - [Data model diagram](../diagrams/02-modele-donnees.puml)
 - [Game state diagram](../diagrams/03-etats.puml)
 - [ADR-0004](0004-in-memory-session-store.md)

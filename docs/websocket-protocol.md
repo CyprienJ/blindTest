@@ -1,5 +1,7 @@
 # Gameplay STOMP Protocol
 
+[Up: Session internals](backend/sessions.md) · [Browser client](frontend/gameplay.md)
+
 Status: V1 contract defined by SESSION-03. Authentication, membership authorization,
 and private user-queue routing are implemented by SESSION-04. SESSION-05 delivers
 the authoritative command orchestration, timers, versioning, and recovery snapshot.

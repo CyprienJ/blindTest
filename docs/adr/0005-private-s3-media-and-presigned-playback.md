@@ -71,6 +71,6 @@ database cutover, rollback window, and reconciliation have succeeded.
 
 ## References
 
-- [Roadmap media model](../plan.md#45-media-security-model)
+- [Roadmap media model](../roadmap/target-architecture.md#45-media-storage)
 - [Component diagram](../diagrams/01-composants.puml)
 - [Import sequence diagram](../diagrams/04-sequences.puml)

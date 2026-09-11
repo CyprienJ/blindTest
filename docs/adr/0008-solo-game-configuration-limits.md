@@ -66,7 +66,7 @@ playlist edits do not alter an active game's requested count or round duration.
 
 ## References
 
-- [Roadmap solo game rules](../plan.md#solo-game-rules)
-- [Decision gates](../plan.md#5-decision-gates)
+- [Roadmap solo game rules](../roadmap/product-decisions.md#solo-game-rules)
+- [Decision gates](../roadmap/decision-gates.md#5-decision-gates)
 - [Reference lobby view](../Blindtest/views/lobby.jsx)
 - [ADR-0002](0002-server-authoritative-sessions.md)

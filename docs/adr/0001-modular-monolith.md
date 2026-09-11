@@ -66,6 +66,6 @@ component or data migration.
 
 ## References
 
-- [Roadmap target architecture](../plan.md#42-backend-module-boundaries)
+- [Roadmap target architecture](../roadmap/target-architecture.md#42-backend-module-boundaries)
 - [Component diagram](../diagrams/01-composants.puml)
 

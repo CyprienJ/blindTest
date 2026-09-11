@@ -64,6 +64,6 @@ parameter in the first release.
 
 ## References
 
-- [GAME-03](../plan.md#game-03--select-and-snapshot-tracks)
-- [Decision gates](../plan.md#5-decision-gates)
+- [GAME-03](../roadmap/lot-4-game-domain.md#game-03--select-and-snapshot-tracks)
+- [Decision gates](../roadmap/decision-gates.md#5-decision-gates)
 - [ADR-0002](0002-server-authoritative-sessions.md)

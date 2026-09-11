@@ -70,7 +70,7 @@ provided position but cannot request an arbitrary alternative playback window.
 
 ## References
 
-- [Roadmap decision gates](../plan.md#5-decision-gates)
-- [Catalogue tickets](../plan.md#10-lot-3--administrator-catalogue-and-playlists)
+- [Roadmap decision gates](../roadmap/decision-gates.md#5-decision-gates)
+- [Catalogue tickets](../roadmap/lot-3-catalogue.md)
 - [ADR-0005](0005-private-s3-media-and-presigned-playback.md)
 - [ADR-0008](0008-solo-game-configuration-limits.md)

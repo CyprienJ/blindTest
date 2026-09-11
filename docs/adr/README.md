@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+[Up: Architecture](../architecture.md)
+
 Architecture Decision Records (ADRs) capture decisions that materially affect the
 structure, operation, security, or evolution of Blindtest. The delivery roadmap in
 [`../plan.md`](../plan.md) remains authoritative for product scope and sequencing;

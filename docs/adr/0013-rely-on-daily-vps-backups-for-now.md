@@ -71,6 +71,6 @@ superseded before launch with an independent off-host backup design.
 
 ## References
 
-- [Decision gates](../plan.md#5-decision-gates)
-- [OPS-05](../plan.md#ops-05--postgresql-backup-and-restore)
-- [OPS-06](../plan.md#ops-06--minio-backup-and-restore)
+- [Decision gates](../roadmap/decision-gates.md#5-decision-gates)
+- [OPS-05](../roadmap/lot-8-operations.md#ops-05--postgresql-backup-and-restore)
+- [OPS-06](../roadmap/lot-8-operations.md#ops-06--minio-backup-and-restore)

@@ -70,7 +70,7 @@ role, but that behavior is outside the first-release solo scope.
 
 ## References
 
-- [Decision gates](../plan.md#5-decision-gates)
-- [SESSION-05](../plan.md#session-05--orchestrate-server-timers)
-- [UI-07](../plan.md#ui-07--implement-reveal-and-round-transition)
+- [Decision gates](../roadmap/decision-gates.md#5-decision-gates)
+- [SESSION-05](../roadmap/lot-5-sessions-history.md#session-05--orchestrate-server-timers)
+- [UI-07](../roadmap/lot-6-frontend.md#ui-07--implement-reveal-and-round-transition)
 - [ADR-0002](0002-server-authoritative-sessions.md)

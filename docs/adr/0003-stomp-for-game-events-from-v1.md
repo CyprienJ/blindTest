@@ -65,7 +65,7 @@ Spring's in-process STOMP broker; domain code imports no STOMP types.
 
 ## References
 
-- [Roadmap technical direction](../plan.md#technical-direction)
+- [Roadmap technical direction](../roadmap/product-decisions.md#technical-direction)
 - [Component diagram](../diagrams/01-composants.puml)
 - [Gameplay sequence diagrams](../diagrams/04-sequences.puml)
 

@@ -67,7 +67,7 @@ announce interruption until a durable/shared adapter exists.
 
 ## References
 
-- [Roadmap scaling path](../plan.md#46-scaling-path)
+- [Roadmap scaling path](../roadmap/target-architecture.md#46-scaling-path)
 - [Component diagram](../diagrams/01-composants.puml)
 - [ADR-0002](0002-server-authoritative-sessions.md)
 - [ADR-0006](0006-postgresql-history-snapshots.md)

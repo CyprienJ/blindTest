@@ -78,5 +78,5 @@ administrator role management remains deferred beyond the first release.
 
 ## References
 
-- [FND-05](../plan.md#fnd-05--define-and-implement-first-admin-provisioning)
-- [Decision gates](../plan.md#5-decision-gates)
+- [FND-05](../roadmap/lot-0-foundation.md#fnd-05--define-and-implement-first-admin-provisioning)
+- [Decision gates](../roadmap/decision-gates.md#5-decision-gates)

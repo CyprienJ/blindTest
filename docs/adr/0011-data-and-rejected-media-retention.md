@@ -75,7 +75,7 @@ active import jobs or published track media.
 
 ## References
 
-- [Decision gates](../plan.md#5-decision-gates)
-- [HIST-01](../plan.md#hist-01--add-durable-history-schema)
-- [OPS-08](../plan.md#ops-08--add-retention-and-cleanup-jobs)
+- [Decision gates](../roadmap/decision-gates.md#5-decision-gates)
+- [HIST-01](../roadmap/lot-5-sessions-history.md#hist-01--add-durable-history-schema)
+- [OPS-08](../roadmap/lot-8-operations.md#ops-08--add-retention-and-cleanup-jobs)
 - [ADR-0006](0006-postgresql-history-snapshots.md)

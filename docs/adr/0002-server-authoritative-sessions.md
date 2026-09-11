@@ -63,7 +63,7 @@ version information for a reconnecting client to replace stale local state.
 
 ## References
 
-- [Roadmap game-domain principles](../plan.md#43-game-domain-principles)
+- [Roadmap game-domain principles](../roadmap/target-architecture.md#43-game-domain-principles)
 - [Game state diagram](../diagrams/03-etats.puml)
 - [Gameplay sequence diagrams](../diagrams/04-sequences.puml)
 - [ADR-0004](0004-in-memory-session-store.md)

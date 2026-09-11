@@ -75,6 +75,6 @@ requires a superseding decision.
 
 ## References
 
-- [REL-03](../plan.md#rel-03--approve-contentimport-policy)
-- [Decision gates](../plan.md#5-decision-gates)
+- [REL-03](../roadmap/lot-9-release.md#rel-03--approve-contentimport-policy)
+- [Decision gates](../roadmap/decision-gates.md#5-decision-gates)
 - [ADR-0005](0005-private-s3-media-and-presigned-playback.md)

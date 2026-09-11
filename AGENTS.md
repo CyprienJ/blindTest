@@ -55,7 +55,7 @@ Ticket` section identifies the default implementation ticket.
   pointer for partial work or failing checks.
 - When a ticket is finished, update the `Next Ticket` section in `docs/plan.md` to
   the next ready, unfinished ticket in the recommended execution sequence. Keep
-  the ticket title as a direct Markdown link to its detailed heading in the plan,
+  the ticket title as a direct Markdown link to its detailed heading in the linked roadmap lot,
   then continue with that ticket without waiting for another prompt when the
   user's request authorizes continued roadmap implementation.
 - If the next sequential ticket is blocked by a dependency or decision gate,
@@ -65,358 +65,22 @@ Ticket` section identifies the default implementation ticket.
 - If the user scoped the request to a single ticket, still update `Next Ticket`
   after completion, but stop after reporting the handoff.
 
-## Current Implementation Snapshot
+## Read only the context needed
 
-Last reviewed: 2026-09-02.
+Start with [README.md](README.md), then follow the relevant branch. Do not preload
+all documentation. [Current status](docs/product/status.md) distinguishes code,
+placeholders, and ticket completion. Detailed behavior belongs in the linked
+feature documentation, not in this operating guide.
 
-### Implemented backend features
-
-- Account registration with Cloudflare Turnstile verification, bounded server-side
-  validation calls, and safe rejection diagnostics that never log tokens or secrets.
-- Email verification and password-reset emails through Resend.
-- Login, JWT access tokens, opaque rotating refresh tokens, logout.
-- Refresh tokens stored in PostgreSQL and sent as Secure, HttpOnly, SameSite=Strict
-  cookies scoped to `/api/auth`.
-- Public published-track catalogue and public playlists with case-insensitive
-  metadata search, deterministic ordering, bounded pagination, safe projections,
-  and explicit short-lived public caching.
-- A pure immutable game-configuration domain boundary with stable structural,
-  playlist eligibility, sufficient-track, and unsupported-extension errors; it
-  retains no mutable playlist or persistence objects. Backend-authoritative limits
-  enforce 5–30 tracks and 10–60 seconds in five-second increments, with defaults of
-  15 tracks and 30 seconds; OpenAPI contract tests protect those values from drift.
-- Pure game-track selection uniformly samples eligible published tracks without
-  replacement and shuffles their play order through injectable randomness. Immutable
-  snapshots retain canonical and alternative answers, playback metadata, and
-  private-media object key/checksum versions; production uses cryptographic randomness
-  while seeded tests remain deterministic.
-- Pure gameplay answer normalization produces immutable normalized text and tokens
-  using Unicode compatibility decomposition, root-locale case folding, accent
-  removal, punctuation/symbol separation, whitespace collapse, and configurable
-  removal of one common French or English leading article. One-token answers are
-  never emptied by the article policy.
-- Pure gameplay matching checks canonical answers and snapshotted aliases through
-  deterministic exact, token-boundary, and length-sensitive unrestricted
-  Damerau–Levenshtein tiers. Answers through five code points are exact-only, then
-  tolerate one edit through 12, two through 20, and three beyond 20. Results expose
-  only the matched title, artist, composer, or album type and reveal no answer text
-  on failure.
-- Pure title scoring implements versioned rule `title-linear-v1` with authoritative
-  server timing, exact integer half-up arithmetic, a 1,000-point maximum, and a
-  100-point pre-deadline minimum. Immutable per-round score state makes the title
-  award idempotent; secondary/rejected answers, skips, timeouts, and deadline-or-later
-  submissions award zero.
-- Pure immutable game and round state machines enforce explicit lifecycle
-  transitions, resolve title, timeout, and skip outcomes against the authoritative
-  deadline, progress through snapshotted tracks, and produce one ordered final score
-  summary when the last round completes. Stable domain errors reject illegal
-  transitions without transport or scheduler dependencies.
-- Started rounds retain immutable non-secret playback windows derived from the
-  snapshotted administrator offset and authoritative round timing. Windows include
-  exact excerpt bounds and a minimum URL expiry covering the round plus a 30-second
-  reconnect buffer; actual bearer URL authorization and signing remain deferred to
-  the session layer.
-- Participant-private secondary discoveries use an immutable ledger keyed by opaque
-  game-participant IDs. Only participant-scoped projections are exposed; new artist,
-  composer, or album discoveries disclose their category, while repeats return
-  `ALREADY_FOUND` without a category. Title and rejected matches leave discovery,
-  round, and score state unchanged.
-- Pure game-domain tests include reviewed answer corpora, a 10,000-match performance
-  budget, deterministic property sweeps for normalization/scoring/selection, an
-  exhaustive 20-cell round transition matrix, and a five-round solo scenario using
-  an explicit test clock and seeded randomness. The package has no Spring,
-  persistence, WebSocket, PostgreSQL, Testcontainers, or MinIO imports.
-- Immutable active-session snapshots retain opaque session/participant identities,
-  validated configuration, game and discovery state, optimistic version, and
-  lifecycle timestamps. A replaceable `SessionStore` port provides atomic
-  create/read/compare-and-set/remove/expiry operations; the process-local concurrent
-  adapter prevents stale commands from overwriting newer versions, denies expired
-  reads until scheduled resource cleanup, and exposes only an aggregate active count.
-- Verified authenticated accounts can create multiple independent solo sessions
-  through `POST /api/sessions`. Creation authoritatively validates configuration,
-  randomly snapshots published private-media tracks and aliases, creates the owner
-  participant at version zero, and returns expiry plus STOMP connection destinations.
-- Gameplay STOMP protocol V1 defines versioned idempotent commands, ordered public
-  session events, participant-private feedback, and reconnect snapshots. Its Java
-  payloads and destination contract are documented independently of transport
-  handlers.
-- Gameplay STOMP commands and subscriptions require active session membership,
-  reject malformed or cross-channel destinations, and route private events through
-  principal-scoped user queues. Access JWTs are validated at `CONNECT`; an existing
-  connection survives token expiry, while reconnecting requires a valid token.
-- Admin track listing, update, delete, validate, and reject operations.
-- Administrator track listing supports paginated status filtering and
-  case-insensitive metadata search.
-- Admin-only short-lived preview URLs for completed unpublished imports, with
-  lifecycle, finalized-metadata, and object-existence checks.
-- Imported audio receives a bounded server-generated waveform summary of at most
-  800 normalized peaks, exposed through an administrator-only track endpoint.
-- Admin YouTube import jobs, post-commit asynchronous `yt-dlp` execution,
-  persisted progress, startup recovery of interrupted active jobs, per-user STOMP
-  progress messages, MP3 validation, checksum generation, and finalized upload to
-  private object storage.
-- Import polling exposes safe errors, preview availability, and lifecycle timestamps;
-  completed imports transition transactionally and idempotently to published or
-  rejected, while rejected media is retained pending DG-05.
-- YouTube imports accept canonical single-video watch, short-link, and Shorts
-  URLs; title, channel/artist, duration, and thumbnail are extracted automatically,
-  metadata is bounded, active duplicate videos are rejected, output remains inside
-  isolated temporary directories, and provider failures are sanitized.
-- The non-root backend runtime installs pinned, build-smoke-tested `yt-dlp` and
-  FFmpeg versions; imports enforce time, temporary-file-size, FFmpeg-thread, and
-  container CPU limits and terminate unsafe processes.
-- Injectable email, Turnstile, import-process, scheduling, clock, and opaque-token
-  boundaries with deterministic test adapters.
-- Admin playlist CRUD with published-track-only membership, duplicate prevention,
-  zero-based atomic ordering, and automatic compaction when tracks are removed,
-  rejected, or deleted.
-- JaCoCo XML/HTML backend coverage reports with CI artifact publication and
-  package-level regression gates for security, WebSocket, and service code.
-- PostgreSQL 16 Testcontainers integration coverage for Flyway migrations,
-  Hibernate schema validation, constraints, cascades, and repository queries.
-- Catalogue and administration contract coverage that detects REST/OpenAPI route
-  drift, missing authorization responses, unsafe public media fields, and incorrect
-  administrator playlist projections.
-- JWT authentication for HTTP and STOMP `CONNECT`.
-- Native STOMP is exposed at `/ws`; the SockJS fallback is exposed separately at
-  `/ws-sockjs`.
-- A provider-neutral media-storage port with a typed MinIO Java SDK adapter for
-  upload, existence checks, pre-signed GET URLs, and deletion, plus an in-memory
-  test adapter. Imports use content-addressed object keys and confirm uploads
-  before completion.
-- Testcontainers coverage validates put, existence, listing, pre-signing, byte-range
-  GET, idempotent retries, deletion, and unavailable-storage translation against a
-  real pinned MinIO API.
-- Local Docker Compose runs pinned MinIO and `mc` images, persists `minio_data`,
-  creates a private `blindtest-media` bucket automatically, and restricts API CORS
-  to the configured application origin.
-- Tracks can retain a nullable legacy audio URL or reference private storage with
-  a server-internal object key, checksum, and byte size; object keys are excluded
-  from public and administrator DTOs.
-- Track metadata includes a canonical primary `title`, required display `artist`,
-  and optional album, composer, work, category, decade, duration, and image fields
-  through immutable public and administrator snapshots. Publication requires the
-  primary metadata plus a legacy URL or complete object-storage metadata.
-- Administrators can CRUD per-track alternative answers for title, artist,
-  composer, and album without exposing their internal normalized duplicate key.
-  Tracks have a non-negative whole-second playback offset, default zero; non-zero
-  offsets require at least 60 remaining seconds before publication.
-- Track deletion and media replacement use a transactional deletion outbox with a
-  scheduled retry/backoff worker. Administrator reconciliation reports missing
-  and orphaned objects using safe key fingerprints, with aggregate Actuator metrics.
-- A common safe REST error contract with stable codes and request IDs propagated
-  through `X-Request-ID` and logging MDC.
-- Typed application configuration with separate development, test, and production
-  profiles and fail-fast production validation for secrets and endpoints.
-- Interactive first-administrator provisioning promotes one verified account only
-  when no administrator exists, with concurrency-safe locking, idempotent replay,
-  and safe persistent outcome auditing.
-- Solo-session gameplay commands run through an optimistic, per-session serialized
-  orchestrator with bounded command idempotency, authoritative deadline and reveal
-  timers, persist-before-publish event versions, and private reconnect snapshots.
-- Active playing rounds expose participant-authorized, short-lived pre-signed media
-  URLs at start and reconnect. The storage port accepts a minimum validity so URLs
-  cover the remaining round plus the 30-second reconnect buffer.
-- Gameplay input is bounded by a 300 ms per-player answer cooldown and a 20-command
-  per-session one-second window. Repeated rate feedback is suppressed, and aggregate
-  Micrometer counters contain no session, participant, account, or answer labels.
-- Flyway migrations V1 through V16 for users, refresh tokens, tracks, playlists,
-  playlist tracks, import jobs, database enum constraints, object-storage track
-  metadata, the media-deletion outbox, extended track metadata, active-import
-  deduplication, import workflow timestamps, administrator-provisioning audit,
-  answer aliases, excerpt offsets, persisted waveform peaks, enforced playlist
-  ordering, and catalogue-independent completed-game history snapshots.
-- Finished solo sessions are persisted as one transactional history aggregate,
-  idempotently keyed by session UUID. Concurrent duplicate inserts are confirmed
-  after rollback, transient database failures use deduplicated bounded-backoff
-  retries, and active state remains until durable completion succeeds.
-- Authenticated game owners can read their durable completed-game snapshot from
-  `GET /api/sessions/{sessionId}/summary`; responses are ordered, non-cacheable,
-  and exclude provider URLs, private media identifiers, raw guesses, and aliases.
-- A browserless backend integration suite plays a full solo game end to end over
-  REST session creation, a real STOMP connection, authoritative deadline/reveal
-  timers with a duplicate-timer race, a reconnect snapshot, command idempotency,
-  cross-session authorization rejection, and durable PostgreSQL history completion
-  on a Testcontainers database, then reads back the owner summary endpoint.
-- Process-local sessions use configurable sliding 30-minute inactive and five-minute
-  terminal TTLs. A scheduled one-minute cleanup applies the aborted transition,
-  cancels queued gameplay timers, clears anti-spam state, and publishes only safe
-  aggregate Micrometer metrics without deleting durable completed-game history.
-
-The backend currently has controllers for:
-
-- `/api/auth/**`
-- `/api/tracks`
-- `/api/playlists/**`
-- `POST /api/sessions`
-- `GET /api/sessions/{sessionId}/summary`
-- `/api/admin/tracks/**`
-- `/api/admin/tracks/import/**`
-- `/api/admin/media/**`
-- `/api/admin/playlists/**`
-
-### Not implemented in the backend
-
-- User profile management and user search.
-- Friends and friend requests.
-- Session lookup/joining, including guest tokens.
-- Synchronized browser audio playback.
-- General game-history browsing REST endpoints.
-- Admin user management.
-
-The solo-session creation service/controller, gameplay protocol payloads,
-destination authorization, command orchestration, authoritative timers, recovery
-snapshots, and signed active-round URLs exist. The frontend gameplay flow still
-needs to consume them before browser playback is possible.
-
-### Implemented frontend features
-
-- Responsive public home page with login and registration actions, session-aware
-  continuation, and focused Angular/Playwright coverage.
-- Guarded authenticated home page as the default post-login destination, with
-  delivered player actions, role-aware playlist administration, explicit disabled
-  multiplayer joining, refresh recovery, and logout back to the public entry point.
-- Login.
-- Registration with Turnstile widget integration, explicit challenge lifecycle
-  handling, and single-use token submission guards.
-- Email verification.
-- Forgot-password flow.
-- Reset-password flow.
-- Auth service, route guard, JWT interceptor, refresh flow, and local session state.
-- Authenticated sign-out control with local cleanup on both successful and failed
-  server-side logout.
-- Administrator track catalogue matching the reference design, with server-side
-  search/status filters, pagination, metadata and alias editing, secure audio
-  preview, publication/rejection/deletion actions, confirmations, and complete
-  operation states.
-- Administrator YouTube import UI matching the reference design, with validated
-  URL-only submission, editable extracted metadata, alias drafts, a one-handle
-  60-second excerpt selector with immediate seek-and-play feedback, duplicate-submit
-  protection, authenticated STOMP progress, durable polling/reload recovery,
-  interactive server-generated waveform rendering, selected-excerpt preview, and
-  explicit publication/rejection actions.
-- Administrator playlist editor matching the reference design, with playlist
-  creation, metadata editing, published-track search, add/remove operations,
-  drag-and-keyboard ordering, safe optimistic rollback, deletion confirmation,
-  and unsaved-change navigation protection.
-- Authenticated game-configuration page with eligible public-playlist selection,
-  ordered track preview, shared bounded track-count and round-duration controls,
-  five-track playlist eligibility, and a local configuration draft pending delivery
-  of the gameplay session endpoint.
-- Administrator-only frontend route enforcement for the administration area.
-- Shared global styling based on the target visual design.
-- Playwright Chromium authentication coverage with mocked API and Turnstile
-  behavior, blocked third-party traffic, browser audio range/seek coverage, and CI
-  failure artifacts.
-
-### Frontend placeholders
-
-All non-auth feature components are currently scaffolds whose templates only render
-`"<Feature> works"`:
-
-- lobby joining and room;
-- game room, audio player, answer form, scoreboard, and player list;
-- end screen;
-- profile and game history;
-- friends and friend requests;
-- admin user management;
-- notification toast.
-
-Do not treat the presence of routes or component files as feature completion.
-
-## Repository Layout
-
-```text
-.
-├── backend/
-│   ├── pom.xml
-│   ├── checkstyle.xml
-│   └── src/
-│       ├── main/java/com/blindtest/
-│       │   ├── config/
-│       │   ├── controller/
-│       │   ├── error/
-│       │   ├── infra/
-│       │   ├── model/{dto,entity}/
-│       │   ├── repository/
-│       │   ├── security/
-│       │   ├── service/
-│       │   └── websocket/
-│       ├── main/resources/
-│       │   ├── application.properties
-│       │   └── db/migration/
-│       └── test/
-├── frontend/
-│   ├── package.json
-│   ├── angular.json
-│   └── src/app/
-│       ├── core/
-│       ├── features/
-│       └── shared/
-├── docs/
-│   ├── adr/
-│   ├── architecture.md
-│   ├── swagger.yaml
-│   ├── diagrams/
-│   └── Blindtest/
-├── .github/workflows/
-├── docker-compose.yml
-├── docker-compose.override.yml
-├── docker-compose.local.yml
-└── .env.example
-```
-
-## Local Development
-
-Copy `.env.example` to `.env` and replace every placeholder. The main variables are:
-
-- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`;
-- `JWT_SECRET` (at least 32 ASCII characters);
-- `RESEND_API_KEY`;
-- `CLOUDFLARE_TURNSTILE_SECRET_KEY`;
-- `APP_BASE_URL`, `APP_PORT`, and `CORS_ALLOWED_ORIGINS`;
-- `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`,
-  `S3_ACCESS_KEY`, and `S3_SECRET_KEY`;
-- optional `APP_IMPORT_TEMP_DIR`, `APP_IMPORT_MAX_SIZE_BYTES`,
-  `APP_IMPORT_TIMEOUT`, and `BACKEND_CPU_LIMIT`;
-- optional `MEDIA_DELETION_POLL_DELAY_MS`;
-- optional `MINIO_API_PORT` and `MINIO_CONSOLE_PORT`;
-- optional image overrides used by deployment.
-
-Run the full container stack for local browser development from the repository
-root. Docker Compose automatically loads `docker-compose.override.yml`, which
-selects the development Spring profile and Cloudflare's matching public test key
-pair:
-
-```bash
-docker compose build
-docker compose up -d
-docker compose ps
-docker compose logs -f backend
-docker compose down
-```
-
-Run `docker compose -f docker-compose.yml up -d --build` only for a production-like
-environment configured with valid HTTPS endpoints and the real Turnstile key pair.
-
-For a host-based development loop:
-
-```bash
-# PostgreSQL must already be reachable on localhost:5432.
-cd backend
-mvn spring-boot:run
-
-# In another terminal:
-cd frontend
-npm ci
-npm start
-```
-
-Angular's development proxy sends `/api`, `/media`, and `/ws` to `localhost:8080`.
+- [Architecture and code boundaries](docs/architecture.md)
+- [Backend](docs/backend/README.md) and [frontend](docs/frontend/README.md)
+- [Gameplay rules](docs/product/gameplay.md) and [session internals](docs/backend/sessions.md)
+- [Local setup](docs/development/README.md) and [testing](docs/testing.md)
+- [Operations](docs/operations/README.md)
 
 ## Required Validation
 
-Run checks relevant to every changed area. Before a full handoff, prefer:
+Run checks relevant to every changed area. Before a full application handoff:
 
 ```bash
 cd backend
@@ -432,25 +96,10 @@ cd ..
 docker compose config --quiet
 ```
 
-On this workstation, Karma may need:
-
-```bash
-CHROME_BIN=/snap/bin/chromium npm run test -- --watch=false --browsers=ChromeHeadless
-```
-
-Baseline at the review date:
-
-- backend: 0 Checkstyle violations and 500 passing tests on JDK 21; JaCoCo
-  coverage gates pass for security, WebSocket, and service packages;
-- frontend: lint passes, production build passes, 15 passing unit tests,
-  and 42 passing Playwright authentication/administration/catalogue/media/smoke tests;
-- Docker Compose configuration parses successfully when unset secret warnings are
-  ignored.
-
-Schema-agnostic backend integration tests use H2 with Flyway disabled and Hibernate
-`ddl-auto=create-drop`. The PostgreSQL Testcontainers suite runs Flyway from an
-empty database with Hibernate `ddl-auto=validate` and requires a Docker-compatible
-container runtime.
+Karma on this workstation may require `CHROME_BIN=/snap/bin/chromium`.
+PostgreSQL and MinIO integration tests require Docker. See [testing](docs/testing.md)
+for test boundaries. Documentation-only changes require link, size, and content
+validation; they do not require rebuilding the application.
 
 ## Coding Conventions
 
@@ -470,36 +119,17 @@ container runtime.
 - Never commit `.env`, credentials, generated build output, media files, or
   dependency directories.
 
-## Known Risks and Inconsistencies
+## Documentation maintenance
 
-Address these before considering the application production-ready:
-
-1. The beta deployment workflow runs independently from the CI workflow. A push to
-   `main` can deploy without waiting for Checkstyle/tests/lint to pass.
-2. `docs/swagger.yaml` represents a mixture of intended and delivered endpoints.
-   It omits some implemented operations and includes many unimplemented product
-   endpoints. Verify contracts against controllers before using it to generate
-   clients.
-3. Frontend unit coverage remains narrow outside authentication and registration.
-4. The committed production frontend build fetches Google Fonts during compilation,
-   making builds depend on external network availability.
-5. Access tokens are stored in `localStorage`; account for XSS exposure in the
-   frontend security model.
-6. Password-reset JWTs are not persisted as one-time tokens, so a token can be
-   replayed until it expires.
-
-## Delivery and Deployment
-
-- `.github/workflows/ci.yml` runs backend Checkstyle/tests and frontend
-  lint/build/tests on pushes and pull requests.
-- `.github/workflows/deploy-beta.yml` builds and pushes `:beta` images and deploys
-  every push to `main`.
-- `.github/workflows/deploy-prod.yml` is manually triggered and deploys `:prod`
-  images.
-- Nginx serves the Angular SPA and `/media`, and proxies `/api` and `/ws` to the
-  backend.
-- PostgreSQL, MinIO, and legacy media use named Docker volumes.
-
-When updating this file, keep the implementation snapshot factual and concise.
-Move features from “not implemented” to “implemented” only after their code and
-tests exist.
+- Keep agent operating instructions in this file.
+- Aim for about 200 lines per Markdown page; up to 300 is reasonable for a cohesive
+  topic. Split growing documents by topic and link parent and child pages.
+- Keep the root overview short. Explain each fact in one primary location and link
+  to it elsewhere; use source links for implementation details.
+- Update the relevant current-system page when behavior changes. Distinguish
+  observed code from completed roadmap acceptance and historical target design.
+- Preserve ticket criteria and accepted decisions when moving documentation; fix
+  relative links and anchors with the move.
+- Machine-readable OpenAPI and generated HTML/JSX references retain their native
+  structure; the prose size guideline is not a source-code line limit.
+- Track known limitations in [current status](docs/product/status.md).
