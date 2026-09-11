@@ -29,6 +29,7 @@ clicks while pending and clears local state even when the logout request fails.
 | Authenticated home | Player actions and role-aware administration navigation |
 | `/lobby/create` | Public playlist selection, ordered preview, limits, REST session creation |
 | `/game/:sessionId` | Game state, answer/skip controls, score, audio, reconnect and basic finish view |
+| `/end-screen/:sessionId` | Refresh-safe durable summary: score, per-round outcomes, replay action |
 | Administration | Track catalogue, import/review/excerpt workflow, playlist CRUD and ordering |
 | Other feature routes | Several remain placeholders; see [current status](../product/status.md) |
 

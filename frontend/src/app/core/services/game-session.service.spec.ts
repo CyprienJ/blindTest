@@ -85,4 +85,22 @@ describe('GameSessionService', () => {
     expect(service.getActiveSession(active.sessionId)).toBeNull();
     expect(sessionStorage.getItem('active_solo_session')).toBeNull();
   });
+
+  it('fetches the durable summary for a session id', () => {
+    service.getSummary(active.sessionId).subscribe();
+
+    const request = http.expectOne(`/api/sessions/${active.sessionId}/summary`);
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      sessionId: active.sessionId,
+      totalScore: 940,
+      totalRounds: 12,
+      titlesFound: 8,
+      skippedRounds: 2,
+      timedOutRounds: 2,
+      startedAt: '2026-09-02T12:00:00Z',
+      completedAt: '2026-09-02T12:11:00Z',
+      rounds: [],
+    });
+  });
 });

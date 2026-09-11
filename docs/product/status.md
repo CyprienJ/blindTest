@@ -17,7 +17,7 @@ configuration; full-stack browser acceptance remains separate.
 | Imports and media | Bounded YouTube imports, waveform generation, private MinIO, signed URLs, deletion outbox | Import progress/polling, waveform excerpt selection, administrator preview |
 | Solo configuration | Validated creation, randomized immutable track snapshots | Playlist/count/duration controls, REST creation, navigation to game |
 | Solo gameplay | STOMP authorization, state machines, matching, scores, timers, recovery | Game room, answer/skip actions, STOMP client, round audio, basic finish state |
-| Completed games | Durable snapshots and owner summary endpoint | Separate end-screen route remains a placeholder |
+| Completed games | Durable snapshots and owner summary endpoint | Refresh-safe end-screen route rendering the durable summary |
 
 Source entry points: [backend controllers](../../backend/src/main/java/com/blindtest/controller),
 [frontend routes](../../frontend/src/app/app.routes.ts), and
@@ -25,8 +25,6 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 
 ## Partial and deferred experiences
 
-- The game room has an in-session finish view. It does not implement the separate,
-  reloadable persisted-summary page required by UI-08.
 - Recovery uses the active session retained in browser `sessionStorage`; an
   unknown session ID sends the user back to configuration.
 - Lobby joining/room, profile/history browsing, friends/requests, admin user
@@ -40,8 +38,8 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 Git history confirms UI-01 through UI-05 were implemented on 2026-09-02. The
 subsequent shell fixes are maintenance of UI-01, not its original implementation.
 The roadmap now records those implementation commits explicitly. UI-06 private
-answer feedback and UI-07 reveal/round transitions are complete and validated;
-the next ticket is UI-08. Later tickets
+answer feedback, UI-07 reveal/round transitions, and UI-08 persisted end summary
+are complete and validated; the next ticket is UI-09. Later tickets
 still require their own acceptance validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).

@@ -369,6 +369,8 @@ describe('GameRoomComponent', () => {
 
     expect(text(fixture)).toContain('Game finished');
     expect(text(fixture)).toContain('940');
+    const summaryLink = fixture.nativeElement.querySelector('a.bt-btn-ghost') as HTMLAnchorElement;
+    expect(summaryLink.getAttribute('href')).toBe(`/end-screen/${SESSION_ID}`);
     (fixture.nativeElement.querySelector('.bt-btn-primary') as HTMLButtonElement).click();
     expect(harness.navigate).toHaveBeenCalledWith(['/lobby/create']);
   });

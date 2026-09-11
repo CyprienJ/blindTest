@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE } from '../config';
+import { GameSummary } from '../models/game-summary.model';
 import {
   ActiveSoloSession,
   CreateSoloSessionRequest,
@@ -17,6 +18,11 @@ export class GameSessionService {
 
   createSolo(request: CreateSoloSessionRequest): Observable<SoloSessionResponse> {
     return this.http.post<SoloSessionResponse>(`${API_BASE}/sessions`, request);
+  }
+
+  /** Fetches the durable, refresh-safe completed-game summary for its owner. */
+  getSummary(sessionId: string): Observable<GameSummary> {
+    return this.http.get<GameSummary>(`${API_BASE}/sessions/${sessionId}/summary`);
   }
 
   setActiveSession(session: ActiveSoloSession): void {

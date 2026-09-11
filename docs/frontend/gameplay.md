@@ -86,17 +86,29 @@ Already expired rounds never start audio. The game room also stops playback on
 reveal, finish, fatal error, and component destruction. Unit tests use a fake audio
 element; a separate browser test checks HTTP byte-range seeking.
 
+## Persisted end summary
+
+`EndScreenComponent` at `/end-screen/{sessionId}` fetches
+`GET /sessions/{sessionId}/summary` on its own, independent of any retained socket
+or `sessionStorage` state. It renders total score, aggregate outcome counts, and
+one row per round with its title, artist, outcome, response time (revealed minus
+started), and points, then offers a replay action back to configuration. Because
+it re-fetches on every load, the page is refresh-safe: reloading or navigating to
+it directly reproduces the same result. A 404 (unowned or unknown session) and
+other failures render distinct messages with a way back to configuration. The
+game room's own in-session finish view is unchanged and links to this page as
+"View summary".
+
 ## Current limits
 
-A basic finished view consumes the live finish event;
-the separate end-screen component is still a placeholder and does not load the
-durable REST summary. Browser tests cover connection, routing, and mocked answer feedback,
-not complete full-stack gameplay. See [status](../product/status.md).
+Browser tests cover connection, routing, and mocked answer feedback, not complete
+full-stack gameplay. See [status](../product/status.md).
 
 ## Source and contract
 
 - [Configuration component](../../frontend/src/app/features/lobby/create-session/create-session.component.ts)
 - [GameSessionService](../../frontend/src/app/core/services/game-session.service.ts)
+- [End-screen component](../../frontend/src/app/features/end-screen/end-screen.component.ts)
 - [GameSocketService](../../frontend/src/app/core/services/game-socket.service.ts)
 - [AudioPlaybackService](../../frontend/src/app/core/services/audio-playback.service.ts)
 - [Game room](../../frontend/src/app/features/game/game-room/game-room.component.ts)

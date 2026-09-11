@@ -213,6 +213,18 @@ Acceptance:
 
 #### UI-08 — Implement persisted end summary
 
+Status: complete (2026-09-11). The end-screen route fetches the durable owner
+summary from `GET /sessions/{sessionId}/summary` on its own, independent of any
+retained socket or `sessionStorage` state, so a direct load or a refresh at
+`/end-screen/{sessionId}` renders the same result. The in-session finish view in
+the game room is unchanged and now links to this page.
+
+Validation: 79 Angular tests (5 new for the end-screen component and service
+method), frontend lint and production build passed. Backend and Playwright
+suites were not re-run; this ticket only touched the Angular frontend and the
+existing owner-summary endpoint was already implemented and tested. Existing
+style-budget and STOMP CommonJS build warnings remain.
+
 Work:
 
 - total score;

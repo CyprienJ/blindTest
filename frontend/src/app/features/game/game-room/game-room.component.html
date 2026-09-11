@@ -48,9 +48,14 @@
               {{ finished.timedOutRounds }} timed out
             </p>
           }
-          <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
-            Play again
-          </button>
+          <div class="finished-actions">
+            <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
+              Play again
+            </button>
+            <a class="bt-btn bt-btn-ghost bt-btn-lg" [routerLink]="['/end-screen', session.sessionId]">
+              View summary
+            </a>
+          </div>
         </section>
       }
 
