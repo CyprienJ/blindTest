@@ -1,4 +1,4 @@
-# Isolated, ephemeral full-stack environment for browser E2E tests (Lot 7, E2E-01).
+# Isolated, ephemeral full-stack environment for browser E2E tests (Lot 7, E2E-01/E2E-02).
 #
 # Run it with `./scripts/e2e-test.sh`, the one command that starts it, runs the
 # full-stack Playwright suite, and tears it down. It never reuses docker-compose.yml's
@@ -17,8 +17,7 @@
 #   - `down -v` after every run drops the project's named volumes; nothing here
 #     is retained between runs.
 #
-# External dependencies are faked so the stack needs no network access and no
-# real accounts:
+# External dependencies are faked out, except Turnstile:
 #   - `backend` runs with SPRING_PROFILES_ACTIVE=e2e. FakeEmailSender (exposed at
 #     GET/DELETE /api/e2e/emails) captures verification/reset/welcome email
 #     instead of calling Resend, and FakeProcessFactory writes a deterministic
@@ -27,7 +26,14 @@
 #     this profile.
 #   - Turnstile uses Cloudflare's documented always-pass test key pair (already
 #     used by docker-compose.local.yml for local development): no CAPTCHA is
-#     solved and no bot-check blocks automated runs.
+#     solved and no bot-check blocks automated runs, but the frontend's real
+#     widget script and the backend's real siteverify call both still reach
+#     Cloudflare, so this is the one thing here that needs outbound network
+#     access.
+#
+# The refresh-token cookie's Secure flag follows app.base-url's scheme
+# (AuthController), so it is issued and stored correctly over this stack's
+# plain-HTTP http://frontend origin — see docs/testing.md.
 services:
 
   postgres-test:

@@ -42,9 +42,13 @@ answer feedback, UI-07 reveal/round transitions, UI-08 persisted end summary,
 UI-09 Playwright game coverage, and UI-10 desktop-browser/accessibility checks
 are complete and validated, closing Lot 6. E2E-01 is complete: `docker-compose.test.yml`
 plus `./scripts/e2e-test.sh` boot an isolated, parallel-safe full-stack environment
-with Resend/Turnstile/yt-dlp faked out; see [testing](../testing.md#isolated-full-stack-environment).
-The next ticket is E2E-02 (Lot 7). Later tickets still require their own
-acceptance validation.
+with Resend/yt-dlp faked out (Turnstile still needs network access to Cloudflare);
+see [testing](../testing.md#isolated-full-stack-environment). E2E-02 is complete:
+`account-journey.spec.ts` proves registration, captured-email verification, login,
+access refresh, password reset, and logout against the real backend/database, and
+fixed the refresh cookie's `Secure` flag to follow `app.base-url`'s scheme instead
+of being hardcoded. The next ticket is E2E-03 (Lot 7). Later tickets still require
+their own acceptance validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).
 

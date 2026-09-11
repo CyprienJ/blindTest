@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.blindtest.config.properties.ApplicationProperties;
 import com.blindtest.error.GlobalExceptionHandler;
 import com.blindtest.error.RestSecurityErrorHandler;
 import com.blindtest.model.entity.UserRole;
@@ -24,6 +25,7 @@ import com.blindtest.service.TrackAnswerAliasService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -33,6 +35,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest
+@EnableConfigurationProperties(ApplicationProperties.class)
 @Import({
     AppConfig.class,
     CorrelationIdFilter.class,

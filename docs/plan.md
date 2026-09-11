@@ -10,7 +10,7 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[E2E-02 — Automate account journey](roadmap/lot-7-hardening.md#e2e-02--automate-account-journey)**
+**[E2E-03 — Automate admin catalogue journey](roadmap/lot-7-hardening.md#e2e-03--automate-admin-catalogue-journey)**
 
 Status: ready
 
@@ -22,8 +22,18 @@ Nginx-served frontend with no fixed host ports; `./scripts/e2e-test.sh` starts t
 stack, runs the full-stack Playwright suite, and always tears it down, with a
 random Compose project name per run so parallel CI cannot share data. Resend and
 yt-dlp/FFmpeg are faked in-process (`com.blindtest.testing.e2e`, exposed at
-`/api/e2e/emails`); Turnstile reuses Cloudflare's documented test key pair. See
-[testing](testing.md#isolated-full-stack-environment). E2E-02 (Lot 7) is next.
+`/api/e2e/emails`); Turnstile reuses Cloudflare's documented test key pair and is
+the one dependency that still needs outbound network access. E2E-02 is complete:
+`frontend/e2e-full-stack/account-journey.spec.ts` drives one real browser session
+through registration, captured-email verification, login, an authenticated
+refresh using the real HttpOnly cookie, password reset, and logout against the
+real backend/database, with no API mocking. That work surfaced and fixed a real
+bug: the refresh cookie's `Secure` flag was hardcoded `true`, which silently
+depended on Chrome's "localhost is a secure context" exception and would have
+broken over any other plain-HTTP origin; it now follows `app.base-url`'s scheme
+(`AuthController`), unaffected in production since
+`ProductionConfigurationValidator` already requires HTTPS there. See
+[testing](testing.md#isolated-full-stack-environment). E2E-03 (Lot 7) is next.
 TEST-06 remains required before automated beta deployment resumes; MEDIA-08
 remains deferred until legacy files need migration.
 

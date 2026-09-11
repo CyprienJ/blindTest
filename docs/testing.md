@@ -126,7 +126,7 @@ invocation picks a random Compose project name, and the file publishes no host
 ports, so concurrent CI runs never share a database, bucket, or network.
 
 Every credential is deterministic and test-only. External dependencies are
-faked so the stack needs no network access:
+faked out except Turnstile, which needs outbound HTTPS to Cloudflare:
 
 - the backend runs with `SPRING_PROFILES_ACTIVE=e2e`
   (`application-e2e.properties`, `com.blindtest.testing.e2e`).
@@ -135,18 +135,34 @@ faked so the stack needs no network access:
   need a captured token; `FakeProcessFactory` writes a deterministic MP3
   fixture instead of invoking yt-dlp/FFmpeg against YouTube;
 - Turnstile uses Cloudflare's documented always-pass test key pair, the same
-  one `docker-compose.local.yml` already uses for local development.
+  one `docker-compose.local.yml` already uses for local development. The
+  frontend still loads the real widget script and the backend still calls
+  the real siteverify endpoint, so the environment needs outbound network
+  access to `challenges.cloudflare.com`; nothing else does.
 
 Neither adapter can affect a real deployment: `ProductionConfigurationValidator`
 (`@Profile("production")`) rejects the Cloudflare test key outright, and the
 fake beans/controller only register under the `e2e` profile, which no
 production or development Compose file sets.
 
-The current suite only proves the stack is wired correctly (health check
-through the real nginx proxy, the real Angular build serving, the e2e profile
-active). It does not yet exercise the account, catalogue, or gameplay
-journeys — see the later Lot 7 tickets in
-[`lot-7-hardening.md`](roadmap/lot-7-hardening.md).
+`frontend/e2e-full-stack/account-journey.spec.ts` (E2E-02) drives one browser
+session through the real account lifecycle against the real backend and
+PostgreSQL: registration, reading the captured verification email back from
+`/api/e2e/emails` and following its link, login, an authenticated
+`/api/auth/refresh` call against the real HttpOnly cookie, a password-reset
+round trip (capture the reset email, set a new password, log in with it), and
+logout — verified by confirming the refresh cookie no longer works afterward.
+This required making the refresh cookie's `Secure` flag follow `app.base-url`'s
+scheme (`AuthController`) instead of being hardcoded `true`: browsers refuse to
+store a `Secure` cookie over the stack's plain-HTTP `http://frontend` origin,
+which also means the flag now correctly reflects that local development is
+HTTP too — production is unaffected since `ProductionConfigurationValidator`
+already requires an HTTPS `app.base-url`.
+
+`environment.spec.ts` (E2E-01) covers the wiring itself (health check through
+the real nginx proxy, the real Angular build serving, the e2e profile active).
+The suite does not yet exercise the catalogue or gameplay journeys — see the
+later Lot 7 tickets in [`lot-7-hardening.md`](roadmap/lot-7-hardening.md).
 
 ## Schema and configuration checks
 
