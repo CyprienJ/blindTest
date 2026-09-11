@@ -10,15 +10,16 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[UI-07 — Implement reveal and round transition](roadmap/lot-6-frontend.md#ui-07--implement-reveal-and-round-transition)**
+**[UI-08 — Implement persisted end summary](roadmap/lot-6-frontend.md#ui-08--implement-persisted-end-summary)**
 
 Status: ready
 
 Git history and source confirm UI-01 through UI-05 were implemented on 2026-09-02
 (`f8febc9`, `e9cac42`, `4548500`, `65ea8ec`, and `8228f4b`). UI-06 is now complete:
 private answer feedback, secondary discoveries, cooldown, and continued keyboard
-input are implemented and validated. UI-07 is next: the current reveal strip still
-needs metadata presentation and last-round handling under ADR-0015. TEST-06 remains
+input are implemented and validated. UI-07 is also complete: reveal metadata,
+outcome/points, server-deadline countdown, early advance, reconnect recovery, and
+last-round handling are implemented and validated under ADR-0015. UI-08 is next. TEST-06 remains
 required before automated beta deployment resumes; MEDIA-08 remains deferred until
 legacy files need migration.
 

@@ -14,6 +14,7 @@ import { timer } from 'rxjs';
 import { ActiveSoloSession } from '../../../core/models/game-session.model';
 import {
   CurrentSnapshotPayload,
+  CurrentRoundProjection,
   GameFinishedPayload,
   PrivateSessionEvent,
   PublicSessionEvent,
@@ -66,6 +67,23 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   lastRoundPoints: number | null = null;
   outcome: RoundOutcome | null = null;
   finished: GameFinishedPayload | null = null;
+  reveal: Pick<CurrentRoundProjection, 'title' | 'artist' | 'composer' | 'album'> | null = null;
+  advancing = false;
+  private advanceAtMs: number | null = null;
+
+  get isLastRound(): boolean {
+    return this.roundNumber === this.totalRounds;
+  }
+
+  get canAdvance(): boolean {
+    return this.phase === 'revealed' && this.socketStatus === 'connected' && !this.advancing;
+  }
+
+  advance(): void {
+    if (!this.canAdvance) return;
+    this.advancing = true;
+    this.gameSocket.advanceRound();
+  }
 
   feedback = '';
   discoveries: Partial<Record<SecondaryAnswerType, string | null>> = {};
@@ -229,11 +247,19 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   private tick(): void {
     this.cooldownSeconds = Math.max(0, Math.ceil((this.retryAtMs - Date.now()) / 1000));
     this.secondsLeft =
-      this.deadlineMs === null ? 0 : Math.max(0, Math.ceil((this.deadlineMs - Date.now()) / 1000));
+      this.phase === 'revealed'
+        ? Math.max(0, Math.ceil(((this.advanceAtMs ?? Date.now()) - Date.now()) / 1000))
+        : this.deadlineMs === null
+          ? 0
+          : Math.max(0, Math.ceil((this.deadlineMs - Date.now()) / 1000));
   }
 
   private applySnapshot(snapshot: CurrentSnapshotPayload): void {
     this.resetFeedback();
+    this.clearReveal();
+    this.deadlineMs = null;
+    this.roundStartMs = null;
+    this.audioPlayback.stop();
     this.totalRounds = snapshot.totalRounds;
     this.totalScore = snapshot.totalScore;
     this.roundNumber = snapshot.currentRoundIndex + 1;
@@ -247,6 +273,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         }
         return;
       case 'FINISHED':
+        this.clearReveal();
         this.phase = 'finished';
         this.audioPlayback.stop();
         return;
@@ -275,8 +302,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         } else if (round.status === 'PREPARING') {
           this.phase = 'preparing';
         } else {
-          this.phase = 'revealed';
-          this.audioPlayback.stop();
+          this.enterReveal(round, round.outcome, round.roundPoints, round.advanceAt);
         }
         return;
       }
@@ -292,6 +318,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         return;
       case 'ROUND_PREPARING':
         this.resetFeedback();
+        this.clearReveal();
         this.phase = 'preparing';
         this.roundNumber = event.payload.roundIndex + 1;
         this.totalRounds = event.payload.totalRounds;
@@ -308,16 +335,15 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.announcement = `Round ${this.roundNumber} of ${this.totalRounds} started.`;
         return;
       case 'ROUND_REVEALED':
-        this.resetFeedback();
-        this.phase = 'revealed';
-        this.sending = false;
-        this.outcome = event.payload.outcome;
-        this.lastRoundPoints = event.payload.roundPoints;
+        this.roundNumber = event.payload.roundIndex + 1;
+        this.totalRounds = event.payload.totalRounds;
         this.totalScore = event.payload.totalScore;
-        this.deadlineMs = null;
-        this.roundStartMs = null;
-        this.audioPlayback.stop();
-        this.announcement = 'Round over.';
+        this.enterReveal(
+          event.payload,
+          event.payload.outcome,
+          event.payload.roundPoints,
+          event.payload.transitionAt,
+        );
         return;
       case 'SCORE_UPDATED':
         this.totalScore = event.payload.totalScore;
@@ -325,6 +351,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         return;
       case 'GAME_FINISHED':
         this.resetFeedback();
+        this.clearReveal();
         this.phase = 'finished';
         this.finished = event.payload;
         this.totalScore = event.payload.totalScore;
@@ -337,6 +364,11 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   private applyPrivate(event: PrivateSessionEvent): void {
     switch (event.type) {
       case 'ANSWER_REJECTED':
+        if (this.phase === 'revealed') {
+          this.advancing = false;
+          this.gameSocket.requestSnapshot();
+          return;
+        }
         if (this.phase !== 'playing') return;
         this.sending = false;
         switch (event.payload.reason) {
@@ -377,6 +409,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         return;
       }
       case 'ERROR':
+        this.advancing = false;
         this.gameError = event.payload.message;
         if (!event.payload.recoverable) {
           this.phase = 'error';
@@ -390,6 +423,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
 
   private enterRound(payload: Omit<RoundStartedPayload, 'roundIndex' | 'totalRounds'>): void {
     this.resetFeedback();
+    this.clearReveal();
     this.phase = 'playing';
     this.roundStartMs = Date.parse(payload.startsAt);
     this.deadlineMs = Date.parse(payload.deadline);
@@ -408,6 +442,37 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         excerptStartSeconds: payload.excerptStartSeconds,
       });
     }
+  }
+
+  private clearReveal(): void {
+    this.reveal = null;
+    this.advanceAtMs = null;
+    this.advancing = false;
+    this.lastRoundPoints = null;
+    this.outcome = null;
+  }
+
+  private enterReveal(
+    metadata: NonNullable<GameRoomComponent['reveal']>,
+    outcome: RoundOutcome | null,
+    points: number,
+    advanceAt: string | null,
+  ): void {
+    this.resetFeedback();
+    this.phase = 'revealed';
+    this.reveal = metadata;
+    this.outcome = outcome;
+    this.lastRoundPoints = points;
+    this.advanceAtMs = advanceAt ? Date.parse(advanceAt) : null;
+    this.deadlineMs = null;
+    this.roundStartMs = null;
+    this.sending = false;
+    this.skipping = false;
+    this.advancing = false;
+    this.answer = '';
+    this.audioPlayback.stop();
+    this.tick();
+    this.announcement = `${this.outcomeLabel}. ${metadata.title ?? 'Round over'}. ${points} points.`;
   }
 
   private resetFeedback(): void {

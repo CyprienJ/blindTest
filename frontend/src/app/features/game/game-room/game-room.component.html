@@ -62,7 +62,9 @@
             </span>
             <span class="round-state">
               <span class="bt-chip bt-chip-accent">{{ stateLabel }}</span>
-              <span class="mono timer" aria-hidden="true">{{ secondsLeft }}s left</span>
+              @if (phase === 'playing') {
+                <span class="mono timer" aria-hidden="true">{{ secondsLeft }}s left</span>
+              }
             </span>
           </header>
 
@@ -79,45 +81,86 @@
           }
 
           <section class="bt-card media-card">
-            <div class="cover" aria-hidden="true">?????</div>
+            <div class="cover" [class.is-revealed]="phase === 'revealed'" aria-hidden="true">
+              {{ phase === 'revealed' ? '♪' : '?????' }}
+            </div>
             <div class="media-body">
-              <p class="eyebrow">Now playing</p>
-              <p class="masked-title" aria-hidden="true">— — — — —</p>
-              <div class="audio-row">
-                <span
-                  class="bt-wave"
-                  [class.is-paused]="audioStatus !== 'playing'"
-                  aria-hidden="true"
-                >
-                  <span></span><span></span><span></span><span></span><span></span>
-                </span>
-                <span class="mono time-left" aria-hidden="true">{{ secondsLeft }}s</span>
-              </div>
-              <div class="bt-progress"><div [style.width.%]="progressPct"></div></div>
-              @if (audioStatus === 'blocked') {
-                <button
-                  class="bt-btn bt-btn-primary bt-btn-sm"
-                  type="button"
-                  (click)="resumeAudio()"
-                >
-                  ▶ Start audio
-                </button>
-              }
-              @if (audioStatus === 'error') {
-                <p class="audio-warn" role="status">Audio unavailable — you can still answer.</p>
+              @if (phase === 'revealed' && reveal) {
+                <p class="eyebrow">Now revealed</p>
+                <h1 class="revealed-title">{{ reveal.title }}</h1>
+                <dl class="reveal-metadata">
+                  @if (reveal.artist) {
+                    <div>
+                      <dt>Artist</dt>
+                      <dd>{{ reveal.artist }}</dd>
+                    </div>
+                  }
+                  @if (reveal.composer) {
+                    <div>
+                      <dt>Composer</dt>
+                      <dd>{{ reveal.composer }}</dd>
+                    </div>
+                  }
+                  @if (reveal.album) {
+                    <div>
+                      <dt>Album</dt>
+                      <dd>{{ reveal.album }}</dd>
+                    </div>
+                  }
+                </dl>
+              } @else {
+                <p class="eyebrow">
+                  {{ phase === 'preparing' ? 'Preparing next track' : 'Now playing' }}
+                </p>
+                <p class="masked-title" aria-hidden="true">— — — — —</p>
+                <div class="audio-row">
+                  <span
+                    class="bt-wave"
+                    [class.is-paused]="audioStatus !== 'playing'"
+                    aria-hidden="true"
+                  >
+                    <span></span><span></span><span></span><span></span><span></span>
+                  </span>
+                  <span class="mono time-left" aria-hidden="true">{{ secondsLeft }}s</span>
+                </div>
+                <div class="bt-progress"><div [style.width.%]="progressPct"></div></div>
+                @if (audioStatus === 'blocked') {
+                  <button
+                    class="bt-btn bt-btn-primary bt-btn-sm"
+                    type="button"
+                    (click)="resumeAudio()"
+                  >
+                    ▶ Start audio
+                  </button>
+                }
+                @if (audioStatus === 'error') {
+                  <p class="audio-warn" role="status">Audio unavailable — you can still answer.</p>
+                }
               }
             </div>
           </section>
 
           @if (phase === 'revealed') {
-            <section class="bt-card reveal-strip" role="status" aria-live="polite">
+            <section class="bt-card reveal-strip" aria-label="Round result">
               <strong>{{ outcomeLabel }}</strong>
               <span>
                 @if (lastRoundPoints !== null) {
                   +{{ lastRoundPoints }} points ·
                 }
-                Next track shortly…
+                @if (secondsLeft > 0) {
+                  {{ isLastRound ? 'Results' : 'Next track' }} in {{ secondsLeft }} seconds
+                } @else {
+                  {{ isLastRound ? 'Waiting for results…' : 'Waiting for the next track…' }}
+                }
               </span>
+              <button
+                class="bt-btn bt-btn-ghost bt-btn-sm"
+                type="button"
+                [disabled]="!canAdvance"
+                (click)="advance()"
+              >
+                {{ advancing ? 'Waiting for server…' : isLastRound ? 'Finish now' : 'Next now' }}
+              </button>
             </section>
           } @else {
             <form class="bt-card answer-card" (ngSubmit)="submit()">

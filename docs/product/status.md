@@ -3,8 +3,9 @@
 [Up: Product](README.md) · [Roadmap pointer](../plan.md)
 
 Reviewed against source and test files on 2026-09-11. This is a code inventory,
-not a claim that all release acceptance checks have passed. No application tests
-were run as part of the documentation reorganization.
+not a claim that all release acceptance checks have passed. UI-07 validation includes
+backend checks, frontend lint/build/unit tests, mocked browser scenarios, and Compose
+configuration; full-stack browser acceptance remains separate.
 
 ## Present in code
 
@@ -39,7 +40,8 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 Git history confirms UI-01 through UI-05 were implemented on 2026-09-02. The
 subsequent shell fixes are maintenance of UI-01, not its original implementation.
 The roadmap now records those implementation commits explicitly. UI-06 private
-answer feedback is complete and validated; the next ticket is UI-07. Later tickets
+answer feedback and UI-07 reveal/round transitions are complete and validated;
+the next ticket is UI-08. Later tickets
 still require their own acceptance validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).

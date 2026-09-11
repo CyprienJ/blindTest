@@ -236,7 +236,7 @@ describe('GameRoomComponent', () => {
     expect(submit.disabled).toBeTrue();
   });
 
-  it('shows the revealed strip without exposing the title, then resumes on next round', async () => {
+  it('reveals the current title and waits for the server to start the next round', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
     const fixture = harness.create();
@@ -262,13 +262,92 @@ describe('GameRoomComponent', () => {
 
     expect(audio.stop).toHaveBeenCalled();
     expect(text(fixture)).toContain('+120 points');
-    expect(text(fixture)).not.toContain('Take On Me');
+    expect(text(fixture)).toContain('Take On Me');
+    expect(text(fixture)).toContain('Next track in 4 seconds');
+    jasmine.clock().tick(5000);
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('Waiting for the next track');
+    expect(fixture.componentInstance.phase).toBe('revealed');
+    expect(socket.advanceRound).not.toHaveBeenCalled();
     expect(fixture.nativeElement.querySelector('#answer-input')).toBeNull();
 
     socket.publicEvents$.next(roundStarted(1));
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('#answer-input')).not.toBeNull();
   });
+
+  for (const outcome of ['TITLE_FOUND', 'TIMEOUT', 'SKIPPED'] as const) {
+    it(`recovers a final ${outcome} reveal and guards the finish action`, async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+      const harness = await setup(SESSION_ID);
+      const fixture = harness.create();
+      socket.status$.next('reconnecting');
+      socket.snapshots$.next({
+        ...snapshot('PLAYING'),
+        currentRoundIndex: 11,
+        totalScore: 450,
+        currentRound: {
+          roundIndex: 11,
+          status: 'REVEALED',
+          startsAt: null,
+          deadline: null,
+          playbackUrl: null,
+          excerptStartSeconds: null,
+          outcome,
+          title: 'Final title',
+          artist: 'Final artist',
+          composer: 'Composer name',
+          album: 'Album name',
+          advanceAt: new Date(NOW + 1500).toISOString(),
+          roundPoints: outcome === 'TITLE_FOUND' ? 100 : 0,
+        },
+      });
+      fixture.detectChanges();
+      expect(text(fixture)).toContain('Final title');
+      expect(text(fixture)).toContain('Composer name');
+      expect(text(fixture)).toContain('Album name');
+      expect(text(fixture)).toContain('Results in 2 seconds');
+      expect(text(fixture)).not.toContain('Next track');
+      expect(text(fixture)).toContain(
+        outcome === 'TITLE_FOUND'
+          ? 'You found the title'
+          : outcome === 'TIMEOUT'
+            ? 'Time ran out'
+            : 'Round skipped',
+      );
+      const button = fixture.nativeElement.querySelector(
+        '.reveal-strip button',
+      ) as HTMLButtonElement;
+      expect(button.disabled).toBeTrue();
+      fixture.componentInstance.advance();
+      expect(socket.advanceRound).not.toHaveBeenCalled();
+      socket.status$.next('connected');
+      fixture.detectChanges();
+      expect(button.textContent).toContain('Finish now');
+      button.click();
+      fixture.componentInstance.advance();
+      expect(socket.advanceRound).toHaveBeenCalledTimes(1);
+      expect(fixture.componentInstance.phase).toBe('revealed');
+      jasmine.clock().tick(2000);
+      fixture.detectChanges();
+      expect(text(fixture)).toContain('Waiting for results');
+      expect(audio.scheduleRound).not.toHaveBeenCalled();
+      socket.publicEvents$.next({
+        metadata: meta(50),
+        type: 'GAME_FINISHED',
+        payload: {
+          totalScore: 450,
+          totalRounds: 12,
+          titlesFound: 4,
+          skippedRounds: 4,
+          timedOutRounds: 4,
+        },
+      });
+      fixture.detectChanges();
+      expect(text(fixture)).toContain('Game finished');
+      expect(text(fixture)).not.toContain('Final title');
+    });
+  }
 
   it('renders the finished panel and replays', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));

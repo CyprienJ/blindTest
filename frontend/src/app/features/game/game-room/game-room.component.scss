@@ -366,3 +366,35 @@
   color: var(--fg-1);
   font-size: 13px;
 }
+
+.cover.is-revealed {
+  filter: none;
+  color: var(--accent);
+  font-size: 48px;
+}
+
+.revealed-title {
+  margin: 0;
+  font-size: 26px;
+  overflow-wrap: anywhere;
+}
+
+.reveal-metadata {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+
+  div {
+    margin-bottom: 8px;
+  }
+  dt {
+    color: var(--fg-2);
+  }
+  dd {
+    margin: 0;
+  }
+}
+
+.reveal-strip button {
+  margin-left: auto;
+}

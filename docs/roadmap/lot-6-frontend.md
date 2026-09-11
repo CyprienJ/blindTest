@@ -192,6 +192,11 @@ Acceptance:
 
 #### UI-07 — Implement reveal and round transition
 
+Status: complete (2026-09-11). Metadata, outcome/points, authoritative countdown,
+early advance, reconnect recovery, and final-round handling are implemented.
+Validated with Angular gameplay tests, mocked STOMP Playwright coverage, backend
+checks, frontend lint/build, and Compose configuration.
+
 Decision: [ADR-0015](../adr/0015-four-second-automatic-reveal-transition.md).
 
 Work:

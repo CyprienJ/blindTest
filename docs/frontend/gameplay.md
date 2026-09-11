@@ -50,6 +50,27 @@ and the existing answer-card visual design. Angular tests cover state and timing
 Playwright drives keyboard guesses through mocked STOMP frames, including secondary
 discoveries, a repeated discovery, cooldown, and the subsequent title reveal.
 
+## Reveal and round transition
+
+`ROUND_REVEALED` shows the current title, available artist/composer/album metadata,
+outcome, awarded points, and total score. It replaces the masked track card and
+answer form, stops audio, and announces the result through the polite live region.
+Missing optional metadata is omitted; no cover or year is invented.
+
+The countdown projects the event's `transitionAt`, or the recovered snapshot's
+`advanceAt`, under [ADR-0015](../adr/0015-four-second-automatic-reveal-transition.md).
+Reconnecting restores the reveal metadata, outcome, points, and remaining time.
+At zero the UI waits for the server; it never starts or reveals another track itself.
+The connected owner can send `ADVANCE_ROUND` with “Next now”; repeated clicks are
+blocked while pending. Rejected commands request a snapshot, and recoverable errors
+permit retry. The last round instead shows a results countdown and “Finish now”.
+Only `GAME_FINISHED` or a finished snapshot opens the existing finish view.
+
+Preparing/started events and snapshots clear the previous reveal. Angular tests
+cover each outcome, deadline expiry, final-round recovery, and command guards;
+the mocked STOMP browser journey checks title visibility and server-driven advance.
+The wire contract is unchanged.
+
 ## Audio ownership
 
 `AudioPlaybackService` owns one `HTMLAudioElement` behind an injectable factory.

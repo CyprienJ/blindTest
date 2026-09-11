@@ -38,6 +38,7 @@ test('shows private feedback and permits continued keyboard title guesses', asyn
   );
 
   const answers: string[] = [];
+  let advanceCount = 0;
   await page.routeWebSocket('**/ws', (ws) => {
     const subscriptions = new Map<string, string>();
     let pendingSnapshot = false;
@@ -108,6 +109,16 @@ test('shows private feedback and permits continued keyboard title guesses', asyn
           if (command.type === 'REQUEST_SNAPSHOT') {
             pendingSnapshot = true;
             snapshot();
+          } else if (command.type === 'ADVANCE_ROUND') {
+            advanceCount++;
+            emit(publicDestination, 'ROUND_STARTED', {
+              roundIndex: 1,
+              totalRounds: 5,
+              startsAt: new Date(now.getTime() + 15000).toISOString(),
+              deadline: new Date(now.getTime() + 45000).toISOString(),
+              playbackUrl: null,
+              excerptStartSeconds: 0,
+            });
           } else if (command.type === 'SUBMIT_ANSWER') {
             answers.push(command.answer);
             const secondary = { artist: 'ARTIST', composer: 'COMPOSER', album: 'ALBUM' }[
@@ -183,7 +194,17 @@ test('shows private feedback and permits continued keyboard title guesses', asyn
   await page.clock.fastForward(10000);
   await expect(page.getByRole('button', { name: 'Submit', exact: true })).toBeEnabled();
   await input.press('Enter');
-  await expect(page.getByText('You found the title')).toBeVisible();
+  await expect(page.getByText('You found the title', { exact: true })).toBeVisible();
   await expect(page.locator('.score-card .score')).toHaveText('100');
   await expect(feedback).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Secret title' })).toBeVisible();
+  await page.clock.fastForward(5000);
+  await expect(page.getByText('Waiting for the next track…')).toBeVisible();
+  await expect(input).toHaveCount(0);
+  expect(advanceCount).toBe(0);
+  await page.getByRole('button', { name: 'Next now', exact: true }).click();
+  await expect(input).toBeEnabled();
+  await expect(page.getByRole('heading', { name: 'Secret title' })).toHaveCount(0);
+  await expect(page.locator('.track-position')).toContainText('2');
+  expect(advanceCount).toBe(1);
 });
