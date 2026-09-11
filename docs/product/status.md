@@ -40,8 +40,11 @@ subsequent shell fixes are maintenance of UI-01, not its original implementation
 The roadmap now records those implementation commits explicitly. UI-06 private
 answer feedback, UI-07 reveal/round transitions, UI-08 persisted end summary,
 UI-09 Playwright game coverage, and UI-10 desktop-browser/accessibility checks
-are complete and validated, closing Lot 6; the next ticket is E2E-01 (Lot 7).
-Later tickets still require their own acceptance validation.
+are complete and validated, closing Lot 6. E2E-01 is complete: `docker-compose.test.yml`
+plus `./scripts/e2e-test.sh` boot an isolated, parallel-safe full-stack environment
+with Resend/Turnstile/yt-dlp faked out; see [testing](../testing.md#isolated-full-stack-environment).
+The next ticket is E2E-02 (Lot 7). Later tickets still require their own
+acceptance validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).
 

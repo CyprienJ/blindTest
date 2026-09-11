@@ -55,6 +55,9 @@ public class SecurityConfig {
             auth.requestMatchers("/actuator/health").permitAll();
             auth.requestMatchers("/actuator/metrics/**").hasRole("ADMIN");
             auth.requestMatchers("/api/auth/**").permitAll();
+            // Only registered when the e2e profile is active (see E2eTestSupportController);
+            // inert everywhere else since no controller answers this path.
+            auth.requestMatchers("/api/e2e/**").permitAll();
             auth.requestMatchers("/ws/**").permitAll();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*/summary").authenticated();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*", "/api/tracks",

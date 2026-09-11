@@ -109,6 +109,45 @@ These browser tests do not establish full-stack gameplay acceptance.
 debugger. Reports are in `frontend/playwright-report/`, with failure traces,
 screenshots, and videos in `frontend/test-results/`.
 
+## Isolated full-stack environment
+
+`docker-compose.test.yml` boots a real frontend, backend, PostgreSQL, and MinIO
+together, proving the pieces work as one system rather than through mocks. Run
+it with:
+
+```bash
+./scripts/e2e-test.sh
+```
+
+This one command builds and starts the stack, runs the full-stack Playwright
+suite (`frontend/e2e-full-stack/`, `frontend/playwright.full-stack.config.ts`)
+against it, and tears the stack down whether the run passes or fails. Each
+invocation picks a random Compose project name, and the file publishes no host
+ports, so concurrent CI runs never share a database, bucket, or network.
+
+Every credential is deterministic and test-only. External dependencies are
+faked so the stack needs no network access:
+
+- the backend runs with `SPRING_PROFILES_ACTIVE=e2e`
+  (`application-e2e.properties`, `com.blindtest.testing.e2e`).
+  `FakeEmailSender` captures verification/reset/welcome email instead of
+  calling Resend, exposed at `GET`/`DELETE /api/e2e/emails` for specs that
+  need a captured token; `FakeProcessFactory` writes a deterministic MP3
+  fixture instead of invoking yt-dlp/FFmpeg against YouTube;
+- Turnstile uses Cloudflare's documented always-pass test key pair, the same
+  one `docker-compose.local.yml` already uses for local development.
+
+Neither adapter can affect a real deployment: `ProductionConfigurationValidator`
+(`@Profile("production")`) rejects the Cloudflare test key outright, and the
+fake beans/controller only register under the `e2e` profile, which no
+production or development Compose file sets.
+
+The current suite only proves the stack is wired correctly (health check
+through the real nginx proxy, the real Angular build serving, the e2e profile
+active). It does not yet exercise the account, catalogue, or gameplay
+journeys — see the later Lot 7 tickets in
+[`lot-7-hardening.md`](roadmap/lot-7-hardening.md).
+
 ## Schema and configuration checks
 
 PostgreSQL Testcontainers coverage runs Flyway against an empty PostgreSQL 16

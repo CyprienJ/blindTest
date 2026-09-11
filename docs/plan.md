@@ -10,26 +10,22 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[E2E-01 — Create an isolated full-stack test environment](roadmap/lot-7-hardening.md#e2e-01--create-an-isolated-full-stack-test-environment)**
+**[E2E-02 — Automate account journey](roadmap/lot-7-hardening.md#e2e-02--automate-account-journey)**
 
 Status: ready
 
 Git history and source confirm UI-01 through UI-05 were implemented on 2026-09-02
-(`f8febc9`, `e9cac42`, `4548500`, `65ea8ec`, and `8228f4b`). UI-06 is complete:
-private answer feedback, secondary discoveries, cooldown, and continued keyboard
-input are implemented and validated. UI-07 is complete: reveal metadata,
-outcome/points, server-deadline countdown, early advance, reconnect recovery, and
-last-round handling are implemented and validated under ADR-0015. UI-08 is
-complete: the end-screen route loads the durable, refresh-safe owner summary from
-the existing history endpoint, showing total score, per-round outcome/response
-time/points, and a replay action. UI-09 is complete: Playwright specs cover the
-last-round finish view and the persisted end-screen summary states. UI-10 is
-complete: Chromium stays the only browser required on every push, Firefox and
-WebKit run the full suite on a nightly schedule, and Playwright now checks
-keyboard reach/visible focus, answer-region semantics, small-screen non-crash,
-and two Chromium-only visual baselines. This closes Lot 6; E2E-01 (Lot 7) is
-next. TEST-06 remains required before automated beta deployment resumes;
-MEDIA-08 remains deferred until legacy files need migration.
+(`f8febc9`, `e9cac42`, `4548500`, `65ea8ec`, and `8228f4b`). UI-06 through UI-10
+are complete, closing Lot 6. E2E-01 is complete: `docker-compose.test.yml` boots
+PostgreSQL, MinIO, the backend under a dedicated `e2e` Spring profile, and the
+Nginx-served frontend with no fixed host ports; `./scripts/e2e-test.sh` starts the
+stack, runs the full-stack Playwright suite, and always tears it down, with a
+random Compose project name per run so parallel CI cannot share data. Resend and
+yt-dlp/FFmpeg are faked in-process (`com.blindtest.testing.e2e`, exposed at
+`/api/e2e/emails`); Turnstile reuses Cloudflare's documented test key pair. See
+[testing](testing.md#isolated-full-stack-environment). E2E-02 (Lot 7) is next.
+TEST-06 remains required before automated beta deployment resumes; MEDIA-08
+remains deferred until legacy files need migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](roadmap/completion-rules.md#definition-of-done), replace it with the next ready,

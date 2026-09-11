@@ -2,3 +2,4 @@
 .env
 media/
 */target/*
+e2e-stack-*.log
