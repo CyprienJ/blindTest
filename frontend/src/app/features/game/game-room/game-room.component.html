@@ -133,6 +133,7 @@
                   [(ngModel)]="answer"
                   [disabled]="phase !== 'playing' || socketStatus === 'reconnecting'"
                   aria-label="Your answer"
+                  aria-describedby="answer-feedback"
                   placeholder="Type the title…"
                 />
                 <button
@@ -143,6 +144,30 @@
                   Submit
                 </button>
               </div>
+              <p id="answer-feedback" class="answer-feedback" role="status" aria-atomic="true">
+                {{ feedback }}
+                @if (cooldownSeconds > 0) {
+                  Wait {{ cooldownSeconds }}s before submitting again.
+                }
+              </p>
+              @if (
+                discoveries.ARTIST !== undefined ||
+                discoveries.COMPOSER !== undefined ||
+                discoveries.ALBUM !== undefined
+              ) {
+                <ul class="discoveries" aria-label="Your discoveries">
+                  @for (type of secondaryTypes; track type) {
+                    @if (discoveries[type] !== undefined) {
+                      <li>
+                        {{ secondaryLabels[type] }} found
+                        @if (discoveries[type]) {
+                          <span>: {{ discoveries[type] }}</span>
+                        }
+                      </li>
+                    }
+                  }
+                </ul>
+              }
               <div class="answer-hint">
                 <span>The server checks your answer — small typos are fine.</span>
                 <button

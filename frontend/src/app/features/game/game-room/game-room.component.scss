@@ -349,3 +349,20 @@
     animation: none;
   }
 }
+
+.answer-feedback {
+  min-height: 1.5em;
+  margin: 12px 0 0;
+  color: var(--fg-1);
+  font-size: 13px;
+}
+
+.discoveries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 0;
+  list-style: none;
+  color: var(--fg-1);
+  font-size: 13px;
+}

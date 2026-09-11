@@ -19,6 +19,7 @@ import {
   PublicSessionEvent,
   RoundOutcome,
   RoundStartedPayload,
+  SecondaryAnswerType,
 } from '../../../core/models/game-protocol.model';
 import {
   AudioPlaybackService,
@@ -65,6 +66,13 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   lastRoundPoints: number | null = null;
   outcome: RoundOutcome | null = null;
   finished: GameFinishedPayload | null = null;
+
+  feedback = '';
+  discoveries: Partial<Record<SecondaryAnswerType, string | null>> = {};
+  readonly secondaryTypes: SecondaryAnswerType[] = ['ARTIST', 'COMPOSER', 'ALBUM'];
+  readonly secondaryLabels = { ARTIST: 'Artist', COMPOSER: 'Composer', ALBUM: 'Album' };
+  cooldownSeconds = 0;
+  private retryAtMs = 0;
 
   answer = '';
   sending = false;
@@ -141,7 +149,12 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   }
 
   get canSubmit(): boolean {
-    return this.phase === 'playing' && this.socketStatus !== 'reconnecting' && !this.sending;
+    return (
+      this.phase === 'playing' &&
+      this.socketStatus === 'connected' &&
+      !this.sending &&
+      Date.now() >= this.retryAtMs
+    );
   }
 
   get canSkip(): boolean {
@@ -185,6 +198,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       return;
     }
     this.sending = true;
+    this.feedback = '';
     this.gameSocket.submitAnswer(value);
     this.answer = '';
     this.focusInput();
@@ -213,11 +227,13 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   }
 
   private tick(): void {
+    this.cooldownSeconds = Math.max(0, Math.ceil((this.retryAtMs - Date.now()) / 1000));
     this.secondsLeft =
       this.deadlineMs === null ? 0 : Math.max(0, Math.ceil((this.deadlineMs - Date.now()) / 1000));
   }
 
   private applySnapshot(snapshot: CurrentSnapshotPayload): void {
+    this.resetFeedback();
     this.totalRounds = snapshot.totalRounds;
     this.totalScore = snapshot.totalScore;
     this.roundNumber = snapshot.currentRoundIndex + 1;
@@ -253,6 +269,9 @@ export class GameRoomComponent implements OnInit, OnDestroy {
             playbackUrl: round.playbackUrl,
             excerptStartSeconds: round.excerptStartSeconds ?? 0,
           });
+          for (const type of snapshot.discoveredAnswerTypes) {
+            this.discoveries[type] = null;
+          }
         } else if (round.status === 'PREPARING') {
           this.phase = 'preparing';
         } else {
@@ -272,6 +291,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.totalRounds = event.payload.totalRounds;
         return;
       case 'ROUND_PREPARING':
+        this.resetFeedback();
         this.phase = 'preparing';
         this.roundNumber = event.payload.roundIndex + 1;
         this.totalRounds = event.payload.totalRounds;
@@ -288,6 +308,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.announcement = `Round ${this.roundNumber} of ${this.totalRounds} started.`;
         return;
       case 'ROUND_REVEALED':
+        this.resetFeedback();
         this.phase = 'revealed';
         this.sending = false;
         this.outcome = event.payload.outcome;
@@ -303,6 +324,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.lastRoundPoints = event.payload.roundPoints;
         return;
       case 'GAME_FINISHED':
+        this.resetFeedback();
         this.phase = 'finished';
         this.finished = event.payload;
         this.totalScore = event.payload.totalScore;
@@ -315,9 +337,45 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   private applyPrivate(event: PrivateSessionEvent): void {
     switch (event.type) {
       case 'ANSWER_REJECTED':
-      case 'SECONDARY_MATCH':
+        if (this.phase !== 'playing') return;
         this.sending = false;
+        switch (event.payload.reason) {
+          case 'WRONG_ANSWER':
+            this.feedback = 'Not a match. Keep trying!';
+            break;
+          case 'ALREADY_FOUND':
+            this.feedback = 'Already found. Keep guessing the title.';
+            break;
+          case 'COOLDOWN': {
+            const retryAt = Date.parse(event.payload.retryAt ?? '');
+            this.retryAtMs = Number.isFinite(retryAt) ? retryAt : 0;
+            this.tick();
+            this.feedback = 'You are answering too quickly. Try again shortly.';
+            break;
+          }
+          case 'STALE_SESSION_VERSION':
+            this.feedback = 'The game has moved on. Refreshing the round…';
+            this.gameSocket.requestSnapshot();
+            break;
+          case 'INVALID_ROUND_STATE':
+            this.feedback = 'Answers are not accepted right now. Refreshing the round…';
+            this.gameSocket.requestSnapshot();
+            break;
+          case 'DUPLICATE_COMMAND':
+            this.feedback = 'That attempt was already received.';
+            break;
+        }
+        this.focusInput();
         return;
+      case 'SECONDARY_MATCH': {
+        if (this.phase !== 'playing') return;
+        this.sending = false;
+        const { answerType, matchedValue, alreadyFound } = event.payload;
+        this.discoveries = { ...this.discoveries, [answerType]: matchedValue };
+        this.feedback = `${this.secondaryLabels[answerType]} ${alreadyFound ? 'already found' : 'found'}: ${matchedValue}. Keep guessing the title.`;
+        this.focusInput();
+        return;
+      }
       case 'ERROR':
         this.gameError = event.payload.message;
         if (!event.payload.recoverable) {
@@ -331,6 +389,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   }
 
   private enterRound(payload: Omit<RoundStartedPayload, 'roundIndex' | 'totalRounds'>): void {
+    this.resetFeedback();
     this.phase = 'playing';
     this.roundStartMs = Date.parse(payload.startsAt);
     this.deadlineMs = Date.parse(payload.deadline);
@@ -349,6 +408,13 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         excerptStartSeconds: payload.excerptStartSeconds,
       });
     }
+  }
+
+  private resetFeedback(): void {
+    this.feedback = '';
+    this.discoveries = {};
+    this.retryAtMs = 0;
+    this.cooldownSeconds = 0;
   }
 
   private focusInput(): void {

@@ -31,6 +31,25 @@ The browser countdown is presentation based on server timestamps and `Date.now()
 The backend decides whether an answer arrived in time and how many points it earns.
 The browser cannot change the authoritative deadline or score.
 
+## Answer feedback
+
+Private `ANSWER_REJECTED` events show neutral wrong-answer, already-found,
+cooldown, or command-state messages beneath the input. Cooldown uses the server's
+`retryAt` to disable submission while keeping the input editable. Stale-version
+and invalid-state responses request a current snapshot.
+
+Private `SECONDARY_MATCH` events identify artist, composer, or album discoveries
+and explicitly invite another title guess. They never award points, stop playback,
+or reveal the title. Discovery categories survive snapshot recovery; their values
+are shown only when supplied by a private match event. Round changes clear feedback
+and discoveries, and feedback arriving outside play is ignored.
+
+Submitting clears the sent text and returns focus to the input. A delayed response
+does not erase a new guess already being typed. Feedback uses a polite live region
+and the existing answer-card visual design. Angular tests cover state and timing;
+Playwright drives keyboard guesses through mocked STOMP frames, including secondary
+discoveries, a repeated discovery, cooldown, and the subsequent title reveal.
+
 ## Audio ownership
 
 `AudioPlaybackService` owns one `HTMLAudioElement` behind an injectable factory.
@@ -48,10 +67,9 @@ element; a separate browser test checks HTTP byte-range seeking.
 
 ## Current limits
 
-Secondary discoveries and rejected guesses currently clear submission state without
-the full planned feedback UI. A basic finished view consumes the live finish event;
+A basic finished view consumes the live finish event;
 the separate end-screen component is still a placeholder and does not load the
-durable REST summary. Existing browser game-room tests cover connection and routing,
+durable REST summary. Browser tests cover connection, routing, and mocked answer feedback,
 not complete full-stack gameplay. See [status](../product/status.md).
 
 ## Source and contract

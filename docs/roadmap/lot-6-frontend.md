@@ -71,19 +71,10 @@ Acceptance:
 
 #### UI-01 — Implement authenticated application shell
 
-Status: completed on 2026-09-11.
+Status: implemented on 2026-09-02 in `f8febc9`.
 
-Delivery: the shared desktop shell exposes play and public playlists, reactive
-administrator navigation, account identity, and guarded sign-out. Child navigation
-rechecks authentication; failed recovery clears stale identity, and denied admin
-access returns to `/home`. Keyboard focus, active-page semantics, and narrow-screen
-header wrapping preserve usable navigation.
-
-Validation: frontend lint and production build, 62 Angular tests, the 64-test
-Playwright suite plus 11 focused shell checks including the added narrow-screen
-regression, 500 backend tests with Checkstyle and coverage gates, and Compose
-configuration validation passed. Existing style-budget and STOMP CommonJS build
-warnings remain. No API, event, or schema changes were required.
+Follow-up shell navigation and session recovery fixes were delivered separately
+in `4a0ead9` on 2026-09-11. Those fixes did not reimplement UI-01.
 
 Work:
 
@@ -99,6 +90,8 @@ Acceptance:
 - inaccessible routes redirect safely.
 
 #### UI-02 — Implement game configuration
+
+Status: implemented on 2026-09-02 in `e9cac42`.
 
 Decision: [ADR-0008](../adr/0008-solo-game-configuration-limits.md).
 
@@ -117,6 +110,8 @@ Acceptance:
 
 #### UI-03 — Implement resilient STOMP service
 
+Status: implemented on 2026-09-02 in `4548500`.
+
 Work:
 
 - access-token connect headers;
@@ -132,6 +127,8 @@ Acceptance:
 - subscriptions do not multiply after reconnect.
 
 #### UI-04 — Implement audio playback service
+
+Status: implemented on 2026-09-02 in `65ea8ec`.
 
 Work:
 
@@ -150,6 +147,8 @@ Acceptance:
 
 #### UI-05 — Implement game room
 
+Status: implemented on 2026-09-02 in `8228f4b`.
+
 Work:
 
 - timer based on server deadline;
@@ -166,6 +165,18 @@ Acceptance:
 - duplicate clicks/submissions do not create duplicate commands.
 
 #### UI-06 — Implement answer feedback
+
+Status: completed on 2026-09-11.
+
+Delivery: neutral rejection messages, private secondary discoveries and repeats,
+a server-timed cooldown, snapshot discovery recovery, and continued keyboard
+input. Secondary matches never change phase, score, or playback. See the
+[gameplay client](../frontend/gameplay.md#answer-feedback) for delivered behavior.
+
+Validation: 70 Angular tests, 66 Playwright tests (four workers), frontend lint and
+production build, 500 backend tests with Checkstyle and coverage gates, and Compose
+configuration validation passed. Existing style-budget and STOMP CommonJS build
+warnings remain. No API, event, or schema changes were required.
 
 Work:
 

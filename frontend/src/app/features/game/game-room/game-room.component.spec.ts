@@ -190,6 +190,7 @@ describe('GameRoomComponent', () => {
     const harness = await setup(SESSION_ID);
     const fixture = harness.create();
     const component = fixture.componentInstance;
+    socket.status$.next('connected');
     socket.publicEvents$.next(roundStarted(0));
 
     component.answer = 'take on me';

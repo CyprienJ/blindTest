@@ -24,8 +24,6 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 
 ## Partial and deferred experiences
 
-- The game room handles secondary-match and rejected-answer messages by clearing
-  submission state; dedicated feedback presentation remains incomplete.
 - The game room has an in-session finish view. It does not implement the separate,
   reloadable persisted-summary page required by UI-08.
 - Recovery uses the active session retained in browser `sessionStorage`; an
@@ -38,14 +36,13 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 
 ## Roadmap discrepancy
 
-UI-01 acceptance was validated on 2026-09-11; the authoritative pointer now selects
-UI-02. The shell includes public playlist navigation, reactive role visibility,
-safe session-recovery redirects, and logout failure handling. See the
-[frontend guide](../frontend/README.md) for navigation behavior.
-
-Source and focused tests already include REST session creation, a STOMP client,
-audio playback, and a game room. Do not infer acceptance completion for subsequent
-tickets from these files alone; review the [frontend lot](../roadmap/lot-6-frontend.md).
+Git history confirms UI-01 through UI-05 were implemented on 2026-09-02. The
+subsequent shell fixes are maintenance of UI-01, not its original implementation.
+The roadmap now records those implementation commits explicitly. UI-06 private
+answer feedback is complete and validated; the next ticket is UI-07. Later tickets
+still require their own acceptance validation.
+See the [frontend lot](../roadmap/lot-6-frontend.md) and
+[gameplay client](../frontend/gameplay.md).
 
 ## Validation boundaries
 

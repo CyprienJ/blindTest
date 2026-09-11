@@ -2,7 +2,7 @@
 
 Status: delivery authority; detailed sections are linked below
 
-Structure reviewed: 2026-09-11; ticket statuses preserved
+Structure and implementation history reconciled: 2026-09-11
 
 Target: first public production release, followed by multiplayer and social features
 
@@ -10,17 +10,17 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[UI-02 — Implement game configuration](roadmap/lot-6-frontend.md#ui-02--implement-game-configuration)**
+**[UI-07 — Implement reveal and round transition](roadmap/lot-6-frontend.md#ui-07--implement-reveal-and-round-transition)**
 
 Status: ready
 
-UI-01 is complete: the authenticated shell provides play and public playlist
-navigation, reactive administrator access, safe authentication redirects, and
-sign-out. Refresh, role, logout failure, and layout checks passed alongside the
-required application validation. UI-02 is the next ready ticket; existing game
-configuration code must be reviewed against its acceptance criteria and ADR-0008.
-TEST-06 remains an outstanding CI prerequisite before automated beta deployment
-resumes, and MEDIA-08 stays deferred until real legacy files require migration.
+Git history and source confirm UI-01 through UI-05 were implemented on 2026-09-02
+(`f8febc9`, `e9cac42`, `4548500`, `65ea8ec`, and `8228f4b`). UI-06 is now complete:
+private answer feedback, secondary discoveries, cooldown, and continued keyboard
+input are implemented and validated. UI-07 is next: the current reveal strip still
+needs metadata presentation and last-round handling under ADR-0015. TEST-06 remains
+required before automated beta deployment resumes; MEDIA-08 remains deferred until
+legacy files need migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](roadmap/completion-rules.md#definition-of-done), replace it with the next ready,
@@ -40,8 +40,8 @@ validated decisions below must be resolved through an explicit architecture or
 product decision before implementation.
 
 
-The [code inventory](product/status.md#roadmap-discrepancy) records frontend work
-already present beyond this pointer. Its acceptance has not been revalidated here.
+The [code inventory](product/status.md#roadmap-discrepancy) records the reconciliation
+of frontend implementation history with this pointer.
 
 ## Roadmap tree
 
