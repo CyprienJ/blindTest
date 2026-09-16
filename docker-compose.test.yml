@@ -150,6 +150,25 @@ services:
     networks:
       - internal
 
+  # Headless REST+STOMP load and concurrency smoke tests (Lot 7, E2E-05). Not run by
+  # scripts/e2e-test.sh; see scripts/load-test.sh and docs/operations/load-testing.md.
+  # cpus/mem_limit keep this harness from starving the backend under test for host
+  # resources, since this Compose file otherwise sets no resource limits (by design,
+  # for parallel-CI isolation) and everything shares one Docker host.
+  load-tests:
+    build:
+      context: ./load-tests
+    environment:
+      API_BASE_URL: http://frontend
+      METRICS_BASE_URL: http://backend:8080
+    cpus: "2"
+    mem_limit: 1g
+    depends_on:
+      frontend:
+        condition: service_started
+    networks:
+      - internal
+
 networks:
   internal:
     driver: bridge

@@ -161,8 +161,28 @@ already requires an HTTPS `app.base-url`.
 
 `environment.spec.ts` (E2E-01) covers the wiring itself (health check through
 the real nginx proxy, the real Angular build serving, the e2e profile active).
-The suite does not yet exercise the catalogue or gameplay journeys — see the
-later Lot 7 tickets in [`lot-7-hardening.md`](roadmap/lot-7-hardening.md).
+`admin-catalogue-journey.spec.ts` (E2E-03) and `solo-game-journey.spec.ts`
+(E2E-04) exercise the catalogue and gameplay journeys — see the later Lot 7
+tickets in [`lot-7-hardening.md`](roadmap/lot-7-hardening.md).
+
+## Load and concurrency smoke tests
+
+`load-tests/` (E2E-05) drives the same real backend/PostgreSQL/MinIO/Nginx stack
+with a headless Node/TypeScript tool speaking REST and STOMP directly (no
+browser — the gameplay protocol is plain JSON-over-STOMP). Run it with:
+
+```bash
+./scripts/load-test.sh
+```
+
+It proves 10, then 40, concurrent solo games complete correctly (round
+outcomes, scores, and durable summaries all reconciled against what was
+actually played), that a concurrent catalogue import does not perturb an
+in-flight game, and records backend Actuator metrics (JVM memory/threads,
+HikariCP pool, Tomcat threads) alongside event latency throughout. Like
+`scripts/e2e-test.sh`, it is manual/local only — no CI workflow invokes it. See
+[load testing](operations/load-testing.md) for what it measures and the latest
+recorded results.
 
 ## Schema and configuration checks
 

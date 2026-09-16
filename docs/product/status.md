@@ -47,8 +47,13 @@ see [testing](../testing.md#isolated-full-stack-environment). E2E-02 is complete
 `account-journey.spec.ts` proves registration, captured-email verification, login,
 access refresh, password reset, and logout against the real backend/database, and
 fixed the refresh cookie's `Secure` flag to follow `app.base-url`'s scheme instead
-of being hardcoded. The next ticket is E2E-03 (Lot 7). Later tickets still require
-their own acceptance validation.
+of being hardcoded. E2E-03 (admin catalogue journey) and E2E-04 (solo game journey)
+are complete, both validated against the same real full-stack stack. E2E-05 is
+complete: `load-tests/` (headless REST+STOMP, no browser) proved 10 and 40
+concurrent solo games complete correctly with reconciled scores/summaries and no
+bottleneck triggered at that scale; see
+[load testing results](../operations/load-testing.md). The next ticket is E2E-06
+(Lot 7). Later tickets still require their own acceptance validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).
 

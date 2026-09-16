@@ -57,4 +57,6 @@ procedure has been rehearsed or automated.
 - [Media operations](../media-operations.md): import limits, deletion backlog,
   reconciliation, and missing/orphan object response.
 - [Testing](../testing.md): validation commands and infrastructure requirements.
+- [Load and concurrency smoke tests](load-testing.md): `./scripts/load-test.sh`,
+  what it measures, and the latest results.
 - [Release acceptance](../roadmap/lot-9-release.md): beta, recovery, security, launch.

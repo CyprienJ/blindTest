@@ -10,7 +10,7 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[E2E-03 — Automate admin catalogue journey](roadmap/lot-7-hardening.md#e2e-03--automate-admin-catalogue-journey)**
+**[E2E-06 — Add failure-injection tests](roadmap/lot-7-hardening.md#e2e-06--add-failure-injection-tests)**
 
 Status: ready
 
@@ -32,8 +32,17 @@ bug: the refresh cookie's `Secure` flag was hardcoded `true`, which silently
 depended on Chrome's "localhost is a secure context" exception and would have
 broken over any other plain-HTTP origin; it now follows `app.base-url`'s scheme
 (`AuthController`), unaffected in production since
-`ProductionConfigurationValidator` already requires HTTPS there. See
-[testing](testing.md#isolated-full-stack-environment). E2E-03 (Lot 7) is next.
+`ProductionConfigurationValidator` already requires HTTPS there. E2E-03 (admin
+catalogue journey) and E2E-04 (solo game journey) are complete, both validated
+against the same real full-stack stack. E2E-05 is complete:
+`load-tests/` (a headless Node/TypeScript REST+STOMP tool, no browser) proved 10,
+then 40, concurrent solo games complete correctly — round outcomes, scores, and
+durable summaries all reconciled against what was actually played — that a
+concurrent catalogue import does not perturb an in-flight game's requested round
+count, and recorded backend Actuator metrics and event latency throughout; no
+bottleneck was triggered up to 40 concurrent games. Run it with
+`./scripts/load-test.sh`. See [testing](testing.md#load-and-concurrency-smoke-tests)
+and [load testing results](operations/load-testing.md). E2E-06 (Lot 7) is next.
 TEST-06 remains required before automated beta deployment resumes; MEDIA-08
 remains deferred until legacy files need migration.
 
