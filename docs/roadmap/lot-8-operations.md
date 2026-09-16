@@ -8,6 +8,13 @@ Deploy safely beside the existing site on one VPS and make recovery possible.
 
 Dependencies: operational pieces begin early; final exit depends on Lots 2-7.
 
+Deployment target: the existing Nginx Proxy Manager runs in Docker on the
+pre-existing external Docker network `proxy`. The Blindtest frontend joins that
+network with the Docker alias `nosblindtests`; Nginx Proxy Manager routes the
+public application hostname to `nosblindtests:80`. The optional host binding
+`127.0.0.1:8090:80` is retained for VPS diagnostics and is not the proxy
+connection path.
+
 ### Tickets
 
 #### OPS-01 — Produce production-ready images
@@ -25,15 +32,19 @@ Work:
 Acceptance:
 
 - images contain only required runtime tools;
-- health and import smoke tests pass.
+- health and import smoke tests pass;
+- images are scanned for vulnerabilities before publication;
+- published images have immutable commit-based tags and do not require
+  `latest` in production.
 
 #### OPS-02 — Define production Compose topology
 
 Work:
 
 - PostgreSQL, backend, frontend, MinIO, MinIO init;
-- explicit networks;
-- localhost-bound application port for host reverse proxy;
+- explicit internal and external `proxy` networks;
+- frontend is reachable from Nginx Proxy Manager as `nosblindtests:80` and may
+  retain a localhost-bound `8090` diagnostic port;
 - private database and console;
 - named persistent volumes;
 - resource limits and restart policies;
@@ -41,23 +52,30 @@ Work:
 
 Acceptance:
 
-- the stack starts after VPS reboot without exposing internal services.
+- the stack starts after VPS reboot without exposing internal services;
+- the frontend and existing site coexist on the VPS without port conflicts;
+- PostgreSQL, the backend, and the MinIO console are unreachable from the
+  public network.
 
 #### OPS-03 — Integrate the existing reverse proxy
 
 Work:
 
-- application virtual host;
+- application virtual host in the existing Nginx Proxy Manager;
 - TLS;
 - `/api` and WebSocket upgrade;
-- public MinIO media endpoint required by signed URLs;
+- a browser-reachable MinIO API endpoint, preferably a separate hostname such
+  as `media.nosblindtests.fr`, for signed URLs;
 - request/body/time limits suitable for the application;
 - preserve the other site's configuration.
 
 Acceptance:
 
 - both sites work concurrently;
-- WebSocket and range audio requests pass through TLS.
+- WebSocket and range audio requests pass through TLS;
+- signed media URLs resolve from the browser with their query strings intact;
+- the application proxy target is `nosblindtests:80`, while the media proxy
+  target is MinIO's API port and the MinIO console remains private.
 
 #### OPS-04 — Manage production secrets
 
@@ -71,6 +89,8 @@ Work:
 Acceptance:
 
 - deployed secrets exist only in approved secret locations;
+- the VPS Compose environment is provisioned with restricted file permissions
+  and is not regenerated into CI logs or artifacts on every deployment;
 - rotation has been rehearsed for JWT/provider/storage credentials where possible.
 
 #### OPS-05 — PostgreSQL backup and restore
@@ -142,17 +162,24 @@ Acceptance:
 Work:
 
 - immutable image tags;
+- GitHub Actions builds the backend and frontend images, publishes them to a
+  private or appropriately access-controlled GHCR repository, and deploys by
+  commit tag over SSH;
 - pre-deploy backup;
 - migration compatibility check;
 - pull/start/health/smoke sequence;
 - rollback to compatible images;
 - avoid `latest` in production;
-- preserve previous Compose/env versions securely.
+- preserve previous Compose/image/env versions securely;
+- make deployment conditional on the required CI checks.
 
 Acceptance:
 
 - a failed health check automatically stops promotion;
-- rollback is rehearsed on beta.
+- the public application smoke test covers REST, WebSocket, and media playback;
+- rollback is rehearsed on beta without deleting named data volumes;
+- an application restart or deployment clearly accepts the documented loss of
+  active in-memory games.
 
 #### OPS-10 — Write operator runbooks
 
@@ -167,6 +194,7 @@ Runbooks:
 - stuck session/job;
 - compromised account/admin;
 - other-site/reverse-proxy conflict.
+- Nginx Proxy Manager and shared `proxy` network configuration.
 
 Acceptance:
 
