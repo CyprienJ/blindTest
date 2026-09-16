@@ -12,7 +12,7 @@ RUN mvn package -DskipTests -B -q
 # ── Runtime dependencies ───────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-alpine-3.22 AS runtime-dependencies
 
-ARG YT_DLP_VERSION=2026.06.09
+ARG YT_DLP_VERSION=2026.08.19
 ARG FFMPEG_VERSION=6.1.2-r2
 
 RUN apk add --no-cache "ffmpeg=${FFMPEG_VERSION}" python3 py3-pip \
