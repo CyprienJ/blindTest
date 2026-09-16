@@ -193,7 +193,7 @@ Runbooks:
 - expired/provider credentials;
 - stuck session/job;
 - compromised account/admin;
-- other-site/reverse-proxy conflict.
+- other-site/reverse-proxy conflict;
 - Nginx Proxy Manager and shared `proxy` network configuration.
 
 Acceptance:

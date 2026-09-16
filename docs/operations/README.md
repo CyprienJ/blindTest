@@ -17,10 +17,12 @@ MinIO endpoint and matching origin configuration.
 ## Deployment workflows
 
 - [CI](../../.github/workflows/ci.yml) runs backend and frontend validation.
-- [Beta](../../.github/workflows/deploy-beta.yml) builds/pushes beta images and
-  deploys on pushes to `main`; it also supports manual dispatch.
-- [Production](../../.github/workflows/deploy-prod.yml) is manually triggered and
-  builds/pushes production images.
+- [Beta](../../.github/workflows/deploy-beta.yml) builds, scans, and publishes
+  immutable commit-tagged beta images, then deploys on pushes to `main`; it also
+  supports manual dispatch.
+- [Production](../../.github/workflows/deploy-prod.yml) is manually triggered,
+  builds and scans production images, publishes immutable commit-tagged images,
+  and deploys the selected commit tag.
 
 Beta currently runs independently of CI, so failing checks do not automatically
 block deployment. TEST-06 in the [quality lot](../roadmap/lot-1-quality.md) tracks

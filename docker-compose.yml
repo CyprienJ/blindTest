@@ -95,6 +95,9 @@ services:
       S3_PRESIGNED_URL_TTL:            ${S3_PRESIGNED_URL_TTL:-5m}
     volumes:
       - media:/media
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
     cpus: ${BACKEND_CPU_LIMIT:-1.0}
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
@@ -119,6 +122,10 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${APP_PORT:-8090}:80"   # nginx système proxie ici
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+      - /var/cache/nginx:rw,noexec,nosuid,nodev,size=64m,mode=1777
     volumes:
       - media:/media:ro
     depends_on:

@@ -1,5 +1,5 @@
 # ── Build stage ────────────────────────────────────────────────────────
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9.11-eclipse-temurin-21 AS build
 WORKDIR /app
 
 # Cache dependencies before copying source
@@ -35,6 +35,9 @@ RUN addgroup -S blindtest \
 COPY --from=build --chown=blindtest:blindtest /app/target/blindtest-backend-*.jar app.jar
 
 USER blindtest
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://127.0.0.1:8080/actuator/health || exit 1
 
 ENTRYPOINT ["java", \
   "-Djava.security.egd=file:/dev/./urandom", \

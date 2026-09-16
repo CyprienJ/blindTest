@@ -10,7 +10,7 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[OPS-01 — Produce production-ready images](roadmap/lot-8-operations.md#ops-01--produce-production-ready-images)**
+**[OPS-02 — Define production Compose topology](roadmap/lot-8-operations.md#ops-02--define-production-compose-topology)**
 
 Status: ready
 
