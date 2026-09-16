@@ -10,7 +10,7 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[OPS-03 — Integrate the existing reverse proxy](roadmap/lot-8-operations.md#ops-03--integrate-the-existing-reverse-proxy)**
+**[OPS-04 — Manage production secrets](roadmap/lot-8-operations.md#ops-04--manage-production-secrets)**
 
 Status: ready
 

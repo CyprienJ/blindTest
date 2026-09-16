@@ -2,7 +2,7 @@
 
 [Up: Product](README.md) · [Roadmap pointer](../plan.md)
 
-Reviewed against source and test files on 2026-09-11. This is a code inventory,
+Reviewed against source and test files on 2026-09-16. This is a code inventory,
 not a claim that all release acceptance checks have passed. UI-07 validation includes
 backend checks, frontend lint/build/unit tests, mocked browser scenarios, and Compose
 configuration; full-stack browser acceptance remains separate.
@@ -62,8 +62,10 @@ E2E-07 is complete: security verification covers the authorization matrix,
 enumeration boundaries, browser transport controls, request/rate limits, private
 media URLs, secret scanning, dependency auditing, and documented residual
 findings; see [security verification](../operations/security-verification.md).
-The next ticket is OPS-01 (Lot 8). Later tickets still require their own
-acceptance validation.
+OPS-01 and OPS-02 are complete. OPS-03 integrates the existing Nginx Proxy
+Manager through the shared `proxy` network, with separate application and MinIO
+media proxy hosts documented in the [reverse-proxy runbook](../operations/reverse-proxy.md).
+Later tickets still require their own validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).
 

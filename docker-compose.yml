@@ -43,7 +43,10 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      - internal
+      internal: {}
+      proxy:
+        aliases:
+          - blindtest-minio
 
   minio-init:
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z

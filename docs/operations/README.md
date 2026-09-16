@@ -5,12 +5,13 @@
 ## Runtime topology
 
 The production Compose project runs PostgreSQL 16, MinIO, a one-shot bucket
-initializer, the backend, and the Nginx-served frontend. PostgreSQL, MinIO, the
-initializer, and the backend use the private `internal` bridge network. The
-frontend uses both `internal` and the pre-existing external Docker network
-`proxy`, where it has the stable alias `nosblindtests`. Nginx Proxy Manager can
-therefore route the application hostname to `nosblindtests:80` without binding a
-second public host port.
+initializer, the backend, and the Nginx-served frontend. PostgreSQL, the
+initializer, and the backend use the private `internal` bridge network. MinIO
+uses `internal` for storage operations and joins the pre-existing external
+Docker network `proxy` only for its API, under the alias `blindtest-minio`. The
+frontend also uses `proxy`, where it has the stable alias `nosblindtests`.
+Nginx Proxy Manager can therefore route both hostnames without binding a second
+public host port.
 
 The frontend may also bind `127.0.0.1:${APP_PORT:-8090}:80` for VPS diagnostics.
 MinIO's API and console bind localhost only for operator diagnostics; PostgreSQL
@@ -43,6 +44,11 @@ For the single-VPS target, a host reverse proxy supplies TLS and routes the app
 and public media endpoint. Keep PostgreSQL, the backend port, and the MinIO console
 private or localhost-bound. Signed media URLs require a reachable browser-facing
 MinIO endpoint and matching origin configuration.
+
+Configure the existing Nginx Proxy Manager with the two proxy hosts and verify
+TLS, WebSocket upgrades, range requests, and signed query strings using the
+[reverse-proxy runbook](reverse-proxy.md). The application host targets
+`nosblindtests:80`; the media host targets `blindtest-minio:9000`.
 
 ## Deployment workflows
 

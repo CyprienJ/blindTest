@@ -33,7 +33,9 @@ Cloudflare's matching public test keys. The base Compose file is production-like
 selecting it alone requires valid production secrets and HTTPS endpoints.
 
 The production frontend joins the external Docker network `proxy` with the alias
-`nosblindtests`; Nginx Proxy Manager uses that alias as its application target.
+`nosblindtests`; MinIO joins it with the alias `blindtest-minio` for the separate
+browser-facing media proxy. Nginx Proxy Manager uses these aliases as its
+application and media targets.
 Local Compose overrides replace that external network with a project-local
 `blindtest_proxy` network so local startup does not depend on the VPS proxy.
 
@@ -41,6 +43,9 @@ The browser must be able to reach the public S3 endpoint embedded in signed URLs
 An internal Compose hostname works for backend storage calls but is not normally
 a browser-reachable media hostname. Keep CORS restricted to the intended browser
 origin and preserve query strings through a media reverse proxy.
+
+The complete Nginx Proxy Manager setup is in the
+[reverse-proxy runbook](../operations/reverse-proxy.md).
 
 ## Source of exact defaults
 
