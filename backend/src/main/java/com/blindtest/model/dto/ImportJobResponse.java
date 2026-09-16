@@ -15,16 +15,20 @@ public class ImportJobResponse {
     private String status;
     private int progress;
     private String errorMessage;
+    private boolean previewAvailable;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private LocalDateTime completedAt;
     private TrackAdminResponse track;
 
-    /** Creates a response DTO from the given entity; {@code track} is null unless the job is done. */
-    public static ImportJobResponse from(TrackImportJobEntity entity) {
+    /** Creates a polling snapshot without exposing internal media identifiers. */
+    public static ImportJobResponse from(TrackImportJobEntity entity, boolean previewAvailable) {
         TrackAdminResponse track = entity.getTrack() != null ?
                 TrackAdminResponse.from(entity.getTrack()) : null;
         return new ImportJobResponse(
                 entity.getId(), entity.getStatus().name(),
                 entity.getProgress(), entity.getErrorMessage(),
-                entity.getCreatedAt(), track);
+                previewAvailable, entity.getCreatedAt(), entity.getUpdatedAt(),
+                entity.getCompletedAt(), track);
     }
 }

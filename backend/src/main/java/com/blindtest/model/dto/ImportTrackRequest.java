@@ -1,6 +1,8 @@
 package com.blindtest.model.dto;
 
+import com.blindtest.model.validation.SupportedYouTubeUrl;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -10,17 +12,8 @@ import lombok.NoArgsConstructor;
 public class ImportTrackRequest {
 
     @NotBlank
+    @Size(max = 500)
+    @SupportedYouTubeUrl
     private String youtubeUrl;
 
-    @NotBlank
-    private String title;
-
-    @NotBlank
-    private String artist;
-
-    private String composer;
-    private String work;
-    private String category;
-    private Short decade;
-    private String imageUrl;
 }

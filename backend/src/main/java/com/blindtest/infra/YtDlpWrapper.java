@@ -1,5 +1,6 @@
 package com.blindtest.infra;
 
+import com.blindtest.config.properties.ImportProperties;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class YtDlpWrapper {
 
     private final ProcessFactory processFactory;
+    private final ImportProperties importProperties;
 
     /**
      * Starts a {@code yt-dlp} process that extracts audio as MP3 to {@code outputTemplate}.
@@ -19,9 +21,12 @@ public class YtDlpWrapper {
      */
     public Process start(String youtubeUrl, Path outputTemplate) throws IOException {
         return processFactory.start(List.of(
-                "yt-dlp", "-x", "--audio-format", "mp3",
+                "yt-dlp", "--no-playlist", "--max-filesize", Long.toString(importProperties.maxSizeBytes()),
+                "--write-info-json", "--clean-info-json",
+                "-x", "--audio-format", "mp3", "--postprocessor-args", "ffmpeg:-threads 1",
                 "--output", outputTemplate.toString(),
                 "--newline",
+                "--",
                 youtubeUrl));
     }
 }

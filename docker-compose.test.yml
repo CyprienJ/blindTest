@@ -1,0 +1,174 @@
+# Isolated, ephemeral full-stack environment for browser E2E tests (Lot 7, E2E-01/E2E-02).
+#
+# Run it with `./scripts/e2e-test.sh`, the one command that starts it, runs the
+# full-stack Playwright suite, and tears it down. It never reuses docker-compose.yml's
+# local `.env`: every credential below is deterministic and test-only, and is
+# rejected outright by ProductionConfigurationValidator if it ever reached a
+# production profile.
+#
+# Isolation for parallel CI runs:
+#   - scripts/e2e-test.sh picks a random Compose project name per invocation.
+#     Compose namespaces containers, the internal network, and named volumes by
+#     project name, so two concurrent runs never share a database, bucket, or
+#     network even on the same host.
+#   - No service publishes a host port. The `tests` service reaches `frontend`
+#     and `backend` by service DNS name on the isolated network, so there is no
+#     host port to collide on either.
+#   - `down -v` after every run drops the project's named volumes; nothing here
+#     is retained between runs.
+#
+# External dependencies are faked out, except Turnstile:
+#   - `backend` runs with SPRING_PROFILES_ACTIVE=e2e. FakeEmailSender (exposed at
+#     GET/DELETE /api/e2e/emails) captures verification/reset/welcome email
+#     instead of calling Resend, and FakeProcessFactory writes a deterministic
+#     MP3 fixture instead of invoking yt-dlp/FFmpeg against YouTube. Both are
+#     wired by com.blindtest.testing.e2e.E2eAdaptersConfig, active only under
+#     this profile.
+#   - Turnstile uses Cloudflare's documented always-pass test key pair (already
+#     used by docker-compose.local.yml for local development): no CAPTCHA is
+#     solved and no bot-check blocks automated runs, but the frontend's real
+#     widget script and the backend's real siteverify call both still reach
+#     Cloudflare, so this is the one thing here that needs outbound network
+#     access.
+#
+# The refresh-token cookie's Secure flag follows app.base-url's scheme
+# (AuthController), so it is issued and stored correctly over this stack's
+# plain-HTTP http://frontend origin — see docs/testing.md.
+services:
+
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: blindtest_e2e
+      POSTGRES_USER: blindtest_e2e
+      POSTGRES_PASSWORD: blindtest_e2e_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blindtest_e2e -d blindtest_e2e"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  minio-test:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: blindtest_e2e
+      MINIO_ROOT_PASSWORD: blindtest_e2e_password
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - internal
+
+  minio-init-test:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    restart: "no"
+    entrypoint: ["/bin/sh", "/config/init.sh"]
+    environment:
+      MINIO_ENDPOINT: http://minio-test:9000
+      MINIO_ROOT_USER: blindtest_e2e
+      MINIO_ROOT_PASSWORD: blindtest_e2e_password
+      S3_BUCKET: blindtest-e2e-media
+    volumes:
+      - ./infra/minio/init.sh:/config/init.sh:ro
+    depends_on:
+      minio-test:
+        condition: service_healthy
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE:          e2e
+      DATASOURCE_URL:                  jdbc:postgresql://postgres-test:5432/blindtest_e2e
+      DATASOURCE_USERNAME:             blindtest_e2e
+      DATASOURCE_PASSWORD:             blindtest_e2e_password
+      JWT_SECRET:                      e2e-test-only-jwt-secret-do-not-use-in-prod!!
+      RESEND_API_KEY:                  re_e2e_test_key
+      APP_BASE_URL:                    http://frontend
+      CORS_ALLOWED_ORIGINS:            http://frontend
+      APP_IMPORT_TEMP_DIR:             /tmp/blindtest-e2e-imports
+      APP_SESSION_INACTIVE_TTL:        30m
+      APP_SESSION_FINISHED_TTL:        5m
+      APP_SESSION_CLEANUP_DELAY:       PT1M
+      CLOUDFLARE_TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+      S3_ENDPOINT:                     http://minio-test:9000
+      S3_PUBLIC_ENDPOINT:              http://minio-test:9000
+      S3_REGION:                       us-east-1
+      S3_BUCKET:                       blindtest-e2e-media
+      S3_ACCESS_KEY:                   blindtest_e2e
+      S3_SECRET_KEY:                   blindtest_e2e_password
+      S3_PRESIGNED_URL_TTL:            5m
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      minio-init-test:
+        condition: service_completed_successfully
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Reuses the same Angular build that local development uses: it ships
+        # Cloudflare's always-pass test site key (see environment.ts), so no
+        # frontend-only e2e build variant is needed.
+        ANGULAR_CONFIGURATION: development
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - internal
+
+  tests:
+    build:
+      context: ./frontend
+      dockerfile: e2e-full-stack/Dockerfile
+    environment:
+      PLAYWRIGHT_BASE_URL: http://frontend
+      CI: "true"
+    depends_on:
+      frontend:
+        condition: service_started
+    networks:
+      - internal
+
+  # Headless REST+STOMP load and concurrency smoke tests (Lot 7, E2E-05). Not run by
+  # scripts/e2e-test.sh; see scripts/load-test.sh and docs/operations/load-testing.md.
+  # cpus/mem_limit keep this harness from starving the backend under test for host
+  # resources, since this Compose file otherwise sets no resource limits (by design,
+  # for parallel-CI isolation) and everything shares one Docker host.
+  load-tests:
+    build:
+      context: ./load-tests
+    environment:
+      API_BASE_URL: http://frontend
+      METRICS_BASE_URL: http://backend:8080
+    cpus: "2"
+    mem_limit: 1g
+    depends_on:
+      frontend:
+        condition: service_started
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge

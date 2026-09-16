@@ -73,6 +73,7 @@ import { AuthService } from '../../../core/services/auth.service';
 
             @if (errorMessage) {
               <div
+                role="alert"
                 style="background: oklch(0.25 0.04 30); border: 1px solid oklch(0.38 0.10 30);
                           border-radius: var(--r-md); padding: 10px 14px; font-size: 13.5px; color: var(--danger);"
               >
@@ -138,7 +139,7 @@ export class LoginComponent {
 
     this.authService.login(email, password).subscribe({
       next: () => {
-        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/lobby';
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/home';
         this.router.navigateByUrl(returnUrl);
       },
       error: (err) => {

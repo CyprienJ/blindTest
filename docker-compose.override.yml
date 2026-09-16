@@ -1,0 +1,26 @@
+# Automatically loaded by `docker compose` for local development.
+#
+# Keep production-only overrides in the deployment environment. Remote deployments
+# copy only docker-compose.yml, so this file cannot weaken production validation.
+services:
+  minio:
+    environment:
+      MINIO_API_CORS_ALLOW_ORIGIN: http://localhost:${APP_PORT:-8090}
+
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: development
+      APP_BASE_URL: http://localhost:${APP_PORT:-8090}
+      CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-8090}
+      CLOUDFLARE_TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+
+  frontend:
+    build:
+      args:
+        ANGULAR_CONFIGURATION: development
+
+networks:
+  # Local development has no pre-existing Nginx Proxy Manager network.
+  proxy:
+    name: blindtest_proxy
+    external: false

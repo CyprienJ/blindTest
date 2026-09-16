@@ -1,9 +1,12 @@
 package com.blindtest.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
 
 import com.blindtest.model.entity.UserRole;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,12 +15,17 @@ class JwtTokenProviderTest {
 
     private static final String SECRET = "test-secret-key-that-is-32-bytes!!";
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final Clock CLOCK =
+            Clock.fixed(Instant.parse("2026-07-28T08:00:00Z"), ZoneOffset.UTC);
 
     private JwtTokenProvider provider;
 
     @BeforeEach
     void setUp() {
-        provider = new JwtTokenProvider(SECRET, 900_000L, 86_400_000L, 3_600_000L);
+        AtomicInteger tokenSequence = new AtomicInteger();
+        TokenGenerator tokenGenerator = () -> "refresh-token-" + tokenSequence.incrementAndGet();
+        provider = new JwtTokenProvider(
+                SECRET, 900_000L, 86_400_000L, 3_600_000L, CLOCK, tokenGenerator);
     }
 
     @Test
@@ -52,7 +60,8 @@ class JwtTokenProviderTest {
 
     @Test
     void validateTokenReturnsFalseForExpiredToken() {
-        JwtTokenProvider shortLived = new JwtTokenProvider(SECRET, -1L, 86_400_000L, 3_600_000L);
+        JwtTokenProvider shortLived = new JwtTokenProvider(
+                SECRET, -1L, 86_400_000L, 3_600_000L, CLOCK, () -> "unused");
         String expiredToken = shortLived.generateAccessToken(USER_ID, UserRole.USER);
         assertThat(provider.validateToken(expiredToken)).isFalse();
     }
@@ -66,7 +75,8 @@ class JwtTokenProviderTest {
     @Test
     void validateTokenReturnsFalseForTokenSignedWithDifferentKey() {
         JwtTokenProvider other = new JwtTokenProvider(
-                "other-secret-key-that-is-32-bytes!!", 900_000L, 86_400_000L, 3_600_000L);
+                "other-secret-key-that-is-32-bytes!!", 900_000L, 86_400_000L, 3_600_000L,
+                CLOCK, () -> "unused");
         String token = other.generateAccessToken(USER_ID, UserRole.USER);
         assertThat(provider.validateToken(token)).isFalse();
     }
@@ -77,9 +87,9 @@ class JwtTokenProviderTest {
     }
 
     @Test
-    void generateRefreshTokenReturnsValidUuidString() {
+    void generateRefreshTokenUsesInjectedGenerator() {
         String refreshToken = provider.generateRefreshToken();
-        assertThatNoException().isThrownBy(() -> UUID.fromString(refreshToken));
+        assertThat(refreshToken).isEqualTo("refresh-token-1");
     }
 
     @Test

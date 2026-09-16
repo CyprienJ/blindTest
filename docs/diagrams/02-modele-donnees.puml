@@ -1,4 +1,5 @@
 @startuml Data Model (JPA Entities)
+' Decision: ADR-0006 persists immutable completed-game snapshots in PostgreSQL.
 skinparam linetype ortho
 skinparam backgroundColor #FAFAFA
 skinparam class {
@@ -27,15 +28,19 @@ entity Track {
   --
   * title : VARCHAR(255)
   * artist : VARCHAR(255)
+    album : VARCHAR(255)
     composer : VARCHAR(255)
     work : VARCHAR(255)
-  * audio_url : VARCHAR
+    audio_url : VARCHAR
+    audio_object_key : VARCHAR
+    audio_checksum : CHAR(64)
+    audio_size_bytes : BIGINT
     image_url : VARCHAR
     youtube_url : VARCHAR
     category : VARCHAR(100)
     decade : INTEGER
-  * duration_seconds : INTEGER
-  * status : ENUM(PENDING_VALIDATION,\n         PUBLISHED, REJECTED)
+    duration_seconds : INTEGER
+  * status : ENUM(PENDING,\n         PUBLISHED, REJECTED)
   * created_at : TIMESTAMP
 }
 
@@ -60,13 +65,21 @@ entity TrackImportJob {
   * id : UUID <<PK>>
   --
   * youtube_url : VARCHAR
-  * status : ENUM(QUEUED, DOWNLOADING,\n         PROCESSING, DONE, FAILED)
+    youtube_video_id : VARCHAR(11)
+  * status : ENUM(QUEUED, DOWNLOADING,\n         PROCESSING, DONE, PUBLISHED,\n         REJECTED, FAILED)
     progress : INTEGER
     error_message : TEXT
   * admin_id : UUID <<FK>>
     track_id : UUID <<FK>>
   * created_at : TIMESTAMP
 }
+
+note right of TrackImportJob
+  youtube_video_id is canonical.
+  A partial unique index permits
+  only one QUEUED, DOWNLOADING,
+  or PROCESSING job per video.
+end note
 
 entity FriendRequest {
   * id : UUID <<PK>>
@@ -81,20 +94,58 @@ entity FriendRequest {
 entity GameHistory {
   * id : UUID <<PK>>
   --
-  * session_code : VARCHAR(6)
-  * played_at : TIMESTAMP
-  * track_count : INTEGER
-  * player_count : INTEGER
+  * session_id : UUID <<UNIQUE>>
+  * history_version : VARCHAR
+  * game_mode : VARCHAR
+  * protocol_version : SMALLINT
+  * configuration_version : VARCHAR
+  * playlist_id_snapshot : UUID
+  * requested_track_count : INTEGER
+  * maximum_round_duration_seconds : INTEGER
+  * configuration_extensions : JSON text
+  * total_score : INTEGER
+  * total_rounds : INTEGER
+  * titles_found : INTEGER
+  * skipped_rounds : INTEGER
+  * timed_out_rounds : INTEGER
+  * started_at : TIMESTAMPTZ
+  * completed_at : TIMESTAMPTZ
+  * retention_expires_at : TIMESTAMPTZ
 }
 
 entity GameHistoryPlayer {
   * id : UUID <<PK>>
   --
-  * game_id : UUID <<FK>>
+  * game_history_id : UUID <<FK>>
+  * participant_id : UUID
     user_id : UUID <<FK>>
-    guest_name : VARCHAR(50)
+  * display_name : VARCHAR(100)
+  * participant_kind : ENUM(AUTHENTICATED, GUEST)
+  * owner : BOOLEAN
   * final_score : INTEGER
-  * rank : INTEGER
+  * final_rank : INTEGER
+}
+
+entity GameHistoryRound {
+  * id : UUID <<PK>>
+  --
+  * game_history_id : UUID <<FK>>
+  * round_index : INTEGER
+    track_id_snapshot : UUID
+  * title_snapshot : VARCHAR
+  * artist_snapshot : VARCHAR
+    composer_snapshot : VARCHAR
+    album_snapshot : VARCHAR
+  * answer_aliases_snapshot : JSON text
+  * answer_snapshot_version : VARCHAR
+  * excerpt_start_seconds : INTEGER
+  * outcome : ENUM(TITLE_FOUND, SKIPPED, TIMEOUT)
+  * points : INTEGER
+  * scoring_rule_version : VARCHAR
+  * started_at : TIMESTAMPTZ
+  * deadline : TIMESTAMPTZ
+  * revealed_at : TIMESTAMPTZ
+  * completed_at : TIMESTAMPTZ
 }
 
 ' ── Relationships ─────────────────────────────────────────────────────
@@ -109,6 +160,7 @@ User ||--o{ TrackImportJob : "admin_id"
 User ||--o{ GameHistoryPlayer : "user_id (nullable\nif guest)"
 
 GameHistory ||--|{ GameHistoryPlayer : "contains"
+GameHistory ||--|{ GameHistoryRound : "snapshots"
 
 Playlist ||--o{ PlaylistTrack : ""
 Track ||--o{ PlaylistTrack : ""
@@ -122,16 +174,31 @@ note bottom of FriendRequest
 end note
 
 note right of Track
-  Only tracks with
-  status = PUBLISHED
-  are accessible
-  in the public catalogue
+  title is the canonical primary answer:
+  film title for film tracks,
+  music title otherwise.
+
+  Publication requires nonblank
+  title and artist plus either
+  a legacy audio_url or complete
+  object key/checksum/size.
+
+  Other metadata is optional.
 end note
 
 note right of GameHistoryPlayer
-  guest_name not null
-  if user_id is null
-  (guest player)
+  user_id is nullable for future guests
+  and becomes null on account deletion.
+  Display name remains a snapshot.
+end note
+
+note bottom of GameHistory
+  Immutable completed-game snapshot.
+  No guesses, credentials, media URLs,
+  or active-session state.
+  Playlist and track snapshot UUIDs have
+  no catalogue foreign key.
+  [[../adr/0006-postgresql-history-snapshots.md ADR-0006]]
 end note
 
 @enduml

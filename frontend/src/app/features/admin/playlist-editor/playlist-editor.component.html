@@ -1,0 +1,404 @@
+<main class="playlist-page">
+  <div class="page-heading">
+    <div>
+      <h1>Playlist editor</h1>
+      <p>Create public playlists and arrange their published tracks.</p>
+    </div>
+    <button class="bt-btn bt-btn-primary" type="button" (click)="startCreate()">
+      ＋ New playlist
+    </button>
+  </div>
+
+  @if (successMessage) {
+    <div class="notice success" role="status">
+      <span>{{ successMessage }}</span>
+      <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
+        ×
+      </button>
+    </div>
+  }
+  @if (actionError) {
+    <div class="notice error" role="alert">
+      <span>{{ actionError }}</span>
+      <button type="button" aria-label="Dismiss error" (click)="actionError = ''">×</button>
+    </div>
+  }
+
+  <div class="workspace">
+    <section class="playlist-browser" aria-label="Playlists">
+      <div class="browser-heading">
+        <div>
+          <h2>Public playlists</h2>
+          <span>{{ playlists.length }}</span>
+        </div>
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="Refresh playlists"
+          title="Refresh playlists"
+          (click)="refreshPlaylists()"
+        >
+          ↻
+        </button>
+      </div>
+
+      @if (loadingPlaylists) {
+        <div class="compact-state" role="status">
+          <span class="spinner" aria-hidden="true"></span> Loading playlists…
+        </div>
+      } @else if (listError) {
+        <div class="compact-state error-text" role="alert">
+          <p>{{ listError }}</p>
+          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="loadPlaylists()">
+            Retry
+          </button>
+        </div>
+      } @else if (playlists.length === 0) {
+        <div class="compact-state empty">
+          <span aria-hidden="true">☷</span>
+          <p>No playlists yet.</p>
+          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="startCreate()">
+            Create the first one
+          </button>
+        </div>
+      } @else {
+        <div class="playlist-list">
+          @for (playlist of playlists; track playlist.id) {
+            <button
+              type="button"
+              [class.active]="selected?.id === playlist.id && !creating"
+              (click)="selectPlaylist(playlist.id)"
+            >
+              <span class="cover-thumb" aria-hidden="true">
+                @if (playlist.imageUrl) {
+                  <img [src]="playlist.imageUrl" alt="" />
+                } @else {
+                  ♪
+                }
+              </span>
+              <span class="playlist-copy">
+                <strong>{{ playlist.name }}</strong>
+                <small>{{ playlist.trackCount }} tracks</small>
+              </span>
+              <span aria-hidden="true">›</span>
+            </button>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="editor-area">
+      @if (loadingDetail) {
+        <div class="large-state" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <p>Loading playlist…</p>
+        </div>
+      } @else if (detailError) {
+        <div class="large-state" role="alert">
+          <span class="state-symbol">!</span>
+          <h2>Playlist unavailable</h2>
+          <p>{{ detailError }}</p>
+          <button class="bt-btn bt-btn-ghost" type="button" (click)="loadPlaylists()">
+            Reload playlists
+          </button>
+        </div>
+      } @else if (!selected && !creating) {
+        <div class="large-state">
+          <span class="state-symbol">☷</span>
+          <h2>Create your first public playlist</h2>
+          <p>Add published tracks and choose the exact order used by future games.</p>
+          <button class="bt-btn bt-btn-primary" type="button" (click)="startCreate()">
+            ＋ New playlist
+          </button>
+        </div>
+      } @else {
+        <div class="editor-heading">
+          <div>
+            <span class="eyebrow">{{ creating ? 'New playlist' : 'Editing playlist' }}</span>
+            <div class="title-line">
+              <h2>{{ creating ? 'Untitled playlist' : selected?.name }}</h2>
+              @if (selected) {
+                <span class="bt-chip">{{ selected.trackCount }} tracks</span>
+              }
+            </div>
+            <p>
+              {{
+                creating
+                  ? 'Save the details before adding tracks.'
+                  : 'Drag tracks or use the arrow buttons to change their order.'
+              }}
+            </p>
+          </div>
+          @if (selected) {
+            <button class="bt-btn bt-btn-danger bt-btn-sm" type="button" (click)="requestDelete()">
+              Delete playlist
+            </button>
+          }
+        </div>
+
+        <div class="editor-grid">
+          <section class="tracks-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Tracks</h3>
+                <p>Published tracks play from top to bottom.</p>
+              </div>
+              @if (reordering) {
+                <span class="saving-label" role="status">
+                  <span class="spinner" aria-hidden="true"></span> Saving order…
+                </span>
+              }
+            </div>
+
+            @if (!selected) {
+              <div class="track-state">
+                <span aria-hidden="true">①</span>
+                <p>Save the playlist details to unlock track selection.</p>
+              </div>
+            } @else if (selected.tracks.length === 0) {
+              <div class="track-state">
+                <span aria-hidden="true">♫</span>
+                <h3>This playlist is empty</h3>
+                <p>Use catalogue search to add its first published track.</p>
+              </div>
+            } @else {
+              <div
+                class="ordered-tracks"
+                cdkDropList
+                [cdkDropListData]="selected.tracks"
+                [cdkDropListDisabled]="reordering || !!trackActionId"
+                (cdkDropListDropped)="dropTrack($event)"
+              >
+                @for (track of selected.tracks; track track.id; let index = $index) {
+                  <article class="track-row" cdkDrag [cdkDragData]="track">
+                    <span class="track-number">{{ formatPosition(index) }}</span>
+                    <button
+                      class="drag-handle"
+                      type="button"
+                      cdkDragHandle
+                      aria-label="Drag {{ track.title }}"
+                      title="Drag to reorder"
+                    >
+                      ⠿
+                    </button>
+                    <span class="track-art" aria-hidden="true">
+                      @if (track.imageUrl) {
+                        <img [src]="track.imageUrl" alt="" />
+                      } @else {
+                        ♪
+                      }
+                    </span>
+                    <span class="track-copy">
+                      <strong>{{ track.title }}</strong>
+                      <small>{{ track.artist }}</small>
+                    </span>
+                    <span class="duration mono">{{ formatDuration(track.durationSeconds) }}</span>
+                    <span class="order-actions">
+                      <button
+                        type="button"
+                        aria-label="Move {{ track.title }} up"
+                        title="Move up"
+                        [disabled]="index === 0 || reordering"
+                        (click)="moveTrack(index, -1)"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Move {{ track.title }} down"
+                        title="Move down"
+                        [disabled]="index === selected.tracks.length - 1 || reordering"
+                        (click)="moveTrack(index, 1)"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        class="remove"
+                        type="button"
+                        aria-label="Remove {{ track.title }}"
+                        title="Remove track"
+                        [disabled]="!!trackActionId || reordering"
+                        (click)="removeTrack(track)"
+                      >
+                        @if (trackActionId === track.id) {
+                          <span class="spinner" aria-hidden="true"></span>
+                        } @else {
+                          ×
+                        }
+                      </button>
+                    </span>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+
+          <aside class="right-rail">
+            <section class="details-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Details</h3>
+                  @if (metadataForm.dirty) {
+                    <p class="unsaved">Unsaved changes</p>
+                  }
+                </div>
+              </div>
+              <form [formGroup]="metadataForm" (ngSubmit)="saveMetadata()">
+                <label class="field">
+                  <span>Name *</span>
+                  <input class="bt-input" formControlName="name" aria-label="Playlist name" />
+                  @if (metadataForm.controls.name.invalid && metadataForm.controls.name.touched) {
+                    <small>Use between 2 and 100 characters.</small>
+                  }
+                </label>
+                <label class="field">
+                  <span>Description</span>
+                  <textarea
+                    class="bt-input textarea"
+                    formControlName="description"
+                    rows="3"
+                    aria-label="Playlist description"
+                  ></textarea>
+                </label>
+                <label class="field">
+                  <span>Cover URL</span>
+                  <input
+                    class="bt-input"
+                    formControlName="imageUrl"
+                    placeholder="https://…"
+                    aria-label="Playlist cover URL"
+                  />
+                </label>
+                <div class="cover-preview" [class.empty]="!metadataForm.controls.imageUrl.value">
+                  @if (metadataForm.controls.imageUrl.value) {
+                    <img
+                      [src]="metadataForm.controls.imageUrl.value"
+                      alt="Playlist cover preview"
+                    />
+                  } @else {
+                    <span aria-hidden="true">♪</span>
+                    <small>Playlist cover</small>
+                  }
+                </div>
+                <button
+                  class="bt-btn bt-btn-primary save-details"
+                  type="submit"
+                  [disabled]="
+                    savingMetadata || metadataForm.invalid || (!creating && !metadataForm.dirty)
+                  "
+                >
+                  @if (savingMetadata) {
+                    <span class="spinner" aria-hidden="true"></span> Saving…
+                  } @else {
+                    {{ creating ? 'Create playlist' : 'Save details' }}
+                  }
+                </button>
+              </form>
+            </section>
+
+            <section class="catalogue-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Add tracks</h3>
+                  <p>Published catalogue only</p>
+                </div>
+              </div>
+              <label class="search-field">
+                <span aria-hidden="true">⌕</span>
+                <span class="sr-only">Search published tracks</span>
+                <input
+                  type="search"
+                  [formControl]="searchControl"
+                  placeholder="Search title or artist…"
+                />
+              </label>
+
+              @if (loadingTracks) {
+                <div class="catalogue-state" role="status">
+                  <span class="spinner" aria-hidden="true"></span> Searching…
+                </div>
+              } @else if (catalogueError) {
+                <div class="catalogue-state error-text" role="alert">
+                  <p>{{ catalogueError }}</p>
+                  <button
+                    class="bt-btn bt-btn-sm bt-btn-ghost"
+                    type="button"
+                    (click)="loadAvailableTracks()"
+                  >
+                    Retry
+                  </button>
+                </div>
+              } @else if (visibleAvailableTracks().length === 0) {
+                <div class="catalogue-state">
+                  <p>No available published tracks found.</p>
+                </div>
+              } @else {
+                <div class="catalogue-results">
+                  @for (track of visibleAvailableTracks(); track track.id) {
+                    <article>
+                      <span class="track-art small" aria-hidden="true">
+                        @if (track.imageUrl) {
+                          <img [src]="track.imageUrl" alt="" />
+                        } @else {
+                          ♪
+                        }
+                      </span>
+                      <span class="track-copy">
+                        <strong>{{ track.title }}</strong>
+                        <small>{{ track.artist }}</small>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Add {{ track.title }}"
+                        title="Add track"
+                        [disabled]="!selected || !!trackActionId"
+                        (click)="addTrack(track)"
+                      >
+                        @if (trackActionId === track.id) {
+                          <span class="spinner" aria-hidden="true"></span>
+                        } @else {
+                          ＋
+                        }
+                      </button>
+                    </article>
+                  }
+                </div>
+              }
+            </section>
+          </aside>
+        </div>
+      }
+    </section>
+  </div>
+</main>
+
+@if (deleteConfirmation && selected) {
+  <div class="modal-backdrop" role="presentation">
+    <section
+      class="confirm-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-playlist-title"
+    >
+      <span class="danger-symbol" aria-hidden="true">!</span>
+      <h2 id="delete-playlist-title">Delete this playlist?</h2>
+      <p>
+        <strong>{{ selected.name }}</strong> and its ordering will be removed. Catalogue tracks are
+        not deleted.
+      </p>
+      <div>
+        <button class="bt-btn bt-btn-ghost" type="button" (click)="deleteConfirmation = false">
+          Cancel
+        </button>
+        <button
+          class="bt-btn bt-btn-danger"
+          type="button"
+          [disabled]="deleting"
+          (click)="confirmDelete()"
+        >
+          {{ deleting ? 'Deleting…' : 'Delete playlist' }}
+        </button>
+      </div>
+    </section>
+  </div>
+}

@@ -8,9 +8,13 @@ import com.blindtest.model.entity.TrackEntity;
 import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.model.entity.UserEntity;
+import com.blindtest.model.validation.YouTubeVideoUrl;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
+import com.blindtest.service.port.ImportJobScheduler;
+import com.blindtest.service.port.MediaStorage;
+import java.util.EnumSet;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,28 +27,40 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class ImportJobService {
 
+    private static final String PENDING_METADATA = "Pending YouTube metadata";
+    private static final EnumSet<ImportJobStatus> ACTIVE_STATUSES = EnumSet.of(
+            ImportJobStatus.QUEUED, ImportJobStatus.DOWNLOADING, ImportJobStatus.PROCESSING);
+
     private final TrackImportJobRepository jobRepository;
     private final TrackRepository trackRepository;
     private final UserRepository userRepository;
-    private final ImportJobRunner importJobRunner;
+    private final ImportJobScheduler importJobScheduler;
+    private final MediaStorage mediaStorage;
 
     /** Creates a PENDING track and a QUEUED import job, then triggers async download. */
     @Transactional
     public ImportStartResponse startImport(ImportTrackRequest request, UUID adminId) {
         UserEntity admin = userRepository.findById(adminId).
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        YouTubeVideoUrl youtubeUrl = YouTubeVideoUrl.parse(request.getYoutubeUrl()).
+                orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+        if (jobRepository.existsByYoutubeVideoIdAndStatusIn(
+                youtubeUrl.videoId(), ACTIVE_STATUSES)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "IMPORT_ALREADY_ACTIVE");
+        }
 
-        TrackEntity track = buildTrack(request);
+        TrackEntity track = buildTrack(request, youtubeUrl.canonicalUrl());
         track = trackRepository.save(track);
 
         TrackImportJobEntity job = new TrackImportJobEntity();
-        job.setYoutubeUrl(request.getYoutubeUrl());
+        job.setYoutubeUrl(youtubeUrl.canonicalUrl());
+        job.setYoutubeVideoId(youtubeUrl.videoId());
         job.setStatus(ImportJobStatus.QUEUED);
         job.setAdmin(admin);
         job.setTrack(track);
         job = jobRepository.save(job);
 
-        importJobRunner.execute(job.getId());
+        importJobScheduler.schedule(job.getId());
         return new ImportStartResponse(job.getId());
     }
 
@@ -53,20 +69,26 @@ public class ImportJobService {
     public ImportJobResponse getJobStatus(UUID jobId) {
         TrackImportJobEntity job = jobRepository.findByIdWithTrack(jobId).
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return ImportJobResponse.from(job);
+        return ImportJobResponse.from(job, isPreviewAvailable(job));
     }
 
-    private TrackEntity buildTrack(ImportTrackRequest request) {
+    private boolean isPreviewAvailable(TrackImportJobEntity job) {
+        TrackEntity track = job.getTrack();
+        return job.getStatus() == ImportJobStatus.DONE
+                && track != null
+                && track.getStatus() == TrackStatus.PENDING
+                && track.getAudioObjectKey() != null
+                && track.getAudioChecksum() != null
+                && track.getAudioSizeBytes() != null
+                && mediaStorage.exists(track.getAudioObjectKey());
+    }
+
+    private TrackEntity buildTrack(ImportTrackRequest request, String youtubeUrl) {
         TrackEntity track = new TrackEntity();
-        track.setTitle(request.getTitle());
-        track.setArtist(request.getArtist());
-        track.setComposer(request.getComposer());
-        track.setWork(request.getWork());
-        track.setCategory(request.getCategory());
-        track.setDecade(request.getDecade());
-        track.setImageUrl(request.getImageUrl());
-        track.setYoutubeUrl(request.getYoutubeUrl());
-        track.setAudioUrl("");
+        track.setTitle(PENDING_METADATA);
+        track.setArtist(PENDING_METADATA);
+        track.setYoutubeUrl(youtubeUrl);
+        track.setAudioUrl(null);
         track.setStatus(TrackStatus.PENDING);
         return track;
     }

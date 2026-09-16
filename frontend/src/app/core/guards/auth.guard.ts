@@ -12,10 +12,14 @@ export const authGuard: CanActivateFn = (_route, state) => {
   }
 
   return authService.refreshToken().pipe(
-    map(() => true),
+    map(() => {
+      if (authService.isLoggedIn()) return true;
+      authService.clearSession();
+      return router.createUrlTree(['/auth/login'], { queryParams: { returnUrl: state.url } });
+    }),
     catchError(() => {
-      router.navigate(['/auth/login'], { queryParams: { returnUrl: state.url } });
-      return of(false);
+      authService.clearSession();
+      return of(router.createUrlTree(['/auth/login'], { queryParams: { returnUrl: state.url } }));
     }),
   );
 };

@@ -2,3 +2,6 @@
 .env
 media/
 */target/*
+e2e-stack-*.log
+load-test-stack-*.log
+load-tests/node_modules/

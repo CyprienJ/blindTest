@@ -1,0 +1,246 @@
+@if (session; as session) {
+  <main class="room">
+    @switch (view) {
+      @case ('setup') {
+        <section class="bt-card centered-card" aria-live="polite">
+          <span class="setup-spinner" aria-hidden="true"></span>
+          <p class="eyebrow">Solo blindtest</p>
+          <h1>Setting up your game…</h1>
+          <p class="playlist">{{ session.playlistName }}</p>
+          <p class="rules">
+            {{ session.trackCount }} tracks · {{ session.maxRoundSeconds }}s per track
+          </p>
+          <p class="hint">
+            @switch (socketStatus) {
+              @case ('connected') {
+                Connected. Starting the first round…
+              }
+              @case ('reconnecting') {
+                Connection lost — reconnecting…
+              }
+              @default {
+                Connecting you to the live game…
+              }
+            }
+          </p>
+          <a class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+        </section>
+      }
+
+      @case ('error') {
+        <section class="bt-card centered-card" role="alert">
+          <p class="eyebrow">Solo blindtest</p>
+          <h1>Something went wrong</h1>
+          <p class="muted">{{ gameError || 'The game could not continue.' }}</p>
+          <a class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+        </section>
+      }
+
+      @case ('finished') {
+        <section class="bt-card centered-card" role="status" aria-live="polite">
+          <span class="bt-chip bt-chip-accent">Game finished</span>
+          <h1>That's a wrap.</h1>
+          <p class="final-score mono">{{ totalScore }}</p>
+          <p class="score-label">total points</p>
+          @if (finished) {
+            <p class="muted">
+              {{ finished.titlesFound }} found · {{ finished.skippedRounds }} skipped ·
+              {{ finished.timedOutRounds }} timed out
+            </p>
+          }
+          <div class="finished-actions">
+            <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
+              Play again
+            </button>
+            <a class="bt-btn bt-btn-ghost bt-btn-lg" [routerLink]="['/end-screen', session.sessionId]">
+              View summary
+            </a>
+          </div>
+        </section>
+      }
+
+      @default {
+        <div class="play-area">
+          <header class="round-strip">
+            <span class="track-position">
+              Track <strong>{{ roundNumber }}</strong> of {{ totalRounds }}
+            </span>
+            <span class="round-state">
+              <span class="bt-chip bt-chip-accent">{{ stateLabel }}</span>
+              @if (phase === 'playing') {
+                <span class="mono timer" aria-hidden="true">{{ secondsLeft }}s left</span>
+              }
+            </span>
+          </header>
+
+          @if (socketStatus === 'reconnecting') {
+            <p class="notice" role="status">Connection lost — reconnecting…</p>
+          }
+          @if (gameError) {
+            <p class="notice error" role="alert">
+              <span>{{ gameError }}</span>
+              <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="dismissError()">
+                Dismiss
+              </button>
+            </p>
+          }
+
+          <section class="bt-card media-card">
+            <div class="cover" [class.is-revealed]="phase === 'revealed'" aria-hidden="true">
+              {{ phase === 'revealed' ? '♪' : '?????' }}
+            </div>
+            <div class="media-body">
+              @if (phase === 'revealed' && reveal) {
+                <p class="eyebrow">Now revealed</p>
+                <h1 class="revealed-title">{{ reveal.title }}</h1>
+                <dl class="reveal-metadata">
+                  @if (reveal.artist) {
+                    <div>
+                      <dt>Artist</dt>
+                      <dd>{{ reveal.artist }}</dd>
+                    </div>
+                  }
+                  @if (reveal.composer) {
+                    <div>
+                      <dt>Composer</dt>
+                      <dd>{{ reveal.composer }}</dd>
+                    </div>
+                  }
+                  @if (reveal.album) {
+                    <div>
+                      <dt>Album</dt>
+                      <dd>{{ reveal.album }}</dd>
+                    </div>
+                  }
+                </dl>
+              } @else {
+                <p class="eyebrow">
+                  {{ phase === 'preparing' ? 'Preparing next track' : 'Now playing' }}
+                </p>
+                <p class="masked-title" aria-hidden="true">— — — — —</p>
+                <div class="audio-row">
+                  <span
+                    class="bt-wave"
+                    [class.is-paused]="audioStatus !== 'playing'"
+                    aria-hidden="true"
+                  >
+                    <span></span><span></span><span></span><span></span><span></span>
+                  </span>
+                  <span class="mono time-left" aria-hidden="true">{{ secondsLeft }}s</span>
+                </div>
+                <div class="bt-progress"><div [style.width.%]="progressPct"></div></div>
+                @if (audioStatus === 'blocked') {
+                  <button
+                    class="bt-btn bt-btn-primary bt-btn-sm"
+                    type="button"
+                    (click)="resumeAudio()"
+                  >
+                    ▶ Start audio
+                  </button>
+                }
+                @if (audioStatus === 'error') {
+                  <p class="audio-warn" role="status">Audio unavailable — you can still answer.</p>
+                }
+              }
+            </div>
+          </section>
+
+          @if (phase === 'revealed') {
+            <section class="bt-card reveal-strip" aria-label="Round result">
+              <strong>{{ outcomeLabel }}</strong>
+              <span>
+                @if (lastRoundPoints !== null) {
+                  +{{ lastRoundPoints }} points ·
+                }
+                @if (secondsLeft > 0) {
+                  {{ isLastRound ? 'Results' : 'Next track' }} in {{ secondsLeft }} seconds
+                } @else {
+                  {{ isLastRound ? 'Waiting for results…' : 'Waiting for the next track…' }}
+                }
+              </span>
+              <button
+                class="bt-btn bt-btn-ghost bt-btn-sm"
+                type="button"
+                [disabled]="!canAdvance"
+                (click)="advance()"
+              >
+                {{ advancing ? 'Waiting for server…' : isLastRound ? 'Finish now' : 'Next now' }}
+              </button>
+            </section>
+          } @else {
+            <form class="bt-card answer-card" (ngSubmit)="submit()">
+              <label class="eyebrow" for="answer-input">Your answer</label>
+              <div class="answer-row">
+                <input
+                  #answerInput
+                  id="answer-input"
+                  class="bt-input bt-input-lg"
+                  name="answer"
+                  type="text"
+                  autocomplete="off"
+                  [(ngModel)]="answer"
+                  [disabled]="phase !== 'playing' || socketStatus === 'reconnecting'"
+                  aria-label="Your answer"
+                  aria-describedby="answer-feedback"
+                  placeholder="Type the title…"
+                />
+                <button
+                  class="bt-btn bt-btn-primary bt-btn-lg"
+                  type="submit"
+                  [disabled]="!canSubmit || !answer.trim()"
+                >
+                  Submit
+                </button>
+              </div>
+              <p id="answer-feedback" class="answer-feedback" role="status" aria-atomic="true">
+                {{ feedback }}
+                @if (cooldownSeconds > 0) {
+                  Wait {{ cooldownSeconds }}s before submitting again.
+                }
+              </p>
+              @if (
+                discoveries.ARTIST !== undefined ||
+                discoveries.COMPOSER !== undefined ||
+                discoveries.ALBUM !== undefined
+              ) {
+                <ul class="discoveries" aria-label="Your discoveries">
+                  @for (type of secondaryTypes; track type) {
+                    @if (discoveries[type] !== undefined) {
+                      <li>
+                        {{ secondaryLabels[type] }} found
+                        @if (discoveries[type]) {
+                          <span>: {{ discoveries[type] }}</span>
+                        }
+                      </li>
+                    }
+                  }
+                </ul>
+              }
+              <div class="answer-hint">
+                <span>The server checks your answer — small typos are fine.</span>
+                <button
+                  class="bt-btn bt-btn-ghost bt-btn-sm"
+                  type="button"
+                  (click)="skip()"
+                  [disabled]="!canSkip"
+                >
+                  Skip track
+                </button>
+              </div>
+            </form>
+          }
+
+          <aside class="bt-card bt-card-tight score-card">
+            <span class="eyebrow">Score</span>
+            <span class="mono score">{{ totalScore }}</span>
+            @if (lastRoundPoints) {
+              <span class="delta">+{{ lastRoundPoints }}</span>
+            }
+          </aside>
+
+          <p class="sr-only" aria-live="polite" aria-atomic="true">{{ announcement }}</p>
+        </div>
+      }
+    }
+  </main>
+}

@@ -19,8 +19,9 @@ import com.blindtest.repository.PlaylistTrackRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.security.JwtTokenProvider;
-import com.blindtest.service.EmailService;
-import com.blindtest.service.TurnstileService;
+import com.blindtest.service.port.EmailSender;
+import com.blindtest.service.port.TurnstileVerifier;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,10 +65,10 @@ class AdminPlaylistControllerIntegrationTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @MockBean
-    private EmailService emailService;
+    private EmailSender emailSender;
 
     @MockBean
-    private TurnstileService turnstileService;
+    private TurnstileVerifier turnstileVerifier;
 
     private String adminToken;
     private UserEntity admin;
@@ -147,7 +148,7 @@ class AdminPlaylistControllerIntegrationTest {
 
     @Test
     void getPlaylistDetailReturnsPlaylistWithTracks() throws Exception {
-        playlistTrackRepository.save(new PlaylistTrackEntity(playlist, track, 1));
+        playlistTrackRepository.save(new PlaylistTrackEntity(playlist, track, 0));
 
         mockMvc.perform(get("/api/admin/playlists/" + playlist.getId()).
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
@@ -155,6 +156,18 @@ class AdminPlaylistControllerIntegrationTest {
                 andExpect(jsonPath("$.name").value("Test Playlist")).
                 andExpect(jsonPath("$.trackCount").value(1)).
                 andExpect(jsonPath("$.tracks[0].title").value("Test Track"));
+    }
+
+    @Test
+    void getPlaylistDetailExcludesUnavailableTracks() throws Exception {
+        TrackEntity pending = track("Pending track", TrackStatus.PENDING);
+        playlistTrackRepository.save(new PlaylistTrackEntity(playlist, pending, 0));
+
+        mockMvc.perform(get("/api/admin/playlists/" + playlist.getId()).
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.trackCount").value(0)).
+                andExpect(jsonPath("$.tracks").isEmpty());
     }
 
     @Test
@@ -187,7 +200,7 @@ class AdminPlaylistControllerIntegrationTest {
 
     @Test
     void deletePlaylistReturns204AndRemovesPlaylist() throws Exception {
-        playlistTrackRepository.save(new PlaylistTrackEntity(playlist, track, 1));
+        playlistTrackRepository.save(new PlaylistTrackEntity(playlist, track, 0));
 
         mockMvc.perform(delete("/api/admin/playlists/" + playlist.getId()).
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
@@ -199,7 +212,7 @@ class AdminPlaylistControllerIntegrationTest {
 
     @Test
     void addTrackReturns200WithUpdatedPlaylist() throws Exception {
-        String body = "{\"trackId\":\"" + track.getId() + "\",\"order\":1}";
+        String body = "{\"trackId\":\"" + track.getId() + "\",\"order\":0}";
         mockMvc.perform(post("/api/admin/playlists/" + playlist.getId() + "/tracks").
                         contentType(MediaType.APPLICATION_JSON).
                         header(HttpHeaders.AUTHORIZATION, adminToken).
@@ -211,7 +224,7 @@ class AdminPlaylistControllerIntegrationTest {
 
     @Test
     void addTrackReturns404ForUnknownTrackId() throws Exception {
-        String body = "{\"trackId\":\"" + UUID.randomUUID() + "\",\"order\":1}";
+        String body = "{\"trackId\":\"" + UUID.randomUUID() + "\",\"order\":0}";
         mockMvc.perform(post("/api/admin/playlists/" + playlist.getId() + "/tracks").
                         contentType(MediaType.APPLICATION_JSON).
                         header(HttpHeaders.AUTHORIZATION, adminToken).
@@ -220,14 +233,104 @@ class AdminPlaylistControllerIntegrationTest {
     }
 
     @Test
+    void addTrackInsertsAtRequestedPositionAndPreventsDuplicates() throws Exception {
+        TrackEntity second = track("Second track", TrackStatus.PUBLISHED);
+        playlistTrackRepository.save(new PlaylistTrackEntity(playlist, track, 0));
+
+        mockMvc.perform(post("/api/admin/playlists/" + playlist.getId() + "/tracks").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"trackId\":\"" + second.getId() + "\",\"order\":0}")).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.tracks[0].id").value(second.getId().toString())).
+                andExpect(jsonPath("$.tracks[1].id").value(track.getId().toString()));
+
+        assertThat(playlistTrackRepository.findAllByPlaylistIdOrdered(playlist.getId())).
+                extracting(PlaylistTrackEntity::getTrackOrder).containsExactly(0, 1);
+
+        mockMvc.perform(post("/api/admin/playlists/" + playlist.getId() + "/tracks").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"trackId\":\"" + second.getId() + "\",\"order\":1}")).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("PLAYLIST_TRACK_DUPLICATE"));
+    }
+
+    @Test
+    void addTrackRejectsUnavailableTrackAndPositionOutsideList() throws Exception {
+        TrackEntity pending = track("Pending track", TrackStatus.PENDING);
+
+        mockMvc.perform(post("/api/admin/playlists/" + playlist.getId() + "/tracks").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"trackId\":\"" + pending.getId() + "\",\"order\":0}")).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("PLAYLIST_TRACK_NOT_PUBLISHED"));
+
+        mockMvc.perform(post("/api/admin/playlists/" + playlist.getId() + "/tracks").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"trackId\":\"" + track.getId() + "\",\"order\":1}")).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("PLAYLIST_ORDER_INVALID"));
+
+        mockMvc.perform(post("/api/admin/playlists/" + playlist.getId() + "/tracks").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"trackId\":\"" + track.getId() + "\"}")).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void reorderRequiresACompleteUniqueSnapshotAndUpdatesAtomically() throws Exception {
+        TrackEntity second = track("Second track", TrackStatus.PUBLISHED);
+        TrackEntity third = track("Third track", TrackStatus.PUBLISHED);
+        playlistTrackRepository.saveAll(List.of(
+                new PlaylistTrackEntity(playlist, track, 0),
+                new PlaylistTrackEntity(playlist, second, 1),
+                new PlaylistTrackEntity(playlist, third, 2)));
+        String reorderUrl = "/api/admin/playlists/" + playlist.getId() + "/tracks/order";
+
+        mockMvc.perform(put(reorderUrl).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"trackIds\":[\"" + third.getId() + "\",\""
+                                + track.getId() + "\",\"" + second.getId() + "\"]}")).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.tracks[0].id").value(third.getId().toString())).
+                andExpect(jsonPath("$.tracks[1].id").value(track.getId().toString())).
+                andExpect(jsonPath("$.tracks[2].id").value(second.getId().toString()));
+
+        mockMvc.perform(put(reorderUrl).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"trackIds\":[\"" + track.getId() + "\",\""
+                                + track.getId() + "\",\"" + second.getId() + "\"]}")).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("PLAYLIST_ORDER_INVALID"));
+
+        assertThat(playlistTrackRepository.findAllByPlaylistIdOrdered(playlist.getId())).
+                extracting(entry -> entry.getTrack().getId()).
+                containsExactly(third.getId(), track.getId(), second.getId());
+    }
+
+    @Test
     void removeTrackReturns204() throws Exception {
-        playlistTrackRepository.save(new PlaylistTrackEntity(playlist, track, 1));
+        TrackEntity second = track("Second track", TrackStatus.PUBLISHED);
+        playlistTrackRepository.saveAll(List.of(
+                new PlaylistTrackEntity(playlist, track, 0),
+                new PlaylistTrackEntity(playlist, second, 1)));
 
         mockMvc.perform(delete("/api/admin/playlists/" + playlist.getId() + "/tracks/" + track.getId()).
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isNoContent());
 
-        assertThat(playlistTrackRepository.findAllByPlaylistIdOrdered(playlist.getId())).isEmpty();
+        assertThat(playlistTrackRepository.findAllByPlaylistIdOrdered(playlist.getId())).
+                singleElement().satisfies(entry -> {
+                    assertThat(entry.getTrack().getId()).isEqualTo(second.getId());
+                    assertThat(entry.getTrackOrder()).isZero();
+                });
     }
 
     @Test
@@ -235,5 +338,14 @@ class AdminPlaylistControllerIntegrationTest {
         mockMvc.perform(delete("/api/admin/playlists/" + playlist.getId() + "/tracks/" + UUID.randomUUID()).
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isNotFound());
+    }
+
+    private TrackEntity track(String title, TrackStatus status) {
+        TrackEntity entity = new TrackEntity();
+        entity.setTitle(title);
+        entity.setArtist("Test Artist");
+        entity.setAudioUrl("/media/" + title.toLowerCase().replace(' ', '-') + ".mp3");
+        entity.setStatus(status);
+        return trackRepository.save(entity);
     }
 }

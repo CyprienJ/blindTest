@@ -1,0 +1,369 @@
+<main class="catalogue">
+  <div class="page-heading">
+    <div>
+      <h1>Track catalogue</h1>
+      <p>Review imported tracks, improve their answers and control publication.</p>
+    </div>
+    <a class="bt-btn bt-btn-primary" routerLink="/admin/tracks/import">＋ Import from YouTube</a>
+  </div>
+
+  @if (successMessage) {
+    <div class="notice notice-success" role="status">
+      <span>{{ successMessage }}</span>
+      <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
+        ×
+      </button>
+    </div>
+  }
+  @if (listError) {
+    <div class="notice notice-error" role="alert">
+      <span>{{ listError }}</span>
+      <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">Retry</button>
+    </div>
+  }
+
+  <section class="catalogue-card">
+    <div class="status-tabs" aria-label="Filter tracks by status">
+      @for (filter of filters; track filter.label) {
+        <button
+          type="button"
+          [class.active]="activeStatus === filter.value"
+          [attr.aria-pressed]="activeStatus === filter.value"
+          (click)="selectStatus(filter.value)"
+        >
+          {{ filter.label }}
+          <span>{{ countFor(filter.value) }}</span>
+        </button>
+      }
+    </div>
+
+    <div class="toolbar">
+      <label class="search-field">
+        <span aria-hidden="true">⌕</span>
+        <span class="sr-only">Search tracks</span>
+        <input
+          type="search"
+          [formControl]="searchControl"
+          placeholder="Search title, artist, album or category…"
+        />
+      </label>
+      <button class="bt-btn bt-btn-ghost" type="button" (click)="refresh()">↻ Refresh</button>
+    </div>
+
+    @if (loading) {
+      <div class="state-panel" role="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>Loading catalogue…</p>
+      </div>
+    } @else if (!listError && tracks.length === 0) {
+      <div class="state-panel">
+        <span class="state-icon" aria-hidden="true">♫</span>
+        <h2>No tracks found</h2>
+        <p>
+          @if (searchControl.value || activeStatus) {
+            Try another search or status.
+          } @else {
+            Import your first track to start the catalogue.
+          }
+        </p>
+      </div>
+    } @else if (tracks.length > 0) {
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Track</th>
+              <th>Category</th>
+              <th>Decade</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th>Added</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (track of tracks; track trackById($index, track)) {
+              <tr>
+                <td>
+                  <div class="track-cell">
+                    <span class="cover" aria-hidden="true">
+                      @if (track.imageUrl) {
+                        <img [src]="track.imageUrl" alt="" />
+                      } @else {
+                        ♫
+                      }
+                    </span>
+                    <span>
+                      <strong>{{ track.title }}</strong>
+                      <small>{{ track.artist }}</small>
+                    </span>
+                  </div>
+                </td>
+                <td>{{ track.category || '—' }}</td>
+                <td class="mono">{{ track.decade ? track.decade + 's' : '—' }}</td>
+                <td class="mono">{{ formatDuration(track.durationSeconds) }}</td>
+                <td>
+                  <span class="status-badge" [class]="'status-badge ' + track.status.toLowerCase()">
+                    {{ statusLabel(track.status) }}
+                  </span>
+                </td>
+                <td>{{ track.createdAt | date: 'mediumDate' }}</td>
+                <td>
+                  <div class="row-actions">
+                    @if (actionTrackId === track.id) {
+                      <span class="mini-spinner" role="status" aria-label="Updating track"></span>
+                    }
+                    @if (track.status === 'PENDING') {
+                      <button
+                        type="button"
+                        title="Preview audio"
+                        [disabled]="actionTrackId === track.id"
+                        (click)="openPreview(track)"
+                      >
+                        ▶
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      title="Edit track"
+                      [disabled]="actionTrackId === track.id"
+                      (click)="openEdit(track)"
+                    >
+                      ✎
+                    </button>
+                    @if (track.status === 'PENDING') {
+                      <button
+                        class="publish"
+                        type="button"
+                        title="Publish track"
+                        [disabled]="actionTrackId === track.id"
+                        (click)="validate(track)"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        class="danger"
+                        type="button"
+                        title="Reject track"
+                        [disabled]="actionTrackId === track.id"
+                        (click)="requestConfirmation(track, 'reject')"
+                      >
+                        ×
+                      </button>
+                    }
+                    <button
+                      class="danger"
+                      type="button"
+                      title="Delete track"
+                      [disabled]="actionTrackId === track.id"
+                      (click)="requestConfirmation(track, 'delete')"
+                    >
+                      ⌫
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination">
+        <p>{{ totalElements }} track{{ totalElements === 1 ? '' : 's' }}</p>
+        <div>
+          <button
+            class="bt-btn bt-btn-sm bt-btn-ghost"
+            type="button"
+            [disabled]="page === 0"
+            (click)="goToPage(page - 1)"
+          >
+            Previous
+          </button>
+          <span>Page {{ page + 1 }} of {{ totalPages }}</span>
+          <button
+            class="bt-btn bt-btn-sm bt-btn-ghost"
+            type="button"
+            [disabled]="page + 1 >= totalPages"
+            (click)="goToPage(page + 1)"
+          >
+            Next
+          </button>
+        </div>
+      </footer>
+    }
+  </section>
+</main>
+
+@if (editingTrack) {
+  <div class="modal-backdrop">
+    <section class="modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+      <header>
+        <div>
+          <span class="eyebrow">Track details</span>
+          <h2 id="edit-title">Edit {{ editingTrack.title }}</h2>
+        </div>
+        <button type="button" aria-label="Close editor" (click)="closeEdit()">×</button>
+      </header>
+
+      <form class="metadata-form" [formGroup]="editForm" (ngSubmit)="saveTrack()">
+        <div class="form-grid">
+          <label>Title <input class="bt-input" formControlName="title" /></label>
+          <label>Artist <input class="bt-input" formControlName="artist" /></label>
+          <label>Album <input class="bt-input" formControlName="album" /></label>
+          <label>Composer <input class="bt-input" formControlName="composer" /></label>
+          <label>Work / film <input class="bt-input" formControlName="work" /></label>
+          <label>Category <input class="bt-input" formControlName="category" /></label>
+          <label>Decade <input class="bt-input" type="number" formControlName="decade" /></label>
+          <label
+            >Duration (seconds)
+            <input class="bt-input" type="number" formControlName="durationSeconds" />
+          </label>
+          <label
+            >Excerpt start (seconds)
+            <input class="bt-input" type="number" formControlName="excerptStartSeconds" />
+          </label>
+          <label class="wide"
+            >Cover image URL <input class="bt-input" formControlName="imageUrl"
+          /></label>
+        </div>
+        @if (editForm.invalid && editForm.touched) {
+          <p class="form-error">Complete the required fields with valid values.</p>
+        }
+        @if (editError) {
+          <p class="form-error" role="alert">{{ editError }}</p>
+        }
+        <div class="form-actions">
+          <button class="bt-btn bt-btn-ghost" type="button" (click)="closeEdit()">Cancel</button>
+          <button class="bt-btn bt-btn-primary" type="submit" [disabled]="editSaving">
+            {{ editSaving ? 'Saving…' : 'Save metadata' }}
+          </button>
+        </div>
+      </form>
+
+      <div class="aliases">
+        <div>
+          <h3>Alternative answers</h3>
+          <p>Accepted variants for title and secondary metadata.</p>
+        </div>
+        @if (aliasesLoading) {
+          <p class="muted" role="status">Loading alternative answers…</p>
+        } @else {
+          @if (aliases.length === 0) {
+            <p class="empty-inline">No alternative answers yet.</p>
+          } @else {
+            <ul>
+              @for (alias of aliases; track alias.id) {
+                <li>
+                  <span class="alias-type">{{ alias.type }}</span>
+                  <span>{{ alias.value }}</span>
+                  <button type="button" (click)="editAlias(alias)">Edit</button>
+                  <button class="danger-text" type="button" (click)="deleteAlias(alias)">
+                    Delete
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          <form class="alias-form" [formGroup]="aliasForm" (ngSubmit)="saveAlias()">
+            <select class="bt-input" formControlName="type" aria-label="Answer type">
+              @for (type of aliasTypes; track type) {
+                <option [value]="type">{{ type }}</option>
+              }
+            </select>
+            <input
+              class="bt-input"
+              formControlName="value"
+              aria-label="Alternative answer"
+              placeholder="Alternative answer"
+            />
+            <button class="bt-btn bt-btn-primary" type="submit" [disabled]="aliasSaving">
+              {{ aliasSaving ? 'Saving…' : editingAliasId ? 'Save alias' : 'Add alias' }}
+            </button>
+            @if (editingAliasId) {
+              <button class="bt-btn bt-btn-ghost" type="button" (click)="cancelAliasEdit()">
+                Cancel
+              </button>
+            }
+          </form>
+          @if (aliasError) {
+            <p class="form-error" role="alert">{{ aliasError }}</p>
+          }
+        }
+      </div>
+    </section>
+  </div>
+}
+
+@if (previewTrack) {
+  <div class="modal-backdrop">
+    <section
+      class="modal preview-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="preview-title"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Audio preview</span>
+          <h2 id="preview-title">{{ previewTrack.title }}</h2>
+          <p>{{ previewTrack.artist }}</p>
+        </div>
+        <button type="button" aria-label="Close preview" (click)="closePreview()">×</button>
+      </header>
+      @if (previewLoading) {
+        <div class="state-panel" role="status">
+          <span class="spinner"></span>
+          <p>Preparing audio…</p>
+        </div>
+      } @else if (previewError) {
+        <div class="notice notice-error" role="alert">{{ previewError }}</div>
+        <button class="bt-btn bt-btn-ghost" type="button" (click)="openPreview(previewTrack)">
+          Retry
+        </button>
+      } @else if (preview) {
+        <audio controls autoplay [src]="preview.url">Your browser cannot play this audio.</audio>
+        <p class="muted">
+          This secure preview link expires at {{ preview.expiresAt | date: 'shortTime' }}.
+        </p>
+      }
+    </section>
+  </div>
+}
+
+@if (confirmation) {
+  <div class="modal-backdrop">
+    <section
+      class="modal confirm-modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+    >
+      <span class="confirm-icon" aria-hidden="true">!</span>
+      <h2 id="confirm-title">
+        {{ confirmation.action === 'delete' ? 'Delete this track?' : 'Reject this track?' }}
+      </h2>
+      <p>
+        <strong>{{ confirmation.track.title }}</strong>
+        {{
+          confirmation.action === 'delete'
+            ? 'will be removed from the catalogue. Its stored media will be queued for deletion.'
+            : 'will stay in the catalogue as rejected and will not be public.'
+        }}
+      </p>
+      <div class="form-actions">
+        <button class="bt-btn bt-btn-ghost" type="button" (click)="closeConfirmation()">
+          Cancel
+        </button>
+        <button class="bt-btn bt-btn-danger" type="button" (click)="confirmAction()">
+          {{
+            actionTrackId
+              ? 'Working…'
+              : confirmation.action === 'delete'
+                ? 'Delete track'
+                : 'Reject track'
+          }}
+        </button>
+      </div>
+    </section>
+  </div>
+}

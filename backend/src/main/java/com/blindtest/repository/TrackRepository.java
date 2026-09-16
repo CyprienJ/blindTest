@@ -19,4 +19,7 @@ public interface TrackRepository extends JpaRepository<TrackEntity, UUID>,
 
     /** Returns all tracks from the given decade (e.g. {@code 1980} for the 80s). */
     List<TrackEntity> findByDecade(Short decade);
+
+    /** Returns only identifiers and object keys for tracks backed by object storage. */
+    List<TrackMediaReference> findAllProjectedByAudioObjectKeyIsNotNull();
 }

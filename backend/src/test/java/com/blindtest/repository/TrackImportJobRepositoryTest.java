@@ -6,6 +6,7 @@ import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.entity.UserRole;
+import java.util.EnumSet;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,13 +64,36 @@ class TrackImportJobRepositoryTest {
 
     @Test
     void saveAndFindByIdRoundTripsAllFields() {
-        TrackImportJobEntity job = buildJob(admin, "https://youtube.com/test", ImportJobStatus.DOWNLOADING);
+        TrackImportJobEntity job = buildJob(
+                admin, "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                ImportJobStatus.DOWNLOADING);
+        job.setYoutubeVideoId("dQw4w9WgXcQ");
         job = jobRepository.save(job);
 
         TrackImportJobEntity found = jobRepository.findById(job.getId()).orElseThrow();
-        assertThat(found.getYoutubeUrl()).isEqualTo("https://youtube.com/test");
+        assertThat(found.getYoutubeUrl()).
+                isEqualTo("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        assertThat(found.getYoutubeVideoId()).isEqualTo("dQw4w9WgXcQ");
         assertThat(found.getStatus()).isEqualTo(ImportJobStatus.DOWNLOADING);
         assertThat(found.getCreatedAt()).isNotNull();
+    }
+
+    @Test
+    void findsDuplicateOnlyWhenVideoHasActiveImport() {
+        TrackImportJobEntity active = buildJob(
+                admin, "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                ImportJobStatus.PROCESSING);
+        active.setYoutubeVideoId("dQw4w9WgXcQ");
+        jobRepository.save(active);
+
+        assertThat(jobRepository.existsByYoutubeVideoIdAndStatusIn(
+                "dQw4w9WgXcQ",
+                EnumSet.of(ImportJobStatus.QUEUED, ImportJobStatus.DOWNLOADING,
+                        ImportJobStatus.PROCESSING))).isTrue();
+        assertThat(jobRepository.existsByYoutubeVideoIdAndStatusIn(
+                "anotherId01",
+                EnumSet.of(ImportJobStatus.QUEUED, ImportJobStatus.DOWNLOADING,
+                        ImportJobStatus.PROCESSING))).isFalse();
     }
 
     private UserEntity buildAdmin(String username, String email) {

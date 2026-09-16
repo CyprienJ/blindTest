@@ -1,0 +1,105 @@
+<main class="home-shell">
+  <header class="home-header" aria-label="Main navigation">
+    <a class="bt-logo" routerLink="/" aria-label="Blindtest home">
+      <span class="bt-logo-mark" aria-hidden="true"></span>
+      <span>Blindtest</span>
+    </a>
+
+    @if ((authenticatedUser$ | async) === null) {
+      <nav class="home-navigation" aria-label="Account">
+        <a class="text-link" routerLink="/auth/login">Sign in</a>
+        <a class="bt-btn bt-btn-primary" routerLink="/auth/register">Create account</a>
+      </nav>
+    }
+  </header>
+
+  <section class="hero" aria-labelledby="home-title">
+    <div class="hero-copy">
+      <p class="eyebrow">
+        <span aria-hidden="true"></span> Your music knowledge, against the clock
+      </p>
+      <h1 id="home-title">Hear it.<br /><strong>Name it.</strong></h1>
+      <p class="hero-intro">
+        Pick a playlist, catch the opening notes, and find the title before time runs out.
+      </p>
+
+      @if (authenticatedUser$ | async; as currentUser) {
+        <div class="hero-actions">
+          <a class="bt-btn bt-btn-primary bt-btn-lg" routerLink="/home">
+            Continue as {{ currentUser.username }}
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      } @else {
+        <div class="hero-actions">
+          <a class="bt-btn bt-btn-primary bt-btn-lg" routerLink="/auth/register">
+            Start playing
+            <span aria-hidden="true">→</span>
+          </a>
+          <a class="bt-btn bt-btn-ghost bt-btn-lg" routerLink="/auth/login"
+            >I already have an account</a
+          >
+        </div>
+      }
+
+      <p class="availability">
+        <span aria-hidden="true">●</span> Solo mode first. Multiplayer comes next.
+      </p>
+    </div>
+
+    <div class="sound-stage" aria-hidden="true">
+      <div class="stage-glow"></div>
+      <div class="record record-back"><span></span></div>
+      <div class="record record-front"><span></span></div>
+      <div class="now-playing">
+        <div class="playing-label">Now playing</div>
+        <div class="track-line"></div>
+        <div class="waveform">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <div class="timer-row"><span>00:12</span><span>00:30</span></div>
+      </div>
+      <span class="note note-one">♪</span>
+      <span class="note note-two">♫</span>
+    </div>
+  </section>
+
+  <section class="steps" aria-labelledby="steps-title">
+    <div class="steps-heading">
+      <p class="section-kicker">One simple rule</p>
+      <h2 id="steps-title">Trust your ears.</h2>
+    </div>
+
+    <ol class="steps-list">
+      <li>
+        <span class="step-number">01</span>
+        <div>
+          <h3>Listen</h3>
+          <p>A track starts from a carefully selected excerpt.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-number">02</span>
+        <div>
+          <h3>Guess</h3>
+          <p>Type the title. Close answers and aliases are recognized.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-number">03</span>
+        <div>
+          <h3>Score</h3>
+          <p>Answer quickly: every second you save is worth points.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <footer class="home-footer">
+    <a class="bt-logo footer-logo" routerLink="/" aria-label="Blindtest home">
+      <span class="bt-logo-mark" aria-hidden="true"></span>
+      <span>Blindtest</span>
+    </a>
+    <p>Built for people who always know the song.</p>
+  </footer>
+</main>

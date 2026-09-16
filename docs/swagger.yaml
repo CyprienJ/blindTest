@@ -11,6 +11,13 @@ info:
     ## Roles
     - `USER`: registered player
     - `ADMIN`: platform administrator (catalogue management)
+
+    ## REST errors and request IDs
+    Every REST error uses the `Error` schema. The `code` field is stable and
+    machine-readable; `message` is safe for display but clients must branch on
+    `code`. Every HTTP response contains `X-Request-ID`. A valid UUID supplied in
+    that request header is reused; otherwise the server generates one. Report
+    `requestId` when investigating a failure.
   version: 1.0.0
   contact:
     name: Blindtest
@@ -30,6 +37,7 @@ tags:
   - name: Tracks
   - name: Playlists
   - name: Admin - Tracks
+  - name: Admin - Media
   - name: Admin - Playlists
   - name: Admin - Users
 
@@ -42,6 +50,18 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+  headers:
+    RequestId:
+      description: UUID used to correlate the response with server logs.
+      schema:
+        type: string
+        format: uuid
+    PublicCacheControl:
+      description: Public catalogue responses are fresh for 60 seconds and may be served stale while revalidating for 5 minutes.
+      schema:
+        type: string
+        example: public, max-age=60, stale-while-revalidate=300
 
   schemas:
     UUID:
@@ -58,12 +78,75 @@ components:
 
     Error:
       type: object
-      required: [code, message]
+      required: [timestamp, status, code, message, path, requestId]
       properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+          example: 400
         code:
           type: string
+          description: Stable machine-readable code.
+          enum:
+            - VALIDATION_FAILED
+            - MALFORMED_REQUEST
+            - INVALID_PARAMETER
+            - INVALID_OR_EXPIRED_TOKEN
+            - AUTHENTICATION_REQUIRED
+            - INVALID_ACCESS_TOKEN
+            - INVALID_CREDENTIALS
+            - INVALID_REFRESH_TOKEN
+            - ACCESS_DENIED
+            - EMAIL_NOT_VERIFIED
+            - TURNSTILE_FAILED
+            - RESOURCE_NOT_FOUND
+            - METHOD_NOT_ALLOWED
+            - EMAIL_TAKEN
+            - USERNAME_TAKEN
+            - CONFLICT
+            - ANSWER_ALIAS_DUPLICATE
+            - TRACK_EXCERPT_INVALID
+            - TRACK_METADATA_INCOMPLETE
+            - IMPORT_ALREADY_ACTIVE
+            - PLAYLIST_ORDER_INVALID
+            - PLAYLIST_TRACK_DUPLICATE
+            - PLAYLIST_TRACK_NOT_PUBLISHED
+            - GAME_CONFIGURATION_REQUIRED
+            - GAME_PLAYLIST_REQUIRED
+            - GAME_TRACK_COUNT_INVALID
+            - GAME_ROUND_DURATION_INVALID
+            - GAME_CONFIGURATION_EXTENSION_UNSUPPORTED
+            - GAME_PLAYLIST_NOT_FOUND
+            - GAME_PLAYLIST_INELIGIBLE
+            - GAME_PLAYLIST_INSUFFICIENT_TRACKS
+            - UNSUPPORTED_MEDIA_TYPE
+            - INTERNAL_ERROR
         message:
           type: string
+          description: Safe client-facing summary without exception or provider details.
+        path:
+          type: string
+          example: /api/auth/login
+        requestId:
+          type: string
+          format: uuid
+        fieldErrors:
+          type: object
+          description: Present only for field validation errors.
+          additionalProperties:
+            type: string
+      example:
+        timestamp: "2026-07-27T17:00:00Z"
+        status: 400
+        code: VALIDATION_FAILED
+        message: Request validation failed
+        path: /api/auth/login
+        requestId: "2a4e1208-72f3-4a14-a8d5-f2e36c8f24f8"
+        fieldErrors:
+          email: must be a well-formed email address
 
     RegisterRequest:
       type: object
@@ -220,11 +303,15 @@ components:
         timerSeconds:
           type: integer
           minimum: 10
-          maximum: 120
+          maximum: 60
+          multipleOf: 5
+          default: 30
         trackCount:
           type: integer
-          minimum: 1
-          maximum: 50
+          minimum: 5
+          maximum: 30
+          multipleOf: 1
+          default: 15
         speedBonus:
           type: boolean
           default: true
@@ -250,27 +337,153 @@ components:
 
     CreateSessionRequest:
       type: object
-      required: [rules]
+      required: [playlistId, trackCount, maxRoundSeconds]
       properties:
-        rules:
-          $ref: '#/components/schemas/GameRules'
-        trackFilters:
-          $ref: '#/components/schemas/TrackFilters'
+        playlistId:
+          $ref: '#/components/schemas/UUID'
+        trackCount:
+          type: integer
+          minimum: 5
+          maximum: 30
+          multipleOf: 1
+          default: 15
+        maxRoundSeconds:
+          type: integer
+          minimum: 10
+          maximum: 60
+          multipleOf: 5
+          default: 30
+        extensions:
+          type: object
+          maxProperties: 0
+          additionalProperties:
+            type: string
+          description: Reserved for future game modes and rules; V1 rejects every entry.
 
-    SessionSummary:
+    SessionConnectionInstructions:
       type: object
+      required:
+        [protocolVersion, webSocketEndpoint, sockJsEndpoint, commandDestination,
+         eventDestination, privateDestination]
       properties:
-        code:
-          $ref: '#/components/schemas/SessionCode'
+        protocolVersion:
+          type: integer
+          minimum: 1
+          example: 1
+          description: Gameplay STOMP payload protocol version.
+        webSocketEndpoint:
+          type: string
+          example: /ws
+        sockJsEndpoint:
+          type: string
+          example: /ws-sockjs
+        commandDestination:
+          type: string
+          example: /app/sessions/550e8400-e29b-41d4-a716-446655440000
+        eventDestination:
+          type: string
+          example: /topic/sessions/550e8400-e29b-41d4-a716-446655440000
+        privateDestination:
+          type: string
+          example: /user/queue/sessions/550e8400-e29b-41d4-a716-446655440000
+
+    SoloSessionResponse:
+      type: object
+      required: [sessionId, participantId, state, version, expiresAt, connection]
+      properties:
+        sessionId:
+          $ref: '#/components/schemas/UUID'
+        participantId:
+          $ref: '#/components/schemas/UUID'
         state:
           type: string
-          enum: [LOBBY, PLAYING, FINISHED]
-        host:
-          $ref: '#/components/schemas/UserPublic'
-        playerCount:
+          enum: [CREATED]
+        version:
           type: integer
-        rules:
-          $ref: '#/components/schemas/GameRules'
+          format: int64
+          example: 0
+        expiresAt:
+          type: string
+          format: date-time
+        connection:
+          $ref: '#/components/schemas/SessionConnectionInstructions'
+
+    GameSummaryRound:
+      type: object
+      required:
+        [roundIndex, outcome, points, title, artist, composer, album,
+         startedAt, revealedAt, completedAt]
+      properties:
+        roundIndex:
+          type: integer
+          minimum: 0
+        outcome:
+          type: string
+          enum: [TITLE_FOUND, TIMEOUT, SKIPPED]
+        points:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        title:
+          type: string
+          description: Canonical title snapshotted when the game was created.
+        artist:
+          type: string
+          description: Canonical artist snapshotted when the game was created.
+        composer:
+          type: string
+          nullable: true
+          description: Optional canonical composer snapshot.
+        album:
+          type: string
+          nullable: true
+          description: Optional canonical album snapshot.
+        startedAt:
+          type: string
+          format: date-time
+        revealedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    CurrentGameSummary:
+      type: object
+      required:
+        [sessionId, totalScore, totalRounds, titlesFound, skippedRounds,
+         timedOutRounds, startedAt, completedAt, rounds]
+      description: |
+        Owner-only durable end-of-game projection. It contains no provider URL,
+        private object key, checksum, raw guess, or internal answer alias data.
+      properties:
+        sessionId:
+          $ref: '#/components/schemas/UUID'
+        totalScore:
+          type: integer
+          minimum: 0
+        totalRounds:
+          type: integer
+          minimum: 1
+        titlesFound:
+          type: integer
+          minimum: 0
+        skippedRounds:
+          type: integer
+          minimum: 0
+        timedOutRounds:
+          type: integer
+          minimum: 0
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        rounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameSummaryRound'
 
     JoinSessionRequest:
       type: object
@@ -292,14 +505,19 @@ components:
 
     Track:
       type: object
+      description: Immutable scalar metadata suitable for catalogue and future history snapshots.
       required: [id, title, artist]
       properties:
         id:
           $ref: '#/components/schemas/UUID'
         title:
           type: string
+          description: Canonical primary game answer; the film title for film-related tracks, otherwise the music title.
         artist:
           type: string
+        album:
+          type: string
+          nullable: true
         composer:
           type: string
           nullable: true
@@ -308,10 +526,13 @@ components:
           nullable: true
         category:
           type: string
+          nullable: true
         decade:
           type: integer
+          nullable: true
         durationSeconds:
           type: integer
+          nullable: true
         imageUrl:
           type: string
           nullable: true
@@ -320,26 +541,108 @@ components:
       allOf:
         - $ref: '#/components/schemas/Track'
         - type: object
+          required: [excerptStartSeconds]
           properties:
+            excerptStartSeconds:
+              type: integer
+              minimum: 0
+              default: 0
+              description: |
+                Administrator-configured whole-second playback offset. A
+                non-zero value can only be published when at least 60 seconds
+                remain in the finalized media.
             audioUrl:
               type: string
+              nullable: true
+            audioChecksum:
+              type: string
+              nullable: true
+              description: Checksum of the stored audio object, when available.
+            audioSizeBytes:
+              type: integer
+              format: int64
+              nullable: true
+              description: Size of the stored audio object, when available.
             youtubeUrl:
               type: string
               nullable: true
             status:
               type: string
-              enum: [PENDING_VALIDATION, PUBLISHED, REJECTED]
+              enum: [PENDING, PUBLISHED, REJECTED]
             createdAt:
               type: string
               format: date-time
+
+    MediaPreview:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Short-lived pre-signed GET URL. Treat as a bearer credential.
+        expiresAt:
+          type: string
+          format: date-time
+
+    TrackWaveform:
+      type: object
+      required: [peaks]
+      properties:
+        durationSeconds:
+          type: integer
+          nullable: true
+          minimum: 1
+        peaks:
+          type: array
+          maxItems: 800
+          items:
+            type: integer
+            minimum: 0
+            maximum: 100
+
+    MediaReconciliationReport:
+      type: object
+      required: [checkedAt, missingCount, orphanedCount, missingObjects, orphanedObjectFingerprints]
+      properties:
+        checkedAt:
+          type: string
+          format: date-time
+        missingCount:
+          type: integer
+          minimum: 0
+        orphanedCount:
+          type: integer
+          minimum: 0
+        missingObjects:
+          type: array
+          items:
+            type: object
+            required: [trackId, objectFingerprint]
+            properties:
+              trackId:
+                $ref: '#/components/schemas/UUID'
+              objectFingerprint:
+                type: string
+                description: Safe truncated SHA-256 fingerprint of the internal object key.
+        orphanedObjectFingerprints:
+          type: array
+          items:
+            type: string
+          description: Safe truncated SHA-256 fingerprints; internal object keys are never returned.
 
     UpdateTrackRequest:
       type: object
       properties:
         title:
           type: string
+          nullable: true
         artist:
           type: string
+          nullable: true
+        album:
+          type: string
+          nullable: true
         composer:
           type: string
           nullable: true
@@ -348,42 +651,74 @@ components:
           nullable: true
         category:
           type: string
+          nullable: true
         decade:
           type: integer
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+        excerptStartSeconds:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Set to zero to reset playback to the beginning.
         imageUrl:
           type: string
           nullable: true
+
+    TrackAnswerType:
+      type: string
+      enum: [TITLE, ARTIST, COMPOSER, ALBUM]
+
+    TrackAnswerAlias:
+      type: object
+      required: [id, type, value]
+      description: |
+        Administrator-configured alternative answer. Internal normalization
+        used for duplicate detection is never exposed.
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        type:
+          $ref: '#/components/schemas/TrackAnswerType'
+        value:
+          type: string
+          minLength: 1
+          maxLength: 255
+
+    TrackAnswerAliasRequest:
+      type: object
+      required: [type, value]
+      properties:
+        type:
+          $ref: '#/components/schemas/TrackAnswerType'
+        value:
+          type: string
+          minLength: 1
+          maxLength: 255
 
     ImportTrackRequest:
       type: object
-      required: [youtubeUrl, title, artist]
+      required: [youtubeUrl]
       properties:
         youtubeUrl:
           type: string
-        title:
-          type: string
-        artist:
-          type: string
-        composer:
-          type: string
-          nullable: true
-        work:
-          type: string
-          nullable: true
-        category:
-          type: string
-        decade:
-          type: integer
-        imageUrl:
-          type: string
-          nullable: true
+          format: uri
+          maxLength: 500
+          description: |
+            HTTPS YouTube watch, youtu.be, or Shorts URL for one video. The
+            service canonicalizes accepted forms before persistence. Title,
+            artist/channel, duration, and thumbnail are extracted by yt-dlp and
+            remain editable through the administrator track endpoint.
 
     ImportJobStatus:
       type: string
-      enum: [QUEUED, DOWNLOADING, PROCESSING, DONE, FAILED]
+      enum: [QUEUED, DOWNLOADING, PROCESSING, DONE, PUBLISHED, REJECTED, FAILED]
 
     TrackImportJob:
       type: object
+      required: [jobId, status, progress, previewAvailable, createdAt, updatedAt]
       properties:
         jobId:
           $ref: '#/components/schemas/UUID'
@@ -397,9 +732,20 @@ components:
         errorMessage:
           type: string
           nullable: true
+          description: Stable sanitized failure text; provider output is never exposed.
+        previewAvailable:
+          type: boolean
+          description: Whether the completed pending import currently has previewable media.
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
 
     Playlist:
       type: object
@@ -428,6 +774,28 @@ components:
               items:
                 $ref: '#/components/schemas/Track'
 
+    PlaylistAdminDetail:
+      type: object
+      required: [id, name, trackCount, tracks]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        trackCount:
+          type: integer
+        tracks:
+          type: array
+          description: Ordered published tracks with administrator metadata.
+          items:
+            $ref: '#/components/schemas/TrackAdmin'
+
     CreatePlaylistRequest:
       type: object
       required: [name]
@@ -443,15 +811,41 @@ components:
           type: string
           nullable: true
 
+    UpdatePlaylistRequest:
+      type: object
+      description: Playlist metadata patch; omitted properties remain unchanged.
+      properties:
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+
     AddTrackToPlaylistRequest:
       type: object
-      required: [trackId]
+      required: [trackId, order]
       properties:
         trackId:
           $ref: '#/components/schemas/UUID'
         order:
           type: integer
-          nullable: true
+          minimum: 0
+          description: Zero-based insertion position, at most the current playlist size.
+
+    ReorderPlaylistTracksRequest:
+      type: object
+      required: [trackIds]
+      properties:
+        trackIds:
+          type: array
+          maxItems: 500
+          description: Complete ordered snapshot containing every current track ID exactly once.
+          items:
+            $ref: '#/components/schemas/UUID'
 
     GameHistorySummary:
       type: object
@@ -515,32 +909,65 @@ components:
           type: boolean
 
   responses:
+    BadRequest:
+      description: Malformed request, invalid parameter, or validation failure
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     Unauthorized:
       description: Missing or invalid token
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Forbidden:
       description: Insufficient permissions
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     NotFound:
       description: Resource not found
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Conflict:
       description: Data conflict
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     UnprocessableEntity:
       description: Invalid data
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Unexpected server failure
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
       content:
         application/json:
           schema:
@@ -559,6 +986,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/SessionCode'
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
     TrackId:
       name: trackId
       in: path
@@ -595,12 +1028,14 @@ components:
       schema:
         type: integer
         default: 0
+        minimum: 0
     SizeParam:
       name: size
       in: query
       schema:
         type: integer
         default: 20
+        minimum: 1
         maximum: 100
 
 paths:
@@ -755,7 +1190,12 @@ paths:
   /sessions:
     post:
       tags: [Sessions]
-      summary: Create session
+      summary: Create a solo session
+      description: |
+        Requires an authenticated account with a verified email. The server
+        validates the requested configuration, randomly selects published tracks
+        backed by snapshot-capable private media, freezes their answer/playback/media
+        metadata, and creates an independent one-player active session.
       requestBody:
         required: true
         content:
@@ -768,7 +1208,58 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SessionSummary'
+                $ref: '#/components/schemas/SoloSessionResponse'
+          headers:
+            Location:
+              description: Canonical REST location of the created session.
+              schema:
+                type: string
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /sessions/{sessionId}/summary:
+    get:
+      tags: [Sessions, History]
+      summary: Read the completed solo-game summary
+      description: |
+        Returns the ordered durable result snapshot to the authenticated account
+        that owned the session. Missing sessions and sessions owned by another
+        account both return 404. Responses use `Cache-Control: no-store` and never
+        expose provider URLs, private object keys, checksums, raw guesses, or
+        internal answer aliases.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Durable completed-game summary
+          headers:
+            Cache-Control:
+              description: Prevents storage of the owner-only completed-game response.
+              schema:
+                type: string
+                example: no-store
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentGameSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /sessions/{code}/join:
     post:
@@ -798,13 +1289,25 @@ paths:
       parameters:
         - name: q
           in: query
+          description: Case-insensitive search across published title, artist, album, composer, work, and category metadata.
           schema:
             type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: decade
+          in: query
+          schema:
+            type: integer
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/SizeParam'
       responses:
         '200':
           description: OK
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
           content:
             application/json:
               schema:
@@ -816,6 +1319,284 @@ paths:
                       $ref: '#/components/schemas/Track'
                   totalElements:
                     type: integer
+                  totalPages:
+                    type: integer
+                  number:
+                    type: integer
+                  size:
+                    type: integer
+                  first:
+                    type: boolean
+                  last:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /playlists:
+    get:
+      tags: [Playlists]
+      summary: List public playlists with their published-track count
+      security: []
+      responses:
+        '200':
+          description: Stable name-ordered public playlist list
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Playlist'
+
+  /playlists/{playlistId}:
+    get:
+      tags: [Playlists]
+      summary: Get a public playlist with ordered published tracks
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '200':
+          description: Public playlist detail
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/tracks:
+    get:
+      tags: [Admin - Tracks]
+      summary: Search and paginate tracks across every publication status
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PUBLISHED, REJECTED]
+        - name: search
+          in: query
+          description: Case-insensitive title, artist, album, or category search.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Administrator catalogue page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrackAdmin'
+                  totalElements:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  number:
+                    type: integer
+                  size:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/tracks/{trackId}:
+    parameters:
+      - $ref: '#/components/parameters/TrackId'
+    put:
+      tags: [Admin - Tracks]
+      summary: Partially update administrator track metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTrackRequest'
+      responses:
+        '200':
+          description: Updated track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAdmin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Admin - Tracks]
+      summary: Delete a track and queue private media cleanup
+      responses:
+        '204':
+          description: Track deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/tracks/{trackId}/preview-url:
+    get:
+      tags: [Admin - Tracks]
+      summary: Create a short-lived preview URL for a completed import
+      description: |
+        The track must be unpublished and pending review, its import job must be
+        complete, and its private media object must still exist.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Authorized preview URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaPreview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/{trackId}/waveform:
+    get:
+      tags: [Admin - Tracks]
+      summary: Read the server-generated waveform peaks for an imported track
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Bounded normalized waveform data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackWaveform'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/{trackId}/aliases:
+    get:
+      tags: [Admin - Tracks]
+      summary: List manually configured alternative answers
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Stable ordered alias list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrackAnswerAlias'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin - Tracks]
+      summary: Create a manually configured alternative answer
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackAnswerAliasRequest'
+      responses:
+        '201':
+          description: Alias created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAnswerAlias'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/{trackId}/aliases/{aliasId}:
+    parameters:
+      - $ref: '#/components/parameters/TrackId'
+      - name: aliasId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
+    put:
+      tags: [Admin - Tracks]
+      summary: Replace a manually configured alternative answer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackAnswerAliasRequest'
+      responses:
+        '200':
+          description: Alias updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAnswerAlias'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Admin - Tracks]
+      summary: Delete a manually configured alternative answer
+      responses:
+        '204':
+          description: Alias deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /admin/tracks/import:
     post:
@@ -837,6 +1618,108 @@ paths:
                 properties:
                   jobId:
                     $ref: '#/components/schemas/UUID'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/import/{jobId}:
+    get:
+      tags: [Admin - Tracks]
+      summary: Poll the current import workflow state
+      description: Polling fallback for reconnects or missed private WebSocket events.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Current safe import workflow snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackImportJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/tracks/{trackId}/validate:
+    post:
+      tags: [Admin - Tracks]
+      summary: Publish a completed import
+      description: Idempotently transitions DONE to PUBLISHED with complete metadata.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Published track snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAdmin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/{trackId}/reject:
+    post:
+      tags: [Admin - Tracks]
+      summary: Reject a completed import
+      description: |
+        Idempotently transitions DONE or PUBLISHED to REJECTED. A published track
+        is removed from every playlist and each remaining order is compacted in
+        the same transaction. Media is retained according to ADR-0011.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Rejected track snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackAdmin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/media/reconciliation:
+    get:
+      tags: [Admin - Media]
+      summary: Compare track media references with private object storage
+      description: |
+        Read-only operational report. Objects already present in the durable
+        deletion outbox are excluded from orphan results. Internal object keys
+        are represented only by short SHA-256 fingerprints.
+      responses:
+        '200':
+          description: Point-in-time reconciliation report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaReconciliationReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /admin/playlists:
     get:
@@ -850,7 +1733,11 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/PlaylistDetail'
+                  $ref: '#/components/schemas/Playlist'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     post:
       tags: [Admin - Playlists]
       summary: Create playlist
@@ -867,6 +1754,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Playlist'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/playlists/{playlistId}:
+    get:
+      tags: [Admin - Playlists]
+      summary: Get playlist detail with ordered published tracks
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistAdminDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin - Playlists]
+      summary: Update playlist metadata
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaylistRequest'
+      responses:
+        '200':
+          description: Updated playlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Admin - Playlists]
+      summary: Delete playlist and all memberships
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '204':
+          description: Playlist deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /admin/playlists/{playlistId}/tracks:
     post:
@@ -886,4 +1837,59 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlaylistDetail'
+                $ref: '#/components/schemas/PlaylistAdminDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/playlists/{playlistId}/tracks/{trackId}:
+    delete:
+      tags: [Admin - Playlists]
+      summary: Remove a track and compact following positions
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '204':
+          description: Track removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/playlists/{playlistId}/tracks/order:
+    put:
+      tags: [Admin - Playlists]
+      summary: Atomically replace the complete playlist order
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderPlaylistTracksRequest'
+      responses:
+        '200':
+          description: Reordered playlist detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistAdminDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

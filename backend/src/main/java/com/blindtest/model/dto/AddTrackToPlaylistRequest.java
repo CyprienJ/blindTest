@@ -1,5 +1,6 @@
 package com.blindtest.model.dto;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 import lombok.Getter;
@@ -12,5 +13,8 @@ public class AddTrackToPlaylistRequest {
 
     @NotNull
     private UUID trackId;
-    private int order;
+
+    @Min(0)
+    @NotNull
+    private Integer order;
 }

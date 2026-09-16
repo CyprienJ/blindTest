@@ -1,4 +1,6 @@
 @startuml Sequence - Create and Join a Session
+' Deferred multiplayer scenario. ADR-0002, ADR-0003, and ADR-0004 govern the
+' server-authoritative state, STOMP transport, and replaceable active store.
 title Create a session and join via code or friend invite
 skinparam backgroundColor #FAFAFA
 skinparam sequenceMessageAlign center
@@ -10,6 +12,13 @@ participant "WebSocket\n(STOMP)" as ws
 participant "SessionService" as ss
 participant "NotificationService" as ns
 
+legend bottom
+  Deferred post-V1 multiplayer flow.
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]] server authority
+  [[../adr/0003-stomp-for-game-events-from-v1.md ADR-0003]] STOMP event transport
+  [[../adr/0004-in-memory-session-store.md ADR-0004]] active session store
+endlegend
+
 == Session Creation ==
 
 host ->> rest : POST /api/sessions\n{ rules, trackFilters }
@@ -18,7 +27,7 @@ ss -->> rest : GameSession { code: "XK9F2A" }
 rest -->> host : 201 { sessionCode, state: LOBBY }
 
 host ->> ws : CONNECT (JWT)
-host ->> ws : SUBSCRIBE /topic/session/XK9F2A
+host ->> ws : SUBSCRIBE /topic/sessions/{sessionId}
 ws -->> host : CONNECTED
 
 == Join via Friend Invite ==
@@ -34,7 +43,7 @@ ss -->> rest : { sessionToken }
 rest -->> friend : 200 { sessionToken, userId }
 
 friend ->> ws : CONNECT (sessionToken)
-friend ->> ws : SUBSCRIBE /topic/session/XK9F2A
+friend ->> ws : SUBSCRIBE /topic/sessions/{sessionId}
 ws ->> ss : registerSocket(userId: B, sessionId)
 ss ->> ws : broadcast PLAYER_JOINED
 ws -->> host : PLAYER_JOINED { displayName: B }
@@ -49,7 +58,7 @@ ss -->> rest : { sessionToken, userId: guest_xyz }
 rest -->> guest : 200 { sessionToken, userId }
 
 guest ->> ws : CONNECT (sessionToken)
-guest ->> ws : SUBSCRIBE /topic/session/XK9F2A
+guest ->> ws : SUBSCRIBE /topic/sessions/{sessionId}
 ss ->> ws : broadcast PLAYER_JOINED
 ws -->> host : PLAYER_JOINED { displayName: "Bob" }
 ws -->> friend : PLAYER_JOINED { displayName: "Bob" }
@@ -58,6 +67,7 @@ ws -->> guest : PLAYER_JOINED { displayName: "Bob" }
 @enduml
 
 @startuml Sequence - Game Start and Audio Synchronization
+' Decisions: ADR-0002 server authority; ADR-0003 STOMP; ADR-0005 pre-signed media.
 title Game Start and Audio Synchronization (Option 2)
 skinparam backgroundColor #FAFAFA
 
@@ -67,15 +77,21 @@ actor "Player 2" as p2
 participant "GameService" as gs
 participant "ScheduledExecutor" as sched
 
-host ->> gs : SEND /app/session/XK9F2A/start
+legend bottom
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]] server authority
+  [[../adr/0003-stomp-for-game-events-from-v1.md ADR-0003]] STOMP event transport
+  [[../adr/0005-private-s3-media-and-presigned-playback.md ADR-0005]] pre-signed playback
+endlegend
+
+host ->> gs : SEND /app/sessions/{sessionId}\n{ protocolVersion: 1, commandId, expectedSessionVersion, type: START_GAME }
 
 gs ->> gs : state = PLAYING\nstartAt = now() + 3000ms
 
 gs ->> sched : schedule(onTimerExpired,\n  startAt + timerSeconds * 1000)
 
-gs -->> host : broadcast ROUND_START\n{ audioUrl, startAt: T, timerSeconds: 30 }
-gs -->> p1 : broadcast ROUND_START\n{ audioUrl, startAt: T }
-gs -->> p2 : broadcast ROUND_START\n{ audioUrl, startAt: T }
+gs -->> host : broadcast ROUND_STARTED\n{ playbackUrl, startsAt: T, deadline }
+gs -->> p1 : broadcast ROUND_STARTED\n{ playbackUrl, startsAt: T, deadline }
+gs -->> p2 : broadcast ROUND_STARTED\n{ playbackUrl, startsAt: T, deadline }
 
 note over host, p2
   Each client computes: delay = startAt - Date.now()
@@ -97,6 +113,8 @@ p2 -> p2 : audio.play() ← startAt
 @enduml
 
 @startuml Sequence - Round Cycle (Mode 2)
+' Deferred multiplayer mode. ADR-0002 defines server authority and ADR-0006
+' defines completed history persistence.
 title Round Cycle — Mode 2 (reveal when all found OR timer)
 skinparam backgroundColor #FAFAFA
 
@@ -104,17 +122,24 @@ actor "Player 1" as p1
 actor "Player 2" as p2
 participant "GameService" as gs
 participant "ScheduledExecutor" as sched
+database "PostgreSQL" as pg
+
+legend bottom
+  Deferred post-V1 multiplayer scoring/reveal mode.
+  [[../adr/0002-server-authoritative-sessions.md ADR-0002]] server authority
+  [[../adr/0006-postgresql-history-snapshots.md ADR-0006]] completed history
+endlegend
 
 == Round in Progress ==
 
-p1 ->> gs : SEND /app/session/XK9F2A/answer\n{ text: "Smells Like Teen Spirit" }
+p1 ->> gs : SEND /app/sessions/{sessionId}\n{ protocolVersion: 1, commandId, expectedSessionVersion,\n  type: SUBMIT_ANSWER, answer: "Smells Like Teen Spirit" }
 gs ->> gs : normalize() → correct ✓\nscore P1 += 100 + speedBonus\nfoundPlayers.add(P1)
-gs -->> p1 : broadcast PLAYER_FOUND\n{ userId: P1, score: 850 }
-gs -->> p2 : broadcast PLAYER_FOUND\n{ userId: P1, score: 850 }
+gs -->> p1 : broadcast SCORE_UPDATED\n{ participantId: P1, roundPoints: 850, totalScore }
+gs -->> p2 : broadcast SCORE_UPDATED\n{ participantId: P1, roundPoints: 850, totalScore }
 
 note over gs : Mode 2 → waiting for P2 or timer
 
-p2 ->> gs : SEND answer\n{ text: "smells like teen spirit" }
+p2 ->> gs : SEND /app/sessions/{sessionId}\n{ protocolVersion: 1, commandId, expectedSessionVersion,\n  type: SUBMIT_ANSWER, answer: "smells like teen spirit" }
 gs ->> gs : normalize() → correct ✓\nscore P2 += 60\nfoundPlayers.add(P2)\nallPlayersFound() → true
 gs ->> sched : cancel timer
 gs ->> gs : roundState = REVEALED
@@ -138,17 +163,26 @@ gs -->> p2 : broadcast ROUND_REVEALED
 sched ->> gs : nextRound()
 gs ->> gs : currentTrackIndex++
 alt More tracks remaining
-  gs -->> p1 : broadcast ROUND_START { audioUrl, startAt }
-  gs -->> p2 : broadcast ROUND_START { audioUrl, startAt }
+  gs -->> p1 : broadcast ROUND_STARTED { playbackUrl, startsAt, deadline }
+  gs -->> p2 : broadcast ROUND_STARTED { playbackUrl, startsAt, deadline }
 else Last track finished
-  gs ->> gs : state = FINISHED\npersist GameHistory to DB
+  gs ->> gs : state = FINISHED
   gs -->> p1 : broadcast GAME_FINISHED { finalScores }
   gs -->> p2 : broadcast GAME_FINISHED { finalScores }
+  gs ->> pg : transactionally insert history\n(unique session_id)
+  alt durable insert or confirmed duplicate
+    pg -->> gs : durable success
+    gs ->> gs : remove active state\n(expected version)
+  else transient database failure
+    pg --x gs : transient failure
+    gs ->> sched : schedule one bounded-backoff retry\nretain immutable result and active state
+  end
 end
 
 @enduml
 
 @startuml Sequence - Music Import (administrator)
+' Decision: ADR-0005 stores validated audio in private S3-compatible storage.
 title Importing a Track from YouTube (administrator)
 skinparam backgroundColor #FAFAFA
 
@@ -158,6 +192,7 @@ participant "WebSocket\n(STOMP)" as ws
 participant "ImportJobService" as job
 participant "yt-dlp" as ytdlp
 participant "FFmpeg" as ffmpeg
+participant "MediaStorage" as storage
 
 admin ->> rest : POST /api/admin/tracks/import\n{ youtubeUrl, title, artist, ... }
 rest ->> job : createJob(url, metadata)
@@ -177,11 +212,21 @@ end
 ytdlp -->> job : raw audio downloaded
 
 job ->> ffmpeg : MP3 conversion / normalisation
-ffmpeg -->> job : /media/{jobId}.mp3
-job ->> job : create TrackEntity (status=PENDING_VALIDATION)
+ffmpeg -->> job : isolated temporary MP3
+job ->> storage : upload and verify object
+storage -->> job : opaque object key
+job ->> job : finalize TrackEntity\n(status=PENDING, objectKey, checksum, size)
 
-job ->> ws : IMPORT_DONE\n{ trackId, previewUrl }
-ws -->> admin : IMPORT_DONE\n{ trackId, previewUrl }
+job ->> ws : IMPORT_DONE\n{ trackId }
+ws -->> admin : IMPORT_DONE\n{ trackId }
+
+admin ->> rest : GET /api/admin/tracks/{trackId}/preview-url
+rest ->> job : verify PENDING track and DONE import
+rest ->> storage : exists(objectKey)
+storage -->> rest : true
+rest ->> storage : presignedGetUrl(objectKey)
+storage -->> rest : short-lived URL
+rest -->> admin : 200 { url, expiresAt }
 
 note over admin
   Admin listens to the preview in
@@ -197,9 +242,15 @@ alt Admin validates
 else Admin rejects
   admin ->> rest : POST /api/admin/tracks/{trackId}/reject\n{ reason }
   rest ->> job : rejectTrack(trackId)
-  job ->> job : status = REJECTED\ndelete /media/{jobId}.mp3
+  job ->> job : status = REJECTED
+  note over job,storage : object retained until DG-05 defines deletion timing
   rest -->> admin : 200 { status: REJECTED }
 end
+
+legend bottom
+  Preview authorization produces a short-lived URL; it is never persisted.
+  [[../adr/0005-private-s3-media-and-presigned-playback.md ADR-0005]]
+endlegend
 
 @enduml
 

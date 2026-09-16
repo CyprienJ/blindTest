@@ -1,9 +1,16 @@
 package com.blindtest.controller.admin;
 
+import com.blindtest.model.dto.MediaPreviewResponse;
+import com.blindtest.model.dto.TrackAnswerAliasRequest;
+import com.blindtest.model.dto.TrackAnswerAliasResponse;
 import com.blindtest.model.dto.TrackAdminResponse;
+import com.blindtest.model.dto.TrackWaveformResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
+import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.service.AdminTrackService;
+import com.blindtest.service.TrackAnswerAliasService;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,12 +33,25 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminTrackController {
 
     private final AdminTrackService adminTrackService;
+    private final TrackAnswerAliasService aliasService;
 
     @GetMapping
     public Page<TrackAdminResponse> getAllTracks(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return adminTrackService.getAllTracks(page, size);
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) TrackStatus status,
+            @RequestParam(required = false) String search) {
+        return adminTrackService.getAllTracks(page, size, status, search);
+    }
+
+    @GetMapping("/{id}/preview-url")
+    public MediaPreviewResponse createPreviewUrl(@PathVariable UUID id) {
+        return adminTrackService.createPreviewUrl(id);
+    }
+
+    @GetMapping("/{id}/waveform")
+    public TrackWaveformResponse getWaveform(@PathVariable UUID id) {
+        return adminTrackService.getWaveform(id);
     }
 
     @PutMapping("/{id}")
@@ -39,6 +59,35 @@ public class AdminTrackController {
             @PathVariable UUID id,
             @Valid @RequestBody UpdateTrackRequest request) {
         return adminTrackService.updateTrack(id, request);
+    }
+
+    @GetMapping("/{trackId}/aliases")
+    public List<TrackAnswerAliasResponse> listAliases(@PathVariable UUID trackId) {
+        return aliasService.list(trackId);
+    }
+
+    @PostMapping("/{trackId}/aliases")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TrackAnswerAliasResponse createAlias(
+            @PathVariable UUID trackId,
+            @Valid @RequestBody TrackAnswerAliasRequest request) {
+        return aliasService.create(trackId, request);
+    }
+
+    @PutMapping("/{trackId}/aliases/{aliasId}")
+    public TrackAnswerAliasResponse updateAlias(
+            @PathVariable UUID trackId,
+            @PathVariable UUID aliasId,
+            @Valid @RequestBody TrackAnswerAliasRequest request) {
+        return aliasService.update(trackId, aliasId, request);
+    }
+
+    @DeleteMapping("/{trackId}/aliases/{aliasId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAlias(
+            @PathVariable UUID trackId,
+            @PathVariable UUID aliasId) {
+        aliasService.delete(trackId, aliasId);
     }
 
     @DeleteMapping("/{id}")

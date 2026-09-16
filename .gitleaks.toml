@@ -1,0 +1,3 @@
+[allowlist]
+description = "Historical deterministic CI fixture; never a deployed credential"
+commits = ["3e0a63ca9a402032f1314d201432ebf4350303ba"]

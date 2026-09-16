@@ -1,0 +1,48 @@
+name: E2E cross-browser (scheduled)
+
+on:
+  schedule:
+    # 03:00 UTC daily. Chromium is the only browser required on every push
+    # (see ci.yml); Firefox and WebKit run here so a regression is caught
+    # within a day instead of gating every push on three browser installs.
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  frontend-cross-browser:
+    name: Frontend — Playwright (Chromium, Firefox, WebKit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22.22.3"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Playwright tests (all supported desktop browsers)
+        working-directory: frontend
+        run: npm run test:e2e:all-browsers
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-cross-browser
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: warn
+          retention-days: 14

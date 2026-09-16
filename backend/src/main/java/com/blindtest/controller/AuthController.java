@@ -1,5 +1,6 @@
 package com.blindtest.controller;
 
+import com.blindtest.config.properties.ApplicationProperties;
 import com.blindtest.model.dto.AuthResult;
 import com.blindtest.model.dto.ForgotPasswordRequest;
 import com.blindtest.model.dto.LoginRequest;
@@ -33,13 +34,20 @@ public class AuthController {
 
     private final AuthService authService;
     private final long refreshTokenTtlSeconds;
+    private final boolean secureCookies;
 
     /** Constructs the controller with the required service and refresh-token TTL. */
     public AuthController(
             AuthService authService,
+            ApplicationProperties applicationProperties,
             @Value("${jwt.refresh-token.ttl-ms:604800000}") long refreshTokenTtlMs) {
         this.authService = authService;
         this.refreshTokenTtlSeconds = refreshTokenTtlMs / 1000;
+        // Secure cookies require HTTPS. Production always serves over HTTPS
+        // (ProductionConfigurationValidator enforces it), so this stays true there;
+        // it follows app.base-url so a plain-HTTP environment (local development, the
+        // isolated e2e Compose stack) still receives a cookie the browser will store.
+        this.secureCookies = "https".equalsIgnoreCase(applicationProperties.baseUrl().getScheme());
     }
 
     /**
@@ -130,7 +138,7 @@ public class AuthController {
     }
 
     private void setRefreshCookie(HttpServletResponse response, String value, long maxAgeSeconds) {
-        var builder = ResponseCookie.from(REFRESH_COOKIE_NAME, value).httpOnly(true).secure(true);
+        var builder = ResponseCookie.from(REFRESH_COOKIE_NAME, value).httpOnly(true).secure(secureCookies);
         ResponseCookie cookie = builder.path(COOKIE_PATH).maxAge(maxAgeSeconds).sameSite("Strict").build();
         response.addHeader("Set-Cookie", cookie.toString());
     }

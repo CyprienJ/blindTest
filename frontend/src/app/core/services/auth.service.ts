@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, finalize, Observable, tap } from 'rxjs';
 import { API_BASE } from '../config';
 import {
   LoginResponse,
@@ -32,6 +32,10 @@ export class AuthService {
 
   isLoggedIn(): boolean {
     return this.currentUserSubject.value !== null && this.getAccessToken() !== null;
+  }
+
+  isAdmin(): boolean {
+    return this.isLoggedIn() && this.currentUserSubject.value?.role === 'ADMIN';
   }
 
   login(email: string, password: string): Observable<LoginResponse> {
@@ -75,7 +79,7 @@ export class AuthService {
   logout(): Observable<void> {
     return this.http
       .post<void>(`${API_BASE}/auth/logout`, {}, { withCredentials: true })
-      .pipe(tap(() => this.clearSession()));
+      .pipe(finalize(() => this.clearSession()));
   }
 
   clearSession(): void {

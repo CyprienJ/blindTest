@@ -4,6 +4,7 @@ import com.blindtest.model.dto.AddTrackToPlaylistRequest;
 import com.blindtest.model.dto.CreatePlaylistRequest;
 import com.blindtest.model.dto.PlaylistAdminDetailResponse;
 import com.blindtest.model.dto.PlaylistAdminResponse;
+import com.blindtest.model.dto.ReorderPlaylistTracksRequest;
 import com.blindtest.model.dto.UpdatePlaylistRequest;
 import com.blindtest.service.AdminPlaylistService;
 import jakarta.validation.Valid;
@@ -73,5 +74,12 @@ public class AdminPlaylistController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeTrack(@PathVariable UUID id, @PathVariable UUID trackId) {
         adminPlaylistService.removeTrack(id, trackId);
+    }
+
+    @PutMapping("/{id}/tracks/order")
+    public PlaylistAdminDetailResponse reorderTracks(
+            @PathVariable UUID id,
+            @Valid @RequestBody ReorderPlaylistTracksRequest request) {
+        return adminPlaylistService.reorderTracks(id, request);
     }
 }

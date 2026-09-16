@@ -106,6 +106,7 @@ declare const turnstile: {
 
             @if (errorMessage) {
               <div
+                role="alert"
                 style="background: oklch(0.25 0.04 30); border: 1px solid oklch(0.38 0.10 30);
                           border-radius: var(--r-md); padding: 10px 14px; font-size: 13.5px; color: var(--danger);"
               >
@@ -153,6 +154,7 @@ export class RegisterComponent implements OnInit, OnDestroy {
   errorMessage = '';
   turnstileToken = '';
   private widgetId = '';
+  private turnstileErrorActive = false;
 
   ngOnInit(): void {
     setTimeout(() => this.initTurnstile(), 0);
@@ -182,23 +184,29 @@ export class RegisterComponent implements OnInit, OnDestroy {
   }
 
   submit(): void {
+    if (this.loading) {
+      return;
+    }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
     if (!this.turnstileToken) {
-      this.errorMessage = 'Please complete the security check.';
+      this.showTurnstileError('Please complete the security check.');
       return;
     }
+    const turnstileToken = this.turnstileToken;
+    this.turnstileToken = '';
     this.loading = true;
     this.errorMessage = '';
+    this.turnstileErrorActive = false;
     const { username, email, password } = this.form.value as {
       username: string;
       email: string;
       password: string;
     };
 
-    this.authService.register(username, email, password, this.turnstileToken).subscribe({
+    this.authService.register(username, email, password, turnstileToken).subscribe({
       next: () => {
         this.router.navigate(['/auth/verify-email'], {
           queryParams: { email, mode: 'check-inbox' },
@@ -206,11 +214,8 @@ export class RegisterComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loading = false;
-        this.turnstileToken = '';
-        if (this.widgetId && typeof turnstile !== 'undefined') {
-          turnstile.reset(this.widgetId);
-        }
-        console.error('[register] error', err.status, err);
+        this.resetTurnstile();
+        this.turnstileErrorActive = false;
         if (err.status === 409) {
           const detail: string = err.error?.detail ?? '';
           this.errorMessage = detail.includes('EMAIL')
@@ -218,12 +223,13 @@ export class RegisterComponent implements OnInit, OnDestroy {
             : 'Username already taken.';
         } else if (err.status === 403) {
           this.errorMessage = 'Security check failed. Please try again.';
+          this.turnstileErrorActive = true;
         } else if (err.status === 400) {
           this.errorMessage = `Validation error: ${err.error?.detail ?? JSON.stringify(err.error)}`;
         } else if (err.status === 0) {
           this.errorMessage = 'Cannot reach the server — is the backend running?';
         } else {
-          this.errorMessage = `Error ${err.status}: ${err.error?.detail ?? err.message ?? 'Unknown error'}`;
+          this.errorMessage = 'Something went wrong. Please try again.';
         }
       },
     });
@@ -237,12 +243,42 @@ export class RegisterComponent implements OnInit, OnDestroy {
     this.widgetId = turnstile.render('#turnstile-container', {
       sitekey: TURNSTILE_SITE_KEY,
       theme: 'dark',
+      action: 'register',
+      'response-field': false,
+      'refresh-expired': 'auto',
       callback: (token: string) => {
-        this.zone.run(() => (this.turnstileToken = token));
+        this.zone.run(() => {
+          this.turnstileToken = token;
+          if (this.turnstileErrorActive) {
+            this.errorMessage = '';
+            this.turnstileErrorActive = false;
+          }
+        });
       },
       'expired-callback': () => {
-        this.zone.run(() => (this.turnstileToken = ''));
+        this.zone.run(() => {
+          this.showTurnstileError('Security check expired. Please complete it again.');
+        });
+      },
+      'error-callback': (): boolean => {
+        this.zone.run(() => {
+          this.showTurnstileError('Security check could not be completed. Please try again.');
+        });
+        return true;
       },
     });
+  }
+
+  private resetTurnstile(): void {
+    this.turnstileToken = '';
+    if (this.widgetId && typeof turnstile !== 'undefined') {
+      turnstile.reset(this.widgetId);
+    }
+  }
+
+  private showTurnstileError(message: string): void {
+    this.turnstileToken = '';
+    this.errorMessage = message;
+    this.turnstileErrorActive = true;
   }
 }

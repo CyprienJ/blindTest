@@ -1,0 +1,19 @@
+{
+  "name": "blindtest-load-tests",
+  "private": true,
+  "type": "module",
+  "description": "Headless REST+STOMP load and concurrency smoke tests for the solo-game backend (E2E-05). Runs against the isolated full-stack Compose environment; see docs/operations/load-testing.md.",
+  "scripts": {
+    "start": "tsx src/run.ts"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.3.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

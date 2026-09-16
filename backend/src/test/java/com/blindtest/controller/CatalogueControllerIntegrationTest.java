@@ -1,6 +1,7 @@
 package com.blindtest.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,8 +15,8 @@ import com.blindtest.repository.PlaylistRepository;
 import com.blindtest.repository.PlaylistTrackRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
-import com.blindtest.service.EmailService;
-import com.blindtest.service.TurnstileService;
+import com.blindtest.service.port.EmailSender;
+import com.blindtest.service.port.TurnstileVerifier;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,10 +55,10 @@ class CatalogueControllerIntegrationTest {
     private PlaylistTrackRepository playlistTrackRepository;
 
     @MockBean
-    private EmailService emailService;
+    private EmailSender emailSender;
 
     @MockBean
-    private TurnstileService turnstileService;
+    private TurnstileVerifier turnstileVerifier;
 
     private TrackEntity publishedPop;
     private TrackEntity publishedJazz;
@@ -73,6 +74,10 @@ class CatalogueControllerIntegrationTest {
         UserEntity admin = userRepository.save(buildUser("admin", "admin@example.com"));
 
         TrackEntity pop = buildTrack("Pop Song", "Pop Artist", "pop", (short) 2000, TrackStatus.PUBLISHED);
+        pop.setAlbum("Pop Album");
+        pop.setComposer("Pop Composer");
+        pop.setWork("Pop Work");
+        pop.setDurationSeconds(180);
         publishedPop = trackRepository.save(pop);
 
         TrackEntity jazz = buildTrack("Jazz Tune", "Jazz Artist", "jazz", (short) 1990, TrackStatus.PUBLISHED);
@@ -118,10 +123,44 @@ class CatalogueControllerIntegrationTest {
     }
 
     @Test
-    void getTracksDoesNotExposeAudioUrlOrYoutubeUrl() throws Exception {
+    void getTracksSearchesPublishedMetadataCaseInsensitively() throws Exception {
+        mockMvc.perform(get("/api/tracks").param("q", "  pop composer  ")).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalElements").value(1)).
+                andExpect(jsonPath("$.content[0].title").value("Pop Song"));
+    }
+
+    @Test
+    void getTracksValidatesPaginationBounds() throws Exception {
+        mockMvc.perform(get("/api/tracks").param("page", "-1")).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        mockMvc.perform(get("/api/tracks").param("size", "101")).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void getTracksUsesOneFlatSnapshotCompatibleMetadataShape() throws Exception {
+        mockMvc.perform(get("/api/tracks").
+                        param("category", "pop")).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.content[0].title").value("Pop Song")).
+                andExpect(jsonPath("$.content[0].artist").value("Pop Artist")).
+                andExpect(jsonPath("$.content[0].album").value("Pop Album")).
+                andExpect(jsonPath("$.content[0].composer").value("Pop Composer")).
+                andExpect(jsonPath("$.content[0].work").value("Pop Work")).
+                andExpect(jsonPath("$.content[0].durationSeconds").value(180));
+    }
+
+    @Test
+    void getTracksDoesNotExposeMediaStorageDetailsOrYoutubeUrl() throws Exception {
         mockMvc.perform(get("/api/tracks")).
                 andExpect(status().isOk()).
                 andExpect(jsonPath("$.content[0].audioUrl").doesNotExist()).
+                andExpect(jsonPath("$.content[0].audioObjectKey").doesNotExist()).
+                andExpect(jsonPath("$.content[0].audioChecksum").doesNotExist()).
+                andExpect(jsonPath("$.content[0].audioSizeBytes").doesNotExist()).
                 andExpect(jsonPath("$.content[0].youtubeUrl").doesNotExist());
     }
 
@@ -135,6 +174,20 @@ class CatalogueControllerIntegrationTest {
     }
 
     @Test
+    void publicCatalogueResponsesDeclareSharedShortLivedCaching() throws Exception {
+        String cachePolicy = "max-age=60, public, stale-while-revalidate=300";
+        mockMvc.perform(get("/api/tracks")).
+                andExpect(status().isOk()).
+                andExpect(header().string("Cache-Control", cachePolicy));
+        mockMvc.perform(get("/api/playlists")).
+                andExpect(status().isOk()).
+                andExpect(header().string("Cache-Control", cachePolicy));
+        mockMvc.perform(get("/api/playlists/" + playlist.getId())).
+                andExpect(status().isOk()).
+                andExpect(header().string("Cache-Control", cachePolicy));
+    }
+
+    @Test
     void getPlaylistDetailReturnsOrderedPublishedTracks() throws Exception {
         String id = playlist.getId().toString();
         mockMvc.perform(get("/api/playlists/" + id)).
@@ -144,6 +197,16 @@ class CatalogueControllerIntegrationTest {
                 andExpect(jsonPath("$.tracks.length()").value(2)).
                 andExpect(jsonPath("$.tracks[0].title").value("Jazz Tune")).
                 andExpect(jsonPath("$.tracks[1].title").value("Pop Song"));
+    }
+
+    @Test
+    void getPlaylistDetailNeverExposesStorageOrProviderMetadata() throws Exception {
+        mockMvc.perform(get("/api/playlists/" + playlist.getId())).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.tracks[0].audioUrl").doesNotExist()).
+                andExpect(jsonPath("$.tracks[0].audioObjectKey").doesNotExist()).
+                andExpect(jsonPath("$.tracks[0].audioChecksum").doesNotExist()).
+                andExpect(jsonPath("$.tracks[0].youtubeUrl").doesNotExist());
     }
 
     @Test

@@ -1,0 +1,72 @@
+<div class="end-screen">
+  <main class="end-page">
+    @switch (view) {
+      @case ('loading') {
+        <section class="bt-card centered-card" aria-live="polite">
+          <span class="setup-spinner" aria-hidden="true"></span>
+          <p class="eyebrow">Solo blindtest</p>
+          <h1>Loading your summary…</h1>
+        </section>
+      }
+
+      @case ('error') {
+        <section class="bt-card centered-card" role="alert">
+          <p class="eyebrow">Solo blindtest</p>
+          <h1>Summary unavailable</h1>
+          <p class="muted">{{ errorMessage }}</p>
+          <a class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+        </section>
+      }
+
+      @case ('ready') {
+        @if (summary; as summary) {
+          <header class="end-heading">
+            <span class="bt-chip bt-chip-accent">Game finished</span>
+            <h1>That's a wrap.</h1>
+            <p class="muted">
+              {{ summary.totalRounds }} tracks
+              @if (durationLabel) {
+                · {{ durationLabel }}
+              }
+            </p>
+          </header>
+
+          <section class="bt-card score-card" aria-label="Final score">
+            <p class="eyebrow">Total score</p>
+            <p class="final-score mono">{{ summary.totalScore }}</p>
+            <p class="muted">
+              {{ summary.titlesFound }} found · {{ summary.skippedRounds }} skipped ·
+              {{ summary.timedOutRounds }} timed out
+            </p>
+          </section>
+
+          <section class="bt-card" aria-label="Rounds played">
+            <h2 class="bt-h2 rounds-heading">Rounds played</h2>
+            <ul class="rounds-list">
+              @for (round of summary.rounds; track round.roundIndex) {
+                <li>
+                  <span class="round-index mono">{{ round.roundIndex + 1 }}</span>
+                  <span class="round-title">
+                    <strong>{{ round.title }}</strong>
+                    <span class="round-artist">{{ round.artist }}</span>
+                  </span>
+                  <span class="round-outcome" [class.is-found]="round.outcome === 'TITLE_FOUND'">
+                    {{ outcomeLabel(round.outcome) }}
+                  </span>
+                  <span class="round-response mono">{{ responseTimeLabel(round) }}</span>
+                  <span class="round-points mono">+{{ round.points }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+
+          <div class="end-actions">
+            <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
+              Play again
+            </button>
+          </div>
+        }
+      }
+    }
+  </main>
+</div>

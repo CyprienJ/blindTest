@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -35,6 +36,9 @@ public class TrackImportJobEntity {
     @Column(name = "youtube_url", nullable = false, length = 500)
     private String youtubeUrl;
 
+    @Column(name = "youtube_video_id", length = 11)
+    private String youtubeVideoId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ImportJobStatus status = ImportJobStatus.QUEUED;
@@ -57,8 +61,20 @@ public class TrackImportJobEntity {
     @Setter(AccessLevel.NONE)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now();
+        updatedAt = createdAt;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }

@@ -1,0 +1,205 @@
+<div class="session-screen">
+  <main class="session-page">
+    <div class="page-heading">
+      <div>
+        <span class="eyebrow">Solo blindtest</span>
+        <h1>Configure a new game</h1>
+        <p>Choose a public playlist, the number of rounds and the maximum answer time.</p>
+      </div>
+      <a class="bt-btn bt-btn-ghost" routerLink="/lobby/join">Join instead</a>
+    </div>
+
+    @if (errorMessage) {
+      <div class="notice error" role="alert">
+        <span>{{ errorMessage }}</span>
+        <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="loadPlaylists()">
+          Retry
+        </button>
+      </div>
+    }
+
+    <div class="configuration-grid">
+      <div class="configuration-column">
+        <section id="public-playlists" class="bt-card music-card">
+          <div class="section-heading">
+            <div>
+              <span class="step">1</span>
+              <h2>Choose the music</h2>
+            </div>
+            <span class="bt-chip">{{ playlists.length }} eligible</span>
+          </div>
+
+          @if (loading) {
+            <div class="state-panel" role="status">
+              <span class="spinner" aria-hidden="true"></span>
+              <p>Loading public playlists…</p>
+            </div>
+          } @else if (!errorMessage && playlists.length === 0) {
+            <div class="state-panel">
+              <span class="state-symbol" aria-hidden="true">♫</span>
+              <h3>No playable playlist yet</h3>
+              <p>
+                A playlist needs at least {{ limits.trackCount.minimum }} published tracks to become
+                eligible.
+              </p>
+              @if (auth.isAdmin()) {
+                <a class="bt-btn bt-btn-ghost" routerLink="/admin/playlists"
+                  >Open playlist editor</a
+                >
+              }
+            </div>
+          } @else {
+            <div class="playlist-grid" role="radiogroup" aria-label="Public playlists">
+              @for (playlist of playlists; track playlist.id) {
+                <button
+                  type="button"
+                  role="radio"
+                  [attr.aria-checked]="form.controls.playlistId.value === playlist.id"
+                  [class.selected]="form.controls.playlistId.value === playlist.id"
+                  (click)="selectPlaylist(playlist)"
+                >
+                  <span class="playlist-cover" aria-hidden="true">
+                    @if (playlist.imageUrl) {
+                      <img [src]="playlist.imageUrl" alt="" />
+                    } @else {
+                      ♪
+                    }
+                  </span>
+                  <span>
+                    <strong>{{ playlist.name }}</strong>
+                    <small>{{ playlist.trackCount }} tracks</small>
+                  </span>
+                  <span class="radio-mark" aria-hidden="true"></span>
+                </button>
+              }
+            </div>
+          }
+
+          @if (detailError) {
+            <p class="inline-error" role="alert">{{ detailError }}</p>
+          }
+
+          @if (selected) {
+            <div class="playlist-preview">
+              <div class="preview-heading">
+                <div>
+                  <h3>{{ selected.name }}</h3>
+                  <p>{{ selected.description || 'Public blindtest playlist' }}</p>
+                </div>
+                @if (loadingDetail) {
+                  <span class="spinner" aria-label="Loading playlist detail"></span>
+                }
+              </div>
+              <div class="track-preview">
+                @for (track of selected.tracks.slice(0, 5); track track.id; let index = $index) {
+                  <div>
+                    <span class="track-index">{{ index + 1 }}</span>
+                    <span class="track-copy">
+                      <strong>{{ track.title }}</strong>
+                      <small>{{ track.artist }}</small>
+                    </span>
+                    <span class="mono">{{ formatDuration(track.durationSeconds) }}</span>
+                  </div>
+                }
+                @if (selected.trackCount > 5) {
+                  <p>+ {{ selected.trackCount - 5 }} more tracks</p>
+                }
+              </div>
+            </div>
+          }
+        </section>
+
+        <section class="bt-card rules-card">
+          <div class="section-heading">
+            <div>
+              <span class="step">2</span>
+              <h2>Set the rules</h2>
+            </div>
+          </div>
+
+          <form [formGroup]="form">
+            <label class="range-field">
+              <span>
+                <strong>Number of tracks</strong>
+                <output>{{ form.controls.trackCount.value }}</output>
+              </span>
+              <input
+                type="range"
+                formControlName="trackCount"
+                [min]="limits.trackCount.minimum"
+                [max]="trackCountMaximum()"
+                [step]="limits.trackCount.increment"
+                aria-label="Number of tracks"
+              />
+              <small>
+                Between {{ limits.trackCount.minimum }} and {{ trackCountMaximum() }}, without
+                repeating a track.
+              </small>
+            </label>
+
+            <label class="range-field">
+              <span>
+                <strong>Maximum answer time</strong>
+                <output>{{ form.controls.maxRoundSeconds.value }}s</output>
+              </span>
+              <input
+                type="range"
+                formControlName="maxRoundSeconds"
+                [min]="limits.roundDurationSeconds.minimum"
+                [max]="limits.roundDurationSeconds.maximum"
+                [step]="limits.roundDurationSeconds.increment"
+                aria-label="Maximum answer time"
+              />
+              <small>Each round ends sooner when the title is found.</small>
+            </label>
+          </form>
+        </section>
+      </div>
+
+      <aside class="summary-card bt-card">
+        <span class="bt-chip bt-chip-accent">Configuration summary</span>
+        <div class="summary-cover" aria-hidden="true">
+          @if (selected?.imageUrl) {
+            <img [src]="selected?.imageUrl" alt="" />
+          } @else {
+            ♪
+          }
+        </div>
+        <h2>{{ selected?.name || 'Choose a playlist' }}</h2>
+        <p>{{ selected?.description || 'Your selected music will appear here.' }}</p>
+
+        <dl>
+          <div>
+            <dt>Tracks</dt>
+            <dd>{{ form.controls.trackCount.value }}</dd>
+          </div>
+          <div>
+            <dt>Time per track</dt>
+            <dd>{{ form.controls.maxRoundSeconds.value }} seconds</dd>
+          </div>
+          <div>
+            <dt>Estimated duration</dt>
+            <dd>~{{ estimatedMinutes() }} minutes</dd>
+          </div>
+          <div>
+            <dt>Mode</dt>
+            <dd>Solo · title answer</dd>
+          </div>
+        </dl>
+
+        @if (submitError) {
+          <p class="notice error submit-error" role="alert">{{ submitError }}</p>
+        }
+
+        <button
+          class="bt-btn bt-btn-primary bt-btn-lg create-button"
+          type="button"
+          [disabled]="!selected || loadingDetail || form.invalid || submitting"
+          (click)="createSession()"
+        >
+          {{ submitting ? 'Creating game…' : 'Create session →' }}
+        </button>
+      </aside>
+    </div>
+  </main>
+</div>

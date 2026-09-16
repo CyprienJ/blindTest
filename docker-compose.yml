@@ -4,6 +4,8 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 512m
     environment:
       POSTGRES_DB:       ${POSTGRES_DB:-blindtest}
       POSTGRES_USER:     ${POSTGRES_USER:-blindtest}
@@ -15,6 +17,53 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
+
+  # ── Private S3-compatible media storage ─────────────────────────────
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    cpus: "0.75"
+    mem_limit: 1g
+    environment:
+      MINIO_ROOT_USER:            ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD:        ${S3_SECRET_KEY}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${APP_BASE_URL}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      internal: {}
+      proxy:
+        aliases:
+          - blindtest-minio
+
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    restart: "no"
+    cpus: "0.25"
+    mem_limit: 128m
+    entrypoint: ["/bin/sh", "/config/init.sh"]
+    environment:
+      MINIO_ENDPOINT:      http://minio:9000
+      MINIO_ROOT_USER:     ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+      S3_BUCKET:           ${S3_BUCKET:-blindtest-media}
+    volumes:
+      - ./infra/minio/init.sh:/config/init.sh:ro
+    depends_on:
+      minio:
+        condition: service_healthy
     networks:
       - internal
 
@@ -30,18 +79,47 @@ services:
       DATASOURCE_URL:                  jdbc:postgresql://postgres:5432/${POSTGRES_DB:-blindtest}
       DATASOURCE_USERNAME:             ${POSTGRES_USER:-blindtest}
       DATASOURCE_PASSWORD:             ${POSTGRES_PASSWORD}
+      SPRING_PROFILES_ACTIVE:          production
       JWT_SECRET:                      ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_TTL_MS:         ${JWT_ACCESS_TOKEN_TTL_MS:-900000}
       JWT_EMAIL_VERIFICATION_TTL_MS:   ${JWT_EMAIL_VERIFICATION_TTL_MS:-86400000}
       JWT_PASSWORD_RESET_TTL_MS:       ${JWT_PASSWORD_RESET_TTL_MS:-3600000}
       JWT_REFRESH_TOKEN_TTL_MS:        ${JWT_REFRESH_TOKEN_TTL_MS:-604800000}
       RESEND_API_KEY:                  ${RESEND_API_KEY}
-      APP_BASE_URL:                    ${APP_BASE_URL:-https://nosblindtests.fr}
+      APP_BASE_URL:                    ${APP_BASE_URL}
+      CORS_ALLOWED_ORIGINS:            ${CORS_ALLOWED_ORIGINS:-${APP_BASE_URL}}
+      APP_IMPORT_TEMP_DIR:             ${APP_IMPORT_TEMP_DIR:-/tmp/blindtest-imports}
+      APP_IMPORT_MAX_SIZE_BYTES:       ${APP_IMPORT_MAX_SIZE_BYTES:-26214400}
+      APP_IMPORT_TIMEOUT:              ${APP_IMPORT_TIMEOUT:-10m}
+      APP_SESSION_INACTIVE_TTL:        ${APP_SESSION_INACTIVE_TTL:-30m}
+      APP_SESSION_FINISHED_TTL:        ${APP_SESSION_FINISHED_TTL:-5m}
+      APP_SESSION_CLEANUP_DELAY:       ${APP_SESSION_CLEANUP_DELAY:-PT1M}
       CLOUDFLARE_TURNSTILE_SECRET_KEY: ${CLOUDFLARE_TURNSTILE_SECRET_KEY}
+      S3_ENDPOINT:                     ${S3_ENDPOINT}
+      S3_PUBLIC_ENDPOINT:              ${S3_PUBLIC_ENDPOINT}
+      S3_REGION:                       ${S3_REGION}
+      S3_BUCKET:                       ${S3_BUCKET}
+      S3_ACCESS_KEY:                   ${S3_ACCESS_KEY}
+      S3_SECRET_KEY:                   ${S3_SECRET_KEY}
+      S3_PRESIGNED_URL_TTL:            ${S3_PRESIGNED_URL_TTL:-5m}
     volumes:
       - media:/media
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    cpus: ${BACKEND_CPU_LIMIT:-1.0}
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     depends_on:
       postgres:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     networks:
       - internal
 
@@ -52,19 +130,35 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
+    cpus: "0.25"
+    mem_limit: 256m
     ports:
       - "127.0.0.1:${APP_PORT:-8090}:80"   # nginx système proxie ici
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+      - /var/cache/nginx:rw,noexec,nosuid,nodev,size=64m,mode=1777
     volumes:
       - media:/media:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
-      - internal
+      internal: {}
+      proxy:
+        aliases:
+          - nosblindtests
 
 volumes:
   postgres_data:
+  minio_data:
   media:
 
 networks:
   internal:
     driver: bridge
+  # Created and shared by the existing Nginx Proxy Manager installation.
+  # Production deployment must provision this network before starting the stack.
+  proxy:
+    name: proxy
+    external: true

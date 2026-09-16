@@ -12,11 +12,13 @@ import com.blindtest.repository.PlaylistTrackRepository;
 import com.blindtest.repository.TrackRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -34,10 +36,22 @@ public class CatalogueService {
     private final PlaylistTrackRepository playlistTrackRepository;
 
     /** Returns a paginated list of published tracks, optionally filtered by category and decade. */
-    public Page<TrackResponse> getTracks(String category, Short decade, int pageNum, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNum, Math.min(pageSize, 100));
+    public Page<TrackResponse> getTracks(
+            String query, String category, Short decade, int pageNum, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNum, pageSize,
+                Sort.by(Sort.Order.asc("title").ignoreCase()).and(Sort.by("id")));
         Specification<TrackEntity> spec = Specification.where(
                 (root, q, cb) -> cb.equal(root.get("status"), TrackStatus.PUBLISHED));
+        if (query != null && !query.isBlank()) {
+            String pattern = "%" + escapeLike(query.strip().toLowerCase(Locale.ROOT)) + "%";
+            spec = spec.and((root, q, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("title")), pattern, '\\'),
+                    cb.like(cb.lower(root.get("artist")), pattern, '\\'),
+                    cb.like(cb.lower(root.get("album")), pattern, '\\'),
+                    cb.like(cb.lower(root.get("composer")), pattern, '\\'),
+                    cb.like(cb.lower(root.get("work")), pattern, '\\'),
+                    cb.like(cb.lower(root.get("category")), pattern, '\\')));
+        }
         if (category != null) {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("category"), category));
         }
@@ -50,7 +64,7 @@ public class CatalogueService {
 
     /** Returns all playlists with their published track count. */
     public List<PlaylistResponse> getPlaylists() {
-        List<PlaylistEntity> playlists = playlistRepository.findAll();
+        List<PlaylistEntity> playlists = playlistRepository.findAllByOrderByNameAscIdAsc();
         List<PlaylistResponse> result = new ArrayList<>();
         for (PlaylistEntity p : playlists) {
             int count = playlistTrackRepository.countPublishedInPlaylist(p.getId(), TrackStatus.PUBLISHED);
@@ -72,5 +86,9 @@ public class CatalogueService {
         return new PlaylistDetailResponse(
                 playlist.getId(), playlist.getName(), playlist.getDescription(),
                 playlist.getImageUrl(), tracks.size(), tracks);
+    }
+
+    private String escapeLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

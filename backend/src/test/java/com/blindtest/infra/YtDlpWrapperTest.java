@@ -5,9 +5,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.blindtest.config.properties.ImportProperties;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -20,15 +22,19 @@ class YtDlpWrapperTest {
         ProcessFactory factory = mock(ProcessFactory.class);
         when(factory.start(anyList())).thenReturn(mockProcess);
 
-        YtDlpWrapper wrapper = new YtDlpWrapper(factory);
-        String url = "https://youtube.com/watch?v=test";
+        YtDlpWrapper wrapper = new YtDlpWrapper(
+                factory, new ImportProperties(Path.of("/tmp/imports"), 26_214_400, Duration.ofMinutes(10)));
+        String url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         Path output = Path.of("/tmp/test-output");
         wrapper.start(url, output);
 
         verify(factory).start(List.of(
-                "yt-dlp", "-x", "--audio-format", "mp3",
+                "yt-dlp", "--no-playlist", "--max-filesize", "26214400",
+                "--write-info-json", "--clean-info-json",
+                "-x", "--audio-format", "mp3", "--postprocessor-args", "ffmpeg:-threads 1",
                 "--output", output.toString(),
                 "--newline",
+                "--",
                 url));
     }
 }

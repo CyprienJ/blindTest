@@ -11,5 +11,4 @@ public class WsImportDoneEvent {
 
     private UUID jobId;
     private UUID trackId;
-    private String previewUrl;
 }
