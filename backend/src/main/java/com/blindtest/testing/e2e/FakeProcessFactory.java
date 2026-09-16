@@ -21,6 +21,13 @@ public class FakeProcessFactory implements ProcessFactory {
 
     private static final String FIXTURE_RESOURCE = "/fixtures/e2e-silence.mp3.base64";
 
+    /**
+     * A YouTube video ID that deterministically fails the import instead of succeeding, so
+     * full-stack specs can exercise the import-process-failure path (E2E-06) the same way a
+     * real provider error would surface, without depending on network flakiness to trigger one.
+     */
+    public static final String FORCED_FAILURE_VIDEO_ID = "e2e-fail-01";
+
     @Override
     public Process start(List<String> command) throws IOException {
         if (!command.isEmpty() && "ffmpeg".equals(command.getFirst())) {
@@ -31,6 +38,12 @@ public class FakeProcessFactory implements ProcessFactory {
                 pcm[index * 2 + 1] = (byte) (sample >>> 8);
             }
             return new CompletedProcess(pcm);
+        }
+        if (command.contains("https://www.youtube.com/watch?v=" + FORCED_FAILURE_VIDEO_ID)) {
+            return new CompletedProcess(
+                    "ERROR: [youtube] " + FORCED_FAILURE_VIDEO_ID
+                            + ": Video unavailable (deterministic e2e failure fixture)\n",
+                    1);
         }
         int outputFlagIndex = command.indexOf("--output");
         if (outputFlagIndex < 0 || outputFlagIndex + 1 >= command.size()) {
@@ -64,13 +77,23 @@ public class FakeProcessFactory implements ProcessFactory {
     private static final class CompletedProcess extends Process {
 
         private final InputStream output;
+        private final int exitCode;
 
         private CompletedProcess(String output) {
-            this(output.getBytes(StandardCharsets.UTF_8));
+            this(output, 0);
+        }
+
+        private CompletedProcess(String output, int exitCode) {
+            this(output.getBytes(StandardCharsets.UTF_8), exitCode);
         }
 
         private CompletedProcess(byte[] output) {
+            this(output, 0);
+        }
+
+        private CompletedProcess(byte[] output, int exitCode) {
             this.output = new ByteArrayInputStream(output);
+            this.exitCode = exitCode;
         }
 
         @Override
@@ -90,12 +113,12 @@ public class FakeProcessFactory implements ProcessFactory {
 
         @Override
         public int waitFor() {
-            return 0;
+            return exitCode;
         }
 
         @Override
         public int exitValue() {
-            return 0;
+            return exitCode;
         }
 
         @Override

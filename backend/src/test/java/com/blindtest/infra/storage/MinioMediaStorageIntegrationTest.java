@@ -115,6 +115,31 @@ class MinioMediaStorageIntegrationTest {
     }
 
     @Test
+    void expiredPresignedUrlIsRejectedAndAFreshOneStillWorks() throws Exception {
+        // E2E-06 (expired pre-signed URL): a link a client held onto past its TTL must be
+        // refused by MinIO rather than silently served, and the underlying object must remain
+        // retrievable through a newly issued URL — expiry rejects the link, not the media.
+        URI shortLivedEndpoint = endpoint();
+        MinioMediaStorage shortLived = new MinioMediaStorage(
+                client(shortLivedEndpoint), client(shortLivedEndpoint),
+                properties(shortLivedEndpoint, Duration.ofSeconds(1)));
+        storage.store(OBJECT_KEY, writeFixture(), "application/octet-stream");
+
+        URI expiring = shortLived.presignedGetUrl(OBJECT_KEY);
+        Thread.sleep(Duration.ofSeconds(2));
+
+        HttpResponse<byte[]> expiredResponse = HttpClient.newHttpClient().
+                send(HttpRequest.newBuilder(expiring).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+        assertThat(expiredResponse.statusCode()).isEqualTo(403);
+
+        URI fresh = storage.presignedGetUrl(OBJECT_KEY);
+        HttpResponse<byte[]> freshResponse = HttpClient.newHttpClient().
+                send(HttpRequest.newBuilder(fresh).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+        assertThat(freshResponse.statusCode()).isEqualTo(200);
+        assertThat(freshResponse.body()).containsExactly(CONTENT);
+    }
+
+    @Test
     void unavailableStorageIsTranslatedAndTheOperationCanBeRetried() throws Exception {
         URI unavailableEndpoint = URI.create("http://127.0.0.1:1");
         MinioMediaStorage unavailable = new MinioMediaStorage(
@@ -149,6 +174,10 @@ class MinioMediaStorageIntegrationTest {
     }
 
     private static S3Properties properties(URI endpoint) {
+        return properties(endpoint, Duration.ofMinutes(5));
+    }
+
+    private static S3Properties properties(URI endpoint, Duration presignedUrlTtl) {
         return new S3Properties(
                 endpoint,
                 endpoint,
@@ -156,7 +185,7 @@ class MinioMediaStorageIntegrationTest {
                 BUCKET,
                 ACCESS_KEY,
                 SECRET_KEY,
-                Duration.ofMinutes(5));
+                presignedUrlTtl);
     }
 
     private static byte[] contentFixture() {

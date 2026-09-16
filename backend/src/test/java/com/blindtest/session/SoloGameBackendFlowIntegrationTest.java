@@ -250,6 +250,30 @@ class SoloGameBackendFlowIntegrationTest {
     }
 
     @Test
+    void answerRaceWithDeadlineTimerYieldsExactlyOneAuthoritativeOutcome() throws Exception {
+        // E2E-06 (timer/answer race): a correct answer arriving at the exact instant the
+        // authoritative deadline timer fires must resolve to exactly one outcome, never both —
+        // a duplicate reveal would double-score the round and, if it reached completion, write
+        // a duplicate round into durable history.
+        UUID sessionId = createSessionViaRest();
+        Member member = connectMember(owner, sessionId);
+        send(member, sessionId, SessionCommandType.START_GAME, 0, null);
+        awaitPublic(member, "ROUND_STARTED");
+        long startedVersion = currentVersion(sessionId);
+        String title = expectedAnswer(sessionId, 0, true);
+
+        RecordedTask deadline = scheduler.latest();
+        clock.set(deadline.executeAt());
+        runConcurrently(deadline.task(), () -> sendUnchecked(member, sessionId, startedVersion, title));
+
+        JsonNode revealed = awaitPublic(member, "ROUND_REVEALED");
+        assertThat(revealed.at("/payload/outcome").asText()).isIn("TITLE_FOUND", "TIMEOUT");
+        assertThat(currentVersion(sessionId)).isEqualTo(startedVersion + 1);
+        assertThat(drainPublicOfType(member, "ROUND_REVEALED")).isZero();
+        member.session.disconnect();
+    }
+
+    @Test
     void nonMemberCannotObserveOrCommandAnotherOwnersSession() throws Exception {
         UUID sessionId = createSessionViaRest();
 
@@ -426,6 +450,14 @@ class SoloGameBackendFlowIntegrationTest {
             long version,
             String answer) throws Exception {
         sendWithId(member, sessionId, type, version, answer, UUID.randomUUID());
+    }
+
+    private void sendUnchecked(Member member, UUID sessionId, long version, String answer) {
+        try {
+            send(member, sessionId, SessionCommandType.SUBMIT_ANSWER, version, answer);
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private void sendWithId(

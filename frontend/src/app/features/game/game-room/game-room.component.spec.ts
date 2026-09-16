@@ -68,6 +68,7 @@ class FakeGameSocket {
   publicEvents$ = new Subject<PublicSessionEvent>();
   privateEvents$ = new Subject<PrivateSessionEvent>();
   snapshots$ = new Subject<CurrentSnapshotPayload>();
+  fatalError$ = new Subject<string>();
   version = 0;
   connect = jasmine.createSpy('connect');
   disconnect = jasmine.createSpy('disconnect');
@@ -427,6 +428,18 @@ describe('GameRoomComponent', () => {
 
     expect(text(fixture)).toContain('Something went wrong');
     expect(text(fixture)).toContain('This game has ended.');
+  });
+
+  it('enters the error phase on a fatal socket error, such as a lost session', async () => {
+    sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+    const harness = await setup(SESSION_ID);
+    const fixture = harness.create();
+
+    socket.fatalError$.next('This game session is no longer available.');
+    fixture.detectChanges();
+
+    expect(text(fixture)).toContain('Something went wrong');
+    expect(text(fixture)).toContain('This game session is no longer available.');
   });
 
   it('tears down the socket and audio on destroy', async () => {

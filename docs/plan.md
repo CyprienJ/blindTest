@@ -10,7 +10,7 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[E2E-06 — Add failure-injection tests](roadmap/lot-7-hardening.md#e2e-06--add-failure-injection-tests)**
+**[E2E-07 — Add security verification](roadmap/lot-7-hardening.md#e2e-07--add-security-verification)**
 
 Status: ready
 
@@ -42,9 +42,32 @@ concurrent catalogue import does not perturb an in-flight game's requested round
 count, and recorded backend Actuator metrics and event latency throughout; no
 bottleneck was triggered up to 40 concurrent games. Run it with
 `./scripts/load-test.sh`. See [testing](testing.md#load-and-concurrency-smoke-tests)
-and [load testing results](operations/load-testing.md). E2E-06 (Lot 7) is next.
-TEST-06 remains required before automated beta deployment resumes; MEDIA-08
-remains deferred until legacy files need migration.
+and [load testing results](operations/load-testing.md). E2E-06 is complete: all
+seven failure scenarios are covered, each at whichever layer actually exercises
+it — backend integration tests with a real, controllable dependency
+(`MinioMediaStorageIntegrationTest` for MinIO unavailability and expired
+pre-signed URLs, a new Toxiproxy-backed
+`GameHistoryPersistencePostgresFailureIntegrationTest` for a transient
+PostgreSQL connection loss, `SoloGameBackendFlowIntegrationTest` for the
+timer/answer race, `ImportJobRunnerTest` for import-process failure), and a new
+`frontend/e2e-full-stack/failure-injection.spec.ts` for the two scenarios only a
+real browser can observe — a mid-game network disconnect/reconnect, and a
+simulated backend restart (the e2e-only `DELETE /api/e2e/active-sessions`
+backdoor empties `InMemorySessionStore`, reproducing the one externally
+observable effect a real restart has, since this isolated stack's test runner
+has no Docker socket access to actually restart the `backend` container). That
+work surfaced and fixed a real bug: a client whose session vanished from the
+store — by restart or natural expiry — got no error at all; the STOMP
+authorization interceptor's rejection closed the connection, and RxStomp's
+automatic reconnect looped into the same rejection forever, leaving the player
+stuck on "Connecting you to the live game…" indefinitely.
+`GameSocketService` now treats a STOMP `ERROR` frame as fatal and surfaces a
+normal terminal error instead of retrying forever. Expected data-loss
+boundaries of the in-memory session architecture are documented alongside the
+full scenario table in [failure injection](operations/failure-injection.md).
+E2E-07 (Lot 7) is next. TEST-06 remains required before automated beta
+deployment resumes; MEDIA-08 remains deferred until legacy files need
+migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](roadmap/completion-rules.md#definition-of-done), replace it with the next ready,

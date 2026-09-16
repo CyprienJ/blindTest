@@ -138,6 +138,10 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((event) => this.applyPrivate(event));
 
+    this.gameSocket.fatalError$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((message) => this.applyFatalError(message));
+
     this.audioPlayback.status$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((status) => (this.audioStatus = status));
@@ -419,6 +423,12 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       case 'CURRENT_SNAPSHOT':
         return;
     }
+  }
+
+  private applyFatalError(message: string): void {
+    this.gameError = message;
+    this.phase = 'error';
+    this.audioPlayback.stop();
   }
 
   private enterRound(payload: Omit<RoundStartedPayload, 'roundIndex' | 'totalRounds'>): void {

@@ -139,6 +139,13 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Fronts Testcontainers with a controllable network proxy so tests can inject a
+             transient connection failure (E2E-06) instead of only a hard-down dependency. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>toxiproxy</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- H2 in-memory database for tests -->
         <dependency>

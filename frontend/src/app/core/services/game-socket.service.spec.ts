@@ -41,6 +41,7 @@ function meta(sessionVersion: number): SessionEventMetadata {
 class FakeRxStomp {
   config: Record<string, unknown> = {};
   readonly connectionState$ = new BehaviorSubject<RxStompState>(RxStompState.CLOSED);
+  readonly stompErrors$ = new Subject<{ headers: Record<string, string> }>();
   readonly watched = new Map<string, Subject<{ body: string }>>();
   readonly published: { destination?: string; body?: string; headers?: Record<string, string> }[] =
     [];
@@ -223,6 +224,34 @@ describe('GameSocketService', () => {
     client.connectionState$.next(RxStompState.CLOSED);
 
     expect(seen).toEqual(['idle', 'connecting', 'connected', 'reconnecting']);
+  });
+
+  it('surfaces a stomp error frame as a fatal, terminal error and stops reconnecting', () => {
+    const fatalMessages: string[] = [];
+    const statuses: string[] = [];
+    service.fatalError$.subscribe((message) => fatalMessages.push(message));
+    service.status$.subscribe((status) => statuses.push(status));
+
+    service.connect(session);
+    const client = current();
+    client.connectionState$.next(RxStompState.OPEN);
+    client.stompErrors$.next({
+      headers: { message: 'Session is unavailable or access is denied' },
+    });
+
+    expect(fatalMessages).toEqual(['Session is unavailable or access is denied']);
+    expect(client.deactivateCalls).toBe(1);
+    expect(statuses[statuses.length - 1]).toBe('idle');
+  });
+
+  it('falls back to a default message when the error frame has none', () => {
+    const fatalMessages: string[] = [];
+    service.fatalError$.subscribe((message) => fatalMessages.push(message));
+
+    service.connect(session);
+    current().stompErrors$.next({ headers: {} });
+
+    expect(fatalMessages).toEqual(['This game session is no longer available.']);
   });
 
   it('tears down on disconnect and on logout', () => {

@@ -59,4 +59,6 @@ procedure has been rehearsed or automated.
 - [Testing](../testing.md): validation commands and infrastructure requirements.
 - [Load and concurrency smoke tests](load-testing.md): `./scripts/load-test.sh`,
   what it measures, and the latest results.
+- [Failure injection](failure-injection.md): the seven injected failure
+  scenarios, the in-memory data-loss boundary, and where each is covered.
 - [Release acceptance](../roadmap/lot-9-release.md): beta, recovery, security, launch.

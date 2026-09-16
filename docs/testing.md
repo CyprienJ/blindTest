@@ -184,6 +184,28 @@ HikariCP pool, Tomcat threads) alongside event latency throughout. Like
 [load testing](operations/load-testing.md) for what it measures and the latest
 recorded results.
 
+## Failure-injection tests
+
+E2E-06 proves the seven required failure scenarios fail cleanly — no corrupt
+track, no duplicate history, no silent hang — at whichever layer actually
+exercises them. `MinioMediaStorageIntegrationTest` covers MinIO unavailability
+and expired pre-signed URLs against a real MinIO container.
+`GameHistoryPersistencePostgresFailureIntegrationTest` cuts a real PostgreSQL
+connection mid-write with a Toxiproxy container and proves the durable
+game-history write fails without a partial row, then retries cleanly with no
+duplicate. `SoloGameBackendFlowIntegrationTest` races a correct answer against
+the authoritative deadline timer and proves exactly one outcome wins.
+`ImportJobRunnerTest` already exhaustively covers import-process failure at the
+unit level. `frontend/e2e-full-stack/failure-injection.spec.ts` covers the two
+scenarios only a real browser can observe: a mid-game network
+disconnect/reconnect, and a simulated backend restart via the e2e-only
+`DELETE /api/e2e/active-sessions` backdoor, which reproduces
+`InMemorySessionStore` starting empty the way a real restart leaves it. See
+[failure injection](operations/failure-injection.md) for the full scenario
+table, the in-memory data-loss boundary this documents, and a real bug this
+surfaced and fixed (a session-loss STOMP error used to leave the client
+reconnecting forever with no feedback).
+
 ## Schema and configuration checks
 
 PostgreSQL Testcontainers coverage runs Flyway against an empty PostgreSQL 16

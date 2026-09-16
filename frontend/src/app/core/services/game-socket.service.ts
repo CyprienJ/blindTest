@@ -1,6 +1,6 @@
 import { inject, Injectable, InjectionToken, OnDestroy } from '@angular/core';
 import { RxStomp, RxStompState } from '@stomp/rx-stomp';
-import { ReconnectionTimeMode } from '@stomp/stompjs';
+import { IFrame, ReconnectionTimeMode } from '@stomp/stompjs';
 import { BehaviorSubject, filter, map, Observable, Subject, Subscription } from 'rxjs';
 import { AuthService } from './auth.service';
 import { ActiveSoloSession } from '../models/game-session.model';
@@ -58,11 +58,21 @@ export class GameSocketService implements OnDestroy {
   private readonly statusSubject = new BehaviorSubject<GameSocketStatus>('idle');
   private readonly publicSubject = new Subject<PublicSessionEvent>();
   private readonly privateSubject = new Subject<PrivateSessionEvent>();
+  private readonly fatalErrorSubject = new Subject<string>();
   private readonly logoutSubscription: Subscription;
 
   readonly status$ = this.statusSubject.asObservable();
   readonly publicEvents$ = this.publicSubject.asObservable();
   readonly privateEvents$ = this.privateSubject.asObservable();
+  /**
+   * A STOMP ERROR frame closes the connection it arrived on (per the STOMP spec), and the
+   * server sends one whenever this session's destinations are rejected — most commonly because
+   * the session no longer exists (expired, aborted, or lost to an in-memory backend restart).
+   * That rejection is stable: reconnecting and resubscribing to the same destinations fails the
+   * same way every time, so retrying forever would only spin the exponential-backoff loop
+   * without ever recovering. This emits once so the caller can show a terminal error instead.
+   */
+  readonly fatalError$ = this.fatalErrorSubject.asObservable();
   readonly snapshots$: Observable<CurrentSnapshotPayload> = this.privateSubject.pipe(
     filter((event) => event.type === 'CURRENT_SNAPSHOT'),
     map((event) => event.payload as CurrentSnapshotPayload),
@@ -112,6 +122,9 @@ export class GameSocketService implements OnDestroy {
     this.clientSubscriptions = new Subscription();
     this.clientSubscriptions.add(
       client.connectionState$.subscribe((state) => this.onConnectionState(state)),
+    );
+    this.clientSubscriptions.add(
+      client.stompErrors$.subscribe((frame) => this.onStompError(frame)),
     );
     this.clientSubscriptions.add(
       client
@@ -209,6 +222,12 @@ export class GameSocketService implements OnDestroy {
       // RxStomp will retry automatically while the client stays active.
       this.statusSubject.next(this.everConnected ? 'reconnecting' : 'connecting');
     }
+  }
+
+  private onStompError(frame: IFrame): void {
+    const message = frame.headers['message'] || 'This game session is no longer available.';
+    this.disconnect();
+    this.fatalErrorSubject.next(message);
   }
 
   private emitPublic(body: string): void {

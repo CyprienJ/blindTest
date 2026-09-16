@@ -45,6 +45,7 @@ describe('Game room answer feedback', () => {
             snapshots$: snapshots,
             privateEvents$: privateEvents,
             publicEvents$: publicEvents,
+            fatalError$: new Subject<string>(),
           },
         },
         {

@@ -5,6 +5,8 @@ import com.blindtest.model.entity.UserRole;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.service.FirstAdminProvisioningResult;
 import com.blindtest.service.FirstAdminProvisioningService;
+import com.blindtest.store.SessionStore;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
@@ -29,6 +31,7 @@ public class E2eTestSupportController {
     private final FakeEmailSender fakeEmailSender;
     private final FirstAdminProvisioningService firstAdminProvisioningService;
     private final UserRepository userRepository;
+    private final SessionStore sessionStore;
 
     /** Returns every captured email sent to {@code to}, oldest first. */
     @GetMapping("/api/e2e/emails")
@@ -68,5 +71,19 @@ public class E2eTestSupportController {
         List<UserEntity> administrators = userRepository.findByRole(UserRole.ADMIN);
         administrators.forEach(admin -> admin.setRole(UserRole.USER));
         userRepository.saveAll(administrators);
+    }
+
+    /**
+     * Discards every active in-memory game session, simulating exactly what a real backend
+     * process restart does to {@link com.blindtest.store.InMemorySessionStore} (E2E-06): the
+     * store is process-local and holds no durable record of in-progress games, so a restart
+     * loses them the same way this backdoor does. Actually restarting the backend container
+     * isn't reachable from this isolated stack's browser-driven test runner, so this reproduces
+     * the one externally observable effect a real restart has on active gameplay.
+     */
+    @DeleteMapping("/api/e2e/active-sessions")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void discardActiveSessions() {
+        sessionStore.removeExpiredSessions(Instant.MAX);
     }
 }

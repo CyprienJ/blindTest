@@ -34,7 +34,9 @@ yarn-error.log
 /connect.lock
 /coverage
 /playwright-report
+/playwright-report-full-stack
 /test-results
+/test-results-full-stack
 /libpeerconnection.log
 testem.log
 /typings

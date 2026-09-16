@@ -52,8 +52,14 @@ are complete, both validated against the same real full-stack stack. E2E-05 is
 complete: `load-tests/` (headless REST+STOMP, no browser) proved 10 and 40
 concurrent solo games complete correctly with reconciled scores/summaries and no
 bottleneck triggered at that scale; see
-[load testing results](../operations/load-testing.md). The next ticket is E2E-06
-(Lot 7). Later tickets still require their own acceptance validation.
+[load testing results](../operations/load-testing.md). E2E-06 is complete: all
+seven required failure scenarios (MinIO/PostgreSQL unavailability, backend
+restart, browser disconnect/reconnect, import failure, expired pre-signed URL,
+timer/answer race) fail cleanly, and fixed a real bug where a client whose
+session vanished from the store reconnected into the same rejection forever
+with no feedback; see [failure injection](../operations/failure-injection.md).
+The next ticket is E2E-07 (Lot 7). Later tickets still require their own
+acceptance validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).
 
