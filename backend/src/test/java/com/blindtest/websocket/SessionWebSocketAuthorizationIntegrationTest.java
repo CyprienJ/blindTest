@@ -248,14 +248,32 @@ class SessionWebSocketAuthorizationIntegrationTest {
         assertThatThrownBy(() -> connect(null, handler)).isInstanceOf(Exception.class);
     }
 
+    @Test
+    void realStompHandshakeRejectsUntrustedOrigin() {
+        RecordingSessionHandler handler = new RecordingSessionHandler();
+
+        assertThatThrownBy(() -> connect(
+                accessToken(UUID.randomUUID()), handler, "https://untrusted.example")).
+                isInstanceOf(Exception.class);
+    }
+
     private StompSession connect(String token, RecordingSessionHandler handler) throws Exception {
+        return connect(token, handler, null);
+    }
+
+    private StompSession connect(String token, RecordingSessionHandler handler, String origin)
+            throws Exception {
         StompHeaders connectHeaders = new StompHeaders();
         if (token != null) {
             connectHeaders.add("Authorization", "Bearer " + token);
         }
+        WebSocketHttpHeaders handshakeHeaders = new WebSocketHttpHeaders();
+        if (origin != null) {
+            handshakeHeaders.setOrigin(origin);
+        }
         return stompClient.connectAsync(
                 "ws://127.0.0.1:" + port + SessionProtocol.WEB_SOCKET_ENDPOINT,
-                new WebSocketHttpHeaders(),
+                handshakeHeaders,
                 connectHeaders,
                 handler).
                 get(WAIT.toSeconds(), TimeUnit.SECONDS);

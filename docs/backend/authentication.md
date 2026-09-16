@@ -28,7 +28,8 @@ Frontend guards guide navigation; backend checks remain authoritative.
 STOMP `CONNECT` uses an access JWT in its native `Authorization` header. Subsequent
 game commands and subscriptions require active membership and exact destinations.
 A connected session can survive access-token expiry, but reconnecting requires a
-valid token. Private events use principal-scoped queues. Read the
+valid token. Browser WebSocket handshakes must also originate from the configured
+CORS origin. Private events use principal-scoped queues. Read the
 [STOMP contract](../websocket-protocol.md) for the exact authorization protocol.
 
 ## Configuration and operations

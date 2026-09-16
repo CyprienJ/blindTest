@@ -58,7 +58,11 @@ restart, browser disconnect/reconnect, import failure, expired pre-signed URL,
 timer/answer race) fail cleanly, and fixed a real bug where a client whose
 session vanished from the store reconnected into the same rejection forever
 with no feedback; see [failure injection](../operations/failure-injection.md).
-The next ticket is E2E-07 (Lot 7). Later tickets still require their own
+E2E-07 is complete: security verification covers the authorization matrix,
+enumeration boundaries, browser transport controls, request/rate limits, private
+media URLs, secret scanning, dependency auditing, and documented residual
+findings; see [security verification](../operations/security-verification.md).
+The next ticket is OPS-01 (Lot 8). Later tickets still require their own
 acceptance validation.
 See the [frontend lot](../roadmap/lot-6-frontend.md) and
 [gameplay client](../frontend/gameplay.md).

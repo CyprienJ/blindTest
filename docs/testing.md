@@ -213,6 +213,13 @@ database and validates Hibernate mappings, constraints, cascades, and queries.
 Schema-independent Spring tests may use H2 with Flyway disabled and
 `ddl-auto=create-drop`. H2 does not substitute for PostgreSQL schema validation.
 
+## Security verification
+
+E2E-07 security evidence and the release finding register are maintained in
+[security verification](operations/security-verification.md). The verification
+covers authorization, enumeration, request bounds, gameplay rate limits, browser
+headers/CORS/cookies, private media URLs, secret scanning, and dependency audits.
+
 After Compose edits, run `docker compose config --quiet` from the repository root.
 Use populated environment values when validating deployment configuration.
 

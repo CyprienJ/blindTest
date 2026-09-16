@@ -10,7 +10,7 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[E2E-07 — Add security verification](roadmap/lot-7-hardening.md#e2e-07--add-security-verification)**
+**[OPS-01 — Produce production-ready images](roadmap/lot-8-operations.md#ops-01--produce-production-ready-images)**
 
 Status: ready
 
@@ -65,9 +65,12 @@ stuck on "Connecting you to the live game…" indefinitely.
 normal terminal error instead of retrying forever. Expected data-loss
 boundaries of the in-memory session architecture are documented alongside the
 full scenario table in [failure injection](operations/failure-injection.md).
-E2E-07 (Lot 7) is next. TEST-06 remains required before automated beta
-deployment resumes; MEDIA-08 remains deferred until legacy files need
-migration.
+E2E-07 is complete: security verification covers the REST and STOMP authorization
+matrix, enumeration boundaries, request and gameplay limits, browser headers,
+CORS/cookies, private signed-media handling, secret scanning, dependency auditing,
+and documented residual findings in [security verification](operations/security-verification.md).
+TEST-06 remains required before automated beta deployment resumes; MEDIA-08
+remains deferred until legacy files need migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](roadmap/completion-rules.md#definition-of-done), replace it with the next ready,
