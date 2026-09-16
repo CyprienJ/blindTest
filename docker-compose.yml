@@ -4,6 +4,8 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 512m
     environment:
       POSTGRES_DB:       ${POSTGRES_DB:-blindtest}
       POSTGRES_USER:     ${POSTGRES_USER:-blindtest}
@@ -23,6 +25,8 @@ services:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     command: server /data --console-address ":9001"
     restart: unless-stopped
+    cpus: "0.75"
+    mem_limit: 1g
     environment:
       MINIO_ROOT_USER:            ${S3_ACCESS_KEY}
       MINIO_ROOT_PASSWORD:        ${S3_SECRET_KEY}
@@ -44,6 +48,8 @@ services:
   minio-init:
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z
     restart: "no"
+    cpus: "0.25"
+    mem_limit: 128m
     entrypoint: ["/bin/sh", "/config/init.sh"]
     environment:
       MINIO_ENDPOINT:      http://minio:9000
@@ -99,6 +105,7 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
     cpus: ${BACKEND_CPU_LIMIT:-1.0}
+    mem_limit: 1g
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 10s
@@ -120,6 +127,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
+    cpus: "0.25"
+    mem_limit: 256m
     ports:
       - "127.0.0.1:${APP_PORT:-8090}:80"   # nginx système proxie ici
     read_only: true
@@ -132,7 +141,10 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - internal
+      internal: {}
+      proxy:
+        aliases:
+          - nosblindtests
 
 volumes:
   postgres_data:
@@ -142,3 +154,8 @@ volumes:
 networks:
   internal:
     driver: bridge
+  # Created and shared by the existing Nginx Proxy Manager installation.
+  # Production deployment must provision this network before starting the stack.
+  proxy:
+    name: proxy
+    external: true

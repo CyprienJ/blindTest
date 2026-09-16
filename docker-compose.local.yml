@@ -19,3 +19,8 @@ services:
     build:
       args:
         ANGULAR_CONFIGURATION: development
+
+networks:
+  proxy:
+    name: blindtest_proxy
+    external: false

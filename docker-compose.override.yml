@@ -18,3 +18,9 @@ services:
     build:
       args:
         ANGULAR_CONFIGURATION: development
+
+networks:
+  # Local development has no pre-existing Nginx Proxy Manager network.
+  proxy:
+    name: blindtest_proxy
+    external: false

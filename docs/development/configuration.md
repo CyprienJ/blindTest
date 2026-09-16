@@ -32,6 +32,11 @@ Development is the default Spring profile. Compose automatically applies
 Cloudflare's matching public test keys. The base Compose file is production-like:
 selecting it alone requires valid production secrets and HTTPS endpoints.
 
+The production frontend joins the external Docker network `proxy` with the alias
+`nosblindtests`; Nginx Proxy Manager uses that alias as its application target.
+Local Compose overrides replace that external network with a project-local
+`blindtest_proxy` network so local startup does not depend on the VPS proxy.
+
 The browser must be able to reach the public S3 endpoint embedded in signed URLs.
 An internal Compose hostname works for backend storage calls but is not normally
 a browser-reachable media hostname. Keep CORS restricted to the intended browser

@@ -4,10 +4,40 @@
 
 ## Runtime topology
 
-Docker Compose runs PostgreSQL 16, MinIO, a one-shot bucket initializer, the backend,
-and the Nginx-served frontend. Nginx proxies REST and WebSocket traffic and retains
-legacy `/media` serving. Named volumes persist PostgreSQL, MinIO, and legacy audio.
-Active gameplay state is process-local and is lost on backend restart.
+The production Compose project runs PostgreSQL 16, MinIO, a one-shot bucket
+initializer, the backend, and the Nginx-served frontend. PostgreSQL, MinIO, the
+initializer, and the backend use the private `internal` bridge network. The
+frontend uses both `internal` and the pre-existing external Docker network
+`proxy`, where it has the stable alias `nosblindtests`. Nginx Proxy Manager can
+therefore route the application hostname to `nosblindtests:80` without binding a
+second public host port.
+
+The frontend may also bind `127.0.0.1:${APP_PORT:-8090}:80` for VPS diagnostics.
+MinIO's API and console bind localhost only for operator diagnostics; PostgreSQL
+has no host port. No service in this stack binds a public host port. Named volumes
+persist PostgreSQL, MinIO, and legacy audio. Active gameplay state is process-local
+and is lost on backend restart.
+
+The Compose resource budget is PostgreSQL 0.50 CPU/512 MiB, MinIO 0.75 CPU/1 GiB,
+the initializer 0.25 CPU/128 MiB, the backend up to `BACKEND_CPU_LIMIT` CPU/1 GiB,
+and the frontend 0.25 CPU/256 MiB. Long-running services use
+`restart: unless-stopped`; the initializer runs once after MinIO is healthy.
+
+On a reboot, Docker restarts the long-running services and Compose's dependency
+health checks gate the backend and frontend. The external `proxy` network must
+already exist because it belongs to Nginx Proxy Manager:
+
+```bash
+docker network inspect proxy >/dev/null \
+  || docker network create --driver bridge proxy
+docker compose -p blindtest-prod up -d
+docker compose -p blindtest-prod ps
+```
+
+The production deployment directory must contain only the production
+`docker-compose.yml` and its restricted `.env`; local Compose overrides are not
+copied there. The existing Nginx Proxy Manager container must be connected to
+`proxy` as well.
 
 For the single-VPS target, a host reverse proxy supplies TLS and routes the app
 and public media endpoint. Keep PostgreSQL, the backend port, and the MinIO console
