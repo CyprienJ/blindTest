@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { provideZoneChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
@@ -71,10 +72,12 @@ describe('EndScreenComponent', () => {
   });
 
   async function setup(sessionId: string | null) {
+    TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [EndScreenComponent],
       providers: [
         provideRouter([]),
+        provideZoneChangeDetection(),
         { provide: GameSessionService, useValue: service },
         {
           provide: ActivatedRoute,
@@ -84,9 +87,11 @@ describe('EndScreenComponent', () => {
     }).compileComponents();
     return {
       navigate: spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true),
-      create: (): ComponentFixture<EndScreenComponent> => {
+      create: async (): Promise<ComponentFixture<EndScreenComponent>> => {
         const fixture = TestBed.createComponent(EndScreenComponent);
-        fixture.detectChanges();
+        fixture.changeDetectorRef.detectChanges();
+        fixture.autoDetectChanges();
+        await fixture.whenStable();
         return fixture;
       },
     };
@@ -98,7 +103,7 @@ describe('EndScreenComponent', () => {
 
   it('shows a loading state before the summary resolves', async () => {
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     expect(service.requests).toEqual([SESSION_ID]);
     expect(text(fixture)).toContain('Loading your summary');
@@ -106,10 +111,11 @@ describe('EndScreenComponent', () => {
 
   it('renders the durable summary once it resolves', async () => {
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     service.emit(summary);
-    fixture.detectChanges();
+    fixture.changeDetectorRef.markForCheck();
+    fixture.changeDetectorRef.detectChanges();
 
     const content = text(fixture);
     expect(content).toContain('940');
@@ -128,10 +134,11 @@ describe('EndScreenComponent', () => {
 
   it('shows a not-found message on a 404 and offers a way back', async () => {
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     service.fail(new HttpErrorResponse({ status: 404 }));
-    fixture.detectChanges();
+    fixture.changeDetectorRef.markForCheck();
+    fixture.changeDetectorRef.detectChanges();
 
     expect(text(fixture)).toContain("couldn't find a summary");
     expect(fixture.nativeElement.querySelector('a[href="/lobby/create"]')).not.toBeNull();
@@ -139,17 +146,17 @@ describe('EndScreenComponent', () => {
 
   it('shows a generic error message on an unexpected failure', async () => {
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     service.fail(new HttpErrorResponse({ status: 500 }));
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
 
     expect(text(fixture)).toContain('Something went wrong');
   });
 
   it('shows an error state when the route has no session id', async () => {
     const harness = await setup(null);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     expect(service.requests).toEqual([]);
     expect(text(fixture)).toContain('missing a game to summarize');

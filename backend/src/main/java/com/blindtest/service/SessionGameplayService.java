@@ -372,6 +372,7 @@ public class SessionGameplayService {
         if (!persist(session, persisted)) {
             return false;
         }
+        scheduleDeadline(persisted, roundIndex, window.deadline());
         publishPublic(
                 persisted,
                 PublicSessionEventType.ROUND_STARTED,
@@ -382,7 +383,6 @@ public class SessionGameplayService {
                         window.deadline(),
                         round.track().playback().excerptStartSeconds(),
                         Optional.of(playbackUrl)));
-        scheduleDeadline(persisted, roundIndex, window.deadline());
         return true;
     }
 

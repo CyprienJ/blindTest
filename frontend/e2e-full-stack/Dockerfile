@@ -1,6 +1,6 @@
 # Runs the full-stack Playwright suite (playwright.full-stack.config.ts) against the isolated
 # Compose stack defined in ../../docker-compose.test.yml. Built by the `tests` service there.
-FROM node:22-bookworm-slim
+FROM node:22.22.3-bookworm-slim
 WORKDIR /app
 
 COPY package*.json ./

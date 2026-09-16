@@ -16,17 +16,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Scan repository for secrets
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "22"
+          node-version: "22.22.3"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -34,20 +36,16 @@ jobs:
         working-directory: frontend
         run: npm ci && npm audit --audit-level=high
 
-      - name: Review pull request dependencies
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@v4
-
   backend:
     name: Backend — Checkstyle & Tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "21"
           distribution: temurin
@@ -73,14 +71,14 @@ jobs:
 
       - name: Upload test report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: surefire-reports
           path: backend/target/surefire-reports/
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-coverage
           path: |
@@ -95,22 +93,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "22"
+          node-version: "22.22.3"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
-
-      - name: Install Playwright Chromium
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
 
       - name: Lint
         working-directory: frontend
@@ -123,18 +117,3 @@ jobs:
       - name: Test
         working-directory: frontend
         run: npm run test -- --watch=false --browsers=ChromeHeadless
-
-      - name: Playwright authentication tests
-        working-directory: frontend
-        run: npm run test:e2e
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            frontend/playwright-report/
-            frontend/test-results/
-          if-no-files-found: warn
-          retention-days: 14

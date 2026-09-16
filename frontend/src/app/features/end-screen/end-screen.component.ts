@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GameSummary, GameSummaryRound } from '../../core/models/game-summary.model';
@@ -18,6 +18,7 @@ export class EndScreenComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly gameSessions = inject(GameSessionService);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   view: EndScreenView = 'loading';
   summary: GameSummary | null = null;
@@ -28,6 +29,7 @@ export class EndScreenComponent implements OnInit {
     if (!sessionId) {
       this.view = 'error';
       this.errorMessage = 'This link is missing a game to summarize.';
+      this.changeDetector.markForCheck();
       return;
     }
 
@@ -35,6 +37,7 @@ export class EndScreenComponent implements OnInit {
       next: (summary) => {
         this.summary = summary;
         this.view = 'ready';
+        this.changeDetector.markForCheck();
       },
       error: (response: HttpErrorResponse) => {
         this.errorMessage =
@@ -42,6 +45,7 @@ export class EndScreenComponent implements OnInit {
             ? "We couldn't find a summary for this game."
             : 'Something went wrong loading this summary.';
         this.view = 'error';
+        this.changeDetector.markForCheck();
       },
     });
   }

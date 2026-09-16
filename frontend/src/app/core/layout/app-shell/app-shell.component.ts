@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
@@ -13,6 +13,7 @@ import { AuthService } from '../../services/auth.service';
 export class AppShellComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   readonly currentUser$ = this.authService.currentUser$;
   signingOut = false;
@@ -20,6 +21,7 @@ export class AppShellComponent {
   signOut(): void {
     if (this.signingOut) return;
     this.signingOut = true;
+    this.changeDetector.markForCheck();
     this.authService.logout().subscribe({
       next: () => this.finishSignOut(),
       error: () => this.finishSignOut(),
@@ -37,6 +39,7 @@ export class AppShellComponent {
 
   private finishSignOut(): void {
     this.signingOut = false;
+    this.changeDetector.markForCheck();
     void this.router.navigate(['/']);
   }
 }

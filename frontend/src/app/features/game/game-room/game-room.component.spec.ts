@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZoneChangeDetection } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { ActiveSoloSession } from '../../../core/models/game-session.model';
@@ -106,10 +107,12 @@ describe('GameRoomComponent', () => {
   });
 
   async function setup(sessionId: string) {
+    TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [GameRoomComponent],
       providers: [
         provideRouter([]),
+        provideZoneChangeDetection(),
         { provide: GameSocketService, useValue: socket },
         { provide: AudioPlaybackService, useValue: audio },
         {
@@ -120,9 +123,11 @@ describe('GameRoomComponent', () => {
     }).compileComponents();
     return {
       navigate: spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true),
-      create: (): ComponentFixture<GameRoomComponent> => {
+      create: async (): Promise<ComponentFixture<GameRoomComponent>> => {
         const fixture = TestBed.createComponent(GameRoomComponent);
-        fixture.detectChanges();
+        fixture.changeDetectorRef.detectChanges();
+        fixture.autoDetectChanges();
+        await fixture.whenStable();
         return fixture;
       },
     };
@@ -134,7 +139,7 @@ describe('GameRoomComponent', () => {
 
   it('redirects to configuration when there is no stored session', async () => {
     const harness = await setup('unknown');
-    harness.create();
+    await harness.create();
     expect(harness.navigate).toHaveBeenCalledWith(['/lobby/create']);
     expect(socket.connect).not.toHaveBeenCalled();
   });
@@ -142,7 +147,7 @@ describe('GameRoomComponent', () => {
   it('connects and shows the setup card for a stored session', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     expect(socket.connect).toHaveBeenCalledWith(active);
     expect(text(fixture)).toContain('Setting up your game');
@@ -152,7 +157,7 @@ describe('GameRoomComponent', () => {
   it('requests a snapshot once on first connect and starts a CREATED game', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    harness.create();
+    await harness.create();
 
     socket.status$.next('connected');
     socket.status$.next('connected');
@@ -165,10 +170,10 @@ describe('GameRoomComponent', () => {
   it('enters the round on ROUND_STARTED, schedules audio and counts down', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     socket.publicEvents$.next(roundStarted(0));
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
 
     expect(audio.scheduleRound).toHaveBeenCalledWith({
       url: 'https://media.example/excerpt.mp3?sig=abc',
@@ -182,14 +187,14 @@ describe('GameRoomComponent', () => {
 
     jasmine.clock().mockDate(new Date(NOW + 5_000));
     jasmine.clock().tick(250);
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
     expect(text(fixture)).toContain('25s left');
   });
 
   it('submits an answer once and never twice for a rapid double submit', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
     const component = fixture.componentInstance;
     socket.status$.next('connected');
     socket.publicEvents$.next(roundStarted(0));
@@ -218,7 +223,7 @@ describe('GameRoomComponent', () => {
   it('skips the round and disables commands while reconnecting', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
     const component = fixture.componentInstance;
     socket.publicEvents$.next(roundStarted(0));
 
@@ -227,7 +232,7 @@ describe('GameRoomComponent', () => {
     expect(socket.skipRound).toHaveBeenCalledTimes(1);
 
     socket.status$.next('reconnecting');
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
     expect(text(fixture)).toContain('reconnecting');
     expect(component.canSubmit).toBeFalse();
     expect(component.canSkip).toBeFalse();
@@ -240,7 +245,7 @@ describe('GameRoomComponent', () => {
   it('reveals the current title and waits for the server to start the next round', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
     socket.publicEvents$.next(roundStarted(0));
 
     socket.publicEvents$.next({
@@ -259,21 +264,21 @@ describe('GameRoomComponent', () => {
         transitionAt: new Date(NOW + 4_000).toISOString(),
       },
     });
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
 
     expect(audio.stop).toHaveBeenCalled();
     expect(text(fixture)).toContain('+120 points');
     expect(text(fixture)).toContain('Take On Me');
     expect(text(fixture)).toContain('Next track in 4 seconds');
     jasmine.clock().tick(5000);
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
     expect(text(fixture)).toContain('Waiting for the next track');
     expect(fixture.componentInstance.phase).toBe('revealed');
     expect(socket.advanceRound).not.toHaveBeenCalled();
     expect(fixture.nativeElement.querySelector('#answer-input')).toBeNull();
 
     socket.publicEvents$.next(roundStarted(1));
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
     expect(fixture.nativeElement.querySelector('#answer-input')).not.toBeNull();
   });
 
@@ -281,7 +286,7 @@ describe('GameRoomComponent', () => {
     it(`recovers a final ${outcome} reveal and guards the finish action`, async () => {
       sessionStorage.setItem('active_solo_session', JSON.stringify(active));
       const harness = await setup(SESSION_ID);
-      const fixture = harness.create();
+      const fixture = await harness.create();
       socket.status$.next('reconnecting');
       socket.snapshots$.next({
         ...snapshot('PLAYING'),
@@ -303,7 +308,7 @@ describe('GameRoomComponent', () => {
           roundPoints: outcome === 'TITLE_FOUND' ? 100 : 0,
         },
       });
-      fixture.detectChanges();
+      fixture.changeDetectorRef.detectChanges();
       expect(text(fixture)).toContain('Final title');
       expect(text(fixture)).toContain('Composer name');
       expect(text(fixture)).toContain('Album name');
@@ -323,14 +328,14 @@ describe('GameRoomComponent', () => {
       fixture.componentInstance.advance();
       expect(socket.advanceRound).not.toHaveBeenCalled();
       socket.status$.next('connected');
-      fixture.detectChanges();
+      fixture.changeDetectorRef.detectChanges();
       expect(button.textContent).toContain('Finish now');
       button.click();
       fixture.componentInstance.advance();
       expect(socket.advanceRound).toHaveBeenCalledTimes(1);
       expect(fixture.componentInstance.phase).toBe('revealed');
       jasmine.clock().tick(2000);
-      fixture.detectChanges();
+      fixture.changeDetectorRef.detectChanges();
       expect(text(fixture)).toContain('Waiting for results');
       expect(audio.scheduleRound).not.toHaveBeenCalled();
       socket.publicEvents$.next({
@@ -344,7 +349,7 @@ describe('GameRoomComponent', () => {
           timedOutRounds: 4,
         },
       });
-      fixture.detectChanges();
+      fixture.changeDetectorRef.detectChanges();
       expect(text(fixture)).toContain('Game finished');
       expect(text(fixture)).not.toContain('Final title');
     });
@@ -353,7 +358,7 @@ describe('GameRoomComponent', () => {
   it('renders the finished panel and replays', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     socket.publicEvents$.next({
       metadata: meta(40),
@@ -366,7 +371,7 @@ describe('GameRoomComponent', () => {
         timedOutRounds: 2,
       },
     });
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
 
     expect(text(fixture)).toContain('Game finished');
     expect(text(fixture)).toContain('940');
@@ -379,7 +384,7 @@ describe('GameRoomComponent', () => {
   it('recovers a PLAYING game from a snapshot', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     socket.snapshots$.next({
       gameStatus: 'PLAYING',
@@ -404,7 +409,7 @@ describe('GameRoomComponent', () => {
       discoveredAnswerTypes: [],
       expiresAt: active.expiresAt,
     });
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
 
     expect(socket.startGame).not.toHaveBeenCalled();
     expect(audio.scheduleRound).toHaveBeenCalled();
@@ -415,7 +420,7 @@ describe('GameRoomComponent', () => {
   it('enters the error phase on a non-recoverable game error', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     socket.privateEvents$.next({
       metadata: meta(9),
@@ -424,7 +429,7 @@ describe('GameRoomComponent', () => {
       type: 'ERROR',
       payload: { code: 'SESSION_EXPIRED', message: 'This game has ended.', recoverable: false },
     });
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
 
     expect(text(fixture)).toContain('Something went wrong');
     expect(text(fixture)).toContain('This game has ended.');
@@ -433,10 +438,10 @@ describe('GameRoomComponent', () => {
   it('enters the error phase on a fatal socket error, such as a lost session', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    const fixture = harness.create();
+    const fixture = await harness.create();
 
     socket.fatalError$.next('This game session is no longer available.');
-    fixture.detectChanges();
+    fixture.changeDetectorRef.detectChanges();
 
     expect(text(fixture)).toContain('Something went wrong');
     expect(text(fixture)).toContain('This game session is no longer available.');
@@ -445,7 +450,7 @@ describe('GameRoomComponent', () => {
   it('tears down the socket and audio on destroy', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
-    harness.create().destroy();
+    (await harness.create()).destroy();
     expect(socket.disconnect).toHaveBeenCalled();
     expect(audio.stop).toHaveBeenCalled();
   });

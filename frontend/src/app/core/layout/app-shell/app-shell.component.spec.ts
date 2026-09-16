@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { UserSummary } from '../../models/user.model';
@@ -23,16 +24,18 @@ describe('AppShellComponent', () => {
   afterEach(() => localStorage.clear());
 
   async function render(role: string | null): Promise<HTMLElement> {
+    TestBed.resetTestingModule();
     if (role) {
       localStorage.setItem('access_token', 'access-token');
       localStorage.setItem('current_user', JSON.stringify(user(role)));
     }
     await TestBed.configureTestingModule({
       imports: [AppShellComponent],
-      providers: [provideHttpClient(), provideRouter([])],
+      providers: [provideHttpClient(), provideRouter([]), provideZoneChangeDetection()],
     }).compileComponents();
     fixture = TestBed.createComponent(AppShellComponent);
-    fixture.detectChanges();
+    fixture.changeDetectorRef.markForCheck();
+    fixture.changeDetectorRef.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
 
@@ -80,7 +83,8 @@ describe('AppShellComponent', () => {
   it('removes privileged navigation when the session is cleared', async () => {
     const element = await render('ADMIN');
     TestBed.inject(AuthService).clearSession();
-    fixture.detectChanges();
+    fixture.changeDetectorRef.markForCheck();
+    fixture.changeDetectorRef.detectChanges();
     expect(element.querySelector('a[href="/admin"]')).toBeNull();
     expect(element.querySelector('.bt-topbar-account')).toBeNull();
   });
@@ -91,7 +95,8 @@ describe('AppShellComponent', () => {
     const logout = spyOn(TestBed.inject(AuthService), 'logout').and.returnValue(pending);
     fixture.componentInstance.signOut();
     fixture.componentInstance.signOut();
-    fixture.detectChanges();
+    fixture.changeDetectorRef.markForCheck();
+    fixture.changeDetectorRef.detectChanges();
     expect(logout).toHaveBeenCalledTimes(1);
     expect(fixture.nativeElement.querySelector('button').disabled).toBeTrue();
     pending.complete();

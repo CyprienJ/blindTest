@@ -29,7 +29,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
 @Testcontainers
 class MinioMediaStorageIntegrationTest {
 
-    private static final String IMAGE = "minio/minio:RELEASE.2025-09-07T16-13-09Z";
+    private static final String IMAGE = "quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z";
     private static final String ACCESS_KEY = "integration-access";
     private static final String SECRET_KEY = "integration-secret";
     private static final String BUCKET = "integration-media";

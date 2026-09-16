@@ -1,5 +1,6 @@
 import {
   Component,
+  ChangeDetectorRef,
   DestroyRef,
   ElementRef,
   inject,
@@ -54,6 +55,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   private readonly gameSessions = inject(GameSessionService);
   private readonly gameSocket = inject(GameSocketService);
   private readonly audioPlayback = inject(AudioPlaybackService);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   @ViewChild('answerInput') private answerInput?: ElementRef<HTMLInputElement>;
 
@@ -124,35 +126,45 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.snapshotRequested = true;
         this.gameSocket.requestSnapshot();
       }
+      this.changeDetector.markForCheck();
     });
 
-    this.gameSocket.snapshots$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((snapshot) => this.applySnapshot(snapshot));
+    this.gameSocket.snapshots$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((snapshot) => {
+      this.applySnapshot(snapshot);
+      this.changeDetector.markForCheck();
+    });
 
-    this.gameSocket.publicEvents$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => this.applyPublic(event));
+    this.gameSocket.publicEvents$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
+      this.applyPublic(event);
+      this.changeDetector.markForCheck();
+    });
 
-    this.gameSocket.privateEvents$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => this.applyPrivate(event));
+    this.gameSocket.privateEvents$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
+      this.applyPrivate(event);
+      this.changeDetector.markForCheck();
+    });
 
-    this.gameSocket.fatalError$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((message) => this.applyFatalError(message));
+    this.gameSocket.fatalError$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((message) => {
+      this.applyFatalError(message);
+      this.changeDetector.markForCheck();
+    });
 
-    this.audioPlayback.status$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((status) => (this.audioStatus = status));
+    this.audioPlayback.status$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
+      this.audioStatus = status;
+      this.changeDetector.markForCheck();
+    });
 
-    this.audioPlayback.error$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((message) => (this.audioError = message));
+    this.audioPlayback.error$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((message) => {
+      this.audioError = message;
+      this.changeDetector.markForCheck();
+    });
 
     timer(0, 250)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.tick());
+      .subscribe(() => {
+        this.tick();
+        this.changeDetector.markForCheck();
+      });
   }
 
   ngOnDestroy(): void {
