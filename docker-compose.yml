@@ -91,6 +91,7 @@ services:
       APP_IMPORT_TEMP_DIR:             ${APP_IMPORT_TEMP_DIR:-/tmp/blindtest-imports}
       APP_IMPORT_MAX_SIZE_BYTES:       ${APP_IMPORT_MAX_SIZE_BYTES:-26214400}
       APP_IMPORT_TIMEOUT:              ${APP_IMPORT_TIMEOUT:-10m}
+      APP_IMPORT_YOUTUBE_COOKIES_FILE: ${APP_IMPORT_YOUTUBE_COOKIES_FILE:-}
       APP_SESSION_INACTIVE_TTL:        ${APP_SESSION_INACTIVE_TTL:-30m}
       APP_SESSION_FINISHED_TTL:        ${APP_SESSION_FINISHED_TTL:-5m}
       APP_SESSION_CLEANUP_DELAY:       ${APP_SESSION_CLEANUP_DELAY:-PT1M}
@@ -104,6 +105,7 @@ services:
       S3_PRESIGNED_URL_TTL:            ${S3_PRESIGNED_URL_TTL:-5m}
     volumes:
       - media:/media
+      - ./secrets:/run/secrets:ro
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777

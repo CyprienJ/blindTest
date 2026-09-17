@@ -94,7 +94,7 @@ class ImportJobRunnerTest {
                 ytDlpWrapper,
                 messagingTemplate,
                 mediaStorage,
-                new ImportProperties(tempRoot, 8, Duration.ofMinutes(1)),
+                new ImportProperties(tempRoot, 8, Duration.ofMinutes(1), null),
                 trackMediaService,
                 new ObjectMapper(),
                 waveformGenerator);
@@ -225,7 +225,7 @@ class ImportJobRunnerTest {
                 ytDlpWrapper,
                 messagingTemplate,
                 mediaStorage,
-                new ImportProperties(tempRoot, maxSize, Duration.ofMinutes(1)),
+                new ImportProperties(tempRoot, maxSize, Duration.ofMinutes(1), null),
                 trackMediaService,
                 new ObjectMapper(),
                 waveformGenerator);
@@ -275,7 +275,7 @@ class ImportJobRunnerTest {
                 ytDlpWrapper,
                 messagingTemplate,
                 mediaStorage,
-                new ImportProperties(tempRoot, 8, Duration.ofMillis(1)),
+                new ImportProperties(tempRoot, 8, Duration.ofMillis(1), null),
                 trackMediaService,
                 new ObjectMapper(),
                 waveformGenerator);

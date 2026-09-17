@@ -20,6 +20,7 @@ Never commit credentials or the populated `.env` file.
 | `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Private object storage configuration |
 | `MINIO_API_PORT`, `MINIO_CONSOLE_PORT` | Local storage service access |
 | `APP_IMPORT_TEMP_DIR`, `APP_IMPORT_MAX_SIZE_BYTES`, `APP_IMPORT_TIMEOUT`, `BACKEND_CPU_LIMIT` | Import workspace/resource bounds |
+| `APP_IMPORT_YOUTUBE_COOKIES_FILE` | Optional absolute container path to a Netscape-format YouTube cookie file |
 | `MEDIA_DELETION_POLL_DELAY_MS` | Media cleanup polling interval |
 
 Session defaults in `application.properties` are `app.session.inactive-ttl=30m`,

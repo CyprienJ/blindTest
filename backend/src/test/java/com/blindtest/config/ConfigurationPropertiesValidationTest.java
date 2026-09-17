@@ -9,6 +9,7 @@ import com.blindtest.config.properties.ResendProperties;
 import com.blindtest.config.properties.S3Properties;
 import com.blindtest.config.properties.TurnstileProperties;
 import java.net.URI;
+import java.nio.file.Path;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -70,7 +71,16 @@ class ConfigurationPropertiesValidationTest {
             assertThat(properties.tempDir().toString()).isEqualTo("/tmp/blindtest-imports");
             assertThat(properties.maxSizeBytes()).isEqualTo(26_214_400L);
             assertThat(properties.timeout()).isEqualTo(Duration.ofMinutes(10));
+            assertThat(properties.youtubeCookiesFile()).isNull();
         });
+
+        contextRunner.withPropertyValues(
+                "jwt.secret=01234567890123456789012345678901",
+                "app.import.youtube-cookies-file=/run/secrets/youtube-cookies.txt").run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(ImportProperties.class).youtubeCookiesFile()).
+                            isEqualTo(Path.of("/run/secrets/youtube-cookies.txt"));
+                });
 
         contextRunner.withPropertyValues(
                 "jwt.secret=01234567890123456789012345678901",
@@ -78,6 +88,10 @@ class ConfigurationPropertiesValidationTest {
         contextRunner.withPropertyValues(
                 "jwt.secret=01234567890123456789012345678901",
                 "app.import.timeout=0s").run(context -> assertThat(context).hasFailed());
+        contextRunner.withPropertyValues(
+                "jwt.secret=01234567890123456789012345678901",
+                "app.import.youtube-cookies-file=relative/cookies.txt").
+                run(context -> assertThat(context).hasFailed());
     }
 
     @Configuration(proxyBeanMethods = false)

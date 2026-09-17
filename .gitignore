@@ -5,3 +5,5 @@ media/
 e2e-stack-*.log
 load-test-stack-*.log
 load-tests/node_modules/
+secrets/*
+!secrets/.gitkeep

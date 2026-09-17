@@ -59,16 +59,26 @@ jobs:
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.PROD_CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           S3_ACCESS_KEY:                  ${{ secrets.PROD_S3_ACCESS_KEY }}
           S3_SECRET_KEY:                  ${{ secrets.PROD_S3_SECRET_KEY }}
+          YOUTUBE_COOKIES_B64:            ${{ secrets.PROD_YOUTUBE_COOKIES_B64 }}
           GHCR_TOKEN:                     ${{ secrets.GHCR_TOKEN }}
         with:
           host:     ${{ vars.SSH_HOST }}
           username: ${{ vars.SSH_USER }}
           key:      ${{ secrets.SSH_PRIVATE_KEY }}
-          envs:     POSTGRES_PASSWORD,JWT_SECRET,RESEND_API_KEY,CLOUDFLARE_TURNSTILE_SECRET_KEY,S3_ACCESS_KEY,S3_SECRET_KEY,IMAGE_TAG,GHCR_TOKEN
+          envs:     POSTGRES_PASSWORD,JWT_SECRET,RESEND_API_KEY,CLOUDFLARE_TURNSTILE_SECRET_KEY,S3_ACCESS_KEY,S3_SECRET_KEY,YOUTUBE_COOKIES_B64,BACKEND_IMAGE,FRONTEND_IMAGE,IMAGE_TAG,GHCR_TOKEN
           script: |
             set -e
             cd /opt/blindtest/prod
             test -f infra/minio/init.sh
+
+            install -d -m 711 secrets
+            rm -f secrets/youtube-cookies.txt
+            if [ -n "${YOUTUBE_COOKIES_B64}" ]; then
+              umask 077
+              printf '%s' "${YOUTUBE_COOKIES_B64}" \
+                | base64 --decode > secrets/youtube-cookies.txt
+              grep -Eq '^# (HTTP|Netscape) Cookie File' secrets/youtube-cookies.txt
+            fi
 
             # Write production .env from secrets
             cat > .env << EOF
@@ -90,11 +100,21 @@ jobs:
             FRONTEND_IMAGE=ghcr.io/cyprienj/blindtest-frontend:${IMAGE_TAG}
             EOF
 
+            if [ -f secrets/youtube-cookies.txt ]; then
+              echo 'APP_IMPORT_YOUTUBE_COOKIES_FILE=/run/secrets/youtube-cookies.txt' >> .env
+            fi
+
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u cyprienj --password-stdin
 
             docker network inspect proxy >/dev/null
             docker compose -p blindtest-prod config --quiet
             docker compose -p blindtest-prod pull
+            if [ -f secrets/youtube-cookies.txt ]; then
+              backend_uid="$(docker run --rm --entrypoint id \
+                "${BACKEND_IMAGE}:${IMAGE_TAG}" -u blindtest)"
+              sudo chown "${backend_uid}" secrets/youtube-cookies.txt
+              sudo chmod 400 secrets/youtube-cookies.txt
+            fi
             docker compose -p blindtest-prod up -d --force-recreate minio
             docker compose -p blindtest-prod up -d --force-recreate minio-init
             docker compose -p blindtest-prod wait minio-init

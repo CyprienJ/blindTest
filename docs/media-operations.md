@@ -33,6 +33,23 @@ YouTube may require Proof of Origin tokens for downloads from datacenter IPs.
 Treat the logged provider error as the source of truth before adding cookies or
 a token-provider plugin; both introduce credentials and ongoing rotation work.
 
+For `Sign in to confirm you're not a bot`, export only `youtube.com` cookies from
+a fresh private browser session in Netscape format. Close that private session
+after export and do not reopen it, because YouTube rotates cookies used by an
+open browser session. Encode the file without line wrapping and store the result
+as the production GitHub environment secret `PROD_YOUTUBE_COOKIES_B64`:
+
+```bash
+base64 -w 0 youtube-cookies.txt
+```
+
+The deployment workflow decodes it on the VPS, changes ownership to the numeric
+user ID read from the deployed backend image, and sets mode `400`. Compose mounts
+the containing directory read-only, and the backend passes the configured file
+to `yt-dlp`; cookie contents never enter `.env`, the image, or application logs.
+Use a dedicated YouTube account because automated access can cause account
+restriction. Replace the secret and redeploy when YouTube rotates the session.
+
 ## Deletion queue
 
 Track deletion and media replacement add the obsolete object key to

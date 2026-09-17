@@ -64,7 +64,8 @@ Pull Requests targeting `main` run the test and quality workflow. A push to
 by the build workflow must be supplied to a later beta or production deployment.
 The `production` GitHub environment must provide `SSH_HOST` and `SSH_USER` as
 variables, plus the SSH, database, JWT, Resend, Turnstile, GHCR, and S3
-credentials as environment secrets. The deployment workflow writes the S3
+credentials as environment secrets. `PROD_YOUTUBE_COOKIES_B64` is optional and
+enables authenticated YouTube imports. The deployment workflow writes the S3
 endpoint and bucket settings together with those credentials to the VPS `.env`.
 
 Beta currently runs independently of CI, so failing checks do not automatically
