@@ -92,6 +92,11 @@ jobs:
 
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u cyprienj --password-stdin
 
+            docker network inspect proxy >/dev/null
+            docker compose -p blindtest-prod config --quiet
             docker compose -p blindtest-prod pull
-            docker compose -p blindtest-prod up -d --remove-orphans
+            docker compose -p blindtest-prod up -d --force-recreate minio
+            docker compose -p blindtest-prod up -d --force-recreate minio-init
+            docker compose -p blindtest-prod wait minio-init
+            docker compose -p blindtest-prod up -d --remove-orphans backend frontend
             docker image prune -f
