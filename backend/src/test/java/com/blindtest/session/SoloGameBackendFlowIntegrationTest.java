@@ -107,7 +107,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class SoloGameBackendFlowIntegrationTest {
 
     private static final Instant START = Instant.parse("2026-09-02T10:00:00Z");
-    private static final Duration WAIT = Duration.ofSeconds(5);
+    // The full-stack test crosses the embedded server, the STOMP broker, and PostgreSQL.
+    // Keep enough headroom for a loaded CI runner after reconnects and database writes.
+    private static final Duration WAIT = Duration.ofSeconds(15);
     private static final int TRACK_COUNT = 5;
     private static final int ROUND_SECONDS = 30;
 
