@@ -53,14 +53,14 @@ TLS, WebSocket upgrades, range requests, and signed query strings using the
 ## Deployment workflows
 
 - [CI](../../.github/workflows/ci.yml) runs backend and frontend validation.
-- [Build images](../../.github/workflows/build-images.yml) builds, scans, and
-  publishes immutable `main-<commit-sha>` images on pushes to `main`.
+- [Build images](../../.github/workflows/build-images.yml) builds and publishes
+  immutable `main-<commit-sha>` images on pushes to `main`.
 - [Beta](../../.github/workflows/deploy-beta.yml) and
   [Production](../../.github/workflows/deploy-prod.yml) are manually triggered
   with an existing image tag; deployment does not rebuild the image.
 
 Pull Requests targeting `main` run the test and quality workflow. A push to
-`main` only builds, scans, and publishes the Docker images. The image tag shown
+`main` only builds and publishes the Docker images. The image tag shown
 by the build workflow must be supplied to a later beta or production deployment.
 The `production` GitHub environment must provide `SSH_HOST` and `SSH_USER` as
 variables, plus the SSH, database, JWT, Resend, Turnstile, GHCR, and S3
