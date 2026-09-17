@@ -17,6 +17,6 @@ Start in this order:
 11. beta, recovery rehearsal, then production launch;
 12. MEDIA-08 when real legacy files require migration, before removing `/media`.
 
-TEST-06 should be completed before automated beta deployment resumes. Operations
-work for secrets, backups, and reverse proxy should begin early rather than waiting
-for the last product ticket.
+TEST-06 should be completed before beta deployment. Operations work for secrets,
+backups, and reverse proxy should begin early rather than waiting for the last
+product ticket.

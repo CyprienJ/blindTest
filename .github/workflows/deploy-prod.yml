@@ -2,83 +2,22 @@ name: Deploy — Production
 
 on:
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Existing GHCR image tag to deploy, for example main-<commit-sha>"
+        required: true
+        type: string
 
 env:
   BACKEND_IMAGE: ghcr.io/cyprienj/blindtest-backend
   FRONTEND_IMAGE: ghcr.io/cyprienj/blindtest-frontend
-  IMAGE_TAG: prod-${{ github.sha }}
+  IMAGE_TAG: ${{ inputs.image_tag }}
 
 jobs:
-
-  # ── 1. Build & push images to GHCR ────────────────────────────────
-  build-push:
-    name: Build & push Docker images
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & push backend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          load: true
-          tags: ${{ env.BACKEND_IMAGE }}:${{ env.IMAGE_TAG }}
-          cache-from: type=gha,scope=backend-prod
-          cache-to:   type=gha,scope=backend-prod,mode=max
-
-      - name: Scan backend image
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ env.BACKEND_IMAGE }}:${{ env.IMAGE_TAG }}
-          format: table
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: 1
-
-      - name: Publish backend image
-        run: docker push "${BACKEND_IMAGE}:${IMAGE_TAG}"
-
-      - name: Build & push frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          load: true
-          tags: ${{ env.FRONTEND_IMAGE }}:${{ env.IMAGE_TAG }}
-          cache-from: type=gha,scope=frontend-prod
-          cache-to:   type=gha,scope=frontend-prod,mode=max
-
-      - name: Scan frontend image
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ env.FRONTEND_IMAGE }}:${{ env.IMAGE_TAG }}
-          format: table
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: 1
-
-      - name: Publish frontend image
-        run: docker push "${FRONTEND_IMAGE}:${IMAGE_TAG}"
-
-  # ── 2. Deploy on the server ────────────────────────────────────────
+  # ── Deploy an existing, already scanned image on the server ───────
   deploy:
     name: Deploy to nosblindtests.fr
     runs-on: ubuntu-latest
-    needs: build-push
     environment: production
 
     steps:
@@ -101,12 +40,14 @@ jobs:
           JWT_SECRET:                     ${{ secrets.PROD_JWT_SECRET }}
           RESEND_API_KEY:                 ${{ secrets.PROD_RESEND_API_KEY }}
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.PROD_CLOUDFLARE_TURNSTILE_SECRET_KEY }}
+          S3_ACCESS_KEY:                  ${{ secrets.PROD_S3_ACCESS_KEY }}
+          S3_SECRET_KEY:                  ${{ secrets.PROD_S3_SECRET_KEY }}
           GHCR_TOKEN:                     ${{ secrets.GHCR_TOKEN }}
         with:
           host:     ${{ vars.SSH_HOST }}
           username: ${{ vars.SSH_USER }}
           key:      ${{ secrets.SSH_PRIVATE_KEY }}
-          envs:     POSTGRES_PASSWORD,JWT_SECRET,RESEND_API_KEY,CLOUDFLARE_TURNSTILE_SECRET_KEY,GHCR_TOKEN
+          envs:     POSTGRES_PASSWORD,JWT_SECRET,RESEND_API_KEY,CLOUDFLARE_TURNSTILE_SECRET_KEY,S3_ACCESS_KEY,S3_SECRET_KEY,IMAGE_TAG,GHCR_TOKEN
           script: |
             set -e
             cd /opt/blindtest/prod
@@ -119,6 +60,12 @@ jobs:
             JWT_SECRET=${JWT_SECRET}
             RESEND_API_KEY=${RESEND_API_KEY}
             CLOUDFLARE_TURNSTILE_SECRET_KEY=${CLOUDFLARE_TURNSTILE_SECRET_KEY}
+            S3_ENDPOINT=http://minio:9000
+            S3_PUBLIC_ENDPOINT=https://media.nosblindtests.fr
+            S3_REGION=us-east-1
+            S3_BUCKET=blindtest-media
+            S3_ACCESS_KEY=${S3_ACCESS_KEY}
+            S3_SECRET_KEY=${S3_SECRET_KEY}
             APP_BASE_URL=https://nosblindtests.fr
             APP_PORT=8090
             BACKEND_IMAGE=ghcr.io/cyprienj/blindtest-backend:${IMAGE_TAG}
