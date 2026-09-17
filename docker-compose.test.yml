@@ -76,7 +76,7 @@ services:
       MINIO_ROOT_PASSWORD: blindtest_e2e_password
       S3_BUCKET: blindtest-e2e-media
     volumes:
-      - ./infra/minio/init.sh:/config/init.sh:ro
+      - ./infra/minio:/config:ro
     depends_on:
       minio-test:
         condition: service_healthy

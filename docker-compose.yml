@@ -60,7 +60,7 @@ services:
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
       S3_BUCKET:           ${S3_BUCKET:-blindtest-media}
     volumes:
-      - ./infra/minio/init.sh:/config/init.sh:ro
+      - ./infra/minio:/config:ro
     depends_on:
       minio:
         condition: service_healthy
