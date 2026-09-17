@@ -77,7 +77,12 @@ jobs:
               umask 077
               printf '%s' "${YOUTUBE_COOKIES_B64}" \
                 | base64 --decode > secrets/youtube-cookies.txt
-              grep -Eq '^# (HTTP|Netscape) Cookie File' secrets/youtube-cookies.txt
+              if ! grep -Eq '^# (Netscape )?HTTP Cookie File\r?$' \
+                secrets/youtube-cookies.txt; then
+                echo 'Decoded YouTube cookies are not in Netscape format.' >&2
+                rm -f secrets/youtube-cookies.txt
+                exit 1
+              fi
             fi
 
             # Write production .env from secrets
