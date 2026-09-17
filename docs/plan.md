@@ -69,8 +69,9 @@ E2E-07 is complete: security verification covers the REST and STOMP authorizatio
 matrix, enumeration boundaries, request and gameplay limits, browser headers,
 CORS/cookies, private signed-media handling, secret scanning, dependency auditing,
 and documented residual findings in [security verification](operations/security-verification.md).
-TEST-06 remains required before automated beta deployment resumes; MEDIA-08
-remains deferred until legacy files need migration.
+TEST-06 remains required before beta deployment; beta deployment is currently
+manual from an already built image. MEDIA-08 remains deferred until legacy files
+need migration.
 
 This is the authoritative next ticket to implement. When it meets the
 [definition of done](roadmap/completion-rules.md#definition-of-done), replace it with the next ready,

@@ -53,12 +53,19 @@ TLS, WebSocket upgrades, range requests, and signed query strings using the
 ## Deployment workflows
 
 - [CI](../../.github/workflows/ci.yml) runs backend and frontend validation.
-- [Beta](../../.github/workflows/deploy-beta.yml) builds, scans, and publishes
-  immutable commit-tagged beta images, then deploys on pushes to `main`; it also
-  supports manual dispatch.
-- [Production](../../.github/workflows/deploy-prod.yml) is manually triggered,
-  builds and scans production images, publishes immutable commit-tagged images,
-  and deploys the selected commit tag.
+- [Build images](../../.github/workflows/build-images.yml) builds, scans, and
+  publishes immutable `main-<commit-sha>` images on pushes to `main`.
+- [Beta](../../.github/workflows/deploy-beta.yml) and
+  [Production](../../.github/workflows/deploy-prod.yml) are manually triggered
+  with an existing image tag; deployment does not rebuild the image.
+
+Pull Requests targeting `main` run the test and quality workflow. A push to
+`main` only builds, scans, and publishes the Docker images. The image tag shown
+by the build workflow must be supplied to a later beta or production deployment.
+The `production` GitHub environment must provide `SSH_HOST` and `SSH_USER` as
+variables, plus the SSH, database, JWT, Resend, Turnstile, GHCR, and S3
+credentials as environment secrets. The deployment workflow writes the S3
+endpoint and bucket settings together with those credentials to the VPS `.env`.
 
 Beta currently runs independently of CI, so failing checks do not automatically
 block deployment. TEST-06 in the [quality lot](../roadmap/lot-1-quality.md) tracks
