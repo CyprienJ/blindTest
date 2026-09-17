@@ -21,16 +21,29 @@ jobs:
     environment: production
 
     steps:
-      - name: Checkout (for docker-compose.yml)
+      - name: Checkout deployment files
         uses: actions/checkout@v6
 
-      - name: Copy docker-compose.yml to server
+      - name: Remove stale MinIO init directory
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ vars.SSH_HOST }}
+          username: ${{ vars.SSH_USER }}
+          key:      ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            stale_path=/opt/blindtest/prod/infra/minio/init.sh
+            if [ -d "$stale_path" ]; then
+              rmdir -- "$stale_path"
+            fi
+
+      - name: Copy Compose and MinIO init script to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host:     ${{ vars.SSH_HOST }}
           username: ${{ vars.SSH_USER }}
           key:      ${{ secrets.SSH_PRIVATE_KEY }}
-          source:   docker-compose.yml
+          source:   docker-compose.yml,infra/minio/init.sh
           target:   /opt/blindtest/prod
 
       - name: Write .env, pull images and restart
@@ -51,6 +64,7 @@ jobs:
           script: |
             set -e
             cd /opt/blindtest/prod
+            test -f infra/minio/init.sh
 
             # Write production .env from secrets
             cat > .env << EOF
