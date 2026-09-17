@@ -53,6 +53,8 @@ public class ImportJobRunner {
     private static final long PROCESS_POLL_MILLIS = 250;
     private static final long TERMINATION_GRACE_SECONDS = 2;
     private static final long MAX_METADATA_BYTES = 1_048_576;
+    private static final int MAX_PROVIDER_DIAGNOSTIC_LENGTH = 500;
+    private static final Pattern URL_PATTERN = Pattern.compile("https?://\\S+");
 
     private final TrackImportJobRepository jobRepository;
     private final YtDlpWrapper ytDlpWrapper;
@@ -71,6 +73,7 @@ public class ImportJobRunner {
         }
         UUID adminId = job.getAdmin().getId();
         Path temporaryDirectory = null;
+        String providerDiagnostic = null;
         try {
             job.setStatus(ImportJobStatus.DOWNLOADING);
             job.setErrorMessage(null);
@@ -79,8 +82,9 @@ public class ImportJobRunner {
             temporaryDirectory = createTemporaryDirectory(jobId);
             Path outputTemplate = temporaryDirectory.resolve("audio");
             Process process = ytDlpWrapper.start(job.getYoutubeUrl(), outputTemplate);
-            int exitCode = awaitProcess(job, process, temporaryDirectory, adminId);
-            if (exitCode != 0) {
+            ProcessResult processResult = awaitProcess(job, process, temporaryDirectory, adminId);
+            providerDiagnostic = processResult.diagnostic();
+            if (processResult.exitCode() != 0) {
                 throw new ImportJobFailureException(ImportJobFailureException.Reason.PROVIDER);
             }
 
@@ -113,7 +117,7 @@ public class ImportJobRunner {
                     new WsImportDoneEvent(jobId, track.getId()));
 
         } catch (Exception e) {
-            log.error("Import job {} failed with {}", jobId, e.getClass().getSimpleName());
+            logImportFailure(jobId, e, providerDiagnostic);
             job.setStatus(ImportJobStatus.FAILED);
             job.setCompletedAt(LocalDateTime.now());
             String msg = safeFailureMessage(e);
@@ -126,16 +130,18 @@ public class ImportJobRunner {
         }
     }
 
-    private int awaitProcess(TrackImportJobEntity job, Process process, Path temporaryDirectory, UUID adminId)
+    private ProcessResult awaitProcess(
+            TrackImportJobEntity job, Process process, Path temporaryDirectory, UUID adminId)
             throws IOException, InterruptedException, ExecutionException {
         long deadline = System.nanoTime() + importProperties.timeout().toNanos();
         LinkedBlockingQueue<String> outputLines = new LinkedBlockingQueue<>();
+        ProviderOutput providerOutput = new ProviderOutput();
         try (ExecutorService outputReader = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<?> outputTask = outputReader.submit(
                     () -> readOutputLinesUnchecked(process.getInputStream(), outputLines));
             try {
                 while (true) {
-                    applyOutputLines(job, outputLines, adminId);
+                    applyOutputLines(job, outputLines, adminId, providerOutput);
                     long remainingNanos = deadline - System.nanoTime();
                     if (remainingNanos <= 0) {
                         terminateProcess(process);
@@ -146,8 +152,8 @@ public class ImportJobRunner {
                             Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNanos)));
                     if (process.waitFor(waitMillis, TimeUnit.MILLISECONDS)) {
                         outputTask.get();
-                        applyOutputLines(job, outputLines, adminId);
-                        return process.exitValue();
+                        applyOutputLines(job, outputLines, adminId, providerOutput);
+                        return new ProcessResult(process.exitValue(), providerOutput.diagnostic());
                     }
                     if (temporaryDirectorySize(temporaryDirectory) > importProperties.maxSizeBytes()) {
                         terminateProcess(process);
@@ -178,9 +184,13 @@ public class ImportJobRunner {
     }
 
     private void applyOutputLines(
-            TrackImportJobEntity job, LinkedBlockingQueue<String> outputLines, UUID adminId) {
+            TrackImportJobEntity job,
+            LinkedBlockingQueue<String> outputLines,
+            UUID adminId,
+            ProviderOutput providerOutput) {
         String line;
         while ((line = outputLines.poll()) != null) {
+            providerOutput.observe(line);
             updateProgress(job, line, adminId);
         }
     }
@@ -350,6 +360,40 @@ public class ImportJobRunner {
             return importFailure.safeMessage();
         }
         return "The media import failed";
+    }
+
+    private void logImportFailure(UUID jobId, Exception exception, String providerDiagnostic) {
+        if (providerDiagnostic == null) {
+            log.error("Import job {} failed with {}", jobId, exception.getClass().getSimpleName());
+            return;
+        }
+        log.error(
+                "Import job {} failed with {}: yt-dlp={}",
+                jobId,
+                exception.getClass().getSimpleName(),
+                providerDiagnostic);
+    }
+
+    private static final class ProviderOutput {
+
+        private String diagnostic;
+
+        private void observe(String line) {
+            if (!line.regionMatches(true, 0, "ERROR:", 0, "ERROR:".length())) {
+                return;
+            }
+            String safeLine = URL_PATTERN.matcher(line).replaceAll("[url]").
+                    replaceAll("[\\p{Cntrl}&&[^\\t]]", " ").
+                    trim();
+            diagnostic = safeLine.substring(0, Math.min(safeLine.length(), MAX_PROVIDER_DIAGNOSTIC_LENGTH));
+        }
+
+        private String diagnostic() {
+            return diagnostic;
+        }
+    }
+
+    private record ProcessResult(int exitCode, String diagnostic) {
     }
 
     private void updateProgress(TrackImportJobEntity job, String line, UUID adminId) {

@@ -64,6 +64,21 @@ NPM's WebSocket option supplies the HTTP/1.1 upgrade headers. Keep the
 application's `APP_BASE_URL` and `CORS_ALLOWED_ORIGINS` equal to the HTTPS
 application origin.
 
+If Spring logs `Handshake failed due to invalid Upgrade header: null`, the TLS
+proxy did not forward the browser's upgrade headers. Confirm **Websockets
+Support** is enabled on the application Proxy Host, save it, and reload NPM.
+If the generated host still omits the headers, add these directives to that
+host's Advanced configuration:
+
+```nginx
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+```
+
+Cloudflare supports proxied WebSockets, but its **Network > WebSockets** switch
+must also be enabled for the zone.
+
 ## Media host
 
 Create a second NPM **Proxy Host**, preferably `media.nosblindtests.fr`, for the
@@ -106,10 +121,19 @@ outside the VPS:
 ```bash
 curl --fail --silent --show-error https://nosblindtests.fr/actuator/health
 curl --fail --silent --show-error -I https://media.nosblindtests.fr/minio/health/live
+curl --include --http1.1 --max-time 2 \
+  -H 'Connection: Upgrade' \
+  -H 'Upgrade: websocket' \
+  -H 'Sec-WebSocket-Version: 13' \
+  -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+  -H 'Origin: https://nosblindtests.fr' \
+  https://nosblindtests.fr/ws
 ```
 
 The first response must be the backend health response through
-`nosblindtests:80`; the second must be served by MinIO through port `9000`.
+`nosblindtests:80`; the second must be served by MinIO through port `9000`; and
+the WebSocket request must start with `HTTP/1.1 101` (curl then times out because
+the upgraded connection remains open).
 Complete a real game to verify a signed media URL in the browser, including
 seeking within the track. In browser developer tools, confirm the media request
 retains its `X-Amz-*` query parameters, returns `206 Partial Content` for a

@@ -41,15 +41,19 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ExtendWith(OutputCaptureExtension.class)
 class ImportJobRunnerTest {
 
     private static final byte[] VALID_MP3 = {(byte) 0xff, (byte) 0xfb, 1, 2};
@@ -247,6 +251,23 @@ class ImportJobRunnerTest {
     }
 
     @Test
+    void processFailureLogsBoundedProviderDiagnosticWithoutUrl(CapturedOutput output) throws Exception {
+        TestJob testJob = arrangeJob();
+        arrangeProcess(
+                VALID_MP3,
+                1,
+                "ERROR: [youtube] blocked request https://provider.example/watch?token=secret\n");
+
+        runner.execute(testJob.jobId());
+
+        assertThat(output).
+                contains("yt-dlp=ERROR: [youtube] blocked request [url]").
+                doesNotContain("token=secret");
+        assertThat(testJob.job().getErrorMessage()).
+                isEqualTo("The media provider could not complete the import");
+    }
+
+    @Test
     void timedOutProcessIsTerminatedAndJobFails() throws Exception {
         TestJob testJob = arrangeJob();
         runner = new ImportJobRunner(
@@ -339,6 +360,10 @@ class ImportJobRunnerTest {
     }
 
     private void arrangeProcess(byte[] content, int exitCode) throws Exception {
+        arrangeProcess(content, exitCode, "50.0%\n100.0%\n");
+    }
+
+    private void arrangeProcess(byte[] content, int exitCode, String output) throws Exception {
         when(ytDlpWrapper.start(any(), any())).thenAnswer(invocation -> {
             Path outputTemplate = invocation.getArgument(1);
             Files.write(Path.of(outputTemplate + ".mp3"), content);
@@ -352,7 +377,6 @@ class ImportJobRunnerTest {
                     }
                     """);
             Process process = mock(Process.class);
-            String output = "50.0%\n100.0%\n";
             when(process.getInputStream()).thenReturn(
                     new ByteArrayInputStream(output.getBytes(StandardCharsets.UTF_8)));
             when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);

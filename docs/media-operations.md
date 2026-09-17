@@ -19,6 +19,20 @@ the job `FAILED`. Check the job error and backend logs by job UUID. Raise a limi
 only after confirming the source is legitimate and the host has sufficient CPU
 and temporary storage; retrying the failed job remains safe.
 
+For a provider failure, the log includes the last `yt-dlp` `ERROR:` line,
+truncated to 500 characters with HTTP(S) URLs removed. The persisted job and
+WebSocket event retain only the stable client-safe message. Check the installed
+version and the failed job without changing container state:
+
+```bash
+docker compose -p blindtest-prod exec backend yt-dlp --version
+docker compose -p blindtest-prod logs backend | grep '<job-uuid>'
+```
+
+YouTube may require Proof of Origin tokens for downloads from datacenter IPs.
+Treat the logged provider error as the source of truth before adding cookies or
+a token-provider plugin; both introduce credentials and ongoing rotation work.
+
 ## Deletion queue
 
 Track deletion and media replacement add the obsolete object key to
