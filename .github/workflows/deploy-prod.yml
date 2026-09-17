@@ -24,7 +24,7 @@ jobs:
       - name: Checkout deployment files
         uses: actions/checkout@v6
 
-      - name: Remove stale MinIO init directory
+      - name: Prepare deployment directory
         uses: appleboy/ssh-action@v1
         with:
           host:     ${{ vars.SSH_HOST }}
@@ -32,10 +32,14 @@ jobs:
           key:      ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            stale_path=/opt/blindtest/prod/infra/minio/init.sh
-            if [ -d "$stale_path" ]; then
-              rmdir -- "$stale_path"
-            fi
+            deploy_root=/opt/blindtest/prod
+            stale_path="$deploy_root/infra/minio/init.sh"
+
+            # A failed/old SCP extraction can leave this path root-owned or as
+            # a directory. Remove the exact stale path before the next upload.
+            sudo rm -rf -- "$stale_path"
+            sudo install -d -o "$(id -un)" -g "$(id -gn)" \
+              "$deploy_root/infra/minio"
 
       - name: Copy Compose and MinIO init script to server
         uses: appleboy/scp-action@v0.1.7
