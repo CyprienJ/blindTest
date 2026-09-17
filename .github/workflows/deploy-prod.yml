@@ -9,8 +9,6 @@ on:
         type: string
 
 env:
-  BACKEND_IMAGE: ghcr.io/cyprienj/blindtest-backend
-  FRONTEND_IMAGE: ghcr.io/cyprienj/blindtest-frontend
   IMAGE_TAG: ${{ inputs.image_tag }}
 
 jobs:
@@ -65,11 +63,13 @@ jobs:
           host:     ${{ vars.SSH_HOST }}
           username: ${{ vars.SSH_USER }}
           key:      ${{ secrets.SSH_PRIVATE_KEY }}
-          envs:     POSTGRES_PASSWORD,JWT_SECRET,RESEND_API_KEY,CLOUDFLARE_TURNSTILE_SECRET_KEY,S3_ACCESS_KEY,S3_SECRET_KEY,YOUTUBE_COOKIES_B64,BACKEND_IMAGE,FRONTEND_IMAGE,IMAGE_TAG,GHCR_TOKEN
+          envs:     POSTGRES_PASSWORD,JWT_SECRET,RESEND_API_KEY,CLOUDFLARE_TURNSTILE_SECRET_KEY,S3_ACCESS_KEY,S3_SECRET_KEY,YOUTUBE_COOKIES_B64,IMAGE_TAG,GHCR_TOKEN
           script: |
             set -e
             cd /opt/blindtest/prod
             test -f infra/minio/init.sh
+            backend_image="ghcr.io/cyprienj/blindtest-backend:${IMAGE_TAG}"
+            frontend_image="ghcr.io/cyprienj/blindtest-frontend:${IMAGE_TAG}"
 
             install -d -m 711 secrets
             rm -f secrets/youtube-cookies.txt
@@ -101,8 +101,8 @@ jobs:
             S3_SECRET_KEY=${S3_SECRET_KEY}
             APP_BASE_URL=https://nosblindtests.fr
             APP_PORT=8090
-            BACKEND_IMAGE=ghcr.io/cyprienj/blindtest-backend:${IMAGE_TAG}
-            FRONTEND_IMAGE=ghcr.io/cyprienj/blindtest-frontend:${IMAGE_TAG}
+            BACKEND_IMAGE=${backend_image}
+            FRONTEND_IMAGE=${frontend_image}
             EOF
 
             if [ -f secrets/youtube-cookies.txt ]; then
@@ -116,7 +116,7 @@ jobs:
             docker compose -p blindtest-prod pull
             if [ -f secrets/youtube-cookies.txt ]; then
               backend_uid="$(docker run --rm --entrypoint id \
-                "${BACKEND_IMAGE}:${IMAGE_TAG}" -u blindtest)"
+                "${backend_image}" -u blindtest)"
               sudo chown "${backend_uid}" secrets/youtube-cookies.txt
               sudo chmod 400 secrets/youtube-cookies.txt
             fi
