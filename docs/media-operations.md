@@ -62,6 +62,15 @@ to `yt-dlp`; cookie contents never enter `.env`, the image, or application logs.
 Use a dedicated YouTube account because automated access can cause account
 restriction. Replace the secret and redeploy when YouTube rotates the session.
 
+## MinIO images
+
+MinIO Inc. no longer publishes official images to Docker Hub or Quay. Compose,
+the E2E stack, and `MinioMediaStorageIntegrationTest` use the community-maintained
+`pgsty/minio` and `pgsty/mc` fork with pinned `RELEASE.*` tags; upgrade the two
+tags together and rerun the MinIO integration test. The switch from the 2025
+official server to the 2026 fork keeps the on-disk format, but take a MinIO
+backup before the first deployment that recreates the `minio` container.
+
 ## Deletion queue
 
 Track deletion and media replacement add the obsolete object key to
