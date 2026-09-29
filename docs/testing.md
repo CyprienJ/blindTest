@@ -133,7 +133,9 @@ faked out except Turnstile, which needs outbound HTTPS to Cloudflare:
   `FakeEmailSender` captures verification/reset/welcome email instead of
   calling Resend, exposed at `GET`/`DELETE /api/e2e/emails` for specs that
   need a captured token; `FakeProcessFactory` writes a deterministic MP3
-  fixture instead of invoking yt-dlp/FFmpeg against YouTube;
+  fixture instead of invoking yt-dlp/FFmpeg against YouTube, and answers
+  `ffprobe` with fixed tags for MP3-looking uploads while rejecting anything
+  else, so upload imports run without real media tools;
 - Turnstile uses Cloudflare's documented always-pass test key pair, the same
   one `docker-compose.local.yml` already uses for local development. The
   frontend still loads the real widget script and the backend still calls

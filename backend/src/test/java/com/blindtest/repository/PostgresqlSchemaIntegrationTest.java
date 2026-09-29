@@ -94,7 +94,7 @@ class PostgresqlSchemaIntegrationTest {
                 Integer.class);
 
         assertThat(installedRanks).containsExactly(
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);
     }
 
     @Test
@@ -135,7 +135,7 @@ class PostgresqlSchemaIntegrationTest {
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
                 """, Integer.class)).containsExactly(
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);
     }
 
     @Test
@@ -310,6 +310,34 @@ class PostgresqlSchemaIntegrationTest {
                 """, admin.getId())).
                 isInstanceOf(DataIntegrityViolationException.class).
                 hasMessageContaining("chk_track_import_jobs_status");
+    }
+
+    @Test
+    void databaseTiesImportSourceToItsReference() {
+        UserEntity admin = userRepository.saveAndFlush(buildUser("source-admin"));
+
+        jdbcTemplate.update("""
+                INSERT INTO track_import_jobs (source, original_filename, status, admin_id)
+                VALUES ('UPLOAD', 'song.flac', 'QUEUED', ?)
+                """, admin.getId());
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO track_import_jobs (status, admin_id)
+                VALUES ('QUEUED', ?)
+                """, admin.getId())).
+                isInstanceOf(DataIntegrityViolationException.class).
+                hasMessageContaining("chk_track_import_jobs_source_reference");
+    }
+
+    @Test
+    void databaseRejectsUnknownImportSource() {
+        UserEntity admin = userRepository.saveAndFlush(buildUser("unknown-source-admin"));
+
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO track_import_jobs (source, status, admin_id)
+                VALUES ('SPOTIFY', 'QUEUED', ?)
+                """, admin.getId())).
+                isInstanceOf(DataIntegrityViolationException.class).
+                hasMessageContaining("chk_track_import_jobs_source");
     }
 
     @Test

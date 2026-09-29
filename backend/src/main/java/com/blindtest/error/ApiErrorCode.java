@@ -27,6 +27,12 @@ public enum ApiErrorCode {
             HttpStatus.CONFLICT, "Track excerpt does not leave 60 playable seconds"),
     TRACK_METADATA_INCOMPLETE(HttpStatus.CONFLICT, "Track metadata is incomplete"),
     IMPORT_ALREADY_ACTIVE(HttpStatus.CONFLICT, "An import for this YouTube video is already active"),
+    IMPORT_FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "The uploaded file exceeds the maximum allowed size"),
+    IMPORT_FILE_UNSUPPORTED(
+            HttpStatus.UNSUPPORTED_MEDIA_TYPE, "The uploaded file is not a supported audio file"),
+    IMPORT_AUDIO_TOO_LONG(HttpStatus.BAD_REQUEST, "The uploaded audio exceeds the maximum duration"),
+    IMPORT_METADATA_REQUIRED(
+            HttpStatus.BAD_REQUEST, "Title and artist are required when the file has no embedded tags"),
     PLAYLIST_ORDER_INVALID(HttpStatus.BAD_REQUEST, "Playlist order must contain every track exactly once"),
     PLAYLIST_TRACK_DUPLICATE(HttpStatus.CONFLICT, "Track is already present in this playlist"),
     PLAYLIST_TRACK_NOT_PUBLISHED(HttpStatus.CONFLICT, "Only published tracks can be added to playlists"),
@@ -79,6 +85,7 @@ public enum ApiErrorCode {
             case 404 -> RESOURCE_NOT_FOUND;
             case 405 -> METHOD_NOT_ALLOWED;
             case 409 -> CONFLICT;
+            case 413 -> IMPORT_FILE_TOO_LARGE;
             case 415 -> UNSUPPORTED_MEDIA_TYPE;
             default -> INTERNAL_ERROR;
         };

@@ -97,9 +97,10 @@ test('completes the admin catalogue journey: import, publish, and build a playli
   });
 
   await test.step('import a track from YouTube', async () => {
-    await page.getByRole('link', { name: '＋ Import from YouTube' }).click();
+    await page.getByRole('link', { name: '＋ Import track' }).click();
     await expect(page).toHaveURL(/\/admin\/tracks\/import$/);
 
+    await page.getByRole('button', { name: 'YouTube link' }).click();
     await page.getByLabel('YouTube URL *').fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     await page.getByRole('button', { name: '↓ Download music' }).click();
 

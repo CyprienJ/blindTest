@@ -2,8 +2,11 @@
   <div class="page-heading">
     <div>
       <a class="back-link" routerLink="/admin/tracks">← Track catalogue</a>
-      <h1>Import from YouTube</h1>
-      <p>Metadata is saved first; yt-dlp and FFmpeg process the audio securely on the server.</p>
+      <h1>Import a track</h1>
+      <p>
+        Upload an audio file or paste a YouTube link; FFmpeg processes the audio securely on the
+        server.
+      </p>
     </div>
     @if (job) {
       <span class="job-badge" [class]="'job-badge ' + job.status.toLowerCase()">
@@ -26,42 +29,151 @@
       <div class="panel-title">
         <div>
           <span class="step-number">1</span>
-          <h2>Paste the YouTube link</h2>
+          <h2>{{ source === 'UPLOAD' ? 'Choose the audio file' : 'Paste the YouTube link' }}</h2>
         </div>
-        @if (importForm.disabled) {
+        @if (importLocked) {
           <span class="locked">Locked during import</span>
         }
       </div>
 
-      <form [formGroup]="importForm" (ngSubmit)="startImport()">
-        <label class="field wide">
-          <span>YouTube URL *</span>
-          <input
-            class="bt-input"
-            formControlName="youtubeUrl"
-            placeholder="https://www.youtube.com/watch?v=…"
-          />
-          @if (importForm.controls.youtubeUrl.invalid && importForm.controls.youtubeUrl.touched) {
-            <small>Enter a supported YouTube watch, short, or Shorts URL.</small>
-          }
-        </label>
-
-        @if (submitError) {
-          <p class="form-error" role="alert">{{ submitError }}</p>
-        }
-
+      <div class="source-switch" role="group" aria-label="Import source">
         <button
-          class="bt-btn bt-btn-primary bt-btn-lg submit"
-          type="submit"
-          [disabled]="submitting || importForm.disabled || !!job"
+          type="button"
+          [class.active]="source === 'UPLOAD'"
+          [attr.aria-pressed]="source === 'UPLOAD'"
+          [disabled]="importLocked"
+          (click)="selectSource('UPLOAD')"
         >
-          @if (submitting) {
-            <span class="spinner" aria-hidden="true"></span> Starting import…
-          } @else {
-            ↓ Download music
-          }
+          Audio file
         </button>
-      </form>
+        <button
+          type="button"
+          [class.active]="source === 'YOUTUBE'"
+          [attr.aria-pressed]="source === 'YOUTUBE'"
+          [disabled]="importLocked"
+          (click)="selectSource('YOUTUBE')"
+        >
+          YouTube link
+        </button>
+      </div>
+
+      @if (source === 'UPLOAD') {
+        <form [formGroup]="uploadForm" (ngSubmit)="startUpload()">
+          <label
+            class="drop-zone"
+            [class.active]="dragActive"
+            [class.locked]="importLocked"
+            (dragover)="onDragOver($event)"
+            (dragleave)="dragActive = false"
+            (drop)="onFileDrop($event)"
+          >
+            <input
+              #fileInput
+              class="visually-hidden"
+              type="file"
+              accept="audio/*,.mp3,.m4a,.aac,.flac,.ogg,.opus,.wav,.webm"
+              aria-label="Audio file"
+              [disabled]="importLocked"
+              (change)="onFileSelected(fileInput)"
+            />
+            <span class="step-number" aria-hidden="true">♪</span>
+            @if (selectedFile) {
+              <strong class="file-name">{{ selectedFile.name }}</strong>
+              <small>{{ formatBytes(selectedFile.size) }} · click or drop to replace</small>
+            } @else if (job?.originalFilename) {
+              <strong class="file-name">{{ job!.originalFilename }}</strong>
+              <small>Uploaded file</small>
+            } @else {
+              <strong>Drop an audio file here or click to browse</strong>
+              <small
+                >MP3, M4A/AAC, FLAC, Ogg/Opus, WAV or WebM · up to {{ maxUploadLabel }} and 15
+                minutes</small
+              >
+            }
+          </label>
+          @if (fileError) {
+            <p class="form-error" role="alert">{{ fileError }}</p>
+          }
+
+          <div class="form-grid">
+            <label class="field">
+              <span>Title (optional)</span>
+              <input class="bt-input" formControlName="title" placeholder="From file tags" />
+              @if (uploadForm.controls.title.invalid && uploadForm.controls.title.touched) {
+                <small>Use 255 characters or fewer.</small>
+              }
+            </label>
+            <label class="field">
+              <span>Artist (optional)</span>
+              <input class="bt-input" formControlName="artist" placeholder="From file tags" />
+              @if (uploadForm.controls.artist.invalid && uploadForm.controls.artist.touched) {
+                <small>Use 255 characters or fewer.</small>
+              }
+            </label>
+          </div>
+          <p class="hint">
+            Leave blank to use the file's embedded tags. You can edit everything before publishing.
+          </p>
+
+          @if (submitError) {
+            <p class="form-error" role="alert">{{ submitError }}</p>
+          }
+
+          @if (uploadProgress !== null) {
+            <div class="upload-progress" role="status">
+              <span>{{
+                uploadProgress < 100 ? 'Uploading… ' + uploadProgress + '%' : 'Verifying the file…'
+              }}</span>
+              <div class="progress"><span [style.width.%]="uploadProgress"></span></div>
+            </div>
+          }
+
+          <button
+            class="bt-btn bt-btn-primary bt-btn-lg submit"
+            type="submit"
+            [disabled]="importLocked || !selectedFile"
+          >
+            @if (submitting) {
+              <span class="spinner" aria-hidden="true"></span> Uploading…
+            } @else {
+              ↑ Upload and import
+            }
+          </button>
+        </form>
+      } @else {
+        <form [formGroup]="importForm" (ngSubmit)="startImport()">
+          <label class="field wide">
+            <span>YouTube URL *</span>
+            <input
+              class="bt-input"
+              formControlName="youtubeUrl"
+              placeholder="https://www.youtube.com/watch?v=…"
+            />
+            @if (importForm.controls.youtubeUrl.invalid && importForm.controls.youtubeUrl.touched) {
+              <small>Enter a supported YouTube watch, short, or Shorts URL.</small>
+            }
+          </label>
+          <p class="hint">
+            YouTube may block downloads from the server. Upload a file if the import fails.
+          </p>
+
+          @if (submitError) {
+            <p class="form-error" role="alert">{{ submitError }}</p>
+          }
+
+          <button
+            class="bt-btn bt-btn-primary bt-btn-lg submit"
+            type="submit"
+            [disabled]="submitting || importForm.disabled || !!job"
+          >
+            @if (submitting) {
+              <span class="spinner" aria-hidden="true"></span> Starting import…
+            } @else {
+              ↓ Download music
+            }
+          </button>
+        </form>
+      }
     </section>
 
     <div class="right-column">
@@ -86,7 +198,7 @@
           <div class="empty-state">
             <span class="pipeline-icon" aria-hidden="true">↥</span>
             <h3>No import running</h3>
-            <p>Submit a supported YouTube URL to start the pipeline.</p>
+            <p>Upload an audio file or submit a YouTube URL to start the pipeline.</p>
           </div>
         } @else {
           <div class="connection">
@@ -108,7 +220,11 @@
             <div class="stage" [attr.data-state]="stageState('DOWNLOADING')">
               <span class="stage-dot">{{ stageState('DOWNLOADING') === 'done' ? '✓' : '2' }}</span>
               <div>
-                <strong>Downloading</strong><small>yt-dlp retrieves the source audio</small>
+                @if (job.source === 'UPLOAD') {
+                  <strong>Received</strong><small>File uploaded and verified with ffprobe</small>
+                } @else {
+                  <strong>Downloading</strong><small>yt-dlp retrieves the source audio</small>
+                }
               </div>
             </div>
             <div class="stage" [attr.data-state]="stageState('PROCESSING')">

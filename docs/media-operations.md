@@ -5,7 +5,11 @@
 ## Import resource limits
 
 The backend image runs as the unprivileged `blindtest` user and contains pinned,
-build-smoke-tested `yt-dlp` and FFmpeg binaries. Each import is constrained by:
+build-smoke-tested `yt-dlp` and FFmpeg binaries. The import workspace
+(`APP_IMPORT_TEMP_DIR`) is the disk-backed `imports` Compose volume at
+`/var/lib/blindtest/imports`, not the RAM-backed `/tmp` tmpfs, because staged
+uploads (up to 25 MiB each) must survive restarts for job recovery. Each import is
+constrained by:
 
 - `APP_IMPORT_TIMEOUT` (10 minutes by default);
 - `APP_IMPORT_MAX_SIZE_BYTES` (25 MiB by default), enforced by both the command
@@ -19,6 +23,12 @@ the job `FAILED`. Check the job error and backend logs by job UUID. Raise a limi
 only after confirming the source is legitimate and the host has sufficient CPU
 and temporary storage; retrying the failed job remains safe.
 
+Uploads are additionally bounded before a job exists: Nginx accepts at most
+26 MiB on the upload path, Spring multipart enforces `APP_IMPORT_MAX_SIZE_BYTES`
+per file, and `ffprobe` must identify a supported audio file of at most 15
+minutes within 15 seconds. A failed transcode logs the last non-progress FFmpeg
+line as `ffmpeg=...` next to the job UUID.
+
 For a provider failure, the log includes the last `yt-dlp` `ERROR:` line,
 truncated to 500 characters with HTTP(S) URLs removed. The persisted job and
 WebSocket event retain only the stable client-safe message. Check the installed
@@ -29,7 +39,9 @@ docker compose -p blindtest-prod exec backend yt-dlp --version
 docker compose -p blindtest-prod logs backend | grep '<job-uuid>'
 ```
 
-YouTube may require Proof of Origin tokens for downloads from datacenter IPs.
+YouTube may require Proof of Origin tokens for downloads from datacenter IPs,
+and can block a flagged server IP entirely. When that happens, import the track
+by uploading its audio file instead.
 Treat the logged provider error as the source of truth before adding cookies or
 a token-provider plugin; both introduce credentials and ongoing rotation work.
 

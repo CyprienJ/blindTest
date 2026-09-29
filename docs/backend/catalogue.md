@@ -21,16 +21,32 @@ Rejection or deletion removes track membership and compacts positions.
 
 ## Import lifecycle
 
-1. An administrator submits a single-video HTTPS YouTube watch, short-link, or
-   Shorts URL. Equivalent active video imports are rejected.
-2. A durable import job is created; asynchronous execution starts after commit.
-3. `yt-dlp` extracts bounded metadata and downloads into an isolated temporary
-   workspace. FFmpeg produces MP3 audio under time, size, thread, and CPU limits.
-4. The backend validates audio, generates a checksum and at most 800 normalized
+Imports have two sources recorded on the job (`source`): an uploaded audio file
+(`UPLOAD`, the reliable path) and a YouTube URL (`YOUTUBE`, best effort because
+YouTube blocks many datacenter IPs as bots).
+
+1. An administrator either submits a single-video HTTPS YouTube watch,
+   short-link, or Shorts URL (equivalent active video imports are rejected), or
+   uploads one audio file with optional title and artist.
+2. For an upload, the request is staged under `<app.import.temp-dir>/uploads/`
+   and inspected with `ffprobe` before anything is persisted: an allow-listed
+   container and first-audio-stream codec, a known duration of at most 15
+   minutes, and title/artist from the form or else from embedded tags. Rejections
+   use `IMPORT_FILE_UNSUPPORTED`, `IMPORT_FILE_TOO_LARGE`, `IMPORT_AUDIO_TOO_LONG`,
+   or `IMPORT_METADATA_REQUIRED`. Client file names are display-only.
+3. A durable import job is created; asynchronous execution starts after commit.
+   An upload job moves its staged file to `uploads/<jobId>.upload`, which startup
+   recovery reuses; a missing staged file fails the job with a request to upload
+   again, and the staged file is deleted when the job ends.
+4. The worker produces MP3 audio in an isolated temporary workspace under time,
+   size, thread, and CPU limits: `yt-dlp` extracts bounded metadata and downloads
+   a YouTube source, or FFmpeg re-encodes an upload's first audio stream to
+   160 kbit/s MP3 with source metadata dropped.
+5. The backend validates audio, generates a checksum and at most 800 normalized
    waveform peaks, then uploads a content-addressed object to private storage.
-5. Object existence is confirmed before completion. Temporary files are cleaned
+6. Object existence is confirmed before completion. Temporary files are cleaned
    up; errors exposed to clients are sanitized.
-6. The administrator previews the completed unpublished import, edits metadata
+7. The administrator previews the completed unpublished import, edits metadata
    and aliases, and publishes or rejects it transactionally and idempotently.
 
 STOMP user messages provide live progress. Polling retains progress and lifecycle
@@ -60,7 +76,9 @@ missing and orphaned objects using key fingerprints. See the
 - [AdminTrackService](../../backend/src/main/java/com/blindtest/service/AdminTrackService.java)
   and [AdminPlaylistService](../../backend/src/main/java/com/blindtest/service/AdminPlaylistService.java)
 - [ImportJobRunner](../../backend/src/main/java/com/blindtest/service/ImportJobRunner.java)
-  and [YtDlpWrapper](../../backend/src/main/java/com/blindtest/infra/YtDlpWrapper.java)
+  with [YtDlpWrapper](../../backend/src/main/java/com/blindtest/infra/YtDlpWrapper.java),
+  [AudioProbe](../../backend/src/main/java/com/blindtest/infra/AudioProbe.java), and
+  [AudioTranscoder](../../backend/src/main/java/com/blindtest/infra/AudioTranscoder.java)
 - [MediaStorage](../../backend/src/main/java/com/blindtest/service/port/MediaStorage.java)
 - [TrackMediaService](../../backend/src/main/java/com/blindtest/service/TrackMediaService.java)
 - [Administrator UI](../../frontend/src/app/features/admin)

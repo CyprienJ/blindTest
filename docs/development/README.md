@@ -71,7 +71,9 @@ backend command and does not require a manual role update in PostgreSQL.
 The backend image pins and smoke-tests `yt-dlp` and FFmpeg. Imports default to a
 10-minute wall-clock limit, a 25 MiB temporary-file limit, one FFmpeg worker
 thread, and a 1.0-CPU container quota. Configure these with `APP_IMPORT_TIMEOUT`,
-`APP_IMPORT_MAX_SIZE_BYTES`, and `BACKEND_CPU_LIMIT`.
+`APP_IMPORT_MAX_SIZE_BYTES`, and `BACKEND_CPU_LIMIT`. Audio-file uploads also run
+`ffprobe` and FFmpeg locally, so both must be on `PATH` when running the backend
+outside Docker.
 
 ## Run services on the host
 

@@ -7,7 +7,9 @@ final class ImportJobFailureException extends RuntimeException {
         PROVIDER("The media provider could not complete the import"),
         TIMEOUT("The media import timed out"),
         SIZE_LIMIT("The imported audio exceeds the maximum allowed size"),
-        INVALID_MEDIA("The imported media is not a valid MP3 file");
+        INVALID_MEDIA("The imported media is not a valid MP3 file"),
+        UPLOAD_MISSING("The uploaded file is no longer available; upload it again"),
+        TRANSCODE("The uploaded audio could not be converted");
 
         private final String safeMessage;
 

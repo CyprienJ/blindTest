@@ -14,12 +14,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.blindtest.config.properties.ImportProperties;
+import com.blindtest.infra.AudioTranscoder;
 import com.blindtest.infra.YtDlpWrapper;
 import com.blindtest.infra.WaveformGenerator;
 import com.blindtest.model.dto.WsImportDoneEvent;
 import com.blindtest.model.dto.WsImportFailedEvent;
 import com.blindtest.model.dto.WsImportProgressEvent;
 import com.blindtest.model.entity.ImportJobStatus;
+import com.blindtest.model.entity.ImportSource;
 import com.blindtest.model.entity.TrackEntity;
 import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.UserEntity;
@@ -68,6 +70,7 @@ class ImportJobRunnerTest {
     private MediaStorage mediaStorage;
     private TrackMediaService trackMediaService;
     private WaveformGenerator waveformGenerator;
+    private AudioTranscoder audioTranscoder;
     private ImportJobRunner runner;
 
     @BeforeEach
@@ -79,6 +82,7 @@ class ImportJobRunnerTest {
         mediaStorage = mock(MediaStorage.class);
         trackMediaService = mock(TrackMediaService.class);
         waveformGenerator = mock(WaveformGenerator.class);
+        audioTranscoder = mock(AudioTranscoder.class);
         when(waveformGenerator.generate(any(), any())).thenReturn(java.util.List.of(0, 25, 100));
         doAnswer(invocation -> {
             TrackEntity target = invocation.getArgument(0);
@@ -89,15 +93,7 @@ class ImportJobRunnerTest {
             trackRepository.save(target);
             return null;
         }).when(trackMediaService).replaceMedia(any(), any(), any(), any(Long.class));
-        runner = new ImportJobRunner(
-                jobRepository,
-                ytDlpWrapper,
-                messagingTemplate,
-                mediaStorage,
-                new ImportProperties(tempRoot, 8, Duration.ofMinutes(1), null),
-                trackMediaService,
-                new ObjectMapper(),
-                waveformGenerator);
+        runner = newRunner(new ImportProperties(tempRoot, 8, Duration.ofMinutes(1), null));
         when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(trackRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -220,15 +216,7 @@ class ImportJobRunnerTest {
     @MethodSource("invalidAudio")
     void invalidAudioMarksJobFailedAndIsNeverUploaded(byte[] content, long maxSize) throws Exception {
         TestJob testJob = arrangeJob();
-        runner = new ImportJobRunner(
-                jobRepository,
-                ytDlpWrapper,
-                messagingTemplate,
-                mediaStorage,
-                new ImportProperties(tempRoot, maxSize, Duration.ofMinutes(1), null),
-                trackMediaService,
-                new ObjectMapper(),
-                waveformGenerator);
+        runner = newRunner(new ImportProperties(tempRoot, maxSize, Duration.ofMinutes(1), null));
         arrangeProcess(content, 0);
 
         runner.execute(testJob.jobId());
@@ -270,15 +258,7 @@ class ImportJobRunnerTest {
     @Test
     void timedOutProcessIsTerminatedAndJobFails() throws Exception {
         TestJob testJob = arrangeJob();
-        runner = new ImportJobRunner(
-                jobRepository,
-                ytDlpWrapper,
-                messagingTemplate,
-                mediaStorage,
-                new ImportProperties(tempRoot, 8, Duration.ofMillis(1), null),
-                trackMediaService,
-                new ObjectMapper(),
-                waveformGenerator);
+        runner = newRunner(new ImportProperties(tempRoot, 8, Duration.ofMillis(1), null));
         Process process = arrangeRunningProcess(new byte[0]);
 
         runner.execute(testJob.jobId());
@@ -350,6 +330,107 @@ class ImportJobRunnerTest {
         assertTemporaryRootIsEmpty();
     }
 
+    @Test
+    void uploadJobTranscodesStagedSourceKeepsRequestMetadataAndDeletesSource() throws Exception {
+        TestJob testJob = arrangeUploadJob();
+        Path source = stageUpload(testJob.jobId());
+        arrangeTranscode(VALID_MP3, 0, "out_time_us=90000000\nprogress=continue\nprogress=end\n");
+        arrangeSuccessfulStorage();
+
+        runner.execute(testJob.jobId());
+
+        TrackEntity track = testJob.job().getTrack();
+        assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.DONE);
+        assertThat(track.getTitle()).isEqualTo("Uploaded title");
+        assertThat(track.getArtist()).isEqualTo("Uploaded artist");
+        assertThat(track.getDurationSeconds()).isEqualTo(180);
+        assertThat(track.getImageUrl()).isNull();
+        assertThat(track.getAudioSizeBytes()).isEqualTo(VALID_MP3.length);
+        verify(audioTranscoder).start(eq(source), any(Path.class));
+        verify(ytDlpWrapper, never()).start(any(), any());
+        ArgumentCaptor<Object> events = ArgumentCaptor.forClass(Object.class);
+        verify(messagingTemplate, atLeastOnce()).convertAndSendToUser(
+                eq(testJob.adminId().toString()),
+                eq("/queue/import/" + testJob.jobId()),
+                events.capture());
+        assertThat(events.getAllValues()).filteredOn(WsImportProgressEvent.class::isInstance).
+                singleElement().
+                satisfies(event -> {
+                    WsImportProgressEvent progress = (WsImportProgressEvent) event;
+                    assertThat(progress.getStatus()).isEqualTo("PROCESSING");
+                    assertThat(progress.getProgress()).isEqualTo(50);
+                });
+        assertThat(source).doesNotExist();
+        assertTemporaryWorkspaceHoldsNoFiles();
+    }
+
+    @Test
+    void uploadJobWithoutStagedSourceFailsWithoutStartingFfmpeg() throws Exception {
+        TestJob testJob = arrangeUploadJob();
+
+        runner.execute(testJob.jobId());
+
+        assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.FAILED);
+        assertThat(testJob.job().getErrorMessage()).
+                isEqualTo("The uploaded file is no longer available; upload it again");
+        verify(audioTranscoder, never()).start(any(), any());
+        verify(mediaStorage, never()).store(any(), any(), any());
+        assertTemporaryWorkspaceHoldsNoFiles();
+    }
+
+    @Test
+    void failedTranscodeMarksJobFailedLogsDiagnosticAndDeletesSource(CapturedOutput output) throws Exception {
+        TestJob testJob = arrangeUploadJob();
+        Path source = stageUpload(testJob.jobId());
+        arrangeTranscode(new byte[0], 1, "progress=continue\nError while decoding stream #0:0\n");
+
+        runner.execute(testJob.jobId());
+
+        assertThat(testJob.job().getStatus()).isEqualTo(ImportJobStatus.FAILED);
+        assertThat(testJob.job().getErrorMessage()).isEqualTo("The uploaded audio could not be converted");
+        assertThat(output).contains("ffmpeg=Error while decoding stream #0:0");
+        verify(mediaStorage, never()).store(any(), any(), any());
+        assertThat(source).doesNotExist();
+        assertTemporaryWorkspaceHoldsNoFiles();
+    }
+
+    private TestJob arrangeUploadJob() {
+        TestJob testJob = arrangeJob();
+        TrackImportJobEntity job = testJob.job();
+        job.setSource(ImportSource.UPLOAD);
+        job.setYoutubeUrl(null);
+        job.getTrack().setTitle("Uploaded title");
+        job.getTrack().setArtist("Uploaded artist");
+        job.getTrack().setDurationSeconds(180);
+        return testJob;
+    }
+
+    private Path stageUpload(UUID jobId) throws IOException {
+        Path source = new ImportUploadStorage(new ImportProperties(tempRoot, 8, Duration.ofMinutes(1), null)).
+                stagedSource(jobId);
+        Files.createDirectories(source.getParent());
+        Files.write(source, new byte[] {'I', 'D', '3', 0});
+        return source;
+    }
+
+    private void arrangeTranscode(byte[] content, int exitCode, String output) throws Exception {
+        when(audioTranscoder.start(any(), any())).thenAnswer(invocation -> {
+            Files.write(invocation.getArgument(1, Path.class), content);
+            Process process = mock(Process.class);
+            when(process.getInputStream()).thenReturn(
+                    new ByteArrayInputStream(output.getBytes(StandardCharsets.UTF_8)));
+            when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);
+            when(process.exitValue()).thenReturn(exitCode);
+            return process;
+        });
+    }
+
+    private void assertTemporaryWorkspaceHoldsNoFiles() throws IOException {
+        try (Stream<Path> contents = Files.walk(tempRoot)) {
+            assertThat(contents.filter(Files::isRegularFile)).isEmpty();
+        }
+    }
+
     private TestJob arrangeJob() {
         UUID jobId = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
@@ -418,6 +499,20 @@ class ImportJobRunnerTest {
         try (Stream<Path> contents = Files.list(tempRoot)) {
             assertThat(contents).isEmpty();
         }
+    }
+
+    private ImportJobRunner newRunner(ImportProperties properties) {
+        return new ImportJobRunner(
+                jobRepository,
+                ytDlpWrapper,
+                messagingTemplate,
+                mediaStorage,
+                properties,
+                trackMediaService,
+                new ObjectMapper(),
+                waveformGenerator,
+                audioTranscoder,
+                new ImportUploadStorage(properties));
     }
 
     private TrackImportJobEntity buildJob(UUID jobId, UUID adminId, UUID trackId) {

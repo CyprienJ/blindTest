@@ -30,6 +30,14 @@ public class FakeProcessFactory implements ProcessFactory {
 
     @Override
     public Process start(List<String> command) throws IOException {
+        if (!command.isEmpty() && "ffprobe".equals(command.getFirst())) {
+            return probe(Path.of(command.getLast()));
+        }
+        if (!command.isEmpty() && "ffmpeg".equals(command.getFirst()) && command.contains("-progress")) {
+            Files.write(Path.of(command.getLast()), fixtureBytes());
+            return new CompletedProcess(
+                    "out_time_us=60000000\nprogress=continue\nout_time_us=120000000\nprogress=end\n");
+        }
         if (!command.isEmpty() && "ffmpeg".equals(command.getFirst())) {
             byte[] pcm = new byte[1_600];
             for (int index = 0; index < pcm.length / 2; index++) {
@@ -62,6 +70,32 @@ public class FakeProcessFactory implements ProcessFactory {
                 }
                 """);
         return new CompletedProcess("[download] 50.0%\n[download] 100.0%\n");
+    }
+
+    /**
+     * Accepts files that start like an MP3 (ID3 tag or MPEG frame sync), reporting deterministic
+     * tags and a 120-second duration, and rejects anything else the way ffprobe would.
+     */
+    private static Process probe(Path file) throws IOException {
+        byte[] header;
+        try (InputStream input = Files.newInputStream(file)) {
+            header = input.readNBytes(3);
+        }
+        boolean id3 = header.length == 3 && header[0] == 'I' && header[1] == 'D' && header[2] == '3';
+        boolean mpegFrame = header.length >= 2 && (header[0] & 0xff) == 0xff && (header[1] & 0xe0) == 0xe0;
+        if (!id3 && !mpegFrame) {
+            return new CompletedProcess(file + ": Invalid data found when processing input\n", 1);
+        }
+        return new CompletedProcess("""
+                {
+                  "streams": [{"codec_type": "audio", "codec_name": "mp3"}],
+                  "format": {
+                    "format_name": "mp3",
+                    "duration": "120.000000",
+                    "tags": {"title": "Deterministic upload title", "artist": "Deterministic upload artist"}
+                  }
+                }
+                """);
     }
 
     private static byte[] fixtureBytes() throws IOException {

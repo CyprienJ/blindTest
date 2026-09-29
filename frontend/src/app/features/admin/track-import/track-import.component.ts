@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -44,6 +44,7 @@ import {
   ImportAliasDraft,
   ImportJob,
   ImportJobStatus,
+  ImportSource,
   ImportTrackRequest,
   RealtimeConnectionState,
 } from './track-import.model';
@@ -51,6 +52,8 @@ import {
 const ACTIVE_JOB_KEY = 'active_admin_import_job';
 const IMPORT_ALIASES_KEY = 'active_admin_import_aliases';
 const PREVIEW_DURATION_SECONDS = 60;
+/** Mirrors the server's default app.import.max-size-bytes so oversized files fail before upload. */
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 type AliasFormGroup = FormGroup<{
   type: FormControl<TrackAnswerType>;
   value: FormControl<string>;
@@ -96,6 +99,17 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     aliases: this.aliasControls,
   });
 
+  readonly uploadForm = this.formBuilder.nonNullable.group({
+    title: ['', Validators.maxLength(255)],
+    artist: ['', Validators.maxLength(255)],
+  });
+  readonly maxUploadLabel = '25 MB';
+  source: ImportSource = 'UPLOAD';
+  selectedFile: File | null = null;
+  fileError = '';
+  uploadProgress: number | null = null;
+  dragActive = false;
+
   submitting = false;
   recovering = false;
   submitError = '';
@@ -138,6 +152,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     if (savedJobId) {
       this.aliasDrafts = this.readSavedAliases();
       this.importForm.disable();
+      this.uploadForm.disable();
       this.recovering = true;
       this.appendActivity('Recovering the active import from the server.');
       this.startMonitoring(savedJobId);
@@ -166,6 +181,87 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     }
   }
 
+  get importLocked(): boolean {
+    return this.submitting || this.recovering || !!this.job;
+  }
+
+  selectSource(source: ImportSource): void {
+    if (this.importLocked) {
+      return;
+    }
+    this.source = source;
+    this.submitError = '';
+  }
+
+  onFileSelected(input: HTMLInputElement): void {
+    this.setFile(input.files?.[0] ?? null);
+    input.value = '';
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragActive = !this.importLocked;
+  }
+
+  onFileDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragActive = false;
+    if (!this.importLocked) {
+      this.setFile(event.dataTransfer?.files?.[0] ?? null);
+    }
+  }
+
+  formatBytes(bytes: number): string {
+    if (bytes < 1024 * 1024) {
+      return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  startUpload(): void {
+    const file = this.selectedFile;
+    if (this.importLocked) {
+      return;
+    }
+    if (!file) {
+      this.fileError = 'Choose an audio file to import.';
+      return;
+    }
+    if (this.uploadForm.invalid) {
+      this.uploadForm.markAllAsTouched();
+      return;
+    }
+
+    this.submitting = true;
+    this.submitError = '';
+    this.uploadProgress = 0;
+    this.activity = [];
+    this.appendActivity(`Uploading ${file.name}.`);
+    const metadata = this.uploadForm.getRawValue();
+    this.uploadForm.disable();
+    this.importService
+      .upload(file, metadata)
+      .pipe(
+        finalize(() => {
+          this.submitting = false;
+          this.uploadProgress = null;
+        }),
+      )
+      .subscribe({
+        next: (event) => {
+          if (event.type === HttpEventType.UploadProgress) {
+            this.uploadProgress = event.total ? Math.round((event.loaded / event.total) * 100) : 0;
+          } else if (event.type === HttpEventType.Response && event.body) {
+            this.acceptJob(event.body.jobId);
+          }
+        },
+        error: (error) => {
+          this.uploadForm.enable();
+          this.submitError = this.errorMessage(error);
+        },
+      });
+  }
+
   startImport(): void {
     const youtubeUrl = this.importForm.controls.youtubeUrl;
     if (this.submitting || this.job || youtubeUrl.invalid) {
@@ -185,12 +281,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       .start(request)
       .pipe(finalize(() => (this.submitting = false)))
       .subscribe({
-        next: ({ jobId }) => {
-          sessionStorage.setItem(ACTIVE_JOB_KEY, jobId);
-          this.importForm.disable();
-          this.appendActivity(`Import accepted · ${this.shortJobId(jobId)}.`);
-          this.startMonitoring(jobId);
-        },
+        next: ({ jobId }) => this.acceptJob(jobId),
         error: (error) => (this.submitError = this.errorMessage(error)),
       });
   }
@@ -440,6 +531,12 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     this.selectionError = '';
     this.reviewTrackId = null;
     this.activity = [];
+    this.selectedFile = null;
+    this.fileError = '';
+    this.uploadProgress = null;
+    this.dragActive = false;
+    this.uploadForm.enable();
+    this.uploadForm.reset({ title: '', artist: '' });
     this.importForm.enable();
     this.importForm.reset({
       youtubeUrl: '',
@@ -489,6 +586,30 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     return `job_${jobId.slice(0, 8)}`;
   }
 
+  private setFile(file: File | null): void {
+    this.fileError = '';
+    this.submitError = '';
+    if (!file) {
+      return;
+    }
+    this.selectedFile = null;
+    if (file.size === 0) {
+      this.fileError = 'The selected file is empty.';
+    } else if (file.size > MAX_UPLOAD_BYTES) {
+      this.fileError = `The file is larger than ${this.maxUploadLabel}.`;
+    } else {
+      this.selectedFile = file;
+    }
+  }
+
+  private acceptJob(jobId: string): void {
+    sessionStorage.setItem(ACTIVE_JOB_KEY, jobId);
+    this.importForm.disable();
+    this.uploadForm.disable();
+    this.appendActivity(`Import accepted · ${this.shortJobId(jobId)}.`);
+    this.startMonitoring(jobId);
+  }
+
   private startMonitoring(jobId: string): void {
     this.stopMonitoring();
     this.realtimeSubscription = this.realtime.watch(jobId).subscribe({
@@ -535,6 +656,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   private applyJob(job: ImportJob): void {
     const changed = !this.job || this.job.status !== job.status;
     this.job = job;
+    this.source = job.source ?? this.source;
     this.recovering = false;
     this.monitorError = '';
     if (changed) {
@@ -736,7 +858,21 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       return 'This YouTube video already has an active import.';
     }
     if (code === 'VALIDATION_FAILED') {
-      return 'Check the YouTube URL and metadata fields.';
+      return this.source === 'UPLOAD'
+        ? 'Check the title and artist fields.'
+        : 'Check the YouTube URL and metadata fields.';
+    }
+    if (code === 'IMPORT_FILE_TOO_LARGE' || error.status === 413) {
+      return `The file is larger than ${this.maxUploadLabel}.`;
+    }
+    if (code === 'IMPORT_FILE_UNSUPPORTED') {
+      return 'This file is not a supported audio file (MP3, M4A/AAC, FLAC, Ogg/Opus, WAV or WebM).';
+    }
+    if (code === 'IMPORT_AUDIO_TOO_LONG') {
+      return 'The audio is longer than 15 minutes.';
+    }
+    if (code === 'IMPORT_METADATA_REQUIRED') {
+      return 'This file has no title or artist tags. Fill in both fields.';
     }
     if (code === 'TRACK_METADATA_INCOMPLETE') {
       return 'Complete the required metadata before publishing.';

@@ -21,6 +21,9 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -65,12 +68,28 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
         MethodArgumentTypeMismatchException.class,
-        MissingServletRequestParameterException.class
+        MissingServletRequestParameterException.class,
+        MissingServletRequestPartException.class
     })
     public ResponseEntity<ApiErrorResponse> handleInvalidParameter(
             Exception exception,
             HttpServletRequest request) {
         return build(request, ApiErrorCode.INVALID_PARAMETER, Map.of());
+    }
+
+    /** Reports multipart bodies rejected by the servlet size limits before any controller runs. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleUploadTooLarge(
+            MaxUploadSizeExceededException exception,
+            HttpServletRequest request) {
+        return build(request, ApiErrorCode.IMPORT_FILE_TOO_LARGE, Map.of());
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiErrorResponse> handleMalformedMultipart(
+            MultipartException exception,
+            HttpServletRequest request) {
+        return build(request, ApiErrorCode.MALFORMED_REQUEST, Map.of());
     }
 
     @ExceptionHandler(ResponseStatusException.class)

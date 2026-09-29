@@ -33,8 +33,15 @@ public class TrackImportJobEntity {
     @Setter(AccessLevel.NONE)
     private UUID id;
 
-    @Column(name = "youtube_url", nullable = false, length = 500)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ImportSource source = ImportSource.YOUTUBE;
+
+    @Column(name = "youtube_url", length = 500)
     private String youtubeUrl;
+
+    @Column(name = "original_filename", length = 255)
+    private String originalFilename;
 
     @Column(name = "youtube_video_id", length = 11)
     private String youtubeVideoId;

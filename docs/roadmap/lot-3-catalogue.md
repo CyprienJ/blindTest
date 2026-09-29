@@ -190,6 +190,40 @@ Acceptance:
 
 - each admin journey has a browser test and backend boundary coverage.
 
+#### CAT-11 — Import tracks from uploaded audio files
+
+Status: in progress (added 2026-09-29).
+
+Context: the production server's IP is flagged by YouTube as automated traffic, so
+server-side `yt-dlp` imports fail even with cookies. Uploading a local audio file is
+the reliable import path; YouTube import remains available as best effort.
+
+Work:
+
+- accept an administrator-only multipart upload (`file`, optional `title` and
+  `artist`) through `POST /api/admin/tracks/import/upload`;
+- validate the real container and codec with `ffprobe` before persistence, never
+  trusting the file name, extension, or declared MIME type;
+- bound the upload size at Nginx, Spring multipart, and the service, and bound the
+  probed duration;
+- use form metadata first, then embedded tags, and reject the upload when neither
+  provides a title and an artist;
+- stage the upload on durable import storage so restart recovery can resume it,
+  and fail the job safely when the staged file is gone;
+- always re-encode to MP3 with FFmpeg, keeping only the first audio stream and
+  dropping source metadata;
+- reuse the existing job, progress, waveform, storage, preview, and publication
+  workflow unchanged;
+- add a file source to the admin import screen with upload progress.
+
+Acceptance:
+
+- an administrator publishes a track from a local audio file without any YouTube
+  access;
+- unsupported, oversized, or unreadable files fail before a job is created, with a
+  stable error code;
+- YouTube imports behave exactly as before.
+
 ### Lot exit criteria
 
 - an administrator can import, preview, publish, and organize tracks;

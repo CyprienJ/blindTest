@@ -32,6 +32,8 @@ const track = {
 function job(status: string, progress: number, errorMessage: string | null = null) {
   return {
     jobId,
+    source: 'YOUTUBE',
+    originalFilename: null,
     status,
     progress,
     errorMessage,
@@ -51,7 +53,7 @@ async function installAdmin(page: Page): Promise<void> {
   await page.route('**/ws/**', (route) => route.abort());
 }
 
-test.describe('administrator YouTube import', () => {
+test.describe('administrator track import', () => {
   test.beforeEach(async ({ page }) => {
     await installAdmin(page);
     await page.route('**/api/admin/tracks/*/waveform', (route) =>
@@ -111,7 +113,8 @@ test.describe('administrator YouTube import', () => {
     );
 
     await page.goto('/admin/tracks/import');
-    await expect(page.getByRole('heading', { name: 'Import from YouTube' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Import a track' })).toBeVisible();
+    await page.getByRole('button', { name: 'YouTube link' }).click();
     await page.getByLabel('YouTube URL *').fill('https://youtu.be/Zi_XLOBDo_Y');
 
     const startButton = page.getByRole('button', { name: /Download music/ });
@@ -194,6 +197,7 @@ test.describe('administrator YouTube import', () => {
     );
 
     await page.goto('/admin/tracks/import');
+    await page.getByRole('button', { name: 'YouTube link' }).click();
     await page.getByLabel('YouTube URL *').fill('https://youtu.be/Zi_XLOBDo_Y');
     await page.getByRole('button', { name: /Download music/ }).click();
 
@@ -217,6 +221,7 @@ test.describe('administrator YouTube import', () => {
     );
 
     await page.goto('/admin/tracks/import');
+    await page.getByRole('button', { name: 'YouTube link' }).click();
     await page.getByLabel('YouTube URL *').fill('https://youtu.be/Zi_XLOBDo_Y');
     await page.getByRole('button', { name: /Download music/ }).click();
 
@@ -235,6 +240,7 @@ test.describe('administrator YouTube import', () => {
     });
 
     await page.goto('/admin/tracks/import');
+    await page.getByRole('button', { name: 'YouTube link' }).click();
     await page.getByLabel('YouTube URL *').fill('https://example.com/video');
     await page.getByRole('button', { name: /Download music/ }).click();
 
@@ -242,6 +248,88 @@ test.describe('administrator YouTube import', () => {
       page.getByText('Enter a supported YouTube watch, short, or Shorts URL.'),
     ).toBeVisible();
     expect(submitted).toBe(false);
+  });
+
+  test('uploads an audio file with optional metadata and reaches review', async ({ page }) => {
+    let uploadBody = '';
+    let uploadContentType = '';
+    await page.route('**/api/admin/tracks/import/upload', async (route) => {
+      uploadBody = route.request().postDataBuffer()?.toString('latin1') ?? '';
+      uploadContentType = (await route.request().allHeaders())['content-type'] ?? '';
+      await route.fulfill({ status: 202, json: { jobId } });
+    });
+    await page.route(`**/api/admin/tracks/import/${jobId}`, (route) =>
+      route.fulfill({
+        json: {
+          ...job('DONE', 100),
+          source: 'UPLOAD',
+          originalFilename: 'billie-jean.flac',
+          track: { ...track, youtubeUrl: null },
+        },
+      }),
+    );
+    await page.route(`**/api/admin/tracks/${trackId}/preview-url`, (route) =>
+      route.fulfill({
+        json: { url: '/media/import-preview.mp3', expiresAt: '2026-07-30T18:00:00Z' },
+      }),
+    );
+    await page.route('**/media/import-preview.mp3', (route) =>
+      route.fulfill({ contentType: 'audio/mpeg', body: '' }),
+    );
+
+    await page.goto('/admin/tracks/import');
+    await expect(page.getByRole('heading', { name: 'Import a track' })).toBeVisible();
+    const uploadButton = page.getByRole('button', { name: /Upload and import/ });
+    await expect(uploadButton).toBeDisabled();
+    await page.getByLabel('Audio file').setInputFiles({
+      name: 'billie-jean.flac',
+      mimeType: 'audio/flac',
+      buffer: Buffer.from('fLaC-test-audio'),
+    });
+    await expect(page.getByText('billie-jean.flac')).toBeVisible();
+    await page.getByLabel('Title (optional)').fill('Billie Jean');
+    await uploadButton.click();
+
+    await expect(page.getByText('Ready for review').first()).toBeVisible();
+    await expect(page.getByText('File uploaded and verified with ffprobe')).toBeVisible();
+    await expect(page.getByLabel('Title *')).toHaveValue('Billie Jean');
+    expect(uploadContentType).toContain('multipart/form-data');
+    expect(uploadBody).toContain('filename="billie-jean.flac"');
+    expect(uploadBody).toContain('name="title"');
+    expect(uploadBody).not.toContain('name="artist"');
+    await expect(page.getByRole('button', { name: 'YouTube link' })).toBeDisabled();
+  });
+
+  test('explains rejected uploads and rejects oversized files before sending', async ({ page }) => {
+    let uploads = 0;
+    await page.route('**/api/admin/tracks/import/upload', async (route) => {
+      uploads++;
+      await route.fulfill({
+        status: 415,
+        json: { status: 415, code: 'IMPORT_FILE_UNSUPPORTED', message: 'Unsupported' },
+      });
+    });
+
+    await page.goto('/admin/tracks/import');
+    const fileInput = page.getByLabel('Audio file');
+    await fileInput.setInputFiles({
+      name: 'huge.wav',
+      mimeType: 'audio/wav',
+      buffer: Buffer.alloc(25 * 1024 * 1024 + 1),
+    });
+    await expect(page.getByText('The file is larger than 25 MB.')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Upload and import/ })).toBeDisabled();
+
+    await fileInput.setInputFiles({
+      name: 'notes.mp3',
+      mimeType: 'audio/mpeg',
+      buffer: Buffer.from('not audio'),
+    });
+    await page.getByRole('button', { name: /Upload and import/ }).click();
+
+    await expect(page.getByRole('alert')).toContainText('This file is not a supported audio file');
+    await expect(page.getByLabel('Title (optional)')).toBeEnabled();
+    expect(uploads).toBe(1);
   });
 });
 

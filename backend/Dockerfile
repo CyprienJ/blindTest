@@ -29,8 +29,8 @@ WORKDIR /app
 
 RUN addgroup -S blindtest \
     && adduser -S -D -H -G blindtest blindtest \
-    && mkdir -p /media /tmp/blindtest-imports \
-    && chown -R blindtest:blindtest /app /media /tmp/blindtest-imports
+    && mkdir -p /media /tmp/blindtest-imports /var/lib/blindtest/imports \
+    && chown -R blindtest:blindtest /app /media /tmp/blindtest-imports /var/lib/blindtest
 
 COPY --from=build --chown=blindtest:blindtest /app/target/blindtest-backend-*.jar app.jar
 

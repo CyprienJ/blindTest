@@ -12,6 +12,8 @@ import lombok.Getter;
 public class ImportJobResponse {
 
     private UUID jobId;
+    private String source;
+    private String originalFilename;
     private String status;
     private int progress;
     private String errorMessage;
@@ -26,7 +28,8 @@ public class ImportJobResponse {
         TrackAdminResponse track = entity.getTrack() != null ?
                 TrackAdminResponse.from(entity.getTrack()) : null;
         return new ImportJobResponse(
-                entity.getId(), entity.getStatus().name(),
+                entity.getId(), entity.getSource().name(), entity.getOriginalFilename(),
+                entity.getStatus().name(),
                 entity.getProgress(), entity.getErrorMessage(),
                 previewAvailable, entity.getCreatedAt(), entity.getUpdatedAt(),
                 entity.getCompletedAt(), track);

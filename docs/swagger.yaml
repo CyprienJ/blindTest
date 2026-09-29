@@ -111,6 +111,10 @@ components:
             - TRACK_EXCERPT_INVALID
             - TRACK_METADATA_INCOMPLETE
             - IMPORT_ALREADY_ACTIVE
+            - IMPORT_FILE_TOO_LARGE
+            - IMPORT_FILE_UNSUPPORTED
+            - IMPORT_AUDIO_TOO_LONG
+            - IMPORT_METADATA_REQUIRED
             - PLAYLIST_ORDER_INVALID
             - PLAYLIST_TRACK_DUPLICATE
             - PLAYLIST_TRACK_NOT_PUBLISHED
@@ -716,12 +720,23 @@ components:
       type: string
       enum: [QUEUED, DOWNLOADING, PROCESSING, DONE, PUBLISHED, REJECTED, FAILED]
 
+    ImportSource:
+      type: string
+      enum: [YOUTUBE, UPLOAD]
+
     TrackImportJob:
       type: object
-      required: [jobId, status, progress, previewAvailable, createdAt, updatedAt]
+      required: [jobId, source, status, progress, previewAvailable, createdAt, updatedAt]
       properties:
         jobId:
           $ref: '#/components/schemas/UUID'
+        source:
+          $ref: '#/components/schemas/ImportSource'
+        originalFilename:
+          type: string
+          nullable: true
+          maxLength: 255
+          description: Display-only base name of an uploaded file; null for YouTube imports.
         status:
           $ref: '#/components/schemas/ImportJobStatus'
         progress:
@@ -947,6 +962,24 @@ components:
             $ref: '#/components/schemas/Error'
     Conflict:
       description: Data conflict
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PayloadTooLarge:
+      description: Request body exceeds the accepted size
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      description: Request or uploaded content type is not supported
       headers:
         X-Request-ID:
           $ref: '#/components/headers/RequestId'
@@ -1626,6 +1659,61 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+
+  /admin/tracks/import/upload:
+    post:
+      tags: [Admin - Tracks]
+      summary: Import from an uploaded audio file
+      description: |
+        Accepts one audio file of at most `app.import.max-size-bytes` (25 MiB by
+        default) and at most 15 minutes. The real container and codec are checked
+        with ffprobe before anything is persisted; the file name, extension, and
+        declared part type are never trusted. Supported containers are MP3, MP4/M4A,
+        Ogg, FLAC, WAV, Matroska/WebM, and ADTS AAC with an MP3, AAC, ALAC, FLAC,
+        Vorbis, Opus, or PCM audio stream.
+
+        Blank or missing `title`/`artist` fall back to the file's embedded tags;
+        the request fails with `IMPORT_METADATA_REQUIRED` when neither provides a
+        value. The queued job always re-encodes the first audio stream to MP3 and
+        then follows the same progress, preview, and publication workflow as a
+        YouTube import.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                title:
+                  type: string
+                  maxLength: 255
+                artist:
+                  type: string
+                  maxLength: 255
+      responses:
+        '202':
+          description: Import job started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    $ref: '#/components/schemas/UUID'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
 
   /admin/tracks/import/{jobId}:
     get:

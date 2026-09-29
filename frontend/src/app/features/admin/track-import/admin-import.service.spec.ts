@@ -31,6 +31,23 @@ describe('AdminImportService', () => {
     pending.flush({ jobId: 'job-id' });
   });
 
+  it('uploads a file as multipart form data with progress events and trimmed metadata', () => {
+    const file = new File([new Uint8Array([0x49, 0x44, 0x33])], 'song.flac', {
+      type: 'audio/flac',
+    });
+
+    service.upload(file, { title: '  Billie Jean ', artist: '   ' }).subscribe();
+
+    const pending = http.expectOne('/api/admin/tracks/import/upload');
+    expect(pending.request.method).toBe('POST');
+    expect(pending.request.reportProgress).toBeTrue();
+    const body = pending.request.body as FormData;
+    expect((body.get('file') as File).name).toBe('song.flac');
+    expect(body.get('title')).toBe('Billie Jean');
+    expect(body.has('artist')).toBeFalse();
+    pending.flush({ jobId: 'job-id' });
+  });
+
   it('polls a durable job snapshot', () => {
     service.getJob('job-id').subscribe((job) => expect(job.status).toBe('DONE'));
 

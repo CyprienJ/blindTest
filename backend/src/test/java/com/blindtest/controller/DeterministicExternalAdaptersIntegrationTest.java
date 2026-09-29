@@ -1,11 +1,13 @@
 package com.blindtest.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.blindtest.model.entity.ImportJobStatus;
+import com.blindtest.model.entity.ImportSource;
 import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.entity.UserRole;
 import com.blindtest.repository.TrackImportJobRepository;
@@ -21,8 +23,11 @@ import com.blindtest.testing.InMemoryMediaStorage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +37,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -189,8 +195,68 @@ class DeterministicExternalAdaptersIntegrationTest {
         assertThat(bytes).hasSize(1040);
         assertThat(bytes[0] & 0xff).isEqualTo(0xff);
         assertThat(bytes[1] & 0xe0).isEqualTo(0xe0);
-        try (var temporaryFiles = Files.list(IMPORT_TEMP_DIR)) {
-            assertThat(temporaryFiles).isEmpty();
+        assertImportWorkspaceHoldsNoFiles();
+    }
+
+    @Test
+    void uploadCompletesThroughProbeAndTranscodeWithEmbeddedTagMetadata() throws Exception {
+        UserEntity admin = new UserEntity();
+        admin.setUsername("upload-admin");
+        admin.setEmail("upload-admin@example.com");
+        admin.setPasswordHash("not-used");
+        admin.setRole(UserRole.ADMIN);
+        admin = userRepository.save(admin);
+        String token = jwtTokenProvider.generateAccessToken(admin.getId(), UserRole.ADMIN);
+
+        String response = mockMvc.perform(multipart("/api/admin/tracks/import/upload").
+                        file(new MockMultipartFile("file", "fixture.mp3", "audio/mpeg", fixtureMp3())).
+                        header(HttpHeaders.AUTHORIZATION, "Bearer " + token)).
+                andExpect(status().isAccepted()).
+                andReturn().getResponse().getContentAsString();
+
+        UUID jobId = UUID.fromString(objectMapper.readTree(response).get("jobId").asText());
+        var job = jobRepository.findByIdWithTrack(jobId).orElseThrow();
+        assertThat(job.getStatus()).isEqualTo(ImportJobStatus.DONE);
+        assertThat(job.getSource()).isEqualTo(ImportSource.UPLOAD);
+        assertThat(job.getTrack().getTitle()).isEqualTo("Deterministic upload title");
+        assertThat(job.getTrack().getArtist()).isEqualTo("Deterministic upload artist");
+        assertThat(job.getTrack().getDurationSeconds()).isEqualTo(120);
+        assertThat(mediaStorage.exists(job.getTrack().getAudioObjectKey())).isTrue();
+        assertThat(processFactory.startCount()).isZero();
+        assertImportWorkspaceHoldsNoFiles();
+    }
+
+    @Test
+    void uploadThatIsNotAudioIsRejectedByTheProbe() throws Exception {
+        UserEntity admin = new UserEntity();
+        admin.setUsername("reject-admin");
+        admin.setEmail("reject-admin@example.com");
+        admin.setPasswordHash("not-used");
+        admin.setRole(UserRole.ADMIN);
+        admin = userRepository.save(admin);
+        String token = jwtTokenProvider.generateAccessToken(admin.getId(), UserRole.ADMIN);
+
+        mockMvc.perform(multipart("/api/admin/tracks/import/upload").
+                        file(new MockMultipartFile("file", "notes.mp3", "audio/mpeg",
+                                "plain text".getBytes(StandardCharsets.UTF_8))).
+                        header(HttpHeaders.AUTHORIZATION, "Bearer " + token)).
+                andExpect(status().isUnsupportedMediaType()).
+                andExpect(jsonPath("$.code").value("IMPORT_FILE_UNSUPPORTED"));
+
+        assertThat(jobRepository.count()).isZero();
+        assertImportWorkspaceHoldsNoFiles();
+    }
+
+    private void assertImportWorkspaceHoldsNoFiles() throws IOException {
+        try (var temporaryFiles = Files.walk(IMPORT_TEMP_DIR)) {
+            assertThat(temporaryFiles.filter(Files::isRegularFile)).isEmpty();
+        }
+    }
+
+    private byte[] fixtureMp3() throws IOException {
+        try (InputStream input = getClass().getResourceAsStream("/fixtures/silence.mp3.base64")) {
+            assertThat(input).isNotNull();
+            return Base64.getMimeDecoder().decode(input.readAllBytes());
         }
     }
 

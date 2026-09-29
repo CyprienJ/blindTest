@@ -3,12 +3,14 @@ package com.blindtest.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.blindtest.config.properties.ImportProperties;
+import com.blindtest.infra.AudioTranscoder;
 import com.blindtest.infra.YtDlpWrapper;
 import com.blindtest.infra.WaveformGenerator;
 import com.blindtest.model.dto.WsImportDoneEvent;
 import com.blindtest.model.dto.WsImportFailedEvent;
 import com.blindtest.model.dto.WsImportProgressEvent;
 import com.blindtest.model.entity.ImportJobStatus;
+import com.blindtest.model.entity.ImportSource;
 import com.blindtest.model.entity.TrackEntity;
 import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.repository.TrackImportJobRepository;
@@ -27,6 +29,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.OptionalDouble;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -34,6 +37,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-/** Executes the yt-dlp download pipeline asynchronously for a queued import job. */
+/** Executes the yt-dlp download or uploaded-file transcode pipeline asynchronously for a queued import job. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -55,6 +60,9 @@ public class ImportJobRunner {
     private static final long MAX_METADATA_BYTES = 1_048_576;
     private static final int MAX_PROVIDER_DIAGNOSTIC_LENGTH = 500;
     private static final Pattern URL_PATTERN = Pattern.compile("https?://\\S+");
+    private static final Pattern FFMPEG_PROGRESS_LINE = Pattern.compile("[a-z0-9_]+=.*");
+    private static final String FFMPEG_OUT_TIME_KEY = "out_time_us=";
+    private static final String OUTPUT_BASENAME = "audio";
 
     private final TrackImportJobRepository jobRepository;
     private final YtDlpWrapper ytDlpWrapper;
@@ -64,41 +72,40 @@ public class ImportJobRunner {
     private final TrackMediaService trackMediaService;
     private final ObjectMapper objectMapper;
     private final WaveformGenerator waveformGenerator;
+    private final AudioTranscoder audioTranscoder;
+    private final ImportUploadStorage uploadStorage;
 
-    /** Downloads and converts audio for the given job ID; updates status, progress, and pushes WS events. */
+    /** Acquires and converts audio for the given job ID; updates status, progress, and pushes WS events. */
     public void execute(UUID jobId) {
         TrackImportJobEntity job = jobRepository.findByIdWithTrack(jobId).orElseThrow();
         if (job.getStatus() == ImportJobStatus.DONE) {
             return;
         }
         UUID adminId = job.getAdmin().getId();
+        boolean upload = job.getSource() == ImportSource.UPLOAD;
+        ProviderOutput providerOutput = upload
+                ? new ProviderOutput("ffmpeg", ImportJobRunner::isFfmpegDiagnostic)
+                : new ProviderOutput("yt-dlp", ImportJobRunner::isYtDlpDiagnostic);
         Path temporaryDirectory = null;
-        String providerDiagnostic = null;
         try {
-            job.setStatus(ImportJobStatus.DOWNLOADING);
+            job.setStatus(upload ? ImportJobStatus.PROCESSING : ImportJobStatus.DOWNLOADING);
             job.setErrorMessage(null);
             jobRepository.save(job);
 
             temporaryDirectory = createTemporaryDirectory(jobId);
-            Path outputTemplate = temporaryDirectory.resolve("audio");
-            Process process = ytDlpWrapper.start(job.getYoutubeUrl(), outputTemplate);
-            ProcessResult processResult = awaitProcess(job, process, temporaryDirectory, adminId);
-            providerDiagnostic = processResult.diagnostic();
-            if (processResult.exitCode() != 0) {
-                throw new ImportJobFailureException(ImportJobFailureException.Reason.PROVIDER);
-            }
-
-            job.setStatus(ImportJobStatus.PROCESSING);
-            jobRepository.save(job);
-
-            Path audioFile = controlledOutputPath(
-                    temporaryDirectory, Path.of(outputTemplate + ".mp3"));
-            long audioSize = validateAudioFile(audioFile);
-            Path metadataFile = controlledOutputPath(
-                    temporaryDirectory, Path.of(outputTemplate + ".info.json"));
-            String checksum = sha256(audioFile);
             TrackEntity track = job.getTrack();
-            applyYouTubeMetadata(track, metadataFile);
+            Path audioFile;
+            if (upload) {
+                audioFile = transcodeUpload(job, temporaryDirectory, adminId, providerOutput);
+            } else {
+                audioFile = downloadFromYouTube(job, temporaryDirectory, adminId, providerOutput);
+            }
+            long audioSize = validateAudioFile(audioFile);
+            String checksum = sha256(audioFile);
+            if (!upload) {
+                applyYouTubeMetadata(track, controlledOutputPath(
+                        temporaryDirectory, temporaryDirectory.resolve(OUTPUT_BASENAME + ".info.json")));
+            }
             track.setWaveformPeaks(objectMapper.writeValueAsString(
                     waveformGenerator.generate(audioFile, importProperties.timeout())));
             String objectKey = objectKey(track.getId(), checksum);
@@ -117,7 +124,7 @@ public class ImportJobRunner {
                     new WsImportDoneEvent(jobId, track.getId()));
 
         } catch (Exception e) {
-            logImportFailure(jobId, e, providerDiagnostic);
+            logImportFailure(jobId, e, providerOutput);
             job.setStatus(ImportJobStatus.FAILED);
             job.setCompletedAt(LocalDateTime.now());
             String msg = safeFailureMessage(e);
@@ -127,21 +134,62 @@ public class ImportJobRunner {
                     new WsImportFailedEvent(jobId, msg));
         } finally {
             deleteTemporaryDirectoryQuietly(temporaryDirectory, jobId);
+            if (upload) {
+                // Upload jobs are terminal once they end here; a retry requires a new upload.
+                uploadStorage.deleteStagedSource(jobId);
+            }
         }
     }
 
-    private ProcessResult awaitProcess(
-            TrackImportJobEntity job, Process process, Path temporaryDirectory, UUID adminId)
+    private Path downloadFromYouTube(
+            TrackImportJobEntity job, Path temporaryDirectory, UUID adminId, ProviderOutput providerOutput)
+            throws IOException, InterruptedException, ExecutionException {
+        Path outputTemplate = temporaryDirectory.resolve(OUTPUT_BASENAME);
+        Process process = ytDlpWrapper.start(job.getYoutubeUrl(), outputTemplate);
+        int exitCode = awaitProcess(
+                job, process, temporaryDirectory, adminId, providerOutput, ImportJobRunner::ytDlpProgress);
+        if (exitCode != 0) {
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.PROVIDER);
+        }
+
+        job.setStatus(ImportJobStatus.PROCESSING);
+        jobRepository.save(job);
+        return controlledOutputPath(temporaryDirectory, Path.of(outputTemplate + ".mp3"));
+    }
+
+    private Path transcodeUpload(
+            TrackImportJobEntity job, Path temporaryDirectory, UUID adminId, ProviderOutput providerOutput)
+            throws IOException, InterruptedException, ExecutionException {
+        Path source = uploadStorage.stagedSource(job.getId());
+        if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS)) {
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.UPLOAD_MISSING);
+        }
+        Path output = temporaryDirectory.resolve(OUTPUT_BASENAME + ".mp3");
+        Process process = audioTranscoder.start(source, output);
+        int exitCode = awaitProcess(job, process, temporaryDirectory, adminId, providerOutput,
+                ffmpegProgress(job.getTrack().getDurationSeconds()));
+        if (exitCode != 0) {
+            throw new ImportJobFailureException(ImportJobFailureException.Reason.TRANSCODE);
+        }
+        return controlledOutputPath(temporaryDirectory, output);
+    }
+
+    private int awaitProcess(
+            TrackImportJobEntity job,
+            Process process,
+            Path temporaryDirectory,
+            UUID adminId,
+            ProviderOutput providerOutput,
+            Function<String, OptionalDouble> progressParser)
             throws IOException, InterruptedException, ExecutionException {
         long deadline = System.nanoTime() + importProperties.timeout().toNanos();
         LinkedBlockingQueue<String> outputLines = new LinkedBlockingQueue<>();
-        ProviderOutput providerOutput = new ProviderOutput();
         try (ExecutorService outputReader = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<?> outputTask = outputReader.submit(
                     () -> readOutputLinesUnchecked(process.getInputStream(), outputLines));
             try {
                 while (true) {
-                    applyOutputLines(job, outputLines, adminId, providerOutput);
+                    applyOutputLines(job, outputLines, adminId, providerOutput, progressParser);
                     long remainingNanos = deadline - System.nanoTime();
                     if (remainingNanos <= 0) {
                         terminateProcess(process);
@@ -152,8 +200,8 @@ public class ImportJobRunner {
                             Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNanos)));
                     if (process.waitFor(waitMillis, TimeUnit.MILLISECONDS)) {
                         outputTask.get();
-                        applyOutputLines(job, outputLines, adminId, providerOutput);
-                        return new ProcessResult(process.exitValue(), providerOutput.diagnostic());
+                        applyOutputLines(job, outputLines, adminId, providerOutput, progressParser);
+                        return process.exitValue();
                     }
                     if (temporaryDirectorySize(temporaryDirectory) > importProperties.maxSizeBytes()) {
                         terminateProcess(process);
@@ -187,12 +235,49 @@ public class ImportJobRunner {
             TrackImportJobEntity job,
             LinkedBlockingQueue<String> outputLines,
             UUID adminId,
-            ProviderOutput providerOutput) {
+            ProviderOutput providerOutput,
+            Function<String, OptionalDouble> progressParser) {
         String line;
         while ((line = outputLines.poll()) != null) {
             providerOutput.observe(line);
-            updateProgress(job, line, adminId);
+            OptionalDouble percent = progressParser.apply(line);
+            if (percent.isPresent()) {
+                updateProgress(job, percent.getAsDouble(), adminId);
+            }
         }
+    }
+
+    private static OptionalDouble ytDlpProgress(String line) {
+        Matcher matcher = PROGRESS_PATTERN.matcher(line);
+        return matcher.find() ? OptionalDouble.of(Double.parseDouble(matcher.group(1))) : OptionalDouble.empty();
+    }
+
+    /** Converts FFmpeg's {@code out_time_us} progress key into a percentage of the probed duration. */
+    private static Function<String, OptionalDouble> ffmpegProgress(Integer durationSeconds) {
+        if (durationSeconds == null || durationSeconds <= 0) {
+            return line -> OptionalDouble.empty();
+        }
+        double durationMicros = durationSeconds * 1_000_000d;
+        return line -> {
+            if (!line.startsWith(FFMPEG_OUT_TIME_KEY)) {
+                return OptionalDouble.empty();
+            }
+            try {
+                long outTimeMicros = Long.parseLong(line.substring(FFMPEG_OUT_TIME_KEY.length()).strip());
+                return OptionalDouble.of(Math.max(0, outTimeMicros) * 100d / durationMicros);
+            } catch (NumberFormatException exception) {
+                return OptionalDouble.empty();
+            }
+        };
+    }
+
+    private static boolean isYtDlpDiagnostic(String line) {
+        return line.regionMatches(true, 0, "ERROR:", 0, "ERROR:".length());
+    }
+
+    /** FFmpeg progress lines are {@code key=value}; anything else it prints at error level is a diagnostic. */
+    private static boolean isFfmpegDiagnostic(String line) {
+        return !line.isBlank() && !FFMPEG_PROGRESS_LINE.matcher(line).matches();
     }
 
     private long temporaryDirectorySize(Path directory) throws IOException {
@@ -362,24 +447,33 @@ public class ImportJobRunner {
         return "The media import failed";
     }
 
-    private void logImportFailure(UUID jobId, Exception exception, String providerDiagnostic) {
-        if (providerDiagnostic == null) {
+    private void logImportFailure(UUID jobId, Exception exception, ProviderOutput providerOutput) {
+        String diagnostic = providerOutput.diagnostic();
+        if (diagnostic == null) {
             log.error("Import job {} failed with {}", jobId, exception.getClass().getSimpleName());
             return;
         }
         log.error(
-                "Import job {} failed with {}: yt-dlp={}",
+                "Import job {} failed with {}: {}={}",
                 jobId,
                 exception.getClass().getSimpleName(),
-                providerDiagnostic);
+                providerOutput.label(),
+                diagnostic);
     }
 
     private static final class ProviderOutput {
 
+        private final String label;
+        private final Predicate<String> isDiagnostic;
         private String diagnostic;
 
+        private ProviderOutput(String label, Predicate<String> isDiagnostic) {
+            this.label = label;
+            this.isDiagnostic = isDiagnostic;
+        }
+
         private void observe(String line) {
-            if (!line.regionMatches(true, 0, "ERROR:", 0, "ERROR:".length())) {
+            if (!isDiagnostic.test(line)) {
                 return;
             }
             String safeLine = URL_PATTERN.matcher(line).replaceAll("[url]").
@@ -388,22 +482,23 @@ public class ImportJobRunner {
             diagnostic = safeLine.substring(0, Math.min(safeLine.length(), MAX_PROVIDER_DIAGNOSTIC_LENGTH));
         }
 
+        private String label() {
+            return label;
+        }
+
         private String diagnostic() {
             return diagnostic;
         }
     }
 
-    private record ProcessResult(int exitCode, String diagnostic) {
-    }
-
-    private void updateProgress(TrackImportJobEntity job, String line, UUID adminId) {
-        Matcher matcher = PROGRESS_PATTERN.matcher(line);
-        if (matcher.find()) {
-            double pct = Double.parseDouble(matcher.group(1));
-            job.setProgress((short) Math.min((int) pct, 99));
-            jobRepository.save(job);
-            messagingTemplate.convertAndSendToUser(adminId.toString(), IMPORT_QUEUE_PREFIX + job.getId(),
-                    new WsImportProgressEvent(job.getId(), job.getStatus().name(), job.getProgress()));
+    private void updateProgress(TrackImportJobEntity job, double percent, UUID adminId) {
+        short progress = (short) Math.min((int) percent, 99);
+        if (progress == job.getProgress()) {
+            return;
         }
+        job.setProgress(progress);
+        jobRepository.save(job);
+        messagingTemplate.convertAndSendToUser(adminId.toString(), IMPORT_QUEUE_PREFIX + job.getId(),
+                new WsImportProgressEvent(job.getId(), job.getStatus().name(), job.getProgress()));
     }
 }

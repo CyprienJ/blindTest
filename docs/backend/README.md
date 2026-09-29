@@ -48,7 +48,7 @@ roadmap have not all replaced this layout.
 | `POST /api/sessions` | Verified-account solo creation |
 | `GET /api/sessions/{sessionId}/summary` | Owner-only durable completed-game summary |
 | `/api/admin/tracks/**` | Track editing, aliases, preview, waveform, publication and rejection |
-| `/api/admin/tracks/import/**` | Start and poll an import |
+| `/api/admin/tracks/import/**` | Start a YouTube or file-upload import and poll it |
 | `/api/admin/playlists/**` | Playlist CRUD and ordered membership |
 | `GET /api/admin/media/reconciliation` | Read-only missing/orphan media report |
 

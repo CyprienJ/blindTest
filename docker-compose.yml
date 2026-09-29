@@ -88,7 +88,7 @@ services:
       RESEND_API_KEY:                  ${RESEND_API_KEY}
       APP_BASE_URL:                    ${APP_BASE_URL}
       CORS_ALLOWED_ORIGINS:            ${CORS_ALLOWED_ORIGINS:-${APP_BASE_URL}}
-      APP_IMPORT_TEMP_DIR:             ${APP_IMPORT_TEMP_DIR:-/tmp/blindtest-imports}
+      APP_IMPORT_TEMP_DIR:             ${APP_IMPORT_TEMP_DIR:-/var/lib/blindtest/imports}
       APP_IMPORT_MAX_SIZE_BYTES:       ${APP_IMPORT_MAX_SIZE_BYTES:-26214400}
       APP_IMPORT_TIMEOUT:              ${APP_IMPORT_TIMEOUT:-10m}
       APP_IMPORT_YOUTUBE_COOKIES_FILE: ${APP_IMPORT_YOUTUBE_COOKIES_FILE:-}
@@ -105,6 +105,9 @@ services:
       S3_PRESIGNED_URL_TTL:            ${S3_PRESIGNED_URL_TTL:-5m}
     volumes:
       - media:/media
+      # Disk-backed import workspace: staged uploads survive restarts for job
+      # recovery and stay out of the RAM-backed /tmp tmpfs below.
+      - imports:/var/lib/blindtest/imports
       - ./secrets:/run/secrets:ro
     read_only: true
     tmpfs:
@@ -155,6 +158,7 @@ volumes:
   postgres_data:
   minio_data:
   media:
+  imports:
 
 networks:
   internal:

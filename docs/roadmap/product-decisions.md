@@ -9,7 +9,8 @@ The first release must provide:
 - account registration with verified email;
 - login, logout, token refresh, and password recovery;
 - an administrator-only global music catalogue;
-- administrator-only YouTube imports;
+- administrator-only imports from uploaded audio files, with YouTube imports as
+  best effort;
 - an administrator preview and validation step before publication;
 - administrator-only public playlist creation and editing;
 - a solo game for one authenticated player in one browser;

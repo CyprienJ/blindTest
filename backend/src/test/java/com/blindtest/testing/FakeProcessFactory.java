@@ -19,6 +19,14 @@ public class FakeProcessFactory implements ProcessFactory {
 
     @Override
     public synchronized Process start(List<String> command) throws IOException {
+        if (!command.isEmpty() && "ffprobe".equals(command.getFirst())) {
+            return probe(Path.of(command.getLast()));
+        }
+        if (!command.isEmpty() && "ffmpeg".equals(command.getFirst()) && command.contains("-progress")) {
+            Files.write(Path.of(command.getLast()), fixtureBytes());
+            return new CompletedProcess(
+                    "out_time_us=60000000\nprogress=continue\nout_time_us=120000000\nprogress=end\n");
+        }
         if (!command.isEmpty() && "ffmpeg".equals(command.getFirst())) {
             byte[] pcm = new byte[1_600];
             for (int index = 0; index < pcm.length / 2; index++) {
@@ -58,6 +66,32 @@ public class FakeProcessFactory implements ProcessFactory {
         startCount = 0;
     }
 
+    /**
+     * Accepts files that start like an MP3 (ID3 tag or MPEG frame sync), reporting deterministic
+     * tags and a 120-second duration, and rejects anything else the way ffprobe would.
+     */
+    private static Process probe(Path file) throws IOException {
+        byte[] header;
+        try (InputStream input = Files.newInputStream(file)) {
+            header = input.readNBytes(3);
+        }
+        boolean id3 = header.length == 3 && header[0] == 'I' && header[1] == 'D' && header[2] == '3';
+        boolean mpegFrame = header.length >= 2 && (header[0] & 0xff) == 0xff && (header[1] & 0xe0) == 0xe0;
+        if (!id3 && !mpegFrame) {
+            return new CompletedProcess(file + ": Invalid data found when processing input\n", 1);
+        }
+        return new CompletedProcess("""
+                {
+                  "streams": [{"codec_type": "audio", "codec_name": "mp3"}],
+                  "format": {
+                    "format_name": "mp3",
+                    "duration": "120.000000",
+                    "tags": {"title": "Deterministic upload title", "artist": "Deterministic upload artist"}
+                  }
+                }
+                """);
+    }
+
     private byte[] fixtureBytes() throws IOException {
         try (InputStream input = FakeProcessFactory.class.getResourceAsStream(FIXTURE_RESOURCE)) {
             if (input == null) {
@@ -71,13 +105,23 @@ public class FakeProcessFactory implements ProcessFactory {
     private static final class CompletedProcess extends Process {
 
         private final InputStream output;
+        private final int exitCode;
 
         private CompletedProcess(String output) {
-            this(output.getBytes(StandardCharsets.UTF_8));
+            this(output, 0);
+        }
+
+        private CompletedProcess(String output, int exitCode) {
+            this(output.getBytes(StandardCharsets.UTF_8), exitCode);
         }
 
         private CompletedProcess(byte[] output) {
+            this(output, 0);
+        }
+
+        private CompletedProcess(byte[] output, int exitCode) {
             this.output = new ByteArrayInputStream(output);
+            this.exitCode = exitCode;
         }
 
         @Override
@@ -97,12 +141,12 @@ public class FakeProcessFactory implements ProcessFactory {
 
         @Override
         public int waitFor() {
-            return 0;
+            return exitCode;
         }
 
         @Override
         public int exitValue() {
-            return 0;
+            return exitCode;
         }
 
         @Override

@@ -10,9 +10,19 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[OPS-04 — Manage production secrets](roadmap/lot-8-operations.md#ops-04--manage-production-secrets)**
+**[CAT-11 — Import tracks from uploaded audio files](roadmap/lot-3-catalogue.md#cat-11--import-tracks-from-uploaded-audio-files)**
 
-Status: ready
+Status: in progress. Inserted ahead of OPS-04 on 2026-09-29 because production
+YouTube imports are blocked by bot detection; resume
+[OPS-04 — Manage production secrets](roadmap/lot-8-operations.md#ops-04--manage-production-secrets)
+once CAT-11 is done.
+
+Implementation, backend tests, lint, unit tests, and build pass (2026-09-29).
+Not yet done: the mocked Playwright suite has 29 failures that reproduce
+identically on unmodified `main` (views stop updating after mocked HTTP
+successes), so browser acceptance of the upload journey is blocked on that
+pre-existing issue; the Docker full-stack E2E run and a production upload on the
+VPS are still pending.
 
 Git history and source confirm UI-01 through UI-05 were implemented on 2026-09-02
 (`f8febc9`, `e9cac42`, `4548500`, `65ea8ec`, and `8228f4b`). UI-06 through UI-10

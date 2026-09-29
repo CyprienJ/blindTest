@@ -50,15 +50,21 @@ The NPM host forwards `/api/` to the frontend container, which forwards it to
 the backend; `/ws` and `/ws-sockjs/` use the frontend's WebSocket upgrade
 configuration.
 
-In the host's Advanced configuration, use limits appropriate to the small
-browser requests and long-lived STOMP connection:
+In the host's Advanced configuration, use limits appropriate to the long-lived
+STOMP connection and the administrator audio upload:
 
 ```nginx
-client_max_body_size 1m;
+client_max_body_size 26m;
 proxy_connect_timeout 10s;
 proxy_send_timeout 30s;
 proxy_read_timeout 86400s;
 ```
+
+The 26 MiB body limit exists only for `POST /api/admin/tracks/import/upload`.
+The frontend container keeps Nginx's 1 MiB default on every other location and
+raises it only for that exact path (`frontend/nginx.conf`), so the host limit
+does not widen other endpoints. A host limit below 26 MiB makes uploads fail with
+an Nginx `413` page before they reach the application.
 
 NPM's WebSocket option supplies the HTTP/1.1 upgrade headers. Keep the
 application's `APP_BASE_URL` and `CORS_ALLOWED_ORIGINS` equal to the HTTPS

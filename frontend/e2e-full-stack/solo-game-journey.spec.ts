@@ -107,12 +107,13 @@ test('completes the solo game journey: build a playlist and play a full game', a
     await expect(page).toHaveURL(/\/home$/);
     await page.getByRole('link', { name: 'Admin', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/tracks$/);
-    await page.getByRole('link', { name: '＋ Import from YouTube' }).click();
+    await page.getByRole('link', { name: '＋ Import track' }).click();
     await expect(page).toHaveURL(/\/admin\/tracks\/import$/);
   });
 
   await test.step('import and publish enough tracks for a solo game', async () => {
     for (let index = 1; index <= TRACK_COUNT; index++) {
+      await page.getByRole('button', { name: 'YouTube link' }).click();
       await page
         .getByLabel('YouTube URL *')
         .fill(`https://www.youtube.com/watch?v=e2e-track-${index}`);

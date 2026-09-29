@@ -9,6 +9,13 @@ export type ImportJobStatus =
   | 'REJECTED'
   | 'FAILED';
 
+export type ImportSource = 'YOUTUBE' | 'UPLOAD';
+
+export interface UploadTrackMetadata {
+  title: string;
+  artist: string;
+}
+
 export interface ImportTrackRequest {
   youtubeUrl: string;
 }
@@ -19,6 +26,8 @@ export interface ImportStartResponse {
 
 export interface ImportJob {
   jobId: string;
+  source: ImportSource;
+  originalFilename: string | null;
   status: ImportJobStatus;
   progress: number;
   errorMessage: string | null;

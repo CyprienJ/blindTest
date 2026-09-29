@@ -120,11 +120,14 @@ async function buildFixturePlaylist(
 
   await page.getByRole('link', { name: 'Admin', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/tracks$/);
-  await page.getByRole('link', { name: '＋ Import from YouTube' }).click();
+  await page.getByRole('link', { name: '＋ Import track' }).click();
   await expect(page).toHaveURL(/\/admin\/tracks\/import$/);
 
   for (let index = 1; index <= TRACK_COUNT; index++) {
-    await page.getByLabel('YouTube URL *').fill(`https://www.youtube.com/watch?v=e2e-track-${index}`);
+    await page.getByRole('button', { name: 'YouTube link' }).click();
+    await page
+      .getByLabel('YouTube URL *')
+      .fill(`https://www.youtube.com/watch?v=e2e-track-${index}`);
     await page.getByRole('button', { name: '↓ Download music' }).click();
 
     await expect(page.getByRole('heading', { name: 'Choose the excerpt start' })).toBeVisible({
@@ -297,13 +300,14 @@ test('an import process failure surfaces a clean error and the admin can recover
   await login(page, email, password);
 
   await page.getByRole('link', { name: 'Admin', exact: true }).click();
-  await page.getByRole('link', { name: '＋ Import from YouTube' }).click();
+  await page.getByRole('link', { name: '＋ Import track' }).click();
   await expect(page).toHaveURL(/\/admin\/tracks\/import$/);
 
   await test.step('a provider failure fails the job cleanly instead of publishing a track', async () => {
     // FakeProcessFactory.FORCED_FAILURE_VIDEO_ID deterministically fails yt-dlp with a nonzero
     // exit code, the same path ImportJobRunnerTest already covers at the unit level for every
     // failure reason — this is that path's one browser-observable angle.
+    await page.getByRole('button', { name: 'YouTube link' }).click();
     await page.getByLabel('YouTube URL *').fill('https://www.youtube.com/watch?v=e2e-fail-01');
     await page.getByRole('button', { name: '↓ Download music' }).click();
 
@@ -320,6 +324,7 @@ test('an import process failure surfaces a clean error and the admin can recover
 
   await test.step('the admin can start a fresh import in the same session afterward', async () => {
     await page.getByRole('button', { name: 'Start another import' }).click();
+    await page.getByRole('button', { name: 'YouTube link' }).click();
     await page.getByLabel('YouTube URL *').fill('https://www.youtube.com/watch?v=e2e-track-1');
     await page.getByRole('button', { name: '↓ Download music' }).click();
 

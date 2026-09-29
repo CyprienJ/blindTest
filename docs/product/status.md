@@ -14,7 +14,7 @@ configuration; full-stack browser acceptance remains separate.
 | Accounts | Registration, verification, login, refresh, logout, password recovery | Corresponding forms, Turnstile, session recovery, guards |
 | Home and navigation | Account role information | Public home, authenticated home, shared application shell |
 | Catalogue | Public tracks/playlists; administrator track, alias, and playlist management | Track review, import workflow, playlist editor |
-| Imports and media | Bounded YouTube imports, waveform generation, private MinIO, signed URLs, deletion outbox | Import progress/polling, waveform excerpt selection, administrator preview |
+| Imports and media | Bounded audio-file uploads and best-effort YouTube imports, waveform generation, private MinIO, signed URLs, deletion outbox | Import progress/polling, waveform excerpt selection, administrator preview |
 | Solo configuration | Validated creation, randomized immutable track snapshots | Playlist/count/duration controls, REST creation, navigation to game |
 | Solo gameplay | STOMP authorization, state machines, matching, scores, timers, recovery | Game room, answer/skip actions, STOMP client, round audio, basic finish state |
 | Completed games | Durable snapshots and owner summary endpoint | Refresh-safe end-screen route rendering the durable summary |
@@ -78,6 +78,10 @@ are not equivalent to full-stack browser gameplay acceptance. See
 [testing](../testing.md) and [hardening tickets](../roadmap/lot-7-hardening.md).
 
 ## Known release risks
+
+- Production YouTube imports fail when YouTube flags the server IP as a bot,
+  even with cookies. Audio-file upload (CAT-11) is the supported workaround;
+  YouTube import is kept as best effort.
 
 - Beta deployment triggers independently of CI; required checks do not currently
   gate a push-triggered deployment. TEST-06 tracks this prerequisite.
