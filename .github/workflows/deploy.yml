@@ -1,6 +1,12 @@
-name: Deploy — Production
+name: Deploy
 
 on:
+  # Every push to main: deploy the images once "Build — Docker images" has published them.
+  workflow_run:
+    workflows: ["Build — Docker images"]
+    types: [completed]
+    branches: [main]
+  # Manual redeploy or rollback to an existing image tag.
   workflow_dispatch:
     inputs:
       image_tag:
@@ -8,19 +14,28 @@ on:
         required: true
         type: string
 
+# Deploys run one at a time; a newer pending deploy replaces an older pending one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 env:
-  IMAGE_TAG: ${{ inputs.image_tag }}
+  DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+  IMAGE_TAG: ${{ github.event_name == 'workflow_run' && format('main-{0}', github.event.workflow_run.head_sha) || inputs.image_tag }}
 
 jobs:
   # ── Deploy an existing, already scanned image on the server ───────
   deploy:
     name: Deploy to nosblindtests.fr
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
 
     steps:
       - name: Checkout deployment files
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Prepare deployment directory
         uses: appleboy/ssh-action@v1

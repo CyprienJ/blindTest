@@ -55,20 +55,20 @@ TLS, WebSocket upgrades, range requests, and signed query strings using the
 - [CI](../../.github/workflows/ci.yml) runs backend and frontend validation.
 - [Build images](../../.github/workflows/build-images.yml) builds and publishes
   immutable `main-<commit-sha>` images on pushes to `main`.
-- [Beta](../../.github/workflows/deploy-beta.yml) and
-  [Production](../../.github/workflows/deploy-prod.yml) are manually triggered
-  with an existing image tag; deployment does not rebuild the image.
+- [Deploy](../../.github/workflows/deploy.yml) deploys to production
+  automatically once the image build for a `main` commit succeeds. It can also
+  be triggered manually with an existing image tag to redeploy or roll back;
+  deployment does not rebuild the image.
 
-Pull Requests targeting `main` run the test and quality workflow. A push to
-`main` only builds and publishes the Docker images. The image tag shown
-by the build workflow must be supplied to a later beta or production deployment.
+Pull Requests targeting `main` run the test and quality workflow. Every push to
+`main` builds and publishes the Docker images, then deploys them to production.
 The `production` GitHub environment must provide `SSH_HOST` and `SSH_USER` as
 variables, plus the SSH, database, JWT, Resend, Turnstile, GHCR, and S3
 credentials as environment secrets. `PROD_YOUTUBE_COOKIES_B64` is optional and
 enables authenticated YouTube imports. The deployment workflow writes the S3
 endpoint and bucket settings together with those credentials to the VPS `.env`.
 
-Beta currently runs independently of CI, so failing checks do not automatically
+Deployment runs independently of CI, so failing checks do not automatically
 block deployment. TEST-06 in the [quality lot](../roadmap/lot-1-quality.md) tracks
 this prerequisite. This guide describes existing behavior, not release approval.
 
