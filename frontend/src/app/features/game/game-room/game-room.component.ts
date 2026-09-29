@@ -1,6 +1,7 @@
 import {
-  Component,
+  ChangeDetectionStrategy,
   ChangeDetectorRef,
+  Component,
   DestroyRef,
   ElementRef,
   inject,
@@ -42,6 +43,7 @@ type GamePhase =
 const COMMAND_GUARD_MS = 400;
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-game-room',
   standalone: true,
   imports: [FormsModule, RouterLink],

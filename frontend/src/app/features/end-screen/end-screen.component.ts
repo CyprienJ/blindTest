@@ -1,4 +1,10 @@
-import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  inject,
+  OnInit,
+} from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GameSummary, GameSummaryRound } from '../../core/models/game-summary.model';
@@ -8,6 +14,7 @@ import { GameSessionService } from '../../core/services/game-session.service';
 type EndScreenView = 'loading' | 'error' | 'ready';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-end-screen',
   standalone: true,
   imports: [RouterLink],

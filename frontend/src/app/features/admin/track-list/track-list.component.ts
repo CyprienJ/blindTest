@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, finalize, forkJoin } from 'rxjs';
@@ -19,6 +19,7 @@ type StatusFilter = TrackStatus | null;
 type ConfirmationAction = 'reject' | 'delete';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-track-list',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],

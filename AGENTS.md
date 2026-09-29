@@ -9,7 +9,7 @@ Blindtest is intended to be a real-time multiplayer music blindtest web applicat
 It is a monorepo with:
 
 - a Java 21 / Spring Boot 3.2 backend;
-- an Angular 21 standalone-component frontend;
+- an Angular 22 standalone-component frontend;
 - PostgreSQL 16 with Flyway migrations;
 - STOMP over WebSocket for real-time events;
 - Nginx and Docker Compose for deployment;

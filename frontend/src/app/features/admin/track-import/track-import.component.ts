@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import {
+  ChangeDetectionStrategy,
   Component,
   DestroyRef,
   ElementRef,
@@ -60,6 +61,7 @@ type AliasFormGroup = FormGroup<{
 }>;
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-track-import',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
