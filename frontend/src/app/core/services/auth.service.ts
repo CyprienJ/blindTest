@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, finalize, Observable, tap } from 'rxjs';
+import { BehaviorSubject, finalize, Observable, shareReplay, tap } from 'rxjs';
 import { API_BASE } from '../config';
 import {
   LoginResponse,
@@ -17,6 +17,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly currentUserSubject: BehaviorSubject<UserSummary | null>;
   readonly currentUser$: Observable<UserSummary | null>;
+  private refreshInFlight: Observable<RefreshResponse> | null = null;
 
   constructor() {
     const stored = localStorage.getItem(CURRENT_USER_KEY);
@@ -70,10 +71,19 @@ export class AuthService {
     return this.http.post<void>(`${API_BASE}/auth/reset-password`, { token, newPassword });
   }
 
+  /**
+   * Rotates the refresh cookie. Concurrent callers (e.g. several requests hitting 401 at once)
+   * share a single in-flight request, since the server invalidates the cookie on first use.
+   */
   refreshToken(): Observable<RefreshResponse> {
-    return this.http
+    this.refreshInFlight ??= this.http
       .post<RefreshResponse>(`${API_BASE}/auth/refresh`, {}, { withCredentials: true })
-      .pipe(tap((res) => localStorage.setItem(ACCESS_TOKEN_KEY, res.accessToken)));
+      .pipe(
+        tap((res) => localStorage.setItem(ACCESS_TOKEN_KEY, res.accessToken)),
+        finalize(() => (this.refreshInFlight = null)),
+        shareReplay({ bufferSize: 1, refCount: false }),
+      );
+    return this.refreshInFlight;
   }
 
   logout(): Observable<void> {
