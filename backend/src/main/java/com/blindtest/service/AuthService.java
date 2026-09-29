@@ -147,12 +147,13 @@ public class AuthService {
     public AuthResult refresh(String tokenValue) {
         RefreshTokenEntity stored = refreshTokenRepository.findByToken(tokenValue).
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN"));
-        if (stored.getExpiresAt().isBefore(LocalDateTime.now(clock))) {
-            refreshTokenRepository.delete(stored);
+        // Single-statement delete: if two requests rotate the same token concurrently, only one
+        // removes the row; the other sees 0 and gets a 401 instead of an optimistic-lock failure.
+        boolean consumed = refreshTokenRepository.deleteByIdReturningCount(stored.getId()) == 1;
+        if (!consumed || stored.getExpiresAt().isBefore(LocalDateTime.now(clock))) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN");
         }
         UserEntity user = stored.getUser();
-        refreshTokenRepository.delete(stored);
 
         String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getRole());
         String newRefreshToken = jwtTokenProvider.generateRefreshToken();

@@ -433,6 +433,11 @@ public class SessionGameplayService {
             throw new IllegalStateException("revealed round is required");
         }
         Instant advanceAt = round.revealedAt().orElseThrow().plus(REVEAL_DURATION);
+        // Schedule before publishing so the advance exists once clients observe the reveal.
+        scheduler.schedule(session.sessionId(), advanceAt, () -> onAdvance(
+                session.sessionId(),
+                session.gameState().currentRoundIndex(),
+                round.revealedAt().orElseThrow()));
         int totalScore = totalScore(session.gameState());
         if (round.scoreState().titleAwarded()) {
             publishPublic(
@@ -458,10 +463,6 @@ public class SessionGameplayService {
                         round.scoreState().totalPoints(),
                         totalScore,
                         advanceAt));
-        scheduler.schedule(session.sessionId(), advanceAt, () -> onAdvance(
-                session.sessionId(),
-                session.gameState().currentRoundIndex(),
-                round.revealedAt().orElseThrow()));
     }
 
     private boolean onAdvance(SessionId sessionId, int roundIndex, Instant revealedAt) {

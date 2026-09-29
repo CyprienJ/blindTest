@@ -17,6 +17,13 @@ import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.port.EmailSender;
 import com.blindtest.service.port.TurnstileVerifier;
 import jakarta.servlet.http.Cookie;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -182,6 +189,37 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(post("/api/auth/refresh").
                         cookie(new Cookie(REFRESH_COOKIE_NAME, firstToken))).
                 andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void concurrentRefreshWithSameCookieRotatesOnceAndRejectsTheOthers() throws Exception {
+        int concurrentRequests = 8;
+        for (int round = 0; round < 10; round++) {
+            String refreshToken = loginAndGetRefreshToken();
+            CountDownLatch start = new CountDownLatch(1);
+            ExecutorService executor = Executors.newFixedThreadPool(concurrentRequests);
+            try {
+                List<Future<Integer>> statuses = new ArrayList<>();
+                for (int i = 0; i < concurrentRequests; i++) {
+                    statuses.add(executor.submit(() -> {
+                        start.await();
+                        return mockMvc.perform(post("/api/auth/refresh").
+                                        cookie(new Cookie(REFRESH_COOKIE_NAME, refreshToken))).
+                                andReturn().getResponse().getStatus();
+                    }));
+                }
+                start.countDown();
+
+                List<Integer> results = new ArrayList<>();
+                for (Future<Integer> status : statuses) {
+                    results.add(status.get(30, TimeUnit.SECONDS));
+                }
+                assertThat(results).containsOnly(200, 401);
+                assertThat(results).filteredOn(s -> s == 200).hasSize(1);
+            } finally {
+                executor.shutdownNow();
+            }
+        }
     }
 
     @Test
