@@ -1,6 +1,6 @@
 # Blindtest frontend
 
-The Angular 21 application uses standalone components and lazy feature routes.
+The Angular 22 application uses standalone components and lazy feature routes.
 Start with the [project overview](../README.md), then the
 [frontend guide](../docs/frontend/README.md) for routes, state, and current behavior.
 The [gameplay client guide](../docs/frontend/gameplay.md) covers STOMP and audio.

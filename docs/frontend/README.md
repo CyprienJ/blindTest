@@ -2,9 +2,15 @@
 
 [Up: Project overview](../../README.md) · [Architecture](../architecture.md)
 
-The Angular 21 browser application uses standalone components, lazy feature routes,
+The Angular 22 browser application uses standalone components, lazy feature routes,
 RxJS services, and shared global styling. Nginx serves its production build;
 Angular's development server proxies backend traffic during local development.
+
+Angular 22 makes `OnPush` the default change detection. Components that update plain
+fields from HTTP or WebSocket callbacks must declare `ChangeDetectionStrategy.Eager`,
+or their view never refreshes; only components rendering from inputs, signals, or
+the `async` pipe may use `OnPush`. Layout components wrapping `<router-outlet>` stay
+`Eager`.
 
 ## Routes and user experience
 

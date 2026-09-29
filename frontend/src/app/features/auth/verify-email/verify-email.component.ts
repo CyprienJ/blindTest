@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -6,6 +6,7 @@ import { AuthService } from '../../../core/services/auth.service';
 type State = 'check-inbox' | 'verifying' | 'success' | 'error';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-verify-email',
   standalone: true,
   imports: [CommonModule, RouterLink],
