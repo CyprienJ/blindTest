@@ -521,9 +521,8 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   // Event coalescing defers rendering past a plain timeout, and ngModel re-enables
   // the input asynchronously, so focus only once the next render has settled.
   private focusInput(): void {
-    afterNextRender(
-      () => window.setTimeout(() => this.answerInput?.nativeElement.focus(), 0),
-      { injector: this.injector },
-    );
+    afterNextRender(() => window.setTimeout(() => this.answerInput?.nativeElement.focus(), 0), {
+      injector: this.injector,
+    });
   }
 }

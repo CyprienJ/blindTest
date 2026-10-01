@@ -21,6 +21,7 @@ function round(overrides: Partial<RoundPlaybackRequest> = {}): RoundPlaybackRequ
 class FakeAudio extends EventTarget {
   preload = '';
   currentTime = 0;
+  volume = 1;
   paused = true;
   readyState: number = HTMLMediaElement.HAVE_METADATA;
   src = '';
@@ -81,6 +82,29 @@ describe('AudioPlaybackService', () => {
     expect(audio.playCalls.length).toBe(1);
     expect(audio.currentTime).toBeCloseTo(19, 3);
     expect(statuses).toEqual(['idle', 'loading', 'playing']);
+  });
+
+  it('fades the excerpt in over half a second once playback starts', async () => {
+    service.scheduleRound(round());
+    expect(audio.volume).toBe(0);
+    await flush();
+
+    jasmine.clock().tick(250);
+    expect(audio.volume).toBeCloseTo(0.5, 1);
+    jasmine.clock().tick(250);
+    expect(audio.volume).toBe(1);
+  });
+
+  it('restarts the fade-in silently for the next round', async () => {
+    service.scheduleRound(round());
+    await flush();
+    jasmine.clock().tick(500);
+
+    service.scheduleRound(round({ url: 'https://media.example/next.mp3' }));
+    expect(audio.volume).toBe(0);
+    await flush();
+    jasmine.clock().tick(500);
+    expect(audio.volume).toBe(1);
   });
 
   it('defers playback until the scheduled start instant', async () => {

@@ -80,7 +80,8 @@ For a playing round it:
 
 1. stops previous playback and loads the signed URL;
 2. waits until the server start instant when necessary;
-3. seeks to the excerpt offset plus elapsed time since that instant;
+3. seeks to the excerpt offset plus elapsed time since that instant, then fades the
+   volume in over 500 ms once playback starts;
 4. reports blocked autoplay and offers a user-gesture resume action;
 5. keeps playing past the deadline, so the reveal keeps the music until the next
    round's playback replaces it.
