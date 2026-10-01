@@ -23,6 +23,7 @@ function track(id: string, title: string, artist: string) {
     decade: 1980,
     durationSeconds: 240,
     excerptStartSeconds: 0,
+    excerptDurationSeconds: 60,
     imageUrl: null,
     audioUrl: null,
     audioChecksum: 'a'.repeat(64),
@@ -138,7 +139,9 @@ test.describe('admin playlist editor', () => {
     await expect(page.getByRole('button', { name: 'Add Take On Me' })).toBeHidden();
   });
 
-  test('warns about metadata changes and restores a failed optimistic reorder', async ({ page }) => {
+  test('warns about metadata changes and restores a failed optimistic reorder', async ({
+    page,
+  }) => {
     const playlist = {
       id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
       name: 'Ordered classics',

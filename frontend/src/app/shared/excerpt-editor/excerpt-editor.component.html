@@ -1,0 +1,85 @@
+<div class="excerpt-editor">
+  <div class="excerpt-labels">
+    <strong>{{ window() }}-second game window</strong>
+    <span class="mono">{{ formatTime(start()) }} → {{ formatTime(end()) }}</span>
+  </div>
+  <ng-content />
+  @if (waveformPath()) {
+    <svg
+      #surface
+      class="waveform"
+      viewBox="0 0 1000 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      (pointerdown)="selectWaveformPosition($event, surface)"
+      (pointermove)="selectWaveformPosition($event, surface)"
+    >
+      <line x1="0" y1="50" x2="1000" y2="50" stroke="var(--line)" />
+      <path [attr.d]="waveformPath()" fill="var(--fg-2)" opacity="0.58" />
+      <rect
+        [attr.x]="selectionX()"
+        y="1"
+        [attr.width]="selectionWidth()"
+        height="98"
+        rx="5"
+        fill="var(--accent)"
+        opacity="0.18"
+        stroke="var(--accent)"
+        stroke-width="2"
+      />
+      <line
+        [attr.x1]="selectionX()"
+        y1="0"
+        [attr.x2]="selectionX()"
+        y2="100"
+        stroke="var(--accent)"
+        stroke-width="4"
+      />
+    </svg>
+  }
+  <input
+    class="excerpt-range"
+    type="range"
+    min="0"
+    step="1"
+    aria-label="Excerpt start"
+    [max]="maxStart()"
+    [value]="start()"
+    [disabled]="disabled()"
+    (input)="setStart($any($event.target).valueAsNumber)"
+  />
+  <div class="timeline-labels mono">
+    <span>0:00</span>
+    <span>{{ formatTime(durationSeconds() || 0) }}</span>
+  </div>
+  <label class="window-length">
+    <span>Window length</span>
+    <input
+      type="range"
+      step="1"
+      aria-label="Window length"
+      [min]="limits.minimum"
+      [max]="limits.maximum"
+      [value]="window()"
+      [disabled]="disabled()"
+      (input)="setWindow($any($event.target).valueAsNumber)"
+    />
+    <output class="mono">{{ window() }}s</output>
+  </label>
+  @if (previewUrl(); as url) {
+    <audio
+      #audio
+      class="selection-preview"
+      controls
+      [src]="url"
+      (loadedmetadata)="seekToStart(audio)"
+      (timeupdate)="loopWindow(audio)"
+      (ended)="restartWindow(audio)"
+    >
+      Your browser cannot play this audio.
+    </audio>
+    <small class="hint"
+      >Moving a slider plays the window from its start; it loops like a round.</small
+    >
+  }
+</div>

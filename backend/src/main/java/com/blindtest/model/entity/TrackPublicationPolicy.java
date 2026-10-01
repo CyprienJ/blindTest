@@ -3,6 +3,10 @@ package com.blindtest.model.entity;
 /** Catalogue rule defining the minimum metadata required before publication. */
 public final class TrackPublicationPolicy {
 
+    public static final int MINIMUM_EXCERPT_DURATION_SECONDS = 5;
+    /** Matches the longest approved round duration. */
+    public static final int MAXIMUM_EXCERPT_DURATION_SECONDS = 60;
+
     private TrackPublicationPolicy() {
     }
 
@@ -20,12 +24,18 @@ public final class TrackPublicationPolicy {
     }
 
     /**
-     * Returns whether the configured offset leaves every supported round duration playable.
+     * Returns whether the configured excerpt window is playable.
      *
-     * <p>Zero needs no known media duration. A non-zero offset requires at least sixty
-     * remaining whole seconds.
+     * <p>The window length must be between {@link #MINIMUM_EXCERPT_DURATION_SECONDS} and
+     * {@link #MAXIMUM_EXCERPT_DURATION_SECONDS}. Offset zero needs no known media duration.
+     * A non-zero offset requires the whole window to fit in the known media duration.
      */
     public static boolean hasPlayableExcerpt(TrackEntity track) {
+        int window = track.getExcerptDurationSeconds();
+        if (window < MINIMUM_EXCERPT_DURATION_SECONDS
+                || window > MAXIMUM_EXCERPT_DURATION_SECONDS) {
+            return false;
+        }
         int offset = track.getExcerptStartSeconds();
         if (offset == 0) {
             return true;
@@ -33,7 +43,7 @@ public final class TrackPublicationPolicy {
         Integer duration = track.getDurationSeconds();
         return offset > 0
                 && duration != null
-                && (long) duration - offset >= 60;
+                && (long) duration - offset >= window;
     }
 
     private static boolean hasCompleteObjectMedia(TrackEntity track) {

@@ -56,7 +56,9 @@ discoveries, a repeated discovery, cooldown, and the subsequent title reveal.
 outcome, awarded points, and total score. It replaces the masked track card and
 answer form, keeps the excerpt playing, and announces the result through the polite
 live region.
-Missing optional metadata is omitted; no cover or year is invented.
+Missing optional metadata is omitted; no cover or year is invented. Available
+streaming links appear as "Listen on" chips that open in a new tab; only HTTP(S)
+links are rendered.
 
 The countdown projects the event's `transitionAt`, or the recovered snapshot's
 `advanceAt`, under [ADR-0015](../adr/0015-four-second-automatic-reveal-transition.md).
@@ -80,10 +82,13 @@ For a playing round it:
 
 1. stops previous playback and loads the signed URL;
 2. waits until the server start instant when necessary;
-3. seeks to the excerpt offset plus elapsed time since that instant, then fades the
+3. seeks to the excerpt offset plus elapsed time since that instant (modulo the
+   looped window), then fades the
    volume in over 500 ms once playback starts;
 4. reports blocked autoplay and offers a user-gesture resume action;
-5. keeps playing past the deadline, so the reveal keeps the music until the next
+5. loops the excerpt window back to its offset when it is shorter than the round,
+   both on time updates and when the media ends inside the window;
+6. keeps playing past the deadline, so the reveal keeps the music until the next
    round's playback replaces it.
 
 Already expired rounds never start audio. The game room stops playback on finish,

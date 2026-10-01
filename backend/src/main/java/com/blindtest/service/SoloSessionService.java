@@ -17,6 +17,7 @@ import com.blindtest.model.game.GameConfigurationError;
 import com.blindtest.model.game.GameConfigurationValidationException;
 import com.blindtest.model.game.GameConfigurationValidator;
 import com.blindtest.model.game.GameMediaSnapshot;
+import com.blindtest.model.game.GameStreamingLinks;
 import com.blindtest.model.game.GameParticipantId;
 import com.blindtest.model.game.GamePlaybackSnapshot;
 import com.blindtest.model.game.GameRandom;
@@ -102,7 +103,8 @@ public class SoloSessionService {
         List<GameTrackCandidate> candidates = loadCandidates(playlistId);
         PlaylistEligibilitySnapshot eligibility = playlistId != null
                 && playlistRepository.existsById(playlistId)
-                ? new PlaylistEligibilitySnapshot(playlistId, candidates.size())
+                ? new PlaylistEligibilitySnapshot(
+                        playlistId, candidates.size(), countByDifficulty(candidates))
                 : null;
         GameConfiguration configuration =
                 configurationValidator.validate(requested, eligibility);
@@ -129,7 +131,17 @@ public class SoloSessionService {
                 request.playlistId(),
                 request.trackCount(),
                 request.maxRoundSeconds(),
-                request.extensions());
+                request.extensions(),
+                request.difficultyLevels(),
+                !Boolean.FALSE.equals(request.includeUnrated()));
+    }
+
+    private Map<Integer, Integer> countByDifficulty(List<GameTrackCandidate> candidates) {
+        return candidates.stream().collect(Collectors.toMap(
+                candidate -> candidate.difficulty() == null
+                        ? PlaylistEligibilitySnapshot.UNRATED : candidate.difficulty(),
+                candidate -> 1,
+                Integer::sum));
     }
 
     private List<GameTrackCandidate> loadCandidates(UUID playlistId) {
@@ -176,9 +188,14 @@ public class SoloSessionService {
                         track.getAlbum(),
                         groupedAliases),
                 new GamePlaybackSnapshot(
-                        track.getExcerptStartSeconds(), track.getDurationSeconds()),
+                        track.getExcerptStartSeconds(), track.getDurationSeconds(),
+                        track.getExcerptDurationSeconds()),
                 new GameMediaSnapshot(
-                        track.getAudioObjectKey(), track.getAudioChecksum()));
+                        track.getAudioObjectKey(), track.getAudioChecksum()),
+                track.getDifficulty() == null ? null : track.getDifficulty().intValue(),
+                GameStreamingLinks.of(
+                        track.getDeezerUrl(), track.getStreamingYoutubeUrl(), track.getSpotifyUrl(),
+                        track.getQobuzUrl(), track.getTidalUrl(), track.getSoundcloudUrl()));
     }
 
     private GameAnswerType toGameAnswerType(TrackAnswerType answerType) {

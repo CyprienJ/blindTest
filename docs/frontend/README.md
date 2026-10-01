@@ -52,8 +52,9 @@ round's audio element and playback timing. Components translate those streams
 into visible UI state. See [gameplay client](gameplay.md) for the detailed flow.
 
 Administrator imports combine live STOMP progress with durable HTTP polling.
-The editor renders backend-generated waveform peaks and offers a 60-second
-excerpt selector with seek/play feedback. Playlist editing supports drag and
+The shared excerpt editor renders backend-generated waveform peaks, selects the
+start and a 5–60 second window, and previews the window in a loop; the import
+review and the track editor both use it, and the track editor also sets difficulty. Playlist editing supports drag and
 keyboard ordering, rollback on failed mutations, and unsaved-change protection.
 
 ## Source map and deeper reading

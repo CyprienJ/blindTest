@@ -31,15 +31,27 @@ class UserRepositoryTest {
 
     @Test
     void findByEmailReturnsUserWhenEmailExists() {
-        Optional<UserEntity> result = userRepository.findByEmail("alice@example.com");
+        Optional<UserEntity> result = userRepository.findByEmailIgnoreCase("alice@example.com");
         assertThat(result).isPresent();
         assertThat(result.get().getId()).isEqualTo(savedUser.getId());
     }
 
     @Test
     void findByEmailReturnsEmptyWhenEmailNotFound() {
-        Optional<UserEntity> result = userRepository.findByEmail("unknown@example.com");
+        Optional<UserEntity> result = userRepository.findByEmailIgnoreCase("unknown@example.com");
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findByEmailIgnoresCase() {
+        Optional<UserEntity> result = userRepository.findByEmailIgnoreCase("Alice@Example.COM");
+        assertThat(result).isPresent();
+        assertThat(result.get().getId()).isEqualTo(savedUser.getId());
+    }
+
+    @Test
+    void existsByEmailIgnoresCase() {
+        assertThat(userRepository.existsByEmailIgnoreCase("ALICE@example.com")).isTrue();
     }
 
     @Test
@@ -57,12 +69,12 @@ class UserRepositoryTest {
 
     @Test
     void existsByEmailReturnsTrueWhenEmailExists() {
-        assertThat(userRepository.existsByEmail("alice@example.com")).isTrue();
+        assertThat(userRepository.existsByEmailIgnoreCase("alice@example.com")).isTrue();
     }
 
     @Test
     void existsByEmailReturnsFalseWhenEmailNotFound() {
-        assertThat(userRepository.existsByEmail("unknown@example.com")).isFalse();
+        assertThat(userRepository.existsByEmailIgnoreCase("unknown@example.com")).isFalse();
     }
 
     @Test

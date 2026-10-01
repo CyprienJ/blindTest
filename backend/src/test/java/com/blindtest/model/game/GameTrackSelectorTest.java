@@ -149,6 +149,40 @@ class GameTrackSelectorTest {
                 hasMessage("game random returned a value outside its bound");
     }
 
+    @Test
+    void selectsOnlyTracksIncludedByTheDifficultyFilter() {
+        List<GameTrackCandidate> candidates = new ArrayList<>();
+        for (int index = 0; index < 8; index++) {
+            candidates.add(withDifficulty(candidate(index, true), index < 6 ? index % 3 + 1 : null));
+        }
+        GameConfiguration configuration = new GameConfiguration(
+                PLAYLIST_ID, 4, 30, new DifficultyFilter(Set.of(1, 2), false));
+
+        GameTrackSelection selection = selectorWithSeed(7).select(configuration, candidates);
+
+        assertThat(selection.tracks()).extracting(GameTrackSnapshot::trackId).
+                containsExactlyInAnyOrder(
+                        candidateId(0), candidateId(1), candidateId(3), candidateId(4));
+    }
+
+    @Test
+    void difficultyFilterLeavingTooFewTracksFailsWithStableConfigurationError() {
+        List<GameTrackCandidate> candidates = new ArrayList<>(candidates(6));
+        GameConfiguration configuration = new GameConfiguration(
+                PLAYLIST_ID, 5, 30, new DifficultyFilter(Set.of(3), false));
+
+        assertThatThrownBy(() -> selectorWithSeed(1).select(configuration, candidates)).
+                isInstanceOfSatisfying(GameConfigurationValidationException.class, exception ->
+                        assertThat(exception.code()).
+                                isEqualTo("GAME_DIFFICULTY_INSUFFICIENT_TRACKS"));
+    }
+
+    private GameTrackCandidate withDifficulty(GameTrackCandidate candidate, Integer difficulty) {
+        return new GameTrackCandidate(
+                candidate.trackId(), candidate.eligiblePublished(), candidate.answers(),
+                candidate.playback(), candidate.media(), difficulty);
+    }
+
     private GameTrackSelector selectorWithSeed(long seed) {
         Random random = new Random(seed);
         return new GameTrackSelector(random::nextInt);

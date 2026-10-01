@@ -10,6 +10,7 @@ import com.blindtest.model.game.GameStateSnapshot;
 import com.blindtest.model.game.GameSummary;
 import com.blindtest.model.game.GameTransitionException;
 import com.blindtest.model.game.RoundCompletionTransition;
+import com.blindtest.model.game.RoundPlaybackWindow;
 import com.blindtest.model.game.RoundScoringWindow;
 import com.blindtest.model.game.RoundStateMachine;
 import com.blindtest.model.game.RoundStateSnapshot;
@@ -44,6 +45,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -363,6 +365,7 @@ public class SessionGameplayService {
         GameStateSnapshot playing = gameStateMachine.startRound(session.gameState(), window);
         RoundStateSnapshot startedRound = playing.currentRound().orElseThrow();
         URI playbackUrl = resolvePlaybackUrl(startedRound);
+        RoundPlaybackWindow playbackWindow = startedRound.playbackWindow().orElseThrow();
         ActiveSessionSnapshot persisted = session.next(
                 playing,
                 session.discoveries(),
@@ -381,7 +384,8 @@ public class SessionGameplayService {
                         totalRounds(playing),
                         window.startsAt(),
                         window.deadline(),
-                        round.track().playback().excerptStartSeconds(),
+                        playbackWindow.excerptStartSeconds(),
+                        playbackWindow.excerptDurationSeconds(),
                         Optional.of(playbackUrl)));
         return true;
     }
@@ -460,6 +464,7 @@ public class SessionGameplayService {
                         answers.artist(),
                         Optional.ofNullable(answers.composer()),
                         Optional.ofNullable(answers.album()),
+                        round.track().streamingLinks().links(),
                         round.scoreState().totalPoints(),
                         totalScore,
                         advanceAt));
@@ -576,6 +581,7 @@ public class SessionGameplayService {
                 deadline,
                 playbackUrl,
                 round.playbackWindow().map(window -> window.excerptStartSeconds()),
+                round.playbackWindow().map(RoundPlaybackWindow::excerptDurationSeconds),
                 round.outcome(),
                 revealed ? Optional.of(round.track().answers().title()) : Optional.empty(),
                 revealed ? Optional.of(round.track().answers().artist()) : Optional.empty(),
@@ -585,6 +591,7 @@ public class SessionGameplayService {
                 revealed
                         ? Optional.ofNullable(round.track().answers().album())
                         : Optional.empty(),
+                revealed ? round.track().streamingLinks().links() : Map.of(),
                 advanceAt,
                 round.scoreState().totalPoints());
     }

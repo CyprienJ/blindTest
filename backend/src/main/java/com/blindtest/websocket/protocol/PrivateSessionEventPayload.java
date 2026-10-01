@@ -6,7 +6,10 @@ import com.blindtest.model.game.RoundOutcome;
 import com.blindtest.model.game.RoundStatus;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -82,11 +85,13 @@ public sealed interface PrivateSessionEventPayload permits
             Optional<Instant> deadline,
             Optional<URI> playbackUrl,
             Optional<Integer> excerptStartSeconds,
+            Optional<Integer> excerptDurationSeconds,
             Optional<RoundOutcome> outcome,
             Optional<String> title,
             Optional<String> artist,
             Optional<String> composer,
             Optional<String> album,
+            Map<String, String> streamingLinks,
             Optional<Instant> advanceAt,
             int roundPoints) {
 
@@ -99,14 +104,23 @@ public sealed interface PrivateSessionEventPayload permits
             playbackUrl = Objects.requireNonNull(playbackUrl, "playbackUrl is required");
             excerptStartSeconds = Objects.requireNonNull(
                     excerptStartSeconds, "excerptStartSeconds is required");
+            excerptDurationSeconds = Objects.requireNonNull(
+                    excerptDurationSeconds, "excerptDurationSeconds is required");
             outcome = Objects.requireNonNull(outcome, "outcome is required");
             title = requireOptionalText(title, "title");
             artist = requireOptionalText(artist, "artist");
             composer = requireOptionalText(composer, "composer");
             album = requireOptionalText(album, "album");
+            streamingLinks = Collections.unmodifiableMap(new LinkedHashMap<>(
+                    Objects.requireNonNull(streamingLinks, "streamingLinks are required")));
             advanceAt = Objects.requireNonNull(advanceAt, "advanceAt is required");
             excerptStartSeconds.ifPresent(
                     value -> SessionProtocol.requireNonNegative(value, "excerptStartSeconds"));
+            excerptDurationSeconds.ifPresent(value -> {
+                if (value <= 0) {
+                    throw new IllegalArgumentException("excerptDurationSeconds must be positive");
+                }
+            });
             SessionProtocol.requireNonNegative(roundPoints, "roundPoints");
         }
     }

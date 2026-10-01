@@ -126,6 +126,8 @@ components:
             - GAME_PLAYLIST_NOT_FOUND
             - GAME_PLAYLIST_INELIGIBLE
             - GAME_PLAYLIST_INSUFFICIENT_TRACKS
+            - GAME_DIFFICULTY_INVALID
+            - GAME_DIFFICULTY_INSUFFICIENT_TRACKS
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
         message:
@@ -363,6 +365,26 @@ components:
           additionalProperties:
             type: string
           description: Reserved for future game modes and rules; V1 rejects every entry.
+        difficultyLevels:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+            maximum: 5
+          description: |
+            Star levels to include, from 1 (easiest) to 5 (hardest). Omit or
+            send null to include every level. Out-of-range values return
+            GAME_DIFFICULTY_INVALID.
+        includeUnrated:
+          type: boolean
+          nullable: true
+          default: true
+          description: |
+            Whether tracks without a difficulty rating are included. At least
+            one level or unrated tracks must be selected; when too few playable
+            tracks match, creation returns GAME_DIFFICULTY_INSUFFICIENT_TRACKS.
 
     SessionConnectionInstructions:
       type: object
@@ -540,21 +562,43 @@ components:
         imageUrl:
           type: string
           nullable: true
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+          description: Administrator difficulty, 1 (easiest) to 5 (hardest); null when not rated.
 
     TrackAdmin:
       allOf:
         - $ref: '#/components/schemas/Track'
         - type: object
-          required: [excerptStartSeconds]
+          required: [excerptStartSeconds, excerptDurationSeconds, streamingLinks]
           properties:
+            difficulty:
+              type: integer
+              minimum: 1
+              maximum: 5
+              nullable: true
+              description: 1 (easiest) to 5 (hardest); null until rated.
+            streamingLinks:
+              $ref: '#/components/schemas/TrackStreamingLinks'
             excerptStartSeconds:
               type: integer
               minimum: 0
               default: 0
               description: |
                 Administrator-configured whole-second playback offset. A
-                non-zero value can only be published when at least 60 seconds
-                remain in the finalized media.
+                non-zero value can only be published when the whole excerpt
+                window fits in the finalized media.
+            excerptDurationSeconds:
+              type: integer
+              minimum: 5
+              maximum: 60
+              default: 60
+              description: |
+                Excerpt window length. Rounds play the window capped to their
+                duration and clients loop it until the round ends.
             audioUrl:
               type: string
               nullable: true
@@ -667,9 +711,39 @@ components:
           minimum: 0
           nullable: true
           description: Set to zero to reset playback to the beginning.
+        excerptDurationSeconds:
+          type: integer
+          minimum: 5
+          maximum: 60
+          nullable: true
         imageUrl:
           type: string
           nullable: true
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        streamingLinks:
+          allOf:
+            - $ref: '#/components/schemas/TrackStreamingLinks'
+          nullable: true
+          description: |
+            When present, replaces all six links; null or blank values clear
+            a link. Omit the object to keep the stored links.
+
+    TrackStreamingLinks:
+      type: object
+      description: |
+        Optional public listening links. Each value is empty/null or an HTTP(S)
+        URL on the platform's domain (for example open.spotify.com for Spotify).
+      properties:
+        deezer: { type: string, nullable: true, maxLength: 500 }
+        youtube: { type: string, nullable: true, maxLength: 500 }
+        spotify: { type: string, nullable: true, maxLength: 500 }
+        qobuz: { type: string, nullable: true, maxLength: 500 }
+        tidal: { type: string, nullable: true, maxLength: 500 }
+        soundcloud: { type: string, nullable: true, maxLength: 500 }
 
     TrackAnswerType:
       type: string
@@ -1227,8 +1301,9 @@ paths:
       description: |
         Requires an authenticated account with a verified email. The server
         validates the requested configuration, randomly selects published tracks
-        backed by snapshot-capable private media, freezes their answer/playback/media
-        metadata, and creates an independent one-player active session.
+        backed by snapshot-capable private media and matching the requested
+        difficulty levels, freezes their answer/playback/media metadata, and
+        creates an independent one-player active session.
       requestBody:
         required: true
         content:

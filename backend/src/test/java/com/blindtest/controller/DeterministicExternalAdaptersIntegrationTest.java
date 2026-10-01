@@ -122,7 +122,7 @@ class DeterministicExternalAdaptersIntegrationTest {
                 andExpect(jsonPath("$.username").value("listener")).
                 andExpect(jsonPath("$.email").value("listener@example.com"));
 
-        UserEntity saved = userRepository.findByEmail("listener@example.com").orElseThrow();
+        UserEntity saved = userRepository.findByEmailIgnoreCase("listener@example.com").orElseThrow();
         assertThat(saved.isEmailVerified()).isFalse();
         assertThat(saved.getRole()).isEqualTo(UserRole.USER);
         assertThat(emailSender.messages()).hasSize(1);
@@ -149,7 +149,7 @@ class DeterministicExternalAdaptersIntegrationTest {
                 andExpect(status().isForbidden()).
                 andExpect(jsonPath("$.code").value("TURNSTILE_FAILED"));
 
-        assertThat(userRepository.findByEmail("bot@example.com")).isEmpty();
+        assertThat(userRepository.findByEmailIgnoreCase("bot@example.com")).isEmpty();
         assertThat(emailSender.messages()).isEmpty();
     }
 

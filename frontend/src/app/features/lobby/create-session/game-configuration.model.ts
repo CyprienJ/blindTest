@@ -13,6 +13,8 @@ export const GAME_CONFIGURATION_LIMITS = {
   },
 } as const;
 
+export const DIFFICULTY_LEVELS = [1, 2, 3, 4, 5] as const;
+
 export function isAllowedTrackCount(value: number): boolean {
   const limits = GAME_CONFIGURATION_LIMITS.trackCount;
   return (

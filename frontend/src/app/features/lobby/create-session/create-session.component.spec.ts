@@ -27,6 +27,8 @@ function detail() {
       decade: 1980,
       durationSeconds: 200,
       imageUrl: null,
+      // Three tracks per level from 1 to 5, then five unrated tracks.
+      difficulty: index < 15 ? (index % 5) + 1 : null,
     })),
   };
 }
@@ -114,6 +116,8 @@ describe('CreateSessionComponent', () => {
       trackCount: 15,
       maxRoundSeconds: 30,
       extensions: {},
+      difficultyLevels: [1, 2, 3, 4, 5],
+      includeUnrated: true,
     });
     request.flush(sessionResponse);
 
@@ -139,5 +143,48 @@ describe('CreateSessionComponent', () => {
     expect(router.navigate).not.toHaveBeenCalled();
     // The catalogue is refreshed; the already-selected playlist detail is not re-fetched.
     http.expectOne('/api/playlists').flush([playlist]);
+  });
+
+  it('sends the selected difficulty levels and caps the track count to matching tracks', async () => {
+    await render([playlist]);
+
+    component.toggleDifficulty(1);
+    component.toggleDifficulty(5);
+    component.toggleDifficulty(null);
+
+    expect(component.matchingTrackCount()).toBe(9);
+    expect(component.trackCountMaximum()).toBe(9);
+    expect(component.form.controls.trackCount.value).toBe(9);
+    expect(component.difficultySummary()).toBe('2, 3, 4 ★');
+
+    component.createSession();
+
+    const request = http.expectOne('/api/sessions');
+    expect(request.request.body).toEqual(
+      jasmine.objectContaining({
+        trackCount: 9,
+        difficultyLevels: [2, 3, 4],
+        includeUnrated: false,
+      }),
+    );
+  });
+
+  it('blocks creation when too few tracks match the selected difficulties', async () => {
+    await render([playlist]);
+
+    [1, 2, 3, 4].forEach((level) => component.toggleDifficulty(level));
+    component.toggleDifficulty(null);
+    fixture.detectChanges();
+
+    expect(component.matchingTrackCount()).toBe(3);
+    expect(component.difficultyError()).toContain('Only 3 tracks match');
+    const createButton = fixture.nativeElement.querySelector('.create-button') as HTMLButtonElement;
+    expect(createButton.disabled).toBeTrue();
+
+    component.createSession();
+    http.expectNone('/api/sessions');
+
+    component.toggleDifficulty(5);
+    expect(component.difficultyError()).toBe('Select at least one difficulty level.');
   });
 });

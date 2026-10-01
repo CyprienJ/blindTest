@@ -19,6 +19,7 @@ const pendingTrack = {
   decade: 1980,
   durationSeconds: 214,
   excerptStartSeconds: 12,
+  excerptDurationSeconds: 60,
   imageUrl: null,
   audioUrl: '/media/midnight.mp3',
   audioChecksum: 'a'.repeat(64),
@@ -98,7 +99,9 @@ test.describe('admin track catalogue', () => {
     await expect(page.getByRole('heading', { name: 'No tracks found' })).toBeVisible();
   });
 
-  test('edits metadata and aliases, previews, publishes and confirms deletion', async ({ page }) => {
+  test('edits metadata and aliases, previews, publishes and confirms deletion', async ({
+    page,
+  }) => {
     let currentTrack = { ...pendingTrack };
     const aliases = [
       {
@@ -141,15 +144,40 @@ test.describe('admin track catalogue', () => {
     await page.route(`**/api/admin/tracks/${pendingTrack.id}/validate`, (route) =>
       route.fulfill({ json: { ...currentTrack, status: 'PUBLISHED' } }),
     );
+    await page.route(`**/api/admin/tracks/${pendingTrack.id}/waveform`, (route) =>
+      route.fulfill({ json: { durationSeconds: 214, peaks: [10, 80, 40, 60] } }),
+    );
+    let updateBody: Record<string, unknown> = {};
+    page.on('request', (request) => {
+      if (request.method() === 'PUT' && request.url().endsWith(`/tracks/${pendingTrack.id}`)) {
+        updateBody = request.postDataJSON();
+      }
+    });
 
     await page.goto('/admin/tracks');
     await page.getByTitle('Edit track').first().click();
     await expect(page.getByRole('heading', { name: 'Edit Midnight Echo' })).toBeVisible();
     await expect(page.getByText('Echo at Midnight')).toBeVisible();
 
+    const editor = page.locator('.edit-modal');
+    await expect(editor.locator('audio')).toBeVisible();
+    await expect(editor.locator('.waveform path')).toBeVisible();
+
     await page.getByLabel('Title').fill('Midnight Echoes');
+    await page.getByRole('radio', { name: '3 stars' }).click();
+    await page.getByLabel('Window length').fill('20');
+    await page.getByLabel('Excerpt start').fill('90');
+    await expect(editor.getByText('20-second game window')).toBeVisible();
     await page.getByRole('button', { name: 'Save metadata' }).click();
     await expect(page.getByText('Track metadata saved.')).toBeVisible();
+    expect(updateBody).toEqual(
+      expect.objectContaining({
+        title: 'Midnight Echoes',
+        difficulty: 3,
+        excerptStartSeconds: 90,
+        excerptDurationSeconds: 20,
+      }),
+    );
 
     await page.getByLabel('Alternative answer').fill('Midnight');
     await page.getByRole('button', { name: 'Add alias' }).click();

@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -93,6 +94,7 @@ class SessionProtocolTest {
                 NOW.plusSeconds(2),
                 NOW.plusSeconds(32),
                 15,
+                20,
                 Optional.of(URI.create(
                         "https://media.example.test/audio.mp3?signature=safe")));
         var event = new PublicSessionEvent(
@@ -105,6 +107,8 @@ class SessionProtocolTest {
         assertThat(json.at("/metadata/sessionVersion").asLong()).isEqualTo(8L);
         assertThat(json.at("/payload/roundIndex").asInt()).isEqualTo(2);
         assertThat(json.at("/payload/startsAt").asText()).isEqualTo("2026-08-04T13:00:02Z");
+        assertThat(json.at("/payload/excerptStartSeconds").asInt()).isEqualTo(15);
+        assertThat(json.at("/payload/excerptDurationSeconds").asInt()).isEqualTo(20);
         assertThat(json.at("/payload/playbackUrl").asText()).
                 contains("signature=safe");
         assertThat(json.toString()).doesNotContain("objectKey");
@@ -201,11 +205,13 @@ class SessionProtocolTest {
                 Optional.of(NOW.plusSeconds(30)),
                 Optional.of(URI.create("https://media.example.test/audio.mp3?signature=safe")),
                 Optional.of(12),
+                Optional.of(30),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
+                Map.of(),
                 Optional.empty(),
                 0);
         var snapshot = new PrivateSessionEventPayload.CurrentSnapshot(
@@ -239,6 +245,7 @@ class SessionProtocolTest {
                 NOW,
                 NOW,
                 0,
+                30,
                 Optional.of(URI.create("https://media.example.test/audio.mp3")))).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("deadline");
@@ -254,6 +261,7 @@ class SessionProtocolTest {
                 "a-ha",
                 Optional.of("  "),
                 Optional.empty(),
+                Map.of(),
                 800,
                 800,
                 NOW.plusSeconds(4))).

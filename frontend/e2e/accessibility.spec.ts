@@ -166,6 +166,7 @@ test.describe('keyboard and visible focus', () => {
             deadline: new Date(Date.now() + 30000).toISOString(),
             playbackUrl: null,
             excerptStartSeconds: 0,
+            excerptDurationSeconds: 60,
             outcome: null,
             title: null,
             artist: null,

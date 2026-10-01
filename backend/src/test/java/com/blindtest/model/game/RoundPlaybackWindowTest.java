@@ -67,7 +67,31 @@ class RoundPlaybackWindowTest {
                         41,
                         START.plusSeconds(60))).
                 isInstanceOf(IllegalArgumentException.class).
-                hasMessage("excerpt duration must match round duration");
+                hasMessage("excerpt duration cannot exceed round duration");
+    }
+
+    @Test
+    void capsTheExcerptToTheTrackWindowSoClientsLoopItThroughLongerRounds() {
+        RoundPlaybackWindow shortWindow = RoundPlaybackWindow.from(
+                new GamePlaybackSnapshot(40, 180, 15), scoringWindow(45));
+        RoundPlaybackWindow shortRound = RoundPlaybackWindow.from(
+                new GamePlaybackSnapshot(40, 180, 25), scoringWindow(20));
+
+        assertThat(shortWindow.excerptStartSeconds()).isEqualTo(40);
+        assertThat(shortWindow.excerptEndSeconds()).isEqualTo(55);
+        assertThat(shortWindow.excerptDurationSeconds()).isEqualTo(15);
+        assertThat(shortWindow.deadline()).isEqualTo(START.plusSeconds(45));
+        assertThat(shortRound.excerptDurationSeconds()).isEqualTo(20);
+    }
+
+    @Test
+    void playbackSnapshotRejectsOutOfRangeWindows() {
+        assertThatThrownBy(() -> new GamePlaybackSnapshot(0, 180, 0)).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessage("excerptDurationSeconds is out of range");
+        assertThatThrownBy(() -> new GamePlaybackSnapshot(0, 180, 61)).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessage("excerptDurationSeconds is out of range");
     }
 
     private RoundScoringWindow scoringWindow(int durationSeconds) {

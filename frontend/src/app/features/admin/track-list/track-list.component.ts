@@ -14,6 +14,8 @@ import {
   TrackUpdate,
 } from './admin-track.model';
 import { AdminTrackService } from './admin-track.service';
+import { DifficultyRatingComponent } from '../../../shared/difficulty-rating/difficulty-rating.component';
+import { ExcerptEditorComponent } from '../../../shared/excerpt-editor/excerpt-editor.component';
 
 type StatusFilter = TrackStatus | null;
 type ConfirmationAction = 'reject' | 'delete';
@@ -22,7 +24,13 @@ type ConfirmationAction = 'reject' | 'delete';
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-track-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterLink,
+    DifficultyRatingComponent,
+    ExcerptEditorComponent,
+  ],
   templateUrl: './track-list.component.html',
   styleUrl: './track-list.component.scss',
 })
@@ -51,7 +59,9 @@ export class TrackListComponent implements OnInit {
     decade: [2000, [Validators.required, Validators.min(1900), Validators.max(2100)]],
     durationSeconds: [1, [Validators.required, Validators.min(1)]],
     excerptStartSeconds: [0, [Validators.required, Validators.min(0)]],
+    excerptDurationSeconds: [60, [Validators.required, Validators.min(5), Validators.max(60)]],
     imageUrl: [''],
+    difficulty: this.formBuilder.control<number | null>(null),
   });
   readonly aliasForm = this.formBuilder.nonNullable.group({
     type: ['TITLE' as TrackAnswerType, Validators.required],
@@ -76,6 +86,11 @@ export class TrackListComponent implements OnInit {
   aliasSaving = false;
   aliasError = '';
   editingAliasId: string | null = null;
+
+  editPreview: MediaPreview | null = null;
+  editPeaks: number[] = [];
+  editMediaLoading = false;
+  editMediaError = '';
 
   previewTrack: AdminTrack | null = null;
   preview: MediaPreview | null = null;
@@ -133,8 +148,11 @@ export class TrackListComponent implements OnInit {
       decade: track.decade ?? 2000,
       durationSeconds: track.durationSeconds ?? 1,
       excerptStartSeconds: track.excerptStartSeconds,
+      excerptDurationSeconds: track.excerptDurationSeconds ?? 60,
       imageUrl: track.imageUrl ?? '',
+      difficulty: track.difficulty,
     });
+    this.loadEditMedia(track);
     this.aliases = [];
     this.aliasesLoading = true;
     this.service
@@ -149,6 +167,8 @@ export class TrackListComponent implements OnInit {
   closeEdit(): void {
     if (!this.editSaving && !this.aliasSaving) {
       this.editingTrack = null;
+      this.editPreview = null;
+      this.editPeaks = [];
     }
   }
 
@@ -157,9 +177,10 @@ export class TrackListComponent implements OnInit {
       this.editForm.markAllAsTouched();
       return;
     }
-    const value = this.editForm.getRawValue();
+    const { difficulty, ...value } = this.editForm.getRawValue();
     const update: TrackUpdate = {
       ...value,
+      difficulty: difficulty ?? undefined,
       album: value.album.trim() || null,
       composer: value.composer.trim() || null,
       work: value.work.trim() || null,
@@ -178,6 +199,47 @@ export class TrackListComponent implements OnInit {
         },
         error: (error) => (this.editError = this.errorMessage(error)),
       });
+  }
+
+  setExcerptStart(start: number): void {
+    this.editForm.controls.excerptStartSeconds.setValue(start);
+    this.editForm.markAsDirty();
+  }
+
+  setExcerptWindow(window: number): void {
+    this.editForm.controls.excerptDurationSeconds.setValue(window);
+    this.editForm.markAsDirty();
+  }
+
+  /** Loads the private-media preview and waveform used by the editor's excerpt picker. */
+  loadEditMedia(track: AdminTrack): void {
+    this.editPreview = null;
+    this.editPeaks = [];
+    this.editMediaError = '';
+    if (!track.audioChecksum) {
+      return;
+    }
+    this.editMediaLoading = true;
+    this.service
+      .preview(track.id)
+      .pipe(finalize(() => (this.editMediaLoading = false)))
+      .subscribe({
+        next: (preview) => {
+          if (this.editingTrack?.id === track.id) {
+            this.editPreview = preview;
+          }
+        },
+        error: (error) => (this.editMediaError = this.errorMessage(error)),
+      });
+    this.service.waveform(track.id).subscribe({
+      next: (waveform) => {
+        if (this.editingTrack?.id === track.id) {
+          this.editPeaks = waveform.peaks;
+        }
+      },
+      // Older imports have no waveform; the sliders still work without it.
+      error: () => (this.editPeaks = []),
+    });
   }
 
   editAlias(alias: TrackAlias): void {
@@ -409,7 +471,7 @@ export class TrackListComponent implements OnInit {
         return 'Complete all required metadata before publishing this track.';
       }
       if (code === 'TRACK_EXCERPT_INVALID') {
-        return 'The selected excerpt is outside the track duration.';
+        return 'The excerpt window does not fit in the track: move its start or shorten it.';
       }
       if (code === 'IMPORT_NOT_DONE' || code === 'INVALID_IMPORT_STATUS_TRANSITION') {
         return 'This import is not ready for review.';

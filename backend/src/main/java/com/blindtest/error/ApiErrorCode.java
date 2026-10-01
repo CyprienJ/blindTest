@@ -24,7 +24,7 @@ public enum ApiErrorCode {
     CONFLICT(HttpStatus.CONFLICT, "Request conflicts with current state"),
     ANSWER_ALIAS_DUPLICATE(HttpStatus.CONFLICT, "Answer alias already exists"),
     TRACK_EXCERPT_INVALID(
-            HttpStatus.CONFLICT, "Track excerpt does not leave 60 playable seconds"),
+            HttpStatus.CONFLICT, "Track excerpt window does not fit the playable audio"),
     TRACK_METADATA_INCOMPLETE(HttpStatus.CONFLICT, "Track metadata is incomplete"),
     IMPORT_ALREADY_ACTIVE(HttpStatus.CONFLICT, "An import for this YouTube video is already active"),
     IMPORT_FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "The uploaded file exceeds the maximum allowed size"),
@@ -47,6 +47,11 @@ public enum ApiErrorCode {
             HttpStatus.CONFLICT, "The selected playlist has no eligible tracks"),
     GAME_PLAYLIST_INSUFFICIENT_TRACKS(
             HttpStatus.CONFLICT, "The selected playlist does not contain enough eligible tracks"),
+    GAME_DIFFICULTY_INVALID(
+            HttpStatus.BAD_REQUEST, "Select at least one difficulty level between 1 and 5"),
+    GAME_DIFFICULTY_INSUFFICIENT_TRACKS(
+            HttpStatus.CONFLICT,
+            "The selected difficulty levels do not contain enough eligible tracks"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Media type is not supported"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 

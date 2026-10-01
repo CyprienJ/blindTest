@@ -3,8 +3,11 @@ package com.blindtest.model.game;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -60,6 +63,62 @@ class GameConfigurationValidatorTest {
         assertThat(requested.extensions()).isEmpty();
         assertThatThrownBy(() -> requested.extensions().put("mode", "ordered")).
                 isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void omittedDifficultySelectionIncludesEveryTrack() {
+        GameConfiguration configuration = validator.validate(
+                request(5, 30), new PlaylistEligibilitySnapshot(PLAYLIST_ID, 5));
+
+        assertThat(configuration.difficultyFilter()).isEqualTo(DifficultyFilter.ALL);
+    }
+
+    @Test
+    void keepsTheRequestedDifficultyFilterWhenEnoughTracksMatch() {
+        PlaylistEligibilitySnapshot eligibility = new PlaylistEligibilitySnapshot(
+                PLAYLIST_ID, 9, Map.of(PlaylistEligibilitySnapshot.UNRATED, 2, 1, 3, 4, 2, 5, 2));
+
+        GameConfiguration configuration = validator.validate(
+                difficultyRequest(5, List.of(1, 4), true), eligibility);
+
+        assertThat(configuration.difficultyFilter()).
+                isEqualTo(new DifficultyFilter(Set.of(1, 4), true));
+    }
+
+    @Test
+    void rejectsDifficultyFiltersMatchingTooFewTracks() {
+        PlaylistEligibilitySnapshot eligibility = new PlaylistEligibilitySnapshot(
+                PLAYLIST_ID, 9, Map.of(PlaylistEligibilitySnapshot.UNRATED, 2, 1, 3, 4, 2, 5, 2));
+
+        assertThatThrownBy(() -> validator.validate(
+                difficultyRequest(6, List.of(1, 4), false), eligibility)).
+                isInstanceOfSatisfying(GameConfigurationValidationException.class, exception ->
+                        assertThat(exception.code()).
+                                isEqualTo("GAME_DIFFICULTY_INSUFFICIENT_TRACKS"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidDifficultySelections")
+    void rejectsEmptyOrOutOfRangeDifficultySelections(List<Integer> levels, boolean unrated) {
+        assertThatThrownBy(() -> validator.validate(
+                difficultyRequest(5, levels, unrated),
+                new PlaylistEligibilitySnapshot(PLAYLIST_ID, 10))).
+                isInstanceOfSatisfying(GameConfigurationValidationException.class, exception ->
+                        assertThat(exception.code()).isEqualTo("GAME_DIFFICULTY_INVALID"));
+    }
+
+    static Stream<Arguments> invalidDifficultySelections() {
+        return Stream.of(
+                Arguments.of(List.of(), false),
+                Arguments.of(List.of(0, 3), true),
+                Arguments.of(List.of(6), true),
+                Arguments.of(Arrays.asList(2, null), true));
+    }
+
+    private RequestedGameConfiguration difficultyRequest(
+            int trackCount, List<Integer> levels, boolean includeUnrated) {
+        return new RequestedGameConfiguration(
+                PLAYLIST_ID, trackCount, 30, Map.of(), levels, includeUnrated);
     }
 
     @Test

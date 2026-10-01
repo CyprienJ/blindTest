@@ -4,7 +4,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Immutable, non-secret timing metadata for one active round's media excerpt. */
+/**
+ * Immutable, non-secret timing metadata for one active round's media excerpt.
+ *
+ * <p>The excerpt covers the track's window, capped to the round duration. Clients loop it
+ * until the round ends when the window is shorter than the round.
+ */
 public record RoundPlaybackWindow(
         Instant startsAt,
         Instant deadline,
@@ -34,9 +39,14 @@ public record RoundPlaybackWindow(
         if (!Duration.ofSeconds(roundSeconds).equals(roundDuration)) {
             throw new IllegalArgumentException("round duration must use whole seconds");
         }
-        if (roundSeconds != (long) excerptEndSeconds - excerptStartSeconds) {
-            throw new IllegalArgumentException("excerpt duration must match round duration");
+        if ((long) excerptEndSeconds - excerptStartSeconds > roundSeconds) {
+            throw new IllegalArgumentException("excerpt duration cannot exceed round duration");
         }
+    }
+
+    /** Length of the looped excerpt window in seconds. */
+    public int excerptDurationSeconds() {
+        return excerptEndSeconds - excerptStartSeconds;
     }
 
     /** Derives an active playback window from snapshotted catalogue and round timing. */
@@ -49,8 +59,9 @@ public record RoundPlaybackWindow(
         if (!Duration.ofSeconds(durationSeconds).equals(scoringWindow.configuredDuration())) {
             throw new IllegalArgumentException("round duration must use whole seconds");
         }
+        long windowSeconds = Math.min(durationSeconds, playback.excerptDurationSeconds());
         int excerptEndSeconds = Math.toIntExact(
-                Math.addExact((long) playback.excerptStartSeconds(), durationSeconds));
+                Math.addExact((long) playback.excerptStartSeconds(), windowSeconds));
         return new RoundPlaybackWindow(
                 scoringWindow.startsAt(),
                 scoringWindow.deadline(),

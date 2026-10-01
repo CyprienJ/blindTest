@@ -6,7 +6,8 @@
 
 `POST /api/sessions` requires a verified authenticated account. `SoloSessionService`
 validates configuration, loads eligible published private-media tracks and aliases,
-randomly selects their order, and creates immutable snapshots. The owner receives
+counts them per difficulty for the requested `DifficultyFilter`, randomly selects
+matching tracks and their order, and creates immutable snapshots. The owner receives
 an opaque participant identity; the initial session version is zero.
 
 The response includes session identity, expiry, and STOMP connection destinations.
@@ -36,7 +37,8 @@ The server schedules round deadlines and the four-second reveal transition.
 Callbacks verify current state so duplicate or late timers cannot resolve a round
 twice. Answers at or after the deadline earn no title points.
 
-`ROUND_STARTED` includes authoritative timing, excerpt offset, and an authorized
+`ROUND_STARTED` includes authoritative timing, excerpt offset and window length
+(capped to the round duration), and an authorized
 short-lived media URL. Reconnection requests a private `CURRENT_SNAPSHOT`, including
 a fresh URL for a playing round. Snapshot recovery uses server state rather than
 replaying local guesses. The [protocol contract](../websocket-protocol.md) specifies

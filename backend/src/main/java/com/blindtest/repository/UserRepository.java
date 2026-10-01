@@ -9,18 +9,21 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /** Spring Data JPA repository for {@link UserEntity}. */
 public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
-    /** Finds a user by email address. */
-    Optional<UserEntity> findByEmail(String email);
+    /** Finds a user by email address, ignoring case. */
+    @Query("SELECT user FROM UserEntity user WHERE LOWER(user.email) = LOWER(:email)")
+    Optional<UserEntity> findByEmailIgnoreCase(@Param("email") String email);
 
     /** Finds a user by username. */
     Optional<UserEntity> findByUsername(String username);
 
-    /** Returns {@code true} if a user with the given email already exists. */
-    boolean existsByEmail(String email);
+    /** Returns {@code true} if a user with the given email already exists, ignoring case. */
+    @Query("SELECT COUNT(user) > 0 FROM UserEntity user WHERE LOWER(user.email) = LOWER(:email)")
+    boolean existsByEmailIgnoreCase(@Param("email") String email);
 
     /** Returns {@code true} if a user with the given username already exists. */
     boolean existsByUsername(String username);

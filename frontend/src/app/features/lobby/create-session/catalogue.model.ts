@@ -9,6 +9,8 @@ export interface PublicTrack {
   decade: number | null;
   durationSeconds: number | null;
   imageUrl: string | null;
+  /** 1 (easiest) to 5 (hardest); null when not rated. */
+  difficulty: number | null;
 }
 
 export interface PublicPlaylist {

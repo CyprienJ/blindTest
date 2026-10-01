@@ -16,15 +16,25 @@ public final class GameConfiguration {
     private final int requestedTrackCount;
     private final int maximumRoundDurationSeconds;
     private final Map<String, String> extensions;
+    private final DifficultyFilter difficultyFilter;
 
     GameConfiguration(
             UUID playlistId,
             int requestedTrackCount,
             int maximumRoundDurationSeconds) {
+        this(playlistId, requestedTrackCount, maximumRoundDurationSeconds, DifficultyFilter.ALL);
+    }
+
+    GameConfiguration(
+            UUID playlistId,
+            int requestedTrackCount,
+            int maximumRoundDurationSeconds,
+            DifficultyFilter difficultyFilter) {
         this.playlistId = playlistId;
         this.requestedTrackCount = requestedTrackCount;
         this.maximumRoundDurationSeconds = maximumRoundDurationSeconds;
         this.extensions = Map.of();
+        this.difficultyFilter = difficultyFilter;
     }
 
     public UUID playlistId() {
@@ -43,6 +53,10 @@ public final class GameConfiguration {
         return extensions;
     }
 
+    public DifficultyFilter difficultyFilter() {
+        return difficultyFilter;
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -54,13 +68,15 @@ public final class GameConfiguration {
         return requestedTrackCount == that.requestedTrackCount
                 && maximumRoundDurationSeconds == that.maximumRoundDurationSeconds
                 && playlistId.equals(that.playlistId)
-                && extensions.equals(that.extensions);
+                && extensions.equals(that.extensions)
+                && difficultyFilter.equals(that.difficultyFilter);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                playlistId, requestedTrackCount, maximumRoundDurationSeconds, extensions);
+                playlistId, requestedTrackCount, maximumRoundDurationSeconds, extensions,
+                difficultyFilter);
     }
 
     @Override
@@ -68,6 +84,7 @@ public final class GameConfiguration {
         return "GameConfiguration[playlistId=" + playlistId
                 + ", requestedTrackCount=" + requestedTrackCount
                 + ", maximumRoundDurationSeconds=" + maximumRoundDurationSeconds
-                + ", extensions=" + extensions + ']';
+                + ", extensions=" + extensions
+                + ", difficultyFilter=" + difficultyFilter + ']';
     }
 }

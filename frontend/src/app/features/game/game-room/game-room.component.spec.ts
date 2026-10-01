@@ -59,6 +59,7 @@ function roundStarted(roundIndex: number): PublicSessionEvent {
       startsAt: new Date(NOW).toISOString(),
       deadline: new Date(NOW + 30_000).toISOString(),
       excerptStartSeconds: 15,
+      excerptDurationSeconds: 20,
       playbackUrl: 'https://media.example/excerpt.mp3?sig=abc',
     },
   };
@@ -180,6 +181,7 @@ describe('GameRoomComponent', () => {
       startsAt: new Date(NOW).toISOString(),
       deadline: new Date(NOW + 30_000).toISOString(),
       excerptStartSeconds: 15,
+      excerptDurationSeconds: 20,
     });
     expect(text(fixture)).toContain('Track');
     expect(text(fixture)).toContain('of 12');
@@ -260,6 +262,11 @@ describe('GameRoomComponent', () => {
         artist: 'a-ha',
         composer: null,
         album: null,
+        streamingLinks: {
+          spotify: 'https://open.spotify.com/track/take-on-me',
+          deezer: 'https://www.deezer.com/track/1',
+          tidal: 'javascript:alert(1)',
+        },
         roundPoints: 120,
         totalScore: 120,
         transitionAt: new Date(NOW + 4_000).toISOString(),
@@ -270,6 +277,16 @@ describe('GameRoomComponent', () => {
     expect(audio.stop).not.toHaveBeenCalled();
     expect(text(fixture)).toContain('+120 points');
     expect(text(fixture)).toContain('Take On Me');
+    const links = Array.from(
+      fixture.nativeElement.querySelectorAll('.streaming-links a') as NodeListOf<HTMLAnchorElement>,
+    );
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Deezer (opens in a new tab)',
+      'Spotify (opens in a new tab)',
+    ]);
+    expect(links[1].href).toBe('https://open.spotify.com/track/take-on-me');
+    expect(links[1].target).toBe('_blank');
+    expect(links[1].rel).toBe('noopener noreferrer');
     expect(text(fixture)).toContain('Next track in 4 seconds');
     jasmine.clock().tick(5000);
     fixture.changeDetectorRef.detectChanges();
@@ -299,6 +316,7 @@ describe('GameRoomComponent', () => {
         artist: 'a-ha',
         composer: null,
         album: null,
+        streamingLinks: {},
         roundPoints: 0,
         totalScore: 0,
         transitionAt: new Date(NOW + 4_000).toISOString(),
@@ -340,11 +358,13 @@ describe('GameRoomComponent', () => {
           deadline: null,
           playbackUrl: null,
           excerptStartSeconds: null,
+          excerptDurationSeconds: null,
           outcome,
           title: 'Final title',
           artist: 'Final artist',
           composer: 'Composer name',
           album: 'Album name',
+          streamingLinks: {},
           advanceAt: new Date(NOW + 1500).toISOString(),
           roundPoints: outcome === 'TITLE_FOUND' ? 100 : 0,
         },
@@ -443,11 +463,13 @@ describe('GameRoomComponent', () => {
         deadline: new Date(NOW + 24_000).toISOString(),
         playbackUrl: 'https://media.example/r3.mp3',
         excerptStartSeconds: 10,
+        excerptDurationSeconds: 30,
         outcome: null,
         title: null,
         artist: null,
         composer: null,
         album: null,
+        streamingLinks: {},
         advanceAt: null,
         roundPoints: 0,
       },

@@ -4,11 +4,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  ElementRef,
   inject,
   OnDestroy,
   OnInit,
-  ViewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -17,9 +15,15 @@ import {
   FormGroup,
   FormBuilder,
   ReactiveFormsModule,
+  ValidatorFn,
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { DifficultyRatingComponent } from '../../../shared/difficulty-rating/difficulty-rating.component';
+import {
+  ExcerptEditorComponent,
+  formatExcerptTime,
+} from '../../../shared/excerpt-editor/excerpt-editor.component';
 import {
   catchError,
   concatMap,
@@ -34,6 +38,8 @@ import {
 import {
   AdminTrack,
   MediaPreview,
+  StreamingPlatform,
+  TrackStreamingLinks,
   TrackAnswerType,
   TrackUpdate,
   TrackWaveform,
@@ -52,9 +58,34 @@ import {
 
 const ACTIVE_JOB_KEY = 'active_admin_import_job';
 const IMPORT_ALIASES_KEY = 'active_admin_import_aliases';
-const PREVIEW_DURATION_SECONDS = 60;
 /** Mirrors the server's default app.import.max-size-bytes so oversized files fail before upload. */
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+/** Mirrors TrackStreamingLinks on the server: an empty value or a URL on the platform domain. */
+const STREAMING_PLATFORMS: { key: StreamingPlatform; label: string; hosts: string }[] = [
+  { key: 'deezer', label: 'Deezer', hosts: 'deezer\\.com|deezer\\.page\\.link|dzr\\.page\\.link' },
+  { key: 'youtube', label: 'YouTube', hosts: 'youtube\\.com|youtu\\.be' },
+  { key: 'spotify', label: 'Spotify', hosts: 'spotify\\.com|spotify\\.link' },
+  { key: 'qobuz', label: 'Qobuz', hosts: 'qobuz\\.com' },
+  { key: 'tidal', label: 'Tidal', hosts: 'tidal\\.com' },
+  { key: 'soundcloud', label: 'SoundCloud', hosts: 'soundcloud\\.com|snd\\.sc' },
+];
+
+function streamingLinkValidator(hosts: string): ValidatorFn {
+  const pattern = new RegExp(`^https?://([a-z0-9-]+\\.)*(${hosts})(/\\S*)?$`, 'i');
+  return (control) => {
+    const value = String(control.value ?? '').trim();
+    return value === '' || (value.length <= 500 && pattern.test(value))
+      ? null
+      : { streamingLink: true };
+  };
+}
+
+function streamingLinkControls(): Record<StreamingPlatform, [string, ValidatorFn]> {
+  return Object.fromEntries(
+    STREAMING_PLATFORMS.map(({ key, hosts }) => [key, ['', streamingLinkValidator(hosts)]]),
+  ) as Record<StreamingPlatform, [string, ValidatorFn]>;
+}
+
 type AliasFormGroup = FormGroup<{
   type: FormControl<TrackAnswerType>;
   value: FormControl<string>;
@@ -64,13 +95,17 @@ type AliasFormGroup = FormGroup<{
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-track-import',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterLink,
+    DifficultyRatingComponent,
+    ExcerptEditorComponent,
+  ],
   templateUrl: './track-import.component.html',
   styleUrl: './track-import.component.scss',
 })
 export class TrackImportComponent implements OnInit, OnDestroy {
-  @ViewChild('previewAudio') private previewAudio?: ElementRef<HTMLAudioElement>;
-
   private readonly formBuilder = inject(FormBuilder);
   private readonly importService = inject(AdminImportService);
   private readonly trackService = inject(AdminTrackService);
@@ -78,6 +113,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly aliasTypes: TrackAnswerType[] = ['TITLE', 'ARTIST', 'COMPOSER', 'ALBUM'];
+  readonly streamingPlatforms = STREAMING_PLATFORMS;
   private readonly aliasControls = this.formBuilder.array<AliasFormGroup>([]);
   readonly importForm = this.formBuilder.nonNullable.group({
     youtubeUrl: [
@@ -97,7 +133,10 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     decade: ['', [Validators.pattern(/^\d*$/), Validators.min(1900), Validators.max(2090)]],
     durationSeconds: ['', [Validators.pattern(/^\d*$/), Validators.min(1)]],
     excerptStartSeconds: [0, [Validators.required, Validators.min(0)]],
+    excerptDurationSeconds: [60, [Validators.required, Validators.min(5), Validators.max(60)]],
     imageUrl: ['', Validators.maxLength(500)],
+    difficulty: this.formBuilder.control<number | null>(null, Validators.required),
+    streamingLinks: this.formBuilder.nonNullable.group(streamingLinkControls()),
     aliases: this.aliasControls,
   });
 
@@ -128,7 +167,6 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   previewLoading = false;
   previewError = '';
   waveform: TrackWaveform | null = null;
-  waveformPath = '';
   waveformLoading = false;
   waveformError = '';
   workflowBusy = false;
@@ -327,7 +365,6 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (waveform) => {
           this.waveform = waveform;
-          this.waveformPath = this.buildWaveformPath(waveform.peaks);
         },
         error: (error) => (this.waveformError = this.errorMessage(error)),
       });
@@ -367,7 +404,8 @@ export class TrackImportComponent implements OnInit, OnDestroy {
             this.selectionSaving = false;
             this.selectionValidated = true;
             this.appendActivity(
-              `Excerpt starts at ${this.formatTime(updated.excerptStartSeconds)}.`,
+              `Excerpt: ${this.formatTime(updated.excerptStartSeconds)} for ` +
+                `${updated.excerptDurationSeconds}s.`,
             );
             this.loadPreview();
           },
@@ -386,79 +424,25 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     this.selectionError = '';
   }
 
-  previewLoaded(audio: HTMLAudioElement): void {
-    audio.currentTime = this.excerptStart;
-  }
-
-  enforcePreviewEnd(audio: HTMLAudioElement): void {
-    const start = this.excerptStart;
-    if (audio.currentTime >= start + PREVIEW_DURATION_SECONDS) {
-      audio.pause();
-      audio.currentTime = start;
-    }
-  }
-
-  previewSelection(): void {
-    this.invalidateSelection();
-    const audio = this.previewAudio?.nativeElement;
-    if (!audio) {
-      return;
-    }
-    audio.currentTime = this.excerptStart;
-    void audio.play().catch((error: unknown) => {
-      if (error instanceof DOMException && error.name === 'NotAllowedError') {
-        this.previewError = 'Your browser blocked automatic playback. Press play to listen.';
-      }
-    });
-  }
-
-  selectWaveformPosition(event: PointerEvent, surface: HTMLElement): void {
-    if (event.type === 'pointermove' && event.buttons !== 1) {
-      return;
-    }
-    if (event.type === 'pointerdown') {
-      surface.setPointerCapture(event.pointerId);
-    }
-    const bounds = surface.getBoundingClientRect();
-    if (bounds.width === 0) {
-      return;
-    }
-    const ratio = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
-    const duration = this.waveform?.durationSeconds ?? this.job?.track?.durationSeconds ?? 0;
-    const start = Math.min(this.maxExcerptStart, Math.round(ratio * duration));
-    this.importForm.controls.excerptStartSeconds.setValue(start);
-    this.previewSelection();
-  }
-
-  get waveformSelectionX(): number {
-    const duration = this.waveformDuration;
-    return duration === 0 ? 0 : (this.excerptStart / duration) * 1_000;
-  }
-
-  get waveformSelectionWidth(): number {
-    const duration = this.waveformDuration;
-    return duration === 0 ? 1_000 : Math.min(1_000, (PREVIEW_DURATION_SECONDS / duration) * 1_000);
-  }
-
   get maxExcerptStart(): number {
     return Math.max(
       0,
-      (this.job?.track?.durationSeconds ?? PREVIEW_DURATION_SECONDS) - PREVIEW_DURATION_SECONDS,
+      (this.job?.track?.durationSeconds ?? this.excerptWindow) - this.excerptWindow,
     );
+  }
+
+  get excerptWindow(): number {
+    return Number(this.importForm.controls.excerptDurationSeconds.value) || 60;
+  }
+
+  readonly formatTime = formatExcerptTime;
+
+  showBlockedPlayback(): void {
+    this.previewError = 'Your browser blocked automatic playback. Press play to listen.';
   }
 
   get excerptStart(): number {
     return Number(this.importForm.controls.excerptStartSeconds.value) || 0;
-  }
-
-  get excerptEnd(): number {
-    const duration = this.job?.track?.durationSeconds ?? PREVIEW_DURATION_SECONDS;
-    return Math.min(duration, this.excerptStart + PREVIEW_DURATION_SECONDS);
-  }
-
-  formatTime(seconds: number): string {
-    const safeSeconds = Math.max(0, Math.floor(seconds));
-    return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, '0')}`;
   }
 
   publish(): void {
@@ -522,7 +506,6 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     this.preview = null;
     this.previewError = '';
     this.waveform = null;
-    this.waveformPath = '';
     this.waveformLoading = false;
     this.waveformError = '';
     this.aliasState = 'idle';
@@ -551,8 +534,11 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       decade: '',
       durationSeconds: '',
       excerptStartSeconds: 0,
+      excerptDurationSeconds: 60,
       imageUrl: '',
+      difficulty: null,
     });
+    this.importForm.controls.streamingLinks.reset();
     this.aliases.clear();
   }
 
@@ -763,37 +749,18 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       decade: track.decade?.toString() ?? '',
       durationSeconds: track.durationSeconds?.toString() ?? '',
       excerptStartSeconds: track.excerptStartSeconds,
+      excerptDurationSeconds: track.excerptDurationSeconds ?? 60,
       imageUrl: track.imageUrl ?? '',
+      difficulty: track.difficulty,
+      streamingLinks: Object.fromEntries(
+        STREAMING_PLATFORMS.map(({ key }) => [key, track.streamingLinks?.[key] ?? '']),
+      ),
     });
     this.importForm.enable();
     this.importForm.controls.youtubeUrl.disable();
     this.aliasState = 'idle';
     this.loadPreview();
     this.loadWaveform();
-  }
-
-  private get waveformDuration(): number {
-    return this.waveform?.durationSeconds ?? this.job?.track?.durationSeconds ?? 0;
-  }
-
-  private buildWaveformPath(peaks: number[]): string {
-    if (peaks.length === 0) {
-      return '';
-    }
-    const divisor = Math.max(1, peaks.length - 1);
-    const top = peaks.map((peak, index) => {
-      const x = (index * 1_000) / divisor;
-      const y = 50 - (Math.min(100, Math.max(0, peak)) / 100) * 46;
-      return `${x.toFixed(2)} ${y.toFixed(2)}`;
-    });
-    const bottom = peaks.map((_, reversedIndex) => {
-      const index = peaks.length - reversedIndex - 1;
-      const peak = peaks[index] ?? 0;
-      const x = (index * 1_000) / divisor;
-      const y = 50 + (Math.min(100, Math.max(0, peak)) / 100) * 46;
-      return `${x.toFixed(2)} ${y.toFixed(2)}`;
-    });
-    return `M ${top.join(' L ')} L ${bottom.join(' L ')} Z`;
   }
 
   private reviewInvalid(): boolean {
@@ -812,7 +779,12 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       decade: this.optionalNumber(value.decade),
       durationSeconds: this.optionalNumber(value.durationSeconds),
       excerptStartSeconds: this.excerptStart,
+      excerptDurationSeconds: this.excerptWindow,
       imageUrl: this.optional(value.imageUrl),
+      difficulty: value.difficulty ?? undefined,
+      streamingLinks: Object.fromEntries(
+        STREAMING_PLATFORMS.map(({ key }) => [key, this.optional(value.streamingLinks[key])]),
+      ) as TrackStreamingLinks,
     };
   }
 

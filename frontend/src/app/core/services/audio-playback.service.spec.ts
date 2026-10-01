@@ -203,4 +203,40 @@ describe('AudioPlaybackService', () => {
     audio.emit('ended');
     expect(statuses.at(-1)).toBe('ended');
   });
+
+  it('loops a window shorter than the round back to the excerpt start', async () => {
+    service.scheduleRound(round({ excerptDurationSeconds: 10 }));
+    await flush();
+
+    audio.currentTime = 24.9;
+    audio.emit('timeupdate');
+    expect(audio.currentTime).toBe(24.9);
+
+    audio.currentTime = 25;
+    audio.emit('timeupdate');
+    expect(audio.currentTime).toBe(15);
+    expect(statuses.at(-1)).toBe('playing');
+  });
+
+  it('joins a looping window at the matching position after elapsed time', async () => {
+    jasmine.clock().mockDate(new Date(NOW + 23_000));
+    service.scheduleRound(round({ excerptDurationSeconds: 10 }));
+    await flush();
+
+    expect(audio.currentTime).toBe(18);
+  });
+
+  it('restarts the window when the media ends inside it', async () => {
+    service.scheduleRound(round({ excerptDurationSeconds: 10 }));
+    await flush();
+    const playsBefore = audio.playCalls.length;
+
+    audio.currentTime = 20;
+    audio.emit('ended');
+    await flush();
+
+    expect(audio.currentTime).toBe(15);
+    expect(audio.playCalls.length).toBe(playsBefore + 1);
+    expect(statuses.at(-1)).toBe('playing');
+  });
 });

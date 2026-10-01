@@ -413,3 +413,19 @@
     grid-template-columns: 1fr;
   }
 }
+
+.difficulty-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.difficulty-options button {
+  border: 1px solid var(--line);
+  color: var(--fg-1);
+  cursor: pointer;
+}
+
+.difficulty-options small {
+  color: var(--fg-2);
+}

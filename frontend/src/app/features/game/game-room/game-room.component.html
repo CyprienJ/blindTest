@@ -52,7 +52,10 @@
             <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
               Play again
             </button>
-            <a class="bt-btn bt-btn-ghost bt-btn-lg" [routerLink]="['/end-screen', session.sessionId]">
+            <a
+              class="bt-btn bt-btn-ghost bt-btn-lg"
+              [routerLink]="['/end-screen', session.sessionId]"
+            >
               View summary
             </a>
           </div>
@@ -113,6 +116,22 @@
                     </div>
                   }
                 </dl>
+                @if (revealLinks(); as links) {
+                  @if (links.length > 0) {
+                    <nav class="streaming-links" aria-label="Listen on streaming platforms">
+                      <span>Listen on</span>
+                      @for (link of links; track link.label) {
+                        <a
+                          class="bt-chip"
+                          [href]="link.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          >{{ link.label }}<span class="sr-only"> (opens in a new tab)</span></a
+                        >
+                      }
+                    </nav>
+                  }
+                }
               } @else {
                 <p class="eyebrow">
                   {{ phase === 'preparing' ? 'Preparing next track' : 'Now playing' }}
