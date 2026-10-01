@@ -9,6 +9,7 @@ import { GameSessionService } from '../../../core/services/game-session.service'
 import { PublicPlaylist, PublicPlaylistDetail } from './catalogue.model';
 import { CatalogueService } from './catalogue.service';
 import {
+  DIFFICULTY_LEVELS,
   GAME_CONFIGURATION_LIMITS,
   isAllowedRoundDuration,
   isAllowedTrackCount,
@@ -29,6 +30,9 @@ export class CreateSessionComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   readonly auth = inject(AuthService);
   readonly limits = GAME_CONFIGURATION_LIMITS;
+  readonly difficultyLevels = DIFFICULTY_LEVELS;
+  readonly selectedLevels = new Set<number>(DIFFICULTY_LEVELS);
+  includeUnrated = true;
 
   readonly form = this.formBuilder.nonNullable.group({
     playlistId: ['', Validators.required],
@@ -87,8 +91,8 @@ export class CreateSessionComponent implements OnInit {
       });
   }
 
-  selectPlaylist(playlist: PublicPlaylist): void {
-    if (this.selected?.id === playlist.id && !this.detailError) {
+  selectPlaylist(playlist: PublicPlaylist, refresh = false): void {
+    if (this.selected?.id === playlist.id && !this.detailError && !refresh) {
       return;
     }
     this.form.controls.playlistId.setValue(playlist.id);
@@ -107,12 +111,7 @@ export class CreateSessionComponent implements OnInit {
             return;
           }
           this.selected = detail;
-          const maximum = Math.min(detail.trackCount, this.limits.trackCount.maximum);
-          this.setTrackCountMaximum(maximum);
-          const currentCount = this.form.controls.trackCount.value;
-          this.form.controls.trackCount.setValue(
-            Math.min(Math.max(currentCount, this.limits.trackCount.minimum), maximum),
-          );
+          this.applyTrackCountMaximum();
         },
         error: (error) => {
           this.selected = null;
@@ -122,8 +121,72 @@ export class CreateSessionComponent implements OnInit {
       });
   }
 
+  toggleDifficulty(level: number | null): void {
+    if (level === null) {
+      this.includeUnrated = !this.includeUnrated;
+    } else if (!this.selectedLevels.delete(level)) {
+      this.selectedLevels.add(level);
+    }
+    this.submitError = '';
+    this.applyTrackCountMaximum();
+  }
+
+  isDifficultySelected(level: number | null): boolean {
+    return level === null ? this.includeUnrated : this.selectedLevels.has(level);
+  }
+
+  /** Counts tracks of the selected playlist rated at the level, or unrated for null. */
+  difficultyCount(level: number | null): number {
+    return (
+      this.selected?.tracks.filter((track) => (track.difficulty ?? null) === level).length ?? 0
+    );
+  }
+
+  difficultyLabel(level: number | null): string {
+    const name = level === null ? 'Not rated' : `${level} ${level === 1 ? 'star' : 'stars'}`;
+    const count = this.difficultyCount(level);
+    return `${name}, ${count} ${count === 1 ? 'track' : 'tracks'}`;
+  }
+
+  matchingTrackCount(): number {
+    return (
+      this.selected?.tracks.filter((track) => this.isDifficultySelected(track.difficulty ?? null))
+        .length ?? 0
+    );
+  }
+
+  /** Explains why the difficulty selection cannot start a game, or returns an empty string. */
+  difficultyError(): string {
+    if (!this.selected) {
+      return '';
+    }
+    if (this.selectedLevels.size === 0 && !this.includeUnrated) {
+      return 'Select at least one difficulty level.';
+    }
+    const matching = this.matchingTrackCount();
+    if (matching < this.limits.trackCount.minimum) {
+      return (
+        `Only ${matching} ${matching === 1 ? 'track matches' : 'tracks match'} these levels; ` +
+        `a game needs at least ${this.limits.trackCount.minimum}. Include more levels.`
+      );
+    }
+    return '';
+  }
+
+  difficultySummary(): string {
+    const levels = [...this.selectedLevels].sort((a, b) => a - b);
+    if (levels.length === this.difficultyLevels.length && this.includeUnrated) {
+      return 'All levels';
+    }
+    const parts = levels.length > 0 ? [`${levels.join(', ')} ★`] : [];
+    if (this.includeUnrated) {
+      parts.push('not rated');
+    }
+    return parts.join(' · ') || 'None';
+  }
+
   createSession(): void {
-    if (this.form.invalid || !this.selected) {
+    if (this.form.invalid || !this.selected || this.difficultyError()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -132,7 +195,14 @@ export class CreateSessionComponent implements OnInit {
     this.submitting = true;
     this.submitError = '';
     this.gameSessions
-      .createSolo({ playlistId, trackCount, maxRoundSeconds, extensions: {} })
+      .createSolo({
+        playlistId,
+        trackCount,
+        maxRoundSeconds,
+        extensions: {},
+        difficultyLevels: [...this.selectedLevels].sort((a, b) => a - b),
+        includeUnrated: this.includeUnrated,
+      })
       .pipe(finalize(() => (this.submitting = false)))
       .subscribe({
         next: (session) => {
@@ -158,6 +228,8 @@ export class CreateSessionComponent implements OnInit {
         code === 'GAME_PLAYLIST_INSUFFICIENT_TRACKS'
       ) {
         this.loadPlaylists();
+      } else if (code === 'GAME_DIFFICULTY_INSUFFICIENT_TRACKS' && this.selected) {
+        this.selectPlaylist(this.selected, true);
       }
     }
   }
@@ -179,6 +251,13 @@ export class CreateSessionComponent implements OnInit {
           return 'That playlist is no longer available. The list has been refreshed.';
         case 'GAME_PLAYLIST_INELIGIBLE':
           return 'This playlist has no tracks ready to play right now.';
+        case 'GAME_DIFFICULTY_INVALID':
+          return 'Select at least one difficulty level.';
+        case 'GAME_DIFFICULTY_INSUFFICIENT_TRACKS':
+          return (
+            `Not enough tracks match the selected difficulty levels for ${trackCount} rounds. ` +
+            'Include more levels or pick fewer tracks.'
+          );
         case 'GAME_PLAYLIST_INSUFFICIENT_TRACKS':
           return (
             `This playlist doesn't have enough ready tracks for ${trackCount} rounds. ` +
@@ -204,7 +283,7 @@ export class CreateSessionComponent implements OnInit {
 
   trackCountMaximum(): number {
     return Math.min(
-      this.selected?.trackCount ?? this.limits.trackCount.maximum,
+      this.selected ? this.matchingTrackCount() : this.limits.trackCount.maximum,
       this.limits.trackCount.maximum,
     );
   }
@@ -221,6 +300,16 @@ export class CreateSessionComponent implements OnInit {
       return error.error?.message || error.message || 'The catalogue could not be loaded.';
     }
     return 'The catalogue could not be loaded.';
+  }
+
+  /** Caps the track count to the tracks matching the difficulty selection. */
+  private applyTrackCountMaximum(): void {
+    const maximum = Math.max(this.trackCountMaximum(), this.limits.trackCount.minimum);
+    this.setTrackCountMaximum(maximum);
+    const currentCount = this.form.controls.trackCount.value;
+    this.form.controls.trackCount.setValue(
+      Math.min(Math.max(currentCount, this.limits.trackCount.minimum), maximum),
+    );
   }
 
   private setTrackCountMaximum(maximum: number): void {

@@ -52,6 +52,8 @@ describe('GameSessionService', () => {
         trackCount: 12,
         maxRoundSeconds: 25,
         extensions: {},
+        difficultyLevels: [2, 3],
+        includeUnrated: false,
       })
       .subscribe();
 
@@ -62,6 +64,8 @@ describe('GameSessionService', () => {
       trackCount: 12,
       maxRoundSeconds: 25,
       extensions: {},
+      difficultyLevels: [2, 3],
+      includeUnrated: false,
     });
     request.flush(response);
   });

@@ -69,8 +69,8 @@ const details = {
   [playlists[2].id]: {
     ...playlists[2],
     tracks: [
-      track('33333333-ffff-4fff-8fff-ffffffffffff', 'The Final Countdown', 'Europe', 310),
-      ...fillerTracks('rock', 5),
+      track('33333333-ffff-4fff-8fff-ffffffffffff', 'The Final Countdown', 'Europe', 310, 5),
+      ...fillerTracks('rock', 5, 2),
     ],
   },
   [playlists[3].id]: {
@@ -80,7 +80,13 @@ const details = {
   },
 };
 
-function track(id: string, title: string, artist: string, durationSeconds: number) {
+function track(
+  id: string,
+  title: string,
+  artist: string,
+  durationSeconds: number,
+  difficulty: number | null = null,
+) {
   return {
     id,
     title,
@@ -93,12 +99,13 @@ function track(id: string, title: string, artist: string, durationSeconds: numbe
     durationSeconds,
     excerptStartSeconds: 0,
     imageUrl: null,
+    difficulty,
   };
 }
 
-function fillerTracks(prefix: string, count: number) {
+function fillerTracks(prefix: string, count: number, difficulty: number | null = null) {
   return Array.from({ length: count }, (_, index) =>
-    track(`${prefix}-${index}`, `${prefix} track ${index + 1}`, 'Test artist', 180),
+    track(`${prefix}-${index}`, `${prefix} track ${index + 1}`, 'Test artist', 180, difficulty),
   );
 }
 
@@ -154,6 +161,15 @@ test.describe('game configuration', () => {
     await trackCount.fill('5');
     await roundDuration.fill('45');
 
+    const createButton = page.getByRole('button', { name: 'Create session' });
+    await page.getByRole('button', { name: '5 stars, 1 track' }).click();
+    await expect(trackCount).toHaveAttribute('max', '5');
+    await page.getByRole('button', { name: '2 stars, 5 tracks' }).click();
+    await expect(page.getByText('Only 0 tracks match these levels')).toBeVisible();
+    await expect(createButton).toBeDisabled();
+    await page.getByRole('button', { name: '2 stars, 5 tracks' }).click();
+    await expect(createButton).toBeEnabled();
+
     const [request] = await Promise.all([
       page.waitForRequest('**/api/sessions'),
       page.getByRole('button', { name: 'Create session' }).click(),
@@ -164,6 +180,8 @@ test.describe('game configuration', () => {
       trackCount: 5,
       maxRoundSeconds: 45,
       extensions: {},
+      difficultyLevels: [1, 2, 3, 4],
+      includeUnrated: true,
     });
 
     await expect(page).toHaveURL(new RegExp(`/game/${SESSION_ID}$`));

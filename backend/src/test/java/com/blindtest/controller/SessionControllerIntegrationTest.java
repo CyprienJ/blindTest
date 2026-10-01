@@ -276,6 +276,59 @@ class SessionControllerIntegrationTest {
     }
 
     @Test
+    void selectsOnlyTracksMatchingTheRequestedDifficulties() throws Exception {
+        short[] difficulties = {1, 2, 2, 3, 5};
+        for (int index = 0; index < difficulties.length; index++) {
+            tracks.get(index).setDifficulty(difficulties[index]);
+            trackRepository.saveAndFlush(tracks.get(index));
+        }
+
+        MvcResult result = mockMvc.perform(post("/api/sessions").
+                        header(HttpHeaders.AUTHORIZATION, bearer(verifiedUser)).
+                        contentType(MediaType.APPLICATION_JSON).
+                        content(difficultyRequest(5, "[1,2,3]", true))).
+                andExpect(status().isCreated()).
+                andReturn();
+
+        SoloSessionResponse response = objectMapper.readValue(
+                result.getResponse().getContentAsByteArray(), SoloSessionResponse.class);
+        ActiveSessionSnapshot snapshot = sessionStore.find(
+                new SessionId(response.sessionId()), clock.instant()).orElseThrow();
+        assertThat(snapshot.gameState().trackSelection().tracks()).
+                extracting(track -> track.trackId()).
+                containsExactlyInAnyOrder(
+                        tracks.get(0).getId(), tracks.get(1).getId(), tracks.get(2).getId(),
+                        tracks.get(3).getId(), tracks.get(5).getId());
+    }
+
+    @Test
+    void rejectsDifficultySelectionsWithoutEnoughTracksOrLevels() throws Exception {
+        tracks.getFirst().setDifficulty((short) 5);
+        trackRepository.saveAndFlush(tracks.getFirst());
+
+        mockMvc.perform(post("/api/sessions").
+                        header(HttpHeaders.AUTHORIZATION, bearer(verifiedUser)).
+                        contentType(MediaType.APPLICATION_JSON).
+                        content(difficultyRequest(5, "[1,2,3,4]", false))).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("GAME_DIFFICULTY_INSUFFICIENT_TRACKS"));
+
+        mockMvc.perform(post("/api/sessions").
+                        header(HttpHeaders.AUTHORIZATION, bearer(verifiedUser)).
+                        contentType(MediaType.APPLICATION_JSON).
+                        content(difficultyRequest(5, "[]", false))).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("GAME_DIFFICULTY_INVALID"));
+
+        mockMvc.perform(post("/api/sessions").
+                        header(HttpHeaders.AUTHORIZATION, bearer(verifiedUser)).
+                        contentType(MediaType.APPLICATION_JSON).
+                        content(difficultyRequest(5, "[0,6]", true))).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("GAME_DIFFICULTY_INVALID"));
+    }
+
+    @Test
     void missingBodyReturnsStableConfigurationError() throws Exception {
         mockMvc.perform(post("/api/sessions").
                         header(HttpHeaders.AUTHORIZATION, bearer(verifiedUser)).
@@ -299,6 +352,12 @@ class SessionControllerIntegrationTest {
 
     private String validRequest() {
         return request(playlist.getId(), 5, 30, "{}");
+    }
+
+    private String difficultyRequest(int trackCount, String levels, boolean includeUnrated) {
+        return "{\"playlistId\":\"" + playlist.getId() + "\",\"trackCount\":" + trackCount
+                + ",\"maxRoundSeconds\":30,\"extensions\":{},\"difficultyLevels\":" + levels
+                + ",\"includeUnrated\":" + includeUnrated + "}";
     }
 
     private String request(UUID playlistId, int trackCount, int duration, String extensions) {

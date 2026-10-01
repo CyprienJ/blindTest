@@ -20,7 +20,13 @@ public enum GameConfigurationError {
             "GAME_PLAYLIST_INELIGIBLE", "The selected playlist has no eligible tracks"),
     PLAYLIST_INSUFFICIENT_TRACKS(
             "GAME_PLAYLIST_INSUFFICIENT_TRACKS",
-            "The selected playlist does not contain enough eligible tracks");
+            "The selected playlist does not contain enough eligible tracks"),
+    DIFFICULTY_INVALID(
+            "GAME_DIFFICULTY_INVALID",
+            "Select at least one difficulty level between 1 and 5"),
+    DIFFICULTY_INSUFFICIENT_TRACKS(
+            "GAME_DIFFICULTY_INSUFFICIENT_TRACKS",
+            "The selected difficulty levels do not contain enough eligible tracks");
 
     private final String code;
     private final String safeMessage;

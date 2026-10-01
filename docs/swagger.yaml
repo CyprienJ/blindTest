@@ -126,6 +126,8 @@ components:
             - GAME_PLAYLIST_NOT_FOUND
             - GAME_PLAYLIST_INELIGIBLE
             - GAME_PLAYLIST_INSUFFICIENT_TRACKS
+            - GAME_DIFFICULTY_INVALID
+            - GAME_DIFFICULTY_INSUFFICIENT_TRACKS
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
         message:
@@ -363,6 +365,26 @@ components:
           additionalProperties:
             type: string
           description: Reserved for future game modes and rules; V1 rejects every entry.
+        difficultyLevels:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 1
+            maximum: 5
+          description: |
+            Star levels to include, from 1 (easiest) to 5 (hardest). Omit or
+            send null to include every level. Out-of-range values return
+            GAME_DIFFICULTY_INVALID.
+        includeUnrated:
+          type: boolean
+          nullable: true
+          default: true
+          description: |
+            Whether tracks without a difficulty rating are included. At least
+            one level or unrated tracks must be selected; when too few playable
+            tracks match, creation returns GAME_DIFFICULTY_INSUFFICIENT_TRACKS.
 
     SessionConnectionInstructions:
       type: object
@@ -540,6 +562,12 @@ components:
         imageUrl:
           type: string
           nullable: true
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+          description: Administrator difficulty, 1 (easiest) to 5 (hardest); null when not rated.
 
     TrackAdmin:
       allOf:
@@ -1260,8 +1288,9 @@ paths:
       description: |
         Requires an authenticated account with a verified email. The server
         validates the requested configuration, randomly selects published tracks
-        backed by snapshot-capable private media, freezes their answer/playback/media
-        metadata, and creates an independent one-player active session.
+        backed by snapshot-capable private media and matching the requested
+        difficulty levels, freezes their answer/playback/media metadata, and
+        creates an independent one-player active session.
       requestBody:
         required: true
         content:

@@ -6,7 +6,8 @@
 
 `POST /api/sessions` requires a verified authenticated account. `SoloSessionService`
 validates configuration, loads eligible published private-media tracks and aliases,
-randomly selects their order, and creates immutable snapshots. The owner receives
+counts them per difficulty for the requested `DifficultyFilter`, randomly selects
+matching tracks and their order, and creates immutable snapshots. The owner receives
 an opaque participant identity; the initial session version is zero.
 
 The response includes session identity, expiry, and STOMP connection destinations.

@@ -102,7 +102,8 @@ public class SoloSessionService {
         List<GameTrackCandidate> candidates = loadCandidates(playlistId);
         PlaylistEligibilitySnapshot eligibility = playlistId != null
                 && playlistRepository.existsById(playlistId)
-                ? new PlaylistEligibilitySnapshot(playlistId, candidates.size())
+                ? new PlaylistEligibilitySnapshot(
+                        playlistId, candidates.size(), countByDifficulty(candidates))
                 : null;
         GameConfiguration configuration =
                 configurationValidator.validate(requested, eligibility);
@@ -129,7 +130,17 @@ public class SoloSessionService {
                 request.playlistId(),
                 request.trackCount(),
                 request.maxRoundSeconds(),
-                request.extensions());
+                request.extensions(),
+                request.difficultyLevels(),
+                !Boolean.FALSE.equals(request.includeUnrated()));
+    }
+
+    private Map<Integer, Integer> countByDifficulty(List<GameTrackCandidate> candidates) {
+        return candidates.stream().collect(Collectors.toMap(
+                candidate -> candidate.difficulty() == null
+                        ? PlaylistEligibilitySnapshot.UNRATED : candidate.difficulty(),
+                candidate -> 1,
+                Integer::sum));
     }
 
     private List<GameTrackCandidate> loadCandidates(UUID playlistId) {
@@ -178,7 +189,8 @@ public class SoloSessionService {
                 new GamePlaybackSnapshot(
                         track.getExcerptStartSeconds(), track.getDurationSeconds()),
                 new GameMediaSnapshot(
-                        track.getAudioObjectKey(), track.getAudioChecksum()));
+                        track.getAudioObjectKey(), track.getAudioChecksum()),
+                track.getDifficulty() == null ? null : track.getDifficulty().intValue());
     }
 
     private GameAnswerType toGameAnswerType(TrackAnswerType answerType) {

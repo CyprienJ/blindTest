@@ -118,6 +118,41 @@
           </div>
 
           <form [formGroup]="form">
+            <div class="range-field">
+              <span>
+                <strong id="difficulty-heading">Difficulty</strong>
+                <output>{{ matchingTrackCount() }} tracks</output>
+              </span>
+              <div class="difficulty-options" role="group" aria-labelledby="difficulty-heading">
+                @for (level of difficultyLevels; track level) {
+                  <button
+                    type="button"
+                    class="bt-chip"
+                    [class.bt-chip-accent]="isDifficultySelected(level)"
+                    [attr.aria-pressed]="isDifficultySelected(level)"
+                    [attr.aria-label]="difficultyLabel(level)"
+                    (click)="toggleDifficulty(level)"
+                  >
+                    {{ level }} ★ <small>{{ difficultyCount(level) }}</small>
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="bt-chip"
+                  [class.bt-chip-accent]="isDifficultySelected(null)"
+                  [attr.aria-pressed]="isDifficultySelected(null)"
+                  [attr.aria-label]="difficultyLabel(null)"
+                  (click)="toggleDifficulty(null)"
+                >
+                  Not rated <small>{{ difficultyCount(null) }}</small>
+                </button>
+              </div>
+              <small>1 ★ is the easiest, 5 ★ the hardest. Deselect levels to leave them out.</small>
+              @if (difficultyError()) {
+                <p class="inline-error" role="alert">{{ difficultyError() }}</p>
+              }
+            </div>
+
             <label class="range-field">
               <span>
                 <strong>Number of tracks</strong>
@@ -174,6 +209,10 @@
             <dd>{{ form.controls.trackCount.value }}</dd>
           </div>
           <div>
+            <dt>Difficulty</dt>
+            <dd>{{ difficultySummary() }}</dd>
+          </div>
+          <div>
             <dt>Time per track</dt>
             <dd>{{ form.controls.maxRoundSeconds.value }} seconds</dd>
           </div>
@@ -194,7 +233,9 @@
         <button
           class="bt-btn bt-btn-primary bt-btn-lg create-button"
           type="button"
-          [disabled]="!selected || loadingDetail || form.invalid || submitting"
+          [disabled]="
+            !selected || loadingDetail || form.invalid || submitting || !!difficultyError()
+          "
           (click)="createSession()"
         >
           {{ submitting ? 'Creating game…' : 'Create session →' }}

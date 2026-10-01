@@ -18,7 +18,8 @@ public record TrackResponse(
         String category,
         Short decade,
         Integer durationSeconds,
-        String imageUrl) {
+        String imageUrl,
+        Short difficulty) {
 
     /** Creates a public response DTO from the given entity, excluding sensitive fields. */
     public static TrackResponse from(TrackEntity entity) {
@@ -32,6 +33,7 @@ public record TrackResponse(
                 entity.getCategory(),
                 entity.getDecade(),
                 entity.getDurationSeconds(),
-                entity.getImageUrl());
+                entity.getImageUrl(),
+                entity.getDifficulty());
     }
 }

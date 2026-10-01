@@ -47,6 +47,11 @@ public enum ApiErrorCode {
             HttpStatus.CONFLICT, "The selected playlist has no eligible tracks"),
     GAME_PLAYLIST_INSUFFICIENT_TRACKS(
             HttpStatus.CONFLICT, "The selected playlist does not contain enough eligible tracks"),
+    GAME_DIFFICULTY_INVALID(
+            HttpStatus.BAD_REQUEST, "Select at least one difficulty level between 1 and 5"),
+    GAME_DIFFICULTY_INSUFFICIENT_TRACKS(
+            HttpStatus.CONFLICT,
+            "The selected difficulty levels do not contain enough eligible tracks"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Media type is not supported"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 

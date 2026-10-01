@@ -10,8 +10,13 @@ A verified authenticated player selects a public playlist and configures:
 |---|---|---|
 | Track count | 5–30 | 15 |
 | Maximum round duration | 10–60 seconds, in five-second increments | 30 seconds |
+| Difficulty levels | Any subset of 1–5 stars, plus or minus unrated tracks; at least one | All levels and unrated |
 
-The backend validates eligibility and sufficient playable tracks. It samples
+Difficulty is the administrator rating set during import (1 = easiest, 5 =
+hardest). The setup screen shows how many tracks of the selected playlist sit at
+each level, caps the track count to the matching tracks, and blocks creation
+when fewer than five match. The backend validates eligibility and sufficient
+playable tracks within the selected difficulty levels. It samples
 published private-media tracks without replacement and shuffles their order.
 The game retains immutable metadata, alternative-answer, and media-version
 snapshots. Playlist editing during a game cannot change these snapshots.

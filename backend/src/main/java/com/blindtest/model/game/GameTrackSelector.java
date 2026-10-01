@@ -30,6 +30,12 @@ public final class GameTrackSelector {
             throw new GameConfigurationValidationException(
                     GameConfigurationError.PLAYLIST_INSUFFICIENT_TRACKS);
         }
+        DifficultyFilter difficultyFilter = configuration.difficultyFilter();
+        eligibleTracks.removeIf(candidate -> !difficultyFilter.matches(candidate.difficulty()));
+        if (eligibleTracks.size() < requestedCount) {
+            throw new GameConfigurationValidationException(
+                    GameConfigurationError.DIFFICULTY_INSUFFICIENT_TRACKS);
+        }
 
         List<GameTrackCandidate> selected = requestedCount == eligibleTracks.size()
                 ? new ArrayList<>(eligibleTracks)

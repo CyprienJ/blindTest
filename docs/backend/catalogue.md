@@ -14,9 +14,9 @@ manage alternative answers for title, artist, composer, and album. An internal
 normalized key prevents duplicate aliases; gameplay matching uses its own rules.
 Tracks also carry an administrator difficulty from 1 (easiest) to 5 stars and
 optional Deezer, YouTube, Spotify, Qobuz, Tidal, and SoundCloud links, each
-validated against its platform domain. These fields are stored and returned to
-administrators only; the import review requires a difficulty, but gameplay and
-public catalogue responses do not use them yet.
+validated against its platform domain. The import review requires a difficulty.
+Public track responses expose the difficulty so players can filter game levels;
+streaming links stay administrator-only and unused.
 
 Publication requires primary metadata plus either a legacy audio URL or a complete
 private-object key/checksum/positive-size tuple. A nonzero excerpt offset requires

@@ -1,5 +1,8 @@
 package com.blindtest.model.game;
 
+import java.util.HashSet;
+import java.util.List;
+
 /** Pure domain validator for game configuration and playlist eligibility. */
 public final class GameConfigurationValidator {
 
@@ -25,6 +28,7 @@ public final class GameConfigurationValidator {
         if (!requested.extensions().isEmpty()) {
             throw failure(GameConfigurationError.EXTENSION_UNSUPPORTED);
         }
+        DifficultyFilter difficultyFilter = difficultyFilter(requested);
         if (playlistEligibility == null
                 || !requested.playlistId().equals(playlistEligibility.playlistId())) {
             throw failure(GameConfigurationError.PLAYLIST_NOT_FOUND);
@@ -36,10 +40,29 @@ public final class GameConfigurationValidator {
                 < requested.requestedTrackCount()) {
             throw failure(GameConfigurationError.PLAYLIST_INSUFFICIENT_TRACKS);
         }
+        if (playlistEligibility.matchingTrackCount(difficultyFilter)
+                < requested.requestedTrackCount()) {
+            throw failure(GameConfigurationError.DIFFICULTY_INSUFFICIENT_TRACKS);
+        }
         return new GameConfiguration(
                 requested.playlistId(),
                 requested.requestedTrackCount(),
-                requested.maximumRoundDurationSeconds());
+                requested.maximumRoundDurationSeconds(),
+                difficultyFilter);
+    }
+
+    private DifficultyFilter difficultyFilter(RequestedGameConfiguration requested) {
+        List<Integer> levels = requested.difficultyLevels();
+        if (levels == null) {
+            return requested.includeUnrated()
+                    ? DifficultyFilter.ALL
+                    : new DifficultyFilter(DifficultyFilter.ALL.levels(), false);
+        }
+        if (!levels.stream().allMatch(DifficultyFilter::isAllowedLevel)
+                || levels.isEmpty() && !requested.includeUnrated()) {
+            throw failure(GameConfigurationError.DIFFICULTY_INVALID);
+        }
+        return new DifficultyFilter(new HashSet<>(levels), requested.includeUnrated());
     }
 
     private GameConfigurationValidationException failure(GameConfigurationError error) {
