@@ -1,5 +1,6 @@
 package com.blindtest.service;
 
+import com.blindtest.model.entity.TrackCovers;
 import com.blindtest.model.game.AnswerMatchResult;
 import com.blindtest.model.game.AnswerMatcher;
 import com.blindtest.model.game.GameAnswerSnapshot;
@@ -465,6 +466,7 @@ public class SessionGameplayService {
                         Optional.ofNullable(answers.composer()),
                         Optional.ofNullable(answers.album()),
                         round.track().streamingLinks().links(),
+                        coverUrl(round),
                         round.scoreState().totalPoints(),
                         totalScore,
                         advanceAt));
@@ -592,8 +594,13 @@ public class SessionGameplayService {
                         ? Optional.ofNullable(round.track().answers().album())
                         : Optional.empty(),
                 revealed ? round.track().streamingLinks().links() : Map.of(),
+                revealed ? coverUrl(round) : Optional.empty(),
                 advanceAt,
                 round.scoreState().totalPoints());
+    }
+
+    private static Optional<String> coverUrl(RoundStateSnapshot round) {
+        return Optional.ofNullable(round.track().coverId()).map(TrackCovers::publicPath);
     }
 
     private URI resolvePlaybackUrl(RoundStateSnapshot round) {

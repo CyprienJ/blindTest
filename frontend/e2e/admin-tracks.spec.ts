@@ -99,6 +99,73 @@ test.describe('admin track catalogue', () => {
     await expect(page.getByRole('heading', { name: 'No tracks found' })).toBeVisible();
   });
 
+  test('suggests covers from the metadata and saves the chosen one', async ({ page }) => {
+    const pixel = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    );
+    let searchBody: Record<string, unknown> = {};
+    let updateBody: Record<string, unknown> = {};
+    await page.route('**/api/admin/cover-suggestions', async (route) => {
+      searchBody = route.request().postDataJSON();
+      await route.fulfill({
+        json: [
+          { candidateId: 'c1', source: 'DEEZER', album: 'After Dark', artist: 'The Satellites' },
+          { candidateId: 'c2', source: 'ITUNES', album: 'Night Drive', artist: 'The Satellites' },
+        ],
+      });
+    });
+    await page.route('**/api/admin/cover-suggestions/*/thumbnail', (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: pixel }),
+    );
+    await page.route(`**/api/admin/tracks/${pendingTrack.id}/aliases`, (route) =>
+      route.fulfill({ json: [] }),
+    );
+    await page.route(`**/api/admin/tracks/${pendingTrack.id}/preview-url`, (route) =>
+      route.fulfill({ status: 409, json: { code: 'CONFLICT' } }),
+    );
+    await page.route(`**/api/admin/tracks/${pendingTrack.id}/waveform`, (route) =>
+      route.fulfill({ status: 409, json: { code: 'TRACK_WAVEFORM_UNAVAILABLE' } }),
+    );
+    await page.route(`**/api/admin/tracks/${pendingTrack.id}`, async (route) => {
+      updateBody = route.request().postDataJSON();
+      await route.fulfill({
+        json: {
+          ...pendingTrack,
+          coverUrl: '/api/covers/7c9e6679-7425-40de-944b-e07fc1f90ae7',
+          coverSource: 'ITUNES',
+        },
+      });
+    });
+    await page.route('**/api/covers/*', (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: pixel }),
+    );
+
+    await page.goto('/admin/tracks');
+    await page.getByTitle('Edit track').first().click();
+    const covers = page.getByRole('radiogroup', { name: 'Cover image' });
+    await expect(covers.getByRole('radio', { name: /After Dark/ })).toBeVisible();
+    await expect(covers.locator('img')).toHaveCount(2);
+    expect(searchBody).toEqual({
+      title: 'Midnight Echo',
+      artist: 'The Satellites',
+      album: 'After Dark',
+    });
+
+    await covers.getByRole('radio', { name: /Night Drive/ }).click();
+    await expect(covers.getByRole('radio', { name: /Night Drive/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await page.getByRole('button', { name: 'Save metadata' }).click();
+    await expect(page.getByText('Track metadata saved.')).toBeVisible();
+    expect(updateBody).toEqual(expect.objectContaining({ coverCandidateId: 'c2' }));
+    await expect(covers.getByRole('radio', { name: 'Current cover' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
+
   test('edits metadata and aliases, previews, publishes and confirms deletion', async ({
     page,
   }) => {

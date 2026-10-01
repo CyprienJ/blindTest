@@ -380,6 +380,17 @@
   font-size: 48px;
 }
 
+.cover.has-image {
+  overflow: hidden;
+  background: var(--bg-2);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
 .revealed-title {
   margin: 0;
   font-size: 26px;
@@ -417,14 +428,49 @@
   > span {
     color: var(--fg-2);
   }
+}
 
-  a {
-    color: var(--fg-0);
-    text-decoration: none;
+.streaming-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--fg-0);
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
   }
 
-  a:hover,
-  a:focus-visible {
-    color: var(--accent);
+  &:hover,
+  &:focus-visible {
+    background: var(--bg-2);
+    transform: translateY(-1px);
   }
+}
+
+.streaming-link-deezer {
+  color: #a238ff;
+}
+
+.streaming-link-spotify {
+  color: #1ed760;
+}
+
+.streaming-link-youtube {
+  color: #ff0000;
+}
+
+.streaming-link-qobuz {
+  color: #4a90e2;
+}
+
+.streaming-link-soundcloud {
+  color: #ff5500;
 }

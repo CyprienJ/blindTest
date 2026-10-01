@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import { API_BASE } from '../../../core/config';
 import {
   AdminTrack,
+  CoverQuery,
+  CoverSuggestion,
   MediaPreview,
   PageResponse,
   TrackAlias,
@@ -74,6 +76,23 @@ export class AdminTrackService {
 
   reject(id: string): Observable<AdminTrack> {
     return this.http.post<AdminTrack>(`${this.baseUrl}/${id}/reject`, {});
+  }
+
+  suggestCovers(query: CoverQuery): Observable<CoverSuggestion[]> {
+    return this.http.post<CoverSuggestion[]>(`${API_BASE}/admin/cover-suggestions`, query);
+  }
+
+  /** Thumbnails need the admin bearer token, so they are fetched as blobs, not by <img>. */
+  coverThumbnail(candidateId: string): Observable<Blob> {
+    return this.http.get(`${API_BASE}/admin/cover-suggestions/${candidateId}/thumbnail`, {
+      responseType: 'blob',
+    });
+  }
+
+  uploadCover(file: File): Observable<CoverSuggestion> {
+    const body = new FormData();
+    body.append('file', file);
+    return this.http.post<CoverSuggestion>(`${API_BASE}/admin/cover-suggestions/upload`, body);
   }
 
   delete(id: string): Observable<void> {

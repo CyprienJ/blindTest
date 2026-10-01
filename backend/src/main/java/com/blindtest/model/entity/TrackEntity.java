@@ -97,6 +97,14 @@ public class TrackEntity {
     @Column(name = "soundcloud_url", length = 500)
     private String soundcloudUrl;
 
+    /** Stored cover image identity; the object lives at {@code covers/{coverId}.jpg}. */
+    @Column(name = "cover_id", unique = true)
+    private UUID coverId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cover_source", length = 20)
+    private CoverSource coverSource;
+
     @Column(name = "waveform_peaks", columnDefinition = "TEXT")
     private String waveformPeaks;
 

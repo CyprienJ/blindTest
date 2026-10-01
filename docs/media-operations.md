@@ -94,8 +94,8 @@ absence has been verified; leaving a row is safe because deletion is idempotent.
 ## Reconciliation
 
 An administrator can call `GET /api/admin/media/reconciliation`. The read-only
-report compares every non-null track object reference with a recursive bucket
-listing. It reports:
+report compares every non-null track audio and cover object reference with a
+recursive bucket listing. It reports:
 
 - missing objects by track UUID and a 16-character SHA-256 key fingerprint;
 - orphaned objects by the same fingerprint;

@@ -2,8 +2,8 @@ package com.blindtest.service;
 
 import com.blindtest.model.dto.MediaReconciliationReport;
 import com.blindtest.model.dto.MissingMediaObject;
+import com.blindtest.model.entity.TrackCovers;
 import com.blindtest.repository.MediaDeletionTaskRepository;
-import com.blindtest.repository.TrackMediaReference;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.service.port.MediaStorage;
 import java.time.Clock;
@@ -15,6 +15,8 @@ import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,18 +36,24 @@ public class MediaReconciliationService {
     /** Produces a point-in-time missing/orphaned object report. */
     @Transactional(readOnly = true)
     public MediaReconciliationReport reconcile() {
-        List<TrackMediaReference> references =
-                trackRepository.findAllProjectedByAudioObjectKeyIsNotNull();
+        List<ObjectReference> references = Stream.concat(
+                trackRepository.findAllProjectedByAudioObjectKeyIsNotNull().stream().
+                        map(reference -> new ObjectReference(
+                                reference.getId(), reference.getAudioObjectKey())),
+                trackRepository.findCoverReferencesByCoverIdIsNotNull().stream().
+                        map(reference -> new ObjectReference(
+                                reference.getId(), TrackCovers.objectKey(reference.getCoverId())))).
+                toList();
         Set<String> referencedKeys = references.stream().
-                map(TrackMediaReference::getAudioObjectKey).collect(Collectors.toSet());
+                map(ObjectReference::objectKey).collect(Collectors.toSet());
         Set<String> storedKeys = mediaStorage.listObjectKeys();
         Set<String> pendingDeletionKeys = deletionTaskRepository.findAll().stream().
                 map(task -> task.getObjectKey()).collect(Collectors.toSet());
 
         List<MissingMediaObject> missing = references.stream().
-                filter(reference -> !storedKeys.contains(reference.getAudioObjectKey())).
+                filter(reference -> !storedKeys.contains(reference.objectKey())).
                 map(reference -> new MissingMediaObject(
-                        reference.getId(), fingerprint(reference.getAudioObjectKey()))).
+                        reference.trackId(), fingerprint(reference.objectKey()))).
                 sorted(Comparator.comparing(item -> item.trackId().toString())).
                 toList();
         List<String> orphaned = storedKeys.stream().
@@ -57,6 +65,9 @@ public class MediaReconciliationService {
         metrics.recordReconciliation(missing.size(), orphaned.size());
         return new MediaReconciliationReport(
                 Instant.now(clock), missing.size(), orphaned.size(), missing, orphaned);
+    }
+
+    private record ObjectReference(UUID trackId, String objectKey) {
     }
 
     private String fingerprint(String objectKey) {

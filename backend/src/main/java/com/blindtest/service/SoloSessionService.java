@@ -195,7 +195,8 @@ public class SoloSessionService {
                 track.getDifficulty() == null ? null : track.getDifficulty().intValue(),
                 GameStreamingLinks.of(
                         track.getDeezerUrl(), track.getStreamingYoutubeUrl(), track.getSpotifyUrl(),
-                        track.getQobuzUrl(), track.getTidalUrl(), track.getSoundcloudUrl()));
+                        track.getQobuzUrl(), track.getTidalUrl(), track.getSoundcloudUrl()),
+                track.getCoverId());
     }
 
     private GameAnswerType toGameAnswerType(TrackAnswerType answerType) {

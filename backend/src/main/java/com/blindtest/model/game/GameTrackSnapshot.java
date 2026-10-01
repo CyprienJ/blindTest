@@ -8,6 +8,7 @@ import java.util.UUID;
  *
  * @param difficulty administrator difficulty from 1 to 5 at selection, or {@code null}
  * @param streamingLinks listening links frozen at selection and shown on reveal
+ * @param coverId stored cover frozen at selection and shown on reveal, or {@code null}
  */
 public record GameTrackSnapshot(
         UUID trackId,
@@ -16,7 +17,20 @@ public record GameTrackSnapshot(
         GamePlaybackSnapshot playback,
         GameMediaSnapshot media,
         Integer difficulty,
-        GameStreamingLinks streamingLinks) {
+        GameStreamingLinks streamingLinks,
+        UUID coverId) {
+
+    /** Creates a game-track snapshot without a cover. */
+    public GameTrackSnapshot(
+            UUID trackId,
+            int playOrder,
+            GameAnswerSnapshot answers,
+            GamePlaybackSnapshot playback,
+            GameMediaSnapshot media,
+            Integer difficulty,
+            GameStreamingLinks streamingLinks) {
+        this(trackId, playOrder, answers, playback, media, difficulty, streamingLinks, null);
+    }
 
     /** Creates a game-track snapshot without streaming links. */
     public GameTrackSnapshot(
@@ -59,6 +73,7 @@ public record GameTrackSnapshot(
                 candidate.playback(),
                 candidate.media(),
                 candidate.difficulty(),
-                candidate.streamingLinks());
+                candidate.streamingLinks(),
+                candidate.coverId());
     }
 }

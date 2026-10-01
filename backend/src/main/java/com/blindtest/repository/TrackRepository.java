@@ -22,4 +22,7 @@ public interface TrackRepository extends JpaRepository<TrackEntity, UUID>,
 
     /** Returns only identifiers and object keys for tracks backed by object storage. */
     List<TrackMediaReference> findAllProjectedByAudioObjectKeyIsNotNull();
+
+    /** Returns only identifiers and cover IDs for tracks with a stored cover. */
+    List<TrackCoverReference> findCoverReferencesByCoverIdIsNotNull();
 }

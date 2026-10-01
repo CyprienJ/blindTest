@@ -62,8 +62,9 @@ proxy_read_timeout 86400s;
 
 The 26 MiB body limit exists only for `POST /api/admin/tracks/import/upload`.
 The frontend container keeps Nginx's 1 MiB default on every other location and
-raises it only for that exact path (`frontend/nginx.conf`), so the host limit
-does not widen other endpoints. A host limit below 26 MiB makes uploads fail with
+raises it only for that exact path and to 6 MiB for the cover upload
+`POST /api/admin/cover-suggestions/upload` (`frontend/nginx.conf`), so the host
+limit does not widen other endpoints. A host limit below 26 MiB makes uploads fail with
 an Nginx `413` page before they reach the application.
 
 NPM's WebSocket option supplies the HTTP/1.1 upgrade headers. Keep the

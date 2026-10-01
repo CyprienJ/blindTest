@@ -89,8 +89,16 @@
           }
 
           <section class="bt-card media-card">
-            <div class="cover" [class.is-revealed]="phase === 'revealed'" aria-hidden="true">
-              {{ phase === 'revealed' ? '♪' : '?????' }}
+            <div
+              class="cover"
+              [class.is-revealed]="phase === 'revealed'"
+              [class.has-image]="phase === 'revealed' && revealCoverUrl()"
+            >
+              @if (phase === 'revealed' && revealCoverUrl(); as coverUrl) {
+                <img [src]="coverUrl" [alt]="'Cover of ' + reveal?.title" />
+              } @else {
+                <span aria-hidden="true">{{ phase === 'revealed' ? '♪' : '?????' }}</span>
+              }
             </div>
             <div class="media-body">
               @if (phase === 'revealed' && reveal) {
@@ -120,14 +128,20 @@
                   @if (links.length > 0) {
                     <nav class="streaming-links" aria-label="Listen on streaming platforms">
                       <span>Listen on</span>
-                      @for (link of links; track link.label) {
+                      @for (link of links; track link.key) {
                         <a
-                          class="bt-chip"
+                          class="streaming-link"
+                          [class]="'streaming-link-' + link.key"
                           [href]="link.url"
+                          [title]="link.label"
                           target="_blank"
                           rel="noopener noreferrer"
-                          >{{ link.label }}<span class="sr-only"> (opens in a new tab)</span></a
                         >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path [attr.d]="link.icon" />
+                          </svg>
+                          <span class="sr-only">{{ link.label }} (opens in a new tab)</span>
+                        </a>
                       }
                     </nav>
                   }

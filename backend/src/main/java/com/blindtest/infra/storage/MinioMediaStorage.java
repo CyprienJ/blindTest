@@ -4,6 +4,8 @@ import com.blindtest.config.properties.S3Properties;
 import com.blindtest.service.port.MediaStorage;
 import com.blindtest.service.port.MediaStorageException;
 import com.blindtest.service.port.StoredMedia;
+import io.minio.GetObjectArgs;
+import io.minio.GetObjectResponse;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
@@ -18,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 /** MinIO Java SDK implementation of the private media-storage boundary. */
@@ -55,6 +58,23 @@ public class MinioMediaStorage implements MediaStorage {
             return new StoredMedia(objectKey, size, response.etag());
         } catch (Exception exception) {
             throw new MediaStorageException("store", exception);
+        }
+    }
+
+    @Override
+    public Optional<byte[]> read(String objectKey) {
+        try (GetObjectResponse response = storageClient.getObject(GetObjectArgs.builder().
+                bucket(properties.bucket()).
+                object(objectKey).
+                build())) {
+            return Optional.of(response.readAllBytes());
+        } catch (ErrorResponseException exception) {
+            if (MISSING_OBJECT_CODES.contains(exception.errorResponse().code())) {
+                return Optional.empty();
+            }
+            throw new MediaStorageException("read", exception);
+        } catch (Exception exception) {
+            throw new MediaStorageException("read", exception);
         }
     }
 

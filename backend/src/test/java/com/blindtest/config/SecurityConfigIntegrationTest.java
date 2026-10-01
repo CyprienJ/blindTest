@@ -19,7 +19,9 @@ import com.blindtest.service.CatalogueService;
 import com.blindtest.service.GameHistorySummaryService;
 import com.blindtest.service.ImportJobService;
 import com.blindtest.service.MediaReconciliationService;
+import com.blindtest.service.CoverSuggestionService;
 import com.blindtest.service.SessionGameplayService;
+import com.blindtest.service.TrackCoverService;
 import com.blindtest.service.SoloSessionService;
 import com.blindtest.service.TrackAnswerAliasService;
 import java.util.UUID;
@@ -88,6 +90,12 @@ class SecurityConfigIntegrationTest {
     @MockBean
     private SessionGameplayService sessionGameplayService;
 
+    @MockBean
+    private TrackCoverService trackCoverService;
+
+    @MockBean
+    private CoverSuggestionService coverSuggestionService;
+
     @Test
     void completedSessionSummaryRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/sessions/{sessionId}/summary", UUID.randomUUID())).
@@ -133,6 +141,8 @@ class SecurityConfigIntegrationTest {
         mockMvc.perform(get("/api/playlists/123")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/sessions/ABCDEF")).andExpect(status().isNotFound());
         mockMvc.perform(get("/media/audio.mp3")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/covers/" + UUID.randomUUID())).andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/admin/cover-suggestions")).andExpect(status().isUnauthorized());
     }
 
     @Test

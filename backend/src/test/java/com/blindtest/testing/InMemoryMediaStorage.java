@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** In-memory media-storage adapter for unit and integration tests. */
@@ -36,6 +37,12 @@ public class InMemoryMediaStorage implements MediaStorage {
         } catch (IOException exception) {
             throw new IllegalStateException("Cannot read media fixture", exception);
         }
+    }
+
+    @Override
+    public synchronized Optional<byte[]> read(String objectKey) {
+        StoredObject stored = objects.get(objectKey);
+        return stored == null ? Optional.empty() : Optional.of(stored.content().clone());
     }
 
     @Override

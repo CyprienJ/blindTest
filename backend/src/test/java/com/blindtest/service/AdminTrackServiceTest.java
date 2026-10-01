@@ -2,6 +2,7 @@ package com.blindtest.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,11 +11,13 @@ import static org.mockito.Mockito.when;
 import com.blindtest.config.properties.S3Properties;
 import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.TrackEntity;
+import com.blindtest.model.dto.UpdateTrackRequest;
 import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.service.port.MediaStorage;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -38,6 +41,7 @@ class AdminTrackServiceTest {
     private MediaStorage mediaStorage;
     private AdminTrackService service;
     private AdminPlaylistService adminPlaylistService;
+    private TrackCoverService trackCoverService;
     private TrackEntity track;
 
     @BeforeEach
@@ -47,12 +51,14 @@ class AdminTrackServiceTest {
         trackMediaService = mock(TrackMediaService.class);
         mediaStorage = mock(MediaStorage.class);
         adminPlaylistService = mock(AdminPlaylistService.class);
+        trackCoverService = mock(TrackCoverService.class);
         S3Properties properties = new S3Properties(
                 URI.create("http://minio:9000"), URI.create("https://media.example.test"),
                 "eu-west-3", "media", "access", "secret", Duration.ofMinutes(5));
         service = new AdminTrackService(
                 trackRepository, importJobRepository, trackMediaService, mediaStorage, properties,
-                Clock.fixed(NOW, ZoneOffset.UTC), new ObjectMapper(), adminPlaylistService);
+                Clock.fixed(NOW, ZoneOffset.UTC), new ObjectMapper(), adminPlaylistService,
+                trackCoverService);
 
         track = mock(TrackEntity.class);
         when(trackRepository.findById(TRACK_ID)).thenReturn(Optional.of(track));
@@ -137,6 +143,46 @@ class AdminTrackServiceTest {
         verify(trackMediaService).enqueueDeletion(OBJECT_KEY);
         verify(adminPlaylistService).removeTrackFromAllPlaylists(TRACK_ID);
         verify(trackRepository).delete(track);
+    }
+
+    @Test
+    void deleteAlsoQueuesTheStoredCover() {
+        UUID coverId = UUID.fromString("7c9e6679-7425-40de-944b-e07fc1f90ae7");
+        when(track.getCoverId()).thenReturn(coverId);
+
+        service.deleteTrack(TRACK_ID);
+
+        verify(trackMediaService).enqueueDeletion("covers/" + coverId + ".jpg");
+    }
+
+    @Test
+    void updateStoresTheChosenCoverCandidate() {
+        UUID candidateId = UUID.randomUUID();
+        when(trackRepository.save(track)).thenReturn(track);
+
+        service.updateTrack(TRACK_ID, updateRequest("{\"coverCandidateId\":\"" + candidateId + "\"}"));
+
+        verify(trackCoverService).replaceCover(track, candidateId);
+        verify(trackCoverService, never()).removeCover(track);
+    }
+
+    @Test
+    void updateRemovalWinsOverACandidate() {
+        when(trackRepository.save(track)).thenReturn(track);
+
+        service.updateTrack(TRACK_ID, updateRequest(
+                "{\"removeCover\":true,\"coverCandidateId\":\"" + UUID.randomUUID() + "\"}"));
+
+        verify(trackCoverService).removeCover(track);
+        verify(trackCoverService, never()).replaceCover(any(), any());
+    }
+
+    private UpdateTrackRequest updateRequest(String json) {
+        try {
+            return new ObjectMapper().readValue(json, UpdateTrackRequest.class);
+        } catch (IOException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private void assertConflict() {

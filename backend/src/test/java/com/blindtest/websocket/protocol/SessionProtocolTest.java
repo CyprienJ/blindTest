@@ -213,6 +213,7 @@ class SessionProtocolTest {
                 Optional.empty(),
                 Map.of(),
                 Optional.empty(),
+                Optional.empty(),
                 0);
         var snapshot = new PrivateSessionEventPayload.CurrentSnapshot(
                 GameStatus.PLAYING,
@@ -262,11 +263,27 @@ class SessionProtocolTest {
                 Optional.of("  "),
                 Optional.empty(),
                 Map.of(),
+                Optional.empty(),
                 800,
                 800,
                 NOW.plusSeconds(4))).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("composer");
+        assertThatThrownBy(() -> new PublicSessionEventPayload.RoundRevealed(
+                0,
+                5,
+                RoundOutcome.TITLE_FOUND,
+                "Take On Me",
+                "a-ha",
+                Optional.empty(),
+                Optional.empty(),
+                Map.of(),
+                Optional.of(" "),
+                800,
+                800,
+                NOW.plusSeconds(4))).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessageContaining("coverUrl");
     }
 
     private SessionCommand command(SessionCommandType type, String answer) {

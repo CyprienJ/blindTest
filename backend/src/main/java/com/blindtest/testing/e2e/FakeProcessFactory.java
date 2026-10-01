@@ -28,24 +28,20 @@ public class FakeProcessFactory implements ProcessFactory {
      */
     public static final String FORCED_FAILURE_VIDEO_ID = "e2e-fail-01";
 
+    /** An 8x8 gray JPEG written in place of FFmpeg's normalized cover output. */
+    private static final String GRAY_JPEG_BASE64 =
+            "/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYwLjMxLjEwMgD/2wBDAAgEBAQEBAUFBQUFBQYGBgYG" +
+            "BgYGBgYGBgYHBwcICAgHBwcGBgcHCAgICAkJCQgICAgJCQoKCgwMCwsODg4RERT/xABKAAEAAAAAAAAA" +
+            "AAAAAAAAAAAAAQEAAAAAAAAAAAAAAAAAAAAAEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAA" +
+            "AAAA/8AAEQgACAAIAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AAA//2Q==";
+
     @Override
     public Process start(List<String> command) throws IOException {
         if (!command.isEmpty() && "ffprobe".equals(command.getFirst())) {
             return probe(Path.of(command.getLast()));
         }
-        if (!command.isEmpty() && "ffmpeg".equals(command.getFirst()) && command.contains("-progress")) {
-            Files.write(Path.of(command.getLast()), fixtureBytes());
-            return new CompletedProcess(
-                    "out_time_us=60000000\nprogress=continue\nout_time_us=120000000\nprogress=end\n");
-        }
         if (!command.isEmpty() && "ffmpeg".equals(command.getFirst())) {
-            byte[] pcm = new byte[1_600];
-            for (int index = 0; index < pcm.length / 2; index++) {
-                short sample = (short) ((index % 100) * 300);
-                pcm[index * 2] = (byte) sample;
-                pcm[index * 2 + 1] = (byte) (sample >>> 8);
-            }
-            return new CompletedProcess(pcm);
+            return ffmpeg(command);
         }
         if (command.contains("https://www.youtube.com/watch?v=" + FORCED_FAILURE_VIDEO_ID)) {
             return new CompletedProcess(
@@ -70,6 +66,26 @@ public class FakeProcessFactory implements ProcessFactory {
                 }
                 """);
         return new CompletedProcess("[download] 50.0%\n[download] 100.0%\n");
+    }
+
+    /** Fakes cover conversion, audio transcoding with progress, or waveform PCM output. */
+    private static Process ffmpeg(List<String> command) throws IOException {
+        if (command.contains("mjpeg")) {
+            Files.write(Path.of(command.getLast()), Base64.getDecoder().decode(GRAY_JPEG_BASE64));
+            return new CompletedProcess("");
+        }
+        if (command.contains("-progress")) {
+            Files.write(Path.of(command.getLast()), fixtureBytes());
+            return new CompletedProcess(
+                    "out_time_us=60000000\nprogress=continue\nout_time_us=120000000\nprogress=end\n");
+        }
+        byte[] pcm = new byte[1_600];
+        for (int index = 0; index < pcm.length / 2; index++) {
+            short sample = (short) ((index % 100) * 300);
+            pcm[index * 2] = (byte) sample;
+            pcm[index * 2 + 1] = (byte) (sample >>> 8);
+        }
+        return new CompletedProcess(pcm);
     }
 
     /**

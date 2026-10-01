@@ -87,8 +87,8 @@
                 <td>
                   <div class="track-cell">
                     <span class="cover" aria-hidden="true">
-                      @if (track.imageUrl) {
-                        <img [src]="track.imageUrl" alt="" />
+                      @if (track.coverUrl ?? track.imageUrl; as cover) {
+                        <img [src]="cover" alt="" />
                       } @else {
                         ♫
                       }
@@ -218,9 +218,17 @@
             >Duration (seconds)
             <input class="bt-input" type="number" formControlName="durationSeconds" />
           </label>
-          <label class="wide"
-            >Cover image URL <input class="bt-input" formControlName="imageUrl"
-          /></label>
+          <div class="wide cover-field">
+            <span>Cover</span>
+            <app-cover-picker
+              [title]="editForm.controls.title.value"
+              [artist]="editForm.controls.artist.value"
+              [album]="editForm.controls.album.value"
+              [currentCoverUrl]="editingTrack.coverUrl"
+              [disabled]="editSaving"
+              [(selection)]="coverSelection"
+            />
+          </div>
           <div class="wide difficulty">
             <span id="edit-difficulty-label">Difficulty</span>
             <app-difficulty-rating

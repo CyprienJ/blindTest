@@ -92,6 +92,7 @@ public sealed interface PrivateSessionEventPayload permits
             Optional<String> composer,
             Optional<String> album,
             Map<String, String> streamingLinks,
+            Optional<String> coverUrl,
             Optional<Instant> advanceAt,
             int roundPoints) {
 
@@ -113,6 +114,7 @@ public sealed interface PrivateSessionEventPayload permits
             album = requireOptionalText(album, "album");
             streamingLinks = Collections.unmodifiableMap(new LinkedHashMap<>(
                     Objects.requireNonNull(streamingLinks, "streamingLinks are required")));
+            coverUrl = requireOptionalText(coverUrl, "coverUrl");
             advanceAt = Objects.requireNonNull(advanceAt, "advanceAt is required");
             excerptStartSeconds.ifPresent(
                     value -> SessionProtocol.requireNonNegative(value, "excerptStartSeconds"));

@@ -115,6 +115,10 @@ components:
             - IMPORT_FILE_UNSUPPORTED
             - IMPORT_AUDIO_TOO_LONG
             - IMPORT_METADATA_REQUIRED
+            - COVER_SUGGESTION_EXPIRED
+            - COVER_IMAGE_TOO_LARGE
+            - COVER_IMAGE_UNSUPPORTED
+            - COVER_IMAGE_UNAVAILABLE
             - PLAYLIST_ORDER_INVALID
             - PLAYLIST_TRACK_DUPLICATE
             - PLAYLIST_TRACK_NOT_PUBLISHED
@@ -583,6 +587,17 @@ components:
               description: 1 (easiest) to 5 (hardest); null until rated.
             streamingLinks:
               $ref: '#/components/schemas/TrackStreamingLinks'
+            coverUrl:
+              type: string
+              nullable: true
+              example: /api/covers/7c9e6679-7425-40de-944b-e07fc1f90ae7
+              description: |
+                Same-origin path of the stored cover chosen by an administrator.
+                Distinct from the legacy free-text `imageUrl`.
+            coverSource:
+              allOf:
+                - $ref: '#/components/schemas/CoverSource'
+              nullable: true
             excerptStartSeconds:
               type: integer
               minimum: 0
@@ -731,6 +746,46 @@ components:
           description: |
             When present, replaces all six links; null or blank values clear
             a link. Omit the object to keep the stored links.
+        coverCandidateId:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+          description: |
+            Cover suggestion or upload to store as the new cover. Fails with
+            `COVER_SUGGESTION_EXPIRED` once the 30-minute candidate expired.
+            The replaced cover is deleted asynchronously.
+        removeCover:
+          type: boolean
+          nullable: true
+          description: When true, clears the stored cover; takes precedence over `coverCandidateId`.
+
+    CoverSource:
+      type: string
+      enum: [DEEZER, ITUNES, COVER_ART_ARCHIVE, UPLOAD]
+
+    CoverSuggestionRequest:
+      type: object
+      required: [title, artist]
+      properties:
+        title: { type: string, maxLength: 255 }
+        artist: { type: string, maxLength: 255 }
+        album: { type: string, maxLength: 255, nullable: true }
+
+    CoverSuggestion:
+      type: object
+      required: [candidateId, source, album, artist]
+      description: Provider image URLs stay on the server; clients only see the candidate ID.
+      properties:
+        candidateId:
+          $ref: '#/components/schemas/UUID'
+        source:
+          $ref: '#/components/schemas/CoverSource'
+        album:
+          type: string
+          description: Album named by the provider; empty for an upload.
+        artist:
+          type: string
+          description: Artist named by the provider; empty for an upload.
 
     TrackStreamingLinks:
       type: object
@@ -1054,6 +1109,15 @@ components:
             $ref: '#/components/schemas/Error'
     UnsupportedMediaType:
       description: Request or uploaded content type is not supported
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadGateway:
+      description: An external cover provider failed
       headers:
         X-Request-ID:
           $ref: '#/components/headers/RequestId'
@@ -1549,6 +1613,10 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '502':
+          $ref: '#/components/responses/BadGateway'
     delete:
       tags: [Admin - Tracks]
       summary: Delete a track and queue private media cleanup
@@ -1559,6 +1627,127 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/cover-suggestions:
+    post:
+      tags: [Admin - Tracks]
+      summary: Suggest up to six covers for track metadata
+      description: |
+        Searches Deezer, iTunes, and MusicBrainz/Cover Art Archive in parallel.
+        Each provider first contributes up to two covers in that priority order;
+        remaining places are filled in the same order. The same album or image is
+        offered once. A failing provider only reduces the choice. Returns an empty
+        list when `app.covers.suggestions-enabled` is false.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoverSuggestionRequest'
+      responses:
+        '200':
+          description: Cover candidates, valid for 30 minutes
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 6
+                items:
+                  $ref: '#/components/schemas/CoverSuggestion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/cover-suggestions/upload:
+    post:
+      tags: [Admin - Tracks]
+      summary: Offer an uploaded image as a cover candidate
+      description: |
+        Accepts a JPEG, PNG, or WebP image of at most 5 MB, detected from its
+        content. The image is normalized at once to a metadata-free JPEG of at
+        most 600x600 and kept as a 30-minute candidate.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Uploaded cover candidate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoverSuggestion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+
+  /admin/cover-suggestions/{candidateId}/thumbnail:
+    get:
+      tags: [Admin - Tracks]
+      summary: Read a candidate thumbnail through the server
+      parameters:
+        - name: candidateId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Thumbnail image, privately cacheable for 30 minutes
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+            image/webp:
+              schema: { type: string, format: binary }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+
+  /covers/{coverId}:
+    get:
+      tags: [Tracks]
+      summary: Read a stored track cover
+      description: |
+        Anonymous so `<img>` elements can load it. The random cover ID changes
+        with every new cover and reaches players only in a round reveal, so the
+        response is publicly cacheable and immutable.
+      security: []
+      parameters:
+        - name: coverId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Normalized JPEG cover of at most 600x600
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
         '404':
           $ref: '#/components/responses/NotFound'
 

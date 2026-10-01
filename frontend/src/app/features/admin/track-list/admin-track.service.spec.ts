@@ -80,4 +80,23 @@ describe('AdminTrackService', () => {
     expect(deleteTrack.request.method).toBe('DELETE');
     deleteTrack.flush(null);
   });
+
+  it('searches, previews and uploads cover candidates through the admin API', () => {
+    service.suggestCovers({ title: 'Take On Me', artist: 'a-ha', album: null }).subscribe();
+    const search = http.expectOne('/api/admin/cover-suggestions');
+    expect(search.request.method).toBe('POST');
+    expect(search.request.body).toEqual({ title: 'Take On Me', artist: 'a-ha', album: null });
+    search.flush([]);
+
+    service.coverThumbnail('c1').subscribe();
+    const thumbnail = http.expectOne('/api/admin/cover-suggestions/c1/thumbnail');
+    expect(thumbnail.request.responseType).toBe('blob');
+    thumbnail.flush(new Blob());
+
+    service.uploadCover(new File(['x'], 'cover.png')).subscribe();
+    const upload = http.expectOne('/api/admin/cover-suggestions/upload');
+    expect(upload.request.body instanceof FormData).toBeTrue();
+    expect((upload.request.body as FormData).get('file')).toBeInstanceOf(File);
+    upload.flush({ candidateId: 'u1', source: 'UPLOAD', album: '', artist: '' });
+  });
 });

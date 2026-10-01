@@ -284,8 +284,8 @@
             <div class="metadata-review" [formGroup]="importForm">
               <div class="track-preview">
                 <span class="large-cover" aria-hidden="true">
-                  @if (importForm.controls.imageUrl.value) {
-                    <img [src]="importForm.controls.imageUrl.value" alt="" />
+                  @if (track.coverUrl ?? importForm.controls.imageUrl.value; as cover) {
+                    <img [src]="cover" alt="" />
                   } @else {
                     ♪
                   }
@@ -337,6 +337,24 @@
                   ) {
                     <small>Choose a difficulty from 1 to 5 stars.</small>
                   }
+                </div>
+
+                <div class="alias-section">
+                  <div class="alias-heading">
+                    <div>
+                      <h3>Cover</h3>
+                      <p>Shown to players when the track is revealed.</p>
+                    </div>
+                  </div>
+                  <app-cover-picker
+                    [title]="importForm.controls.title.value"
+                    [artist]="importForm.controls.artist.value"
+                    [album]="importForm.controls.album.value"
+                    [currentCoverUrl]="track.coverUrl"
+                    [disabled]="selectionSaving"
+                    [(selection)]="coverSelection"
+                    (selectionChange)="invalidateSelection()"
+                  />
                 </div>
 
                 <div class="alias-section" formGroupName="streamingLinks">

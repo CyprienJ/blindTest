@@ -1,5 +1,7 @@
 package com.blindtest.model.dto;
 
+import com.blindtest.model.entity.CoverSource;
+import com.blindtest.model.entity.TrackCovers;
 import com.blindtest.model.entity.TrackEntity;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -8,6 +10,7 @@ import java.util.UUID;
  * Immutable administrator metadata snapshot; storage object keys remain server-internal.
  *
  * @param title canonical primary answer: film title for film tracks, music title otherwise
+ * @param coverUrl same-origin path of the stored cover, or {@code null}
  */
 public record TrackAdminResponse(
         UUID id,
@@ -22,6 +25,8 @@ public record TrackAdminResponse(
         int excerptStartSeconds,
         int excerptDurationSeconds,
         String imageUrl,
+        String coverUrl,
+        CoverSource coverSource,
         Short difficulty,
         TrackStreamingLinks streamingLinks,
         String audioUrl,
@@ -38,7 +43,9 @@ public record TrackAdminResponse(
                 entity.getAlbum(), entity.getComposer(), entity.getWork(), entity.getCategory(),
                 entity.getDecade(), entity.getDurationSeconds(), entity.getExcerptStartSeconds(),
                 entity.getExcerptDurationSeconds(),
-                entity.getImageUrl(), entity.getDifficulty(), TrackStreamingLinks.from(entity),
+                entity.getImageUrl(),
+                entity.getCoverId() == null ? null : TrackCovers.publicPath(entity.getCoverId()),
+                entity.getCoverSource(), entity.getDifficulty(), TrackStreamingLinks.from(entity),
                 entity.getAudioUrl(), entity.getAudioChecksum(), entity.getAudioSizeBytes(),
                 entity.getYoutubeUrl(),
                 entity.getStatus().name(), entity.getCreatedAt());

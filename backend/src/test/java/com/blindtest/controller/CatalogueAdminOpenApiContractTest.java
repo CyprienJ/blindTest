@@ -2,6 +2,7 @@ package com.blindtest.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.blindtest.controller.admin.AdminCoverController;
 import com.blindtest.controller.admin.AdminImportController;
 import com.blindtest.controller.admin.AdminMediaController;
 import com.blindtest.controller.admin.AdminPlaylistController;
@@ -30,6 +31,8 @@ class CatalogueAdminOpenApiContractTest {
 
     private static final Set<Class<?>> CONTROLLERS = Set.of(
             CatalogueController.class,
+            CoverController.class,
+            AdminCoverController.class,
             AdminImportController.class,
             AdminMediaController.class,
             AdminPlaylistController.class,
@@ -52,7 +55,8 @@ class CatalogueAdminOpenApiContractTest {
 
     @Test
     void publicCatalogueIsExplicitlyAnonymousAndDoesNotExposePrivateMediaFields() {
-        for (String path : List.of("/tracks", "/playlists", "/playlists/{playlistId}")) {
+        for (String path : List.of(
+                "/tracks", "/playlists", "/playlists/{playlistId}", "/covers/{coverId}")) {
             Map<String, Object> operation = operation(path, "get");
             assertThat(operation.get("security")).as(path).isEqualTo(List.of());
         }
@@ -115,7 +119,7 @@ class CatalogueAdminOpenApiContractTest {
     private Set<Operation> documentedOperations() {
         Set<Operation> operations = new TreeSet<>();
         paths().forEach((path, pathItem) -> {
-            if (path.equals("/tracks") || path.startsWith("/playlists")
+            if (path.equals("/tracks") || path.startsWith("/playlists") || path.startsWith("/covers/")
                     || path.startsWith("/admin/")) {
                 httpOperations(pathItem).forEach((method, operation) ->
                         operations.add(new Operation(normalizePath(path), method.toUpperCase())));

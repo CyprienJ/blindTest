@@ -19,6 +19,12 @@ import {
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import {
+  CoverPickerComponent,
+  CoverSelection,
+  coverUpdate,
+  KEEP_COVER,
+} from '../../../shared/cover-picker/cover-picker.component';
 import { DifficultyRatingComponent } from '../../../shared/difficulty-rating/difficulty-rating.component';
 import {
   ExcerptEditorComponent,
@@ -101,6 +107,7 @@ type AliasFormGroup = FormGroup<{
     RouterLink,
     DifficultyRatingComponent,
     ExcerptEditorComponent,
+    CoverPickerComponent,
   ],
   templateUrl: './track-import.component.html',
   styleUrl: './track-import.component.scss',
@@ -175,6 +182,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   selectionSaving = false;
   selectionValidated = false;
   selectionError = '';
+  coverSelection: CoverSelection = KEEP_COVER;
   private reviewTrackId: string | null = null;
 
   private pollingSubscription: Subscription | null = null;
@@ -398,6 +406,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
         if (this.job) {
           this.job = { ...this.job, track: updated };
         }
+        this.coverSelection = KEEP_COVER;
         this.saveAliases(
           updated.id,
           () => {
@@ -514,6 +523,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     this.selectionSaving = false;
     this.selectionValidated = false;
     this.selectionError = '';
+    this.coverSelection = KEEP_COVER;
     this.reviewTrackId = null;
     this.activity = [];
     this.selectedFile = null;
@@ -785,6 +795,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       streamingLinks: Object.fromEntries(
         STREAMING_PLATFORMS.map(({ key }) => [key, this.optional(value.streamingLinks[key])]),
       ) as TrackStreamingLinks,
+      ...coverUpdate(this.coverSelection),
     };
   }
 

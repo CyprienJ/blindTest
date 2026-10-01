@@ -10,6 +10,7 @@ import com.blindtest.model.dto.TrackWaveformResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
 import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.TrackEntity;
+import com.blindtest.model.entity.TrackCovers;
 import com.blindtest.model.entity.TrackImportJobEntity;
 import com.blindtest.model.entity.TrackPublicationPolicy;
 import com.blindtest.model.entity.TrackStatus;
@@ -52,6 +53,7 @@ public class AdminTrackService {
     private final Clock clock;
     private final ObjectMapper objectMapper;
     private final AdminPlaylistService adminPlaylistService;
+    private final TrackCoverService trackCoverService;
 
     @Value("${app.media-dir:/media}")
     private String mediaDir;
@@ -128,7 +130,10 @@ public class AdminTrackService {
         }
     }
 
-    /** Updates the non-null metadata fields of the given track. Returns 404 if not found. */
+    /**
+     * Updates the non-null metadata fields of the given track and its cover selection.
+     * Returns 404 if not found.
+     */
     @Transactional
     public TrackAdminResponse updateTrack(UUID id, UpdateTrackRequest request) {
         TrackEntity track = findOrThrow(id);
@@ -171,6 +176,7 @@ public class AdminTrackService {
         if (request.getStreamingLinks() != null) {
             request.getStreamingLinks().applyTo(track);
         }
+        applyCover(track, request);
         if (track.getStatus() == TrackStatus.PUBLISHED) {
             validatePublishable(track);
         }
@@ -184,6 +190,9 @@ public class AdminTrackService {
         String audioUrl = track.getAudioUrl();
         adminPlaylistService.removeTrackFromAllPlaylists(id);
         trackMediaService.enqueueDeletion(track.getAudioObjectKey());
+        if (track.getCoverId() != null) {
+            trackMediaService.enqueueDeletion(TrackCovers.objectKey(track.getCoverId()));
+        }
         trackRepository.delete(track);
         deleteAudioFile(audioUrl);
     }
@@ -216,6 +225,14 @@ public class AdminTrackService {
         job.setStatus(ImportJobStatus.REJECTED);
         importJobRepository.save(job);
         return TrackAdminResponse.from(trackRepository.save(track));
+    }
+
+    private void applyCover(TrackEntity track, UpdateTrackRequest request) {
+        if (Boolean.TRUE.equals(request.getRemoveCover())) {
+            trackCoverService.removeCover(track);
+        } else if (request.getCoverCandidateId() != null) {
+            trackCoverService.replaceCover(track, request.getCoverCandidateId());
+        }
     }
 
     private TrackImportJobEntity findRejectableJob(UUID trackId) {

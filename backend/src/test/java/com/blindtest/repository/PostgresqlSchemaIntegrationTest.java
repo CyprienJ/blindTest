@@ -94,7 +94,7 @@ class PostgresqlSchemaIntegrationTest {
                 Integer.class);
 
         assertThat(installedRanks).containsExactly(
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
     }
 
     @Test
@@ -135,7 +135,7 @@ class PostgresqlSchemaIntegrationTest {
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
                 """, Integer.class)).containsExactly(
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
     }
 
     @Test
@@ -288,6 +288,26 @@ class PostgresqlSchemaIntegrationTest {
                 """)).
                 isInstanceOf(DataIntegrityViolationException.class).
                 hasMessageContaining("chk_users_role");
+    }
+
+    @Test
+    void databaseTiesCoverIdentityToAKnownSource() {
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO tracks (title, artist, audio_url, status, cover_id)
+                VALUES ('Cover', 'Artist', '/audio.mp3', 'PENDING', gen_random_uuid())
+                """)).
+                isInstanceOf(DataIntegrityViolationException.class).
+                hasMessageContaining("chk_tracks_cover_pair");
+    }
+
+    @Test
+    void databaseRejectsUnknownCoverSource() {
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO tracks (title, artist, audio_url, status, cover_id, cover_source)
+                VALUES ('Cover', 'Artist', '/audio.mp3', 'PENDING', gen_random_uuid(), 'SPOTIFY')
+                """)).
+                isInstanceOf(DataIntegrityViolationException.class).
+                hasMessageContaining("chk_tracks_cover_source");
     }
 
     @Test

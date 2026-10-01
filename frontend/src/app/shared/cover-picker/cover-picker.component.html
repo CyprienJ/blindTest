@@ -1,0 +1,89 @@
+<div class="cover-picker">
+  <div class="cover-grid" role="radiogroup" aria-label="Cover image">
+    @if (currentCoverUrl(); as current) {
+      <button
+        type="button"
+        role="radio"
+        class="cover-option"
+        [class.selected]="selection().kind === 'keep'"
+        [attr.aria-checked]="selection().kind === 'keep'"
+        [disabled]="disabled()"
+        (click)="keep()"
+      >
+        <img [src]="current" alt="" />
+        <span class="caption">Current cover</span>
+      </button>
+    }
+    @for (tile of tiles(); track tile.candidateId) {
+      <button
+        type="button"
+        role="radio"
+        class="cover-option"
+        [class.selected]="isSelected(tile)"
+        [attr.aria-checked]="isSelected(tile)"
+        [disabled]="disabled()"
+        (click)="choose(tile)"
+      >
+        @if (tile.thumbnailUrl) {
+          <img [src]="tile.thumbnailUrl" alt="" />
+        } @else {
+          <span class="thumb-placeholder" aria-hidden="true">♪</span>
+        }
+        <span class="caption">{{ tile.album || 'Uploaded image' }}</span>
+        <small>{{ sourceLabel(tile.source) }}</small>
+      </button>
+    }
+    <button
+      type="button"
+      role="radio"
+      class="cover-option no-cover"
+      [class.selected]="noCoverSelected()"
+      [attr.aria-checked]="noCoverSelected()"
+      [disabled]="disabled()"
+      (click)="chooseNoCover()"
+    >
+      <span class="thumb-placeholder" aria-hidden="true">∅</span>
+      <span class="caption">No cover</span>
+    </button>
+  </div>
+
+  <div class="cover-actions">
+    <label
+      class="bt-btn bt-btn-sm bt-btn-ghost upload"
+      [class.disabled]="disabled() || uploading()"
+    >
+      {{ uploading() ? 'Uploading…' : 'Upload image' }}
+      <input
+        #fileInput
+        class="sr-only"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        [disabled]="disabled() || uploading()"
+        (change)="upload(fileInput)"
+      />
+    </label>
+    <small class="hint" role="status">
+      @switch (searchState()) {
+        @case ('loading') {
+          Searching covers…
+        }
+        @case ('error') {
+          Cover search is unavailable; you can still upload an image.
+        }
+        @case ('ready') {
+          @if (tiles().length === 0) {
+            No cover found; try adjusting the album or upload an image.
+          } @else {
+            Suggestions from Deezer, iTunes and Cover Art Archive.
+          }
+        }
+        @default {
+          Fill in the title and artist to get suggestions.
+        }
+      }
+    </small>
+  </div>
+  @if (uploadError()) {
+    <p class="upload-error" role="alert">{{ uploadError() }}</p>
+  }
+</div>

@@ -13,7 +13,7 @@ configuration; full-stack browser acceptance remains separate.
 |---|---|---|
 | Accounts | Registration, verification, login, refresh, logout, password recovery | Corresponding forms, Turnstile, session recovery, guards |
 | Home and navigation | Account role information | Public home, authenticated home, shared application shell |
-| Catalogue | Public tracks/playlists; administrator track, alias, and playlist management | Track review, import workflow, playlist editor |
+| Catalogue | Public tracks/playlists; administrator track, alias, and playlist management; cover suggestions, uploads, and storage | Track review, import workflow, cover picker, playlist editor |
 | Imports and media | Bounded audio-file uploads and best-effort YouTube imports, waveform generation, private MinIO, signed URLs, deletion outbox | Import progress/polling, waveform excerpt selection, administrator preview |
 | Solo configuration | Validated creation, randomized immutable track snapshots | Playlist/count/duration controls, REST creation, navigation to game |
 | Solo gameplay | STOMP authorization, state machines, matching, scores, timers, recovery | Game room, answer/skip actions, STOMP client, round audio, basic finish state |
@@ -34,8 +34,12 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 - Restarting the backend loses active games; completed history is durable.
 - Track difficulty is set in the import review and track editor and filters
   solo game setup; completed history records the filter and each round's
-  difficulty but no screen displays it yet. Streaming links are shown when a round
-  is revealed; they are frozen at game creation and not kept in history.
+  difficulty but no screen displays it yet. Streaming links and the stored cover
+  are shown when a round is revealed; they are frozen at game creation and not
+  kept in history, so the end screen shows no cover yet.
+- Cover suggestions depend on Deezer, iTunes, and MusicBrainz being reachable from
+  the server; tracks imported before covers existed keep only the legacy
+  `imageUrl` until an administrator chooses a cover.
 
 ## Roadmap discrepancy
 

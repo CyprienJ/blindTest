@@ -76,10 +76,13 @@ class MinioMediaStorageIntegrationTest {
         assertThat(stored.entityTag()).isNotBlank();
         assertThat(storage.exists(OBJECT_KEY)).isTrue();
         assertThat(storage.listObjectKeys()).contains(OBJECT_KEY);
+        assertThat(storage.read(OBJECT_KEY)).hasValueSatisfying(
+                content -> assertThat(content).isEqualTo(CONTENT));
 
         storage.delete(OBJECT_KEY);
 
         assertThat(storage.exists(OBJECT_KEY)).isFalse();
+        assertThat(storage.read(OBJECT_KEY)).isEmpty();
     }
 
     @Test

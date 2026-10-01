@@ -56,8 +56,10 @@ discoveries, a repeated discovery, cooldown, and the subsequent title reveal.
 outcome, awarded points, and total score. It replaces the masked track card and
 answer form, keeps the excerpt playing, and announces the result through the polite
 live region.
-Missing optional metadata is omitted; no cover or year is invented. Available
-streaming links appear as "Listen on" chips that open in a new tab; only HTTP(S)
+Missing optional metadata is omitted; no year is invented. The stored cover
+replaces the reveal card's placeholder; only same-origin `/api/covers/` paths are
+rendered, and the placeholder stays when a track has none. Available
+streaming links appear as "Listen on" brand-logo links (with accessible names) that open in a new tab; only HTTP(S)
 links are rendered.
 
 The countdown projects the event's `transitionAt`, or the recovered snapshot's

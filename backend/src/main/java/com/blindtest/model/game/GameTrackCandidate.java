@@ -8,6 +8,7 @@ import java.util.UUID;
  *
  * @param difficulty administrator difficulty from 1 to 5, or {@code null} when unrated
  * @param streamingLinks listening links shown when the track is revealed
+ * @param coverId stored cover shown when the track is revealed, or {@code null}
  */
 public record GameTrackCandidate(
         UUID trackId,
@@ -16,7 +17,21 @@ public record GameTrackCandidate(
         GamePlaybackSnapshot playback,
         GameMediaSnapshot media,
         Integer difficulty,
-        GameStreamingLinks streamingLinks) {
+        GameStreamingLinks streamingLinks,
+        UUID coverId) {
+
+    /** Creates a candidate without a cover. */
+    public GameTrackCandidate(
+            UUID trackId,
+            boolean eligiblePublished,
+            GameAnswerSnapshot answers,
+            GamePlaybackSnapshot playback,
+            GameMediaSnapshot media,
+            Integer difficulty,
+            GameStreamingLinks streamingLinks) {
+        this(trackId, eligiblePublished, answers, playback, media, difficulty, streamingLinks,
+                null);
+    }
 
     /** Creates a candidate without streaming links. */
     public GameTrackCandidate(

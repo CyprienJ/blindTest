@@ -267,6 +267,7 @@ describe('GameRoomComponent', () => {
           deezer: 'https://www.deezer.com/track/1',
           tidal: 'javascript:alert(1)',
         },
+        coverUrl: '/api/covers/7c9e6679-7425-40de-944b-e07fc1f90ae7',
         roundPoints: 120,
         totalScore: 120,
         transitionAt: new Date(NOW + 4_000).toISOString(),
@@ -285,8 +286,12 @@ describe('GameRoomComponent', () => {
       'Spotify (opens in a new tab)',
     ]);
     expect(links[1].href).toBe('https://open.spotify.com/track/take-on-me');
+    expect(links.every((link) => link.querySelector('svg path')?.getAttribute('d'))).toBeTrue();
     expect(links[1].target).toBe('_blank');
     expect(links[1].rel).toBe('noopener noreferrer');
+    const cover = fixture.nativeElement.querySelector('.cover img') as HTMLImageElement;
+    expect(cover.getAttribute('src')).toBe('/api/covers/7c9e6679-7425-40de-944b-e07fc1f90ae7');
+    expect(cover.alt).toBe('Cover of Take On Me');
     expect(text(fixture)).toContain('Next track in 4 seconds');
     jasmine.clock().tick(5000);
     fixture.changeDetectorRef.detectChanges();
@@ -317,6 +322,7 @@ describe('GameRoomComponent', () => {
         composer: null,
         album: null,
         streamingLinks: {},
+        coverUrl: null,
         roundPoints: 0,
         totalScore: 0,
         transitionAt: new Date(NOW + 4_000).toISOString(),
@@ -365,6 +371,7 @@ describe('GameRoomComponent', () => {
           composer: 'Composer name',
           album: 'Album name',
           streamingLinks: {},
+          coverUrl: null,
           advanceAt: new Date(NOW + 1500).toISOString(),
           roundPoints: outcome === 'TITLE_FOUND' ? 100 : 0,
         },
@@ -470,6 +477,7 @@ describe('GameRoomComponent', () => {
         composer: null,
         album: null,
         streamingLinks: {},
+        coverUrl: null,
         advanceAt: null,
         roundPoints: 0,
       },

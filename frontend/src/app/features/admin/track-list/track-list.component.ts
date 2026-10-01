@@ -15,6 +15,12 @@ import {
 } from './admin-track.model';
 import { AdminTrackService } from './admin-track.service';
 import { DifficultyRatingComponent } from '../../../shared/difficulty-rating/difficulty-rating.component';
+import {
+  CoverPickerComponent,
+  CoverSelection,
+  coverUpdate,
+  KEEP_COVER,
+} from '../../../shared/cover-picker/cover-picker.component';
 import { ExcerptEditorComponent } from '../../../shared/excerpt-editor/excerpt-editor.component';
 
 type StatusFilter = TrackStatus | null;
@@ -30,6 +36,7 @@ type ConfirmationAction = 'reject' | 'delete';
     RouterLink,
     DifficultyRatingComponent,
     ExcerptEditorComponent,
+    CoverPickerComponent,
   ],
   templateUrl: './track-list.component.html',
   styleUrl: './track-list.component.scss',
@@ -79,6 +86,7 @@ export class TrackListComponent implements OnInit {
   successMessage = '';
 
   editingTrack: AdminTrack | null = null;
+  coverSelection: CoverSelection = KEEP_COVER;
   aliases: TrackAlias[] = [];
   aliasesLoading = false;
   editSaving = false;
@@ -134,6 +142,7 @@ export class TrackListComponent implements OnInit {
 
   openEdit(track: AdminTrack): void {
     this.editingTrack = track;
+    this.coverSelection = KEEP_COVER;
     this.editError = '';
     this.aliasError = '';
     this.editingAliasId = null;
@@ -185,6 +194,7 @@ export class TrackListComponent implements OnInit {
       composer: value.composer.trim() || null,
       work: value.work.trim() || null,
       imageUrl: value.imageUrl.trim() || null,
+      ...coverUpdate(this.coverSelection),
     };
     this.editSaving = true;
     this.editError = '';
@@ -195,6 +205,7 @@ export class TrackListComponent implements OnInit {
         next: (track) => {
           this.replaceTrack(track);
           this.editingTrack = track;
+          this.coverSelection = KEEP_COVER;
           this.showSuccess('Track metadata saved.');
         },
         error: (error) => (this.editError = this.errorMessage(error)),

@@ -131,7 +131,7 @@ session topic:
 | `SESSION_READY` | game `state`, `totalRounds`, `expiresAt` |
 | `ROUND_PREPARING` | `roundIndex`, `totalRounds` |
 | `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset and window length, short-lived `playbackUrl` |
-| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, `streamingLinks` (available HTTP(S) links keyed by platform), round and total points, `transitionAt` |
+| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, `streamingLinks` (available HTTP(S) links keyed by platform), optional `coverUrl` (same-origin `/api/covers/{coverId}` path), round and total points, `transitionAt` |
 | `SCORE_UPDATED` | `participantId`, round points, total score |
 | `GAME_FINISHED` | total score and title/skip/timeout aggregate counts |
 
@@ -197,7 +197,7 @@ the private queue and in only that participant's recovery snapshot.
   when it is shorter than the round
   ([ADR-0016](adr/0016-per-track-looped-excerpt-window.md)). During
   reveal it also contains the canonical title, artist, optional composer/album,
-  streaming links,
+  streaming links, cover URL,
   outcome, points, and `advanceAt`, plus only the requesting participant's private
 discoveries.
 

@@ -19,6 +19,12 @@ has no host port. No service in this stack binds a public host port. Named volum
 persist PostgreSQL, MinIO, and legacy audio. Active gameplay state is process-local
 and is lost on backend restart.
 
+The backend needs outbound HTTPS to Resend, Cloudflare Turnstile, YouTube for
+imports, and, for cover suggestions, `api.deezer.com`, `itunes.apple.com`,
+`musicbrainz.org`, `coverartarchive.org`, `archive.org`, and the Deezer and Apple
+image CDNs. Blocking the cover hosts only empties the suggestion list; set
+`APP_COVERS_SUGGESTIONS_ENABLED=false` to skip the searches.
+
 The Compose resource budget is PostgreSQL 0.50 CPU/512 MiB, MinIO 0.75 CPU/1 GiB,
 the initializer 0.25 CPU/128 MiB, the backend up to `BACKEND_CPU_LIMIT` CPU/1 GiB,
 and the frontend 0.25 CPU/256 MiB. Long-running services use

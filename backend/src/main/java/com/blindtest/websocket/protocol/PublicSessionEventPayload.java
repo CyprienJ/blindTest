@@ -75,6 +75,7 @@ public sealed interface PublicSessionEventPayload permits
      * Reveals canonical answers and the authoritative score for one terminal round.
      *
      * @param streamingLinks available HTTP(S) listening links keyed by platform
+     * @param coverUrl same-origin path of the track cover, when one is stored
      */
     record RoundRevealed(
             int roundIndex,
@@ -85,6 +86,7 @@ public sealed interface PublicSessionEventPayload permits
             Optional<String> composer,
             Optional<String> album,
             Map<String, String> streamingLinks,
+            Optional<String> coverUrl,
             int roundPoints,
             int totalScore,
             Instant transitionAt) implements PublicSessionEventPayload {
@@ -99,6 +101,7 @@ public sealed interface PublicSessionEventPayload permits
             album = requireOptionalText(album, "album");
             streamingLinks = Collections.unmodifiableMap(new LinkedHashMap<>(
                     Objects.requireNonNull(streamingLinks, "streamingLinks are required")));
+            coverUrl = requireOptionalText(coverUrl, "coverUrl");
             SessionProtocol.requireNonNegative(roundPoints, "roundPoints");
             SessionProtocol.requireNonNegative(totalScore, "totalScore");
             SessionProtocol.requireInstant(transitionAt, "transitionAt");

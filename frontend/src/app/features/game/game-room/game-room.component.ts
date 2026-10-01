@@ -33,6 +33,7 @@ import {
 } from '../../../core/services/audio-playback.service';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { GameSocketService, GameSocketStatus } from '../../../core/services/game-socket.service';
+import { STREAMING_PLATFORMS } from './streaming-platforms';
 
 type GamePhase =
   | 'connecting'
@@ -44,15 +45,6 @@ type GamePhase =
   | 'error';
 
 const COMMAND_GUARD_MS = 400;
-
-const STREAMING_PLATFORMS = [
-  { key: 'deezer', label: 'Deezer' },
-  { key: 'spotify', label: 'Spotify' },
-  { key: 'youtube', label: 'YouTube' },
-  { key: 'qobuz', label: 'Qobuz' },
-  { key: 'tidal', label: 'Tidal' },
-  { key: 'soundcloud', label: 'SoundCloud' },
-] as const;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -86,7 +78,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   finished: GameFinishedPayload | null = null;
   reveal: Pick<
     CurrentRoundProjection,
-    'title' | 'artist' | 'composer' | 'album' | 'streamingLinks'
+    'title' | 'artist' | 'composer' | 'album' | 'streamingLinks' | 'coverUrl'
   > | null = null;
   advancing = false;
   private advanceAtMs: number | null = null;
@@ -507,12 +499,18 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.outcome = null;
   }
 
+  /** Cover of the revealed track; only the server's own cover paths are rendered. */
+  revealCoverUrl(): string | null {
+    const url = this.reveal?.coverUrl;
+    return url && /^\/api\/covers\/[0-9a-f-]{36}$/i.test(url) ? url : null;
+  }
+
   /** Listening links of the revealed track, in a stable platform order. */
-  revealLinks(): { label: string; url: string }[] {
+  revealLinks(): { key: string; label: string; icon: string; url: string }[] {
     const links = this.reveal?.streamingLinks ?? {};
-    return STREAMING_PLATFORMS.flatMap(({ key, label }) => {
+    return STREAMING_PLATFORMS.flatMap(({ key, label, icon }) => {
       const url = links[key];
-      return url && /^https?:\/\//i.test(url) ? [{ label, url }] : [];
+      return url && /^https?:\/\//i.test(url) ? [{ key, label, icon, url }] : [];
     });
   }
 

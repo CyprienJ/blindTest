@@ -33,6 +33,11 @@ public enum ApiErrorCode {
     IMPORT_AUDIO_TOO_LONG(HttpStatus.BAD_REQUEST, "The uploaded audio exceeds the maximum duration"),
     IMPORT_METADATA_REQUIRED(
             HttpStatus.BAD_REQUEST, "Title and artist are required when the file has no embedded tags"),
+    COVER_SUGGESTION_EXPIRED(HttpStatus.CONFLICT, "The cover suggestion expired; search again"),
+    COVER_IMAGE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "The cover image exceeds 5 MB"),
+    COVER_IMAGE_UNSUPPORTED(
+            HttpStatus.UNSUPPORTED_MEDIA_TYPE, "The cover must be a JPEG, PNG, or WebP image"),
+    COVER_IMAGE_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "The cover image could not be downloaded"),
     PLAYLIST_ORDER_INVALID(HttpStatus.BAD_REQUEST, "Playlist order must contain every track exactly once"),
     PLAYLIST_TRACK_DUPLICATE(HttpStatus.CONFLICT, "Track is already present in this playlist"),
     PLAYLIST_TRACK_NOT_PUBLISHED(HttpStatus.CONFLICT, "Only published tracks can be added to playlists"),

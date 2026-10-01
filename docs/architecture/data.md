@@ -10,7 +10,7 @@ are immutable in-memory snapshots; completed games become durable history.
 | Group | Purpose |
 |---|---|
 | Users and refresh tokens | Account identity, verification/roles, rotating login sessions |
-| Tracks and answer aliases | Canonical metadata, alternative answers, publication state, difficulty, streaming links, excerpt offsets and windows, waveform peaks, private-media references |
+| Tracks and answer aliases | Canonical metadata, alternative answers, publication state, difficulty, streaming links, stored cover ID and source, excerpt offsets and windows, waveform peaks, private-media references |
 | Playlists and ordered membership | Public catalogue collections of published tracks |
 | Import jobs | Durable progress, lifecycle timestamps, safe failure and recovery state |
 | Media deletion outbox | Transactional handoff to retryable external object deletion |

@@ -182,8 +182,8 @@
                       ⠿
                     </button>
                     <span class="track-art" aria-hidden="true">
-                      @if (track.imageUrl) {
-                        <img [src]="track.imageUrl" alt="" />
+                      @if (track.coverUrl ?? track.imageUrl; as cover) {
+                        <img [src]="cover" alt="" />
                       } @else {
                         ♪
                       }
@@ -337,8 +337,8 @@
                   @for (track of visibleAvailableTracks(); track track.id) {
                     <article>
                       <span class="track-art small" aria-hidden="true">
-                        @if (track.imageUrl) {
-                          <img [src]="track.imageUrl" alt="" />
+                        @if (track.coverUrl ?? track.imageUrl; as cover) {
+                          <img [src]="cover" alt="" />
                         } @else {
                           ♪
                         }

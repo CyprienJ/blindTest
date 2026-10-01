@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.blindtest.model.entity.CoverSource;
 import com.blindtest.model.entity.PlaylistEntity;
 import com.blindtest.model.entity.PlaylistTrackEntity;
 import com.blindtest.model.entity.TrackEntity;
@@ -36,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Principal;
@@ -249,6 +251,7 @@ class SoloGameBackendFlowIntegrationTest {
         assertThat(revealed.at("/payload/streamingLinks/spotify").asText()).
                 startsWith("https://open.spotify.com/track/flow-");
         assertThat(revealed.at("/payload/streamingLinks").size()).isOne();
+        assertThat(revealed.at("/payload/coverUrl").asText()).matches("/api/covers/[0-9a-f-]{36}");
         assertThat(currentVersion(sessionId)).isEqualTo(startedVersion + 1);
         assertThat(drainPublicOfType(member, "ROUND_REVEALED")).isZero();
         member.session.disconnect();
@@ -610,6 +613,8 @@ class SoloGameBackendFlowIntegrationTest {
         track.setAlbum("Flow Album " + index);
         track.setAudioObjectKey("tracks/flow-" + index + "/audio.mp3");
         track.setSpotifyUrl("https://open.spotify.com/track/flow-" + index);
+        track.setCoverId(UUID.nameUUIDFromBytes(("cover-" + index).getBytes(StandardCharsets.UTF_8)));
+        track.setCoverSource(CoverSource.UPLOAD);
         track.setAudioChecksum("checksum-" + index);
         track.setAudioSizeBytes(2048L + index);
         track.setDurationSeconds(240);

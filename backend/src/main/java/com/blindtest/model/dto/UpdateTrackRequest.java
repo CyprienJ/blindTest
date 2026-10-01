@@ -4,6 +4,7 @@ import com.blindtest.model.entity.TrackPublicationPolicy;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -32,4 +33,8 @@ public class UpdateTrackRequest {
     /** When present, replaces all streaming links; blank links are cleared. */
     @Valid
     private TrackStreamingLinks streamingLinks;
+    /** Cover suggestion or upload to store as the new cover; ignored when removing. */
+    private UUID coverCandidateId;
+    /** When {@code true}, clears the stored cover. */
+    private Boolean removeCover;
 }

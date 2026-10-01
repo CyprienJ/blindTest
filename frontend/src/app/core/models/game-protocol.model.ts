@@ -81,6 +81,8 @@ export interface RoundRevealedPayload {
   composer: string | null;
   album: string | null;
   streamingLinks: RevealStreamingLinks;
+  /** Same-origin path of the track cover, when one is stored. */
+  coverUrl: string | null;
   roundPoints: number;
   totalScore: number;
   transitionAt: string;
@@ -141,6 +143,7 @@ export interface CurrentRoundProjection {
   composer: string | null;
   album: string | null;
   streamingLinks: RevealStreamingLinks;
+  coverUrl: string | null;
   advanceAt: string | null;
   roundPoints: number;
 }
