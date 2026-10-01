@@ -3,13 +3,28 @@ package com.blindtest.model.game;
 import java.util.Objects;
 import java.util.UUID;
 
-/** One selected track and its stable position in a game. */
+/**
+ * One selected track and its stable position in a game.
+ *
+ * @param difficulty administrator difficulty from 1 to 5 at selection, or {@code null}
+ */
 public record GameTrackSnapshot(
         UUID trackId,
         int playOrder,
         GameAnswerSnapshot answers,
         GamePlaybackSnapshot playback,
-        GameMediaSnapshot media) {
+        GameMediaSnapshot media,
+        Integer difficulty) {
+
+    /** Creates an unrated game-track snapshot. */
+    public GameTrackSnapshot(
+            UUID trackId,
+            int playOrder,
+            GameAnswerSnapshot answers,
+            GamePlaybackSnapshot playback,
+            GameMediaSnapshot media) {
+        this(trackId, playOrder, answers, playback, media, null);
+    }
 
     /** Creates a complete immutable game-track snapshot. */
     public GameTrackSnapshot {
@@ -28,6 +43,7 @@ public record GameTrackSnapshot(
                 playOrder,
                 candidate.answers(),
                 candidate.playback(),
-                candidate.media());
+                candidate.media(),
+                candidate.difficulty());
     }
 }

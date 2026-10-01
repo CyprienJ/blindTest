@@ -5,7 +5,8 @@
 - Deciders: Product owner and engineering
 - Related tickets: DG-03, CAT-02, CAT-05, CAT-06, GAME-08, SESSION-06, UI-04
 - Supersedes: N/A
-- Superseded by: N/A
+- Superseded by: [ADR-0016](0016-per-track-looped-excerpt-window.md) for the
+  excerpt length; the offset decision still applies
 
 ## Context
 

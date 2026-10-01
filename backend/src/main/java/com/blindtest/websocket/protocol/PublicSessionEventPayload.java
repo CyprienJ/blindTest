@@ -38,13 +38,18 @@ public sealed interface PublicSessionEventPayload permits
         }
     }
 
-    /** Carries authoritative playback and scoring timestamps for a started round. */
+    /**
+     * Carries authoritative playback and scoring timestamps for a started round.
+     *
+     * @param excerptDurationSeconds window length clients loop from the excerpt start
+     */
     record RoundStarted(
             int roundIndex,
             int totalRounds,
             Instant startsAt,
             Instant deadline,
             int excerptStartSeconds,
+            int excerptDurationSeconds,
             Optional<URI> playbackUrl) implements PublicSessionEventPayload {
 
         /** Validates the playback window without treating the browser clock as authoritative. */
@@ -56,6 +61,9 @@ public sealed interface PublicSessionEventPayload permits
                 throw new IllegalArgumentException("deadline must follow startsAt");
             }
             SessionProtocol.requireNonNegative(excerptStartSeconds, "excerptStartSeconds");
+            if (excerptDurationSeconds <= 0) {
+                throw new IllegalArgumentException("excerptDurationSeconds must be positive");
+            }
             Objects.requireNonNull(playbackUrl, "playbackUrl is required");
         }
     }

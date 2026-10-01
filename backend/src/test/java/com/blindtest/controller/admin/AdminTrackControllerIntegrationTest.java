@@ -269,7 +269,7 @@ class AdminTrackControllerIntegrationTest {
     }
 
     @Test
-    void previewRejectsPublishedTrack() throws Exception {
+    void previewRejectsPublishedTrackWithoutPrivateMedia() throws Exception {
         mockMvc.perform(get("/api/admin/tracks/" + publishedTrack.getId() + "/preview-url").
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isConflict()).
@@ -499,6 +499,43 @@ class AdminTrackControllerIntegrationTest {
                         header(HttpHeaders.AUTHORIZATION, adminToken)).
                 andExpect(status().isConflict()).
                 andExpect(jsonPath("$.code").value("TRACK_EXCERPT_INVALID"));
+    }
+
+    @Test
+    void publicationRequiresTheConfiguredWindowAfterOffset() throws Exception {
+        pendingTrack.setDurationSeconds(50);
+        pendingTrack.setExcerptStartSeconds(30);
+        pendingTrack.setExcerptDurationSeconds(21);
+        trackRepository.saveAndFlush(pendingTrack);
+
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("TRACK_EXCERPT_INVALID"));
+
+        mockMvc.perform(put("/api/admin/tracks/" + pendingTrack.getId()).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("{\"excerptDurationSeconds\":20}")).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.excerptDurationSeconds").value(20));
+        mockMvc.perform(post("/api/admin/tracks/" + pendingTrack.getId() + "/validate").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.excerptStartSeconds").value(30)).
+                andExpect(jsonPath("$.excerptDurationSeconds").value(20));
+    }
+
+    @Test
+    void excerptWindowOutsideFiveToSixtySecondsIsRejected() throws Exception {
+        for (int window : new int[] {4, 61}) {
+            mockMvc.perform(put("/api/admin/tracks/" + pendingTrack.getId()).
+                            contentType(MediaType.APPLICATION_JSON).
+                            header(HttpHeaders.AUTHORIZATION, adminToken).
+                            content("{\"excerptDurationSeconds\":" + window + "}")).
+                    andExpect(status().isBadRequest()).
+                    andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        }
     }
 
     @Test

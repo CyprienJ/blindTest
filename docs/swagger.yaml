@@ -573,7 +573,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/Track'
         - type: object
-          required: [excerptStartSeconds, streamingLinks]
+          required: [excerptStartSeconds, excerptDurationSeconds, streamingLinks]
           properties:
             difficulty:
               type: integer
@@ -589,8 +589,16 @@ components:
               default: 0
               description: |
                 Administrator-configured whole-second playback offset. A
-                non-zero value can only be published when at least 60 seconds
-                remain in the finalized media.
+                non-zero value can only be published when the whole excerpt
+                window fits in the finalized media.
+            excerptDurationSeconds:
+              type: integer
+              minimum: 5
+              maximum: 60
+              default: 60
+              description: |
+                Excerpt window length. Rounds play the window capped to their
+                duration and clients loop it until the round ends.
             audioUrl:
               type: string
               nullable: true
@@ -703,6 +711,11 @@ components:
           minimum: 0
           nullable: true
           description: Set to zero to reset playback to the beginning.
+        excerptDurationSeconds:
+          type: integer
+          minimum: 5
+          maximum: 60
+          nullable: true
         imageUrl:
           type: string
           nullable: true

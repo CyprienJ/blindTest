@@ -20,6 +20,7 @@ const track = {
   decade: 1980,
   durationSeconds: 294,
   excerptStartSeconds: 0,
+  excerptDurationSeconds: 60,
   imageUrl: null,
   difficulty: null,
   streamingLinks: {
@@ -149,6 +150,7 @@ test.describe('administrator track import', () => {
     await page.getByRole('button', { name: 'Add alias' }).click();
     await page.getByRole('textbox', { name: 'Alternative answer' }).fill('Billie-Jean');
     await page.getByLabel('Excerpt start').fill('30');
+    await page.getByLabel('Window length').fill('25');
     await expect(livePreview).toHaveAttribute('data-played-from-slider', 'true');
     await page.getByRole('button', { name: 'Validate selection' }).click();
     await expect(page.getByText('Choose a difficulty from 1 to 5 stars.')).toBeVisible();
@@ -165,6 +167,7 @@ test.describe('administrator track import', () => {
     expect(aliasBody).toEqual({ type: 'TITLE', value: 'Billie-Jean' });
     expect(updateBody['title']).toBe('Billie Jean (edited)');
     expect(updateBody['excerptStartSeconds']).toBe(30);
+    expect(updateBody['excerptDurationSeconds']).toBe(25);
     expect(updateBody['difficulty']).toBe(4);
     expect(updateBody['streamingLinks']).toEqual({
       deezer: null,

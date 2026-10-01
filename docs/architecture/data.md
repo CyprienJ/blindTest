@@ -10,7 +10,7 @@ are immutable in-memory snapshots; completed games become durable history.
 | Group | Purpose |
 |---|---|
 | Users and refresh tokens | Account identity, verification/roles, rotating login sessions |
-| Tracks and answer aliases | Canonical metadata, alternative answers, publication state, excerpt offsets, waveform peaks, private-media references |
+| Tracks and answer aliases | Canonical metadata, alternative answers, publication state, difficulty, streaming links, excerpt offsets and windows, waveform peaks, private-media references |
 | Playlists and ordered membership | Public catalogue collections of published tracks |
 | Import jobs | Durable progress, lifecycle timestamps, safe failure and recovery state |
 | Media deletion outbox | Transactional handoff to retryable external object deletion |
@@ -45,7 +45,9 @@ concurrent process-local adapter. It is not a JPA repository or a restart journa
 
 At completion, the history services persist one aggregate keyed by session UUID.
 Round metadata and outcomes are snapshots, so deleting or editing a catalogue
-track does not rewrite previous game results. Duplicate completion is idempotent;
+track does not rewrite previous game results. Histories record the selected
+difficulty levels and unrated-track inclusion; rounds record the track difficulty,
+excerpt offset, and window length. Duplicate completion is idempotent;
 transient failures are retried before active state is released.
 
 The owner summary endpoint returns ordered round and score data without raw

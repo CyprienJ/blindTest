@@ -64,10 +64,12 @@ For example, a title accepted halfway through a 30-second round earns 500 points
 
 ## Audio excerpts
 
-Administrators configure a non-negative whole-second start offset. Publishing a
-nonzero offset requires at least 60 seconds of track duration after that offset.
-A round plays from the snapshot offset for its configured duration. Signed URLs
-cover the remaining round plus a 30-second reconnect buffer.
+Administrators configure a non-negative whole-second start offset and a window
+length from 5 to 60 seconds (default 60). Publishing a nonzero offset requires the
+whole window to fit in the track duration. A round plays the snapshot window from
+its offset and loops it until the round ends when the window is shorter than the
+answer time ([ADR-0016](../adr/0016-per-track-looped-excerpt-window.md)). Signed
+URLs cover the remaining round plus a 30-second reconnect buffer.
 
 ## Source and decisions
 

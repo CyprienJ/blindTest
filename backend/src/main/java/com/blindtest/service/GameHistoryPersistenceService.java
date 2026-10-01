@@ -4,6 +4,7 @@ import com.blindtest.model.entity.GameHistoryEntity;
 import com.blindtest.model.entity.GameHistoryParticipantEntity;
 import com.blindtest.model.entity.GameHistoryRoundEntity;
 import com.blindtest.model.entity.HistoryParticipantKind;
+import com.blindtest.model.game.DifficultyFilter;
 import com.blindtest.model.game.GameAnswerSnapshot;
 import com.blindtest.model.game.GameStatus;
 import com.blindtest.model.game.GameSummary;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,6 +80,11 @@ public class GameHistoryPersistenceService {
         history.setMaximumRoundDurationSeconds(
                 session.configuration().maximumRoundDurationSeconds());
         history.setConfigurationExtensions(toJson(session.configuration().extensions()));
+        DifficultyFilter difficulty = session.configuration().difficultyFilter();
+        history.setDifficultyLevels(difficulty.levels().stream().
+                map(String::valueOf).
+                collect(Collectors.joining(",")));
+        history.setIncludeUnrated(difficulty.includeUnrated());
         history.setTotalScore(summary.totalScore());
         history.setTotalRounds(summary.totalRounds());
         history.setTitlesFound(summary.titlesFound());
@@ -127,6 +134,9 @@ public class GameHistoryPersistenceService {
         round.setAnswerAliasesSnapshot(toJson(answers.aliases()));
         round.setAnswerSnapshotVersion(ANSWER_SNAPSHOT_VERSION);
         round.setExcerptStartSeconds(snapshot.track().playback().excerptStartSeconds());
+        round.setExcerptDurationSeconds(snapshot.track().playback().excerptDurationSeconds());
+        Integer difficulty = snapshot.track().difficulty();
+        round.setDifficultySnapshot(difficulty == null ? null : difficulty.shortValue());
         round.setOutcome(snapshot.outcome().orElseThrow());
         round.setPoints(snapshot.scoreState().totalPoints());
         round.setScoringRuleVersion(snapshot.scoreState().scoringRuleVersion());

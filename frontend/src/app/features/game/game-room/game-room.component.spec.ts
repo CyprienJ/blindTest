@@ -59,6 +59,7 @@ function roundStarted(roundIndex: number): PublicSessionEvent {
       startsAt: new Date(NOW).toISOString(),
       deadline: new Date(NOW + 30_000).toISOString(),
       excerptStartSeconds: 15,
+      excerptDurationSeconds: 20,
       playbackUrl: 'https://media.example/excerpt.mp3?sig=abc',
     },
   };
@@ -180,6 +181,7 @@ describe('GameRoomComponent', () => {
       startsAt: new Date(NOW).toISOString(),
       deadline: new Date(NOW + 30_000).toISOString(),
       excerptStartSeconds: 15,
+      excerptDurationSeconds: 20,
     });
     expect(text(fixture)).toContain('Track');
     expect(text(fixture)).toContain('of 12');
@@ -340,6 +342,7 @@ describe('GameRoomComponent', () => {
           deadline: null,
           playbackUrl: null,
           excerptStartSeconds: null,
+          excerptDurationSeconds: null,
           outcome,
           title: 'Final title',
           artist: 'Final artist',
@@ -443,6 +446,7 @@ describe('GameRoomComponent', () => {
         deadline: new Date(NOW + 24_000).toISOString(),
         playbackUrl: 'https://media.example/r3.mp3',
         excerptStartSeconds: 10,
+        excerptDurationSeconds: 30,
         outcome: null,
         title: null,
         artist: null,

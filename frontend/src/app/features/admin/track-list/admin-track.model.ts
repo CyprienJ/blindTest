@@ -14,6 +14,8 @@ export interface AdminTrack {
   decade: number | null;
   durationSeconds: number | null;
   excerptStartSeconds: number;
+  /** Length of the game window from the start; rounds loop it. */
+  excerptDurationSeconds: number;
   imageUrl: string | null;
   /** 1 (easiest) to 5 (hardest); null when not rated yet. */
   difficulty: number | null;
@@ -52,6 +54,7 @@ export interface TrackUpdate {
   decade: number | null;
   durationSeconds: number | null;
   excerptStartSeconds: number;
+  excerptDurationSeconds?: number;
   imageUrl: string | null;
   difficulty?: number;
   /** Replaces every stored link when present; null clears a link. */

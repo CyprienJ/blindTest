@@ -71,6 +71,10 @@ public class TrackEntity {
     @Column(name = "excerpt_start_seconds", nullable = false)
     private int excerptStartSeconds;
 
+    /** Length of the game excerpt window; rounds loop it when their answer time is longer. */
+    @Column(name = "excerpt_duration_seconds", nullable = false)
+    private int excerptDurationSeconds = TrackPublicationPolicy.MAXIMUM_EXCERPT_DURATION_SECONDS;
+
     /** Perceived difficulty from 1 (easiest) to 5 (hardest); {@code null} when not rated. */
     private Short difficulty;
 

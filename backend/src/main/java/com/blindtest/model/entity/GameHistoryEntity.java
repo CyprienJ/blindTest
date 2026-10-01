@@ -61,6 +61,13 @@ public class GameHistoryEntity {
     @Column(name = "configuration_extensions", nullable = false, columnDefinition = "TEXT")
     private String configurationExtensions = "{}";
 
+    /** Comma-separated ascending star levels included in the game, e.g. {@code 1,2,3}. */
+    @Column(name = "difficulty_levels", nullable = false, length = 9)
+    private String difficultyLevels = "1,2,3,4,5";
+
+    @Column(name = "include_unrated", nullable = false)
+    private boolean includeUnrated = true;
+
     @Column(name = "total_score", nullable = false)
     private int totalScore;
 

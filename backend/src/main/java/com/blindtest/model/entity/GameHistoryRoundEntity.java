@@ -63,6 +63,13 @@ public class GameHistoryRoundEntity {
     @Column(name = "excerpt_start_seconds", nullable = false)
     private int excerptStartSeconds;
 
+    @Column(name = "excerpt_duration_seconds", nullable = false)
+    private int excerptDurationSeconds;
+
+    /** Track difficulty when the game was created; {@code null} for unrated tracks. */
+    @Column(name = "difficulty_snapshot")
+    private Short difficultySnapshot;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "outcome", nullable = false, length = 20)
     private RoundOutcome outcome;

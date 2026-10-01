@@ -83,14 +83,19 @@ public class AdminTrackService {
         return trackRepository.findAll(specification, pageable).map(TrackAdminResponse::from);
     }
 
-    /** Creates a short-lived preview URL for a completed, unpublished import. */
+    /**
+     * Creates a short-lived preview URL for a track's finalized private media.
+     *
+     * <p>A pending track must come from a completed import; published and rejected tracks
+     * can be previewed from the track editor.
+     */
     @Transactional(readOnly = true)
     public MediaPreviewResponse createPreviewUrl(UUID id) {
         TrackEntity track = findOrThrow(id);
         String objectKey = track.getAudioObjectKey();
-        boolean completedImport = importJobRepository.existsByTrackIdAndStatus(
-                id, ImportJobStatus.DONE);
-        if (track.getStatus() != TrackStatus.PENDING || !completedImport
+        boolean awaitingImport = track.getStatus() == TrackStatus.PENDING
+                && !importJobRepository.existsByTrackIdAndStatus(id, ImportJobStatus.DONE);
+        if (awaitingImport
                 || objectKey == null || track.getAudioChecksum() == null
                 || track.getAudioSizeBytes() == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CONFLICT");
@@ -153,6 +158,9 @@ public class AdminTrackService {
         }
         if (request.getExcerptStartSeconds() != null) {
             track.setExcerptStartSeconds(request.getExcerptStartSeconds());
+        }
+        if (request.getExcerptDurationSeconds() != null) {
+            track.setExcerptDurationSeconds(request.getExcerptDurationSeconds());
         }
         if (request.getImageUrl() != null) {
             track.setImageUrl(request.getImageUrl());

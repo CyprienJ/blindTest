@@ -10,6 +10,7 @@ import com.blindtest.model.game.GameStateSnapshot;
 import com.blindtest.model.game.GameSummary;
 import com.blindtest.model.game.GameTransitionException;
 import com.blindtest.model.game.RoundCompletionTransition;
+import com.blindtest.model.game.RoundPlaybackWindow;
 import com.blindtest.model.game.RoundScoringWindow;
 import com.blindtest.model.game.RoundStateMachine;
 import com.blindtest.model.game.RoundStateSnapshot;
@@ -363,6 +364,7 @@ public class SessionGameplayService {
         GameStateSnapshot playing = gameStateMachine.startRound(session.gameState(), window);
         RoundStateSnapshot startedRound = playing.currentRound().orElseThrow();
         URI playbackUrl = resolvePlaybackUrl(startedRound);
+        RoundPlaybackWindow playbackWindow = startedRound.playbackWindow().orElseThrow();
         ActiveSessionSnapshot persisted = session.next(
                 playing,
                 session.discoveries(),
@@ -381,7 +383,8 @@ public class SessionGameplayService {
                         totalRounds(playing),
                         window.startsAt(),
                         window.deadline(),
-                        round.track().playback().excerptStartSeconds(),
+                        playbackWindow.excerptStartSeconds(),
+                        playbackWindow.excerptDurationSeconds(),
                         Optional.of(playbackUrl)));
         return true;
     }
@@ -576,6 +579,7 @@ public class SessionGameplayService {
                 deadline,
                 playbackUrl,
                 round.playbackWindow().map(window -> window.excerptStartSeconds()),
+                round.playbackWindow().map(RoundPlaybackWindow::excerptDurationSeconds),
                 round.outcome(),
                 revealed ? Optional.of(round.track().answers().title()) : Optional.empty(),
                 revealed ? Optional.of(round.track().answers().artist()) : Optional.empty(),

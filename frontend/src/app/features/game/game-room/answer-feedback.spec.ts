@@ -73,6 +73,7 @@ describe('Game room answer feedback', () => {
         deadline: new Date(Date.now() + 30000).toISOString(),
         playbackUrl: null,
         excerptStartSeconds: 0,
+        excerptDurationSeconds: 30,
       },
     } as PublicSessionEvent);
     fixture.detectChanges();
@@ -172,6 +173,7 @@ describe('Game room answer feedback', () => {
         deadline: new Date(Date.now() + 30000).toISOString(),
         playbackUrl: null,
         excerptStartSeconds: 0,
+        excerptDurationSeconds: 30,
       },
     } as CurrentSnapshotPayload);
     fixture.detectChanges();

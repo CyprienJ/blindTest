@@ -187,7 +187,8 @@ public class SoloSessionService {
                         track.getAlbum(),
                         groupedAliases),
                 new GamePlaybackSnapshot(
-                        track.getExcerptStartSeconds(), track.getDurationSeconds()),
+                        track.getExcerptStartSeconds(), track.getDurationSeconds(),
+                        track.getExcerptDurationSeconds()),
                 new GameMediaSnapshot(
                         track.getAudioObjectKey(), track.getAudioChecksum()),
                 track.getDifficulty() == null ? null : track.getDifficulty().intValue());

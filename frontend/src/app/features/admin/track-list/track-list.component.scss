@@ -541,3 +541,18 @@ button:disabled {
     padding: 12px;
   }
 }
+
+.difficulty,
+.excerpt {
+  display: grid;
+  gap: 6px;
+}
+
+.excerpt {
+  margin-top: 16px;
+}
+
+.excerpt h3 {
+  margin: 0;
+  font-size: 13px;
+}

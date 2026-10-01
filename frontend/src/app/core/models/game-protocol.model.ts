@@ -62,6 +62,8 @@ export interface RoundStartedPayload {
   startsAt: string;
   deadline: string;
   excerptStartSeconds: number;
+  /** Excerpt window length; playback loops it until the round ends. */
+  excerptDurationSeconds: number;
   playbackUrl: string | null;
 }
 
@@ -126,6 +128,7 @@ export interface CurrentRoundProjection {
   deadline: string | null;
   playbackUrl: string | null;
   excerptStartSeconds: number | null;
+  excerptDurationSeconds: number | null;
   outcome: RoundOutcome | null;
   title: string | null;
   artist: string | null;

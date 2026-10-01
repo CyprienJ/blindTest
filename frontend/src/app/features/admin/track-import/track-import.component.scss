@@ -497,40 +497,6 @@
   display: grid;
 }
 
-.excerpt-editor {
-  padding: 14px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-0);
-}
-
-.excerpt-labels,
-.timeline-labels {
-  display: flex;
-  justify-content: space-between;
-}
-
-.excerpt-labels {
-  align-items: center;
-  margin-bottom: 12px;
-  font-size: 11px;
-}
-
-.excerpt-labels span {
-  color: var(--accent);
-}
-
-.excerpt-range {
-  width: 100%;
-  accent-color: var(--accent);
-}
-
-.timeline-labels {
-  margin-top: 5px;
-  color: var(--fg-3);
-  font-size: 9px;
-}
-
 .preview-step,
 .publish-step {
   margin-top: 18px;

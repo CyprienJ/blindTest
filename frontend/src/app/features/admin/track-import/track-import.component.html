@@ -369,13 +369,18 @@
                 </div>
               </div>
 
-              <div class="excerpt-editor">
-                <div class="excerpt-labels">
-                  <strong>60-second game window</strong>
-                  <span class="mono"
-                    >{{ formatTime(excerptStart) }} → {{ formatTime(excerptEnd) }}</span
-                  >
-                </div>
+              <app-excerpt-editor
+                [previewUrl]="preview?.url ?? null"
+                [peaks]="waveform?.peaks ?? []"
+                [durationSeconds]="waveform?.durationSeconds ?? track.durationSeconds"
+                [disabled]="previewLoading || !preview"
+                [start]="excerptStart"
+                (startChange)="importForm.controls.excerptStartSeconds.setValue($event)"
+                [window]="excerptWindow"
+                (windowChange)="importForm.controls.excerptDurationSeconds.setValue($event)"
+                (selectionChange)="invalidateSelection()"
+                (playbackBlocked)="showBlockedPlayback()"
+              >
                 @if (waveformLoading) {
                   <small class="preview-status">Generating the waveform display…</small>
                 }
@@ -391,54 +396,6 @@
                     </button>
                   </div>
                 }
-                @if (waveformPath) {
-                  <svg
-                    #waveformSurface
-                    viewBox="0 0 1000 100"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                    style="width: 100%; height: 96px; cursor: crosshair; touch-action: none"
-                    (pointerdown)="selectWaveformPosition($event, waveformSurface)"
-                    (pointermove)="selectWaveformPosition($event, waveformSurface)"
-                  >
-                    <line x1="0" y1="50" x2="1000" y2="50" stroke="var(--line)" />
-                    <path [attr.d]="waveformPath" fill="var(--fg-2)" opacity="0.58" />
-                    <rect
-                      [attr.x]="waveformSelectionX"
-                      y="1"
-                      [attr.width]="waveformSelectionWidth"
-                      height="98"
-                      rx="5"
-                      fill="var(--accent)"
-                      opacity="0.18"
-                      stroke="var(--accent)"
-                      stroke-width="2"
-                    />
-                    <line
-                      [attr.x1]="waveformSelectionX"
-                      y1="0"
-                      [attr.x2]="waveformSelectionX"
-                      y2="100"
-                      stroke="var(--accent)"
-                      stroke-width="4"
-                    />
-                  </svg>
-                }
-                <input
-                  class="excerpt-range"
-                  type="range"
-                  formControlName="excerptStartSeconds"
-                  min="0"
-                  [max]="maxExcerptStart"
-                  step="1"
-                  aria-label="Excerpt start"
-                  [disabled]="previewLoading || !preview"
-                  (input)="previewSelection()"
-                />
-                <div class="timeline-labels mono">
-                  <span>0:00</span>
-                  <span>{{ formatTime(track.durationSeconds || 0) }}</span>
-                </div>
                 @if (previewLoading) {
                   <small class="preview-status">Loading the secure audio preview…</small>
                 }
@@ -454,22 +411,7 @@
                     </button>
                   </div>
                 }
-                @if (preview) {
-                  <audio
-                    #previewAudio
-                    class="selection-preview"
-                    controls
-                    [src]="preview.url"
-                    (loadedmetadata)="previewLoaded(previewAudio)"
-                    (timeupdate)="enforcePreviewEnd(previewAudio)"
-                  >
-                    Your browser cannot play this audio.
-                  </audio>
-                  <small class="preview-status">
-                    Move the slider to play immediately from the selected position.
-                  </small>
-                }
-              </div>
+              </app-excerpt-editor>
 
               <div class="alias-section">
                 <div class="alias-heading">
@@ -548,8 +490,9 @@
                   </div>
                 </div>
                 <small class="preview-expiry">
-                  Selection validated: {{ formatTime(track.excerptStartSeconds) }} for up to 60
-                  seconds. The player above remains available for review.
+                  Selection validated: {{ formatTime(track.excerptStartSeconds) }} for
+                  {{ track.excerptDurationSeconds }} seconds, looped through longer rounds. The
+                  player above remains available for review.
                 </small>
               </div>
             }

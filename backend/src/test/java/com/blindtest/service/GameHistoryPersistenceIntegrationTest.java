@@ -38,8 +38,14 @@ class GameHistoryPersistenceIntegrationTest {
         var history = historyRepository.findBySessionId(FinishedSessionFixture.SESSION_ID).
                 orElseThrow();
         assertThat(participantRepository.findByGameHistoryId(history.getId())).hasSize(1);
-        assertThat(roundRepository.findByGameHistoryIdOrderByRoundIndex(history.getId())).
-                hasSize(5);
+        assertThat(history.getDifficultyLevels()).isEqualTo("2,3");
+        assertThat(history.isIncludeUnrated()).isTrue();
+        var rounds = roundRepository.findByGameHistoryIdOrderByRoundIndex(history.getId());
+        assertThat(rounds).hasSize(5);
+        assertThat(rounds).extracting(round -> round.getDifficultySnapshot()).
+                containsExactly((short) 2, (short) 2, (short) 3, (short) 3, null);
+        assertThat(rounds).extracting(round -> round.getExcerptDurationSeconds()).
+                containsOnly(20);
     }
 
     @TestConfiguration

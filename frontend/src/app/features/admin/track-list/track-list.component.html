@@ -218,13 +218,39 @@
             >Duration (seconds)
             <input class="bt-input" type="number" formControlName="durationSeconds" />
           </label>
-          <label
-            >Excerpt start (seconds)
-            <input class="bt-input" type="number" formControlName="excerptStartSeconds" />
-          </label>
           <label class="wide"
             >Cover image URL <input class="bt-input" formControlName="imageUrl"
           /></label>
+          <div class="wide difficulty">
+            <span id="edit-difficulty-label">Difficulty</span>
+            <app-difficulty-rating
+              formControlName="difficulty"
+              labelledBy="edit-difficulty-label"
+            />
+          </div>
+        </div>
+        <div class="excerpt">
+          <h3>Game excerpt</h3>
+          <app-excerpt-editor
+            [previewUrl]="editPreview?.url ?? null"
+            [peaks]="editPeaks"
+            [durationSeconds]="editForm.controls.durationSeconds.value"
+            [start]="editForm.controls.excerptStartSeconds.value"
+            (startChange)="setExcerptStart($event)"
+            [window]="editForm.controls.excerptDurationSeconds.value"
+            (windowChange)="setExcerptWindow($event)"
+            (playbackBlocked)="editMediaError = 'Press play to listen.'"
+          >
+            @if (editMediaLoading) {
+              <p class="muted" role="status">Preparing audio…</p>
+            }
+            @if (editMediaError) {
+              <p class="form-error" role="alert">
+                {{ editMediaError }}
+                <button type="button" (click)="loadEditMedia(editingTrack)">Retry</button>
+              </p>
+            }
+          </app-excerpt-editor>
         </div>
         @if (editForm.invalid && editForm.touched) {
           <p class="form-error">Complete the required fields with valid values.</p>

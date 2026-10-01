@@ -105,11 +105,13 @@ class AdminTrackServiceTest {
     }
 
     @Test
-    void rejectsPublishedTrack() {
+    void previewsPublishedTrackFromTheEditorWithoutACompletedImport() {
         when(track.getStatus()).thenReturn(TrackStatus.PUBLISHED);
+        when(importJobRepository.existsByTrackIdAndStatus(TRACK_ID, ImportJobStatus.DONE)).
+                thenReturn(false);
 
-        assertConflict();
-        verify(mediaStorage, never()).presignedGetUrl(OBJECT_KEY);
+        assertThat(service.createPreviewUrl(TRACK_ID).url()).hasToString(
+                "https://media.example.test/audio.mp3?signature=secret");
     }
 
     @Test

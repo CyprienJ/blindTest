@@ -44,8 +44,9 @@ final class FinishedSessionFixture {
 
     static ActiveSessionSnapshot finished() {
         GameConfiguration configuration = new GameConfigurationValidator().validate(
-                new RequestedGameConfiguration(PLAYLIST_ID, 5, 30, Map.of()),
-                new PlaylistEligibilitySnapshot(PLAYLIST_ID, 5));
+                new RequestedGameConfiguration(PLAYLIST_ID, 5, 30, Map.of(), List.of(3, 2), true),
+                new PlaylistEligibilitySnapshot(PLAYLIST_ID, 5, Map.of(
+                        2, 2, 3, 2, PlaylistEligibilitySnapshot.UNRATED, 1)));
         GameStateSnapshot game = GameStateSnapshot.created(
                 configuration, new GameTrackSelection(tracks()));
         GameStateMachine machine = new GameStateMachine(
@@ -100,9 +101,10 @@ final class FinishedSessionFixture {
                             "Composer " + index,
                             "Album " + index,
                             aliases),
-                    new GamePlaybackSnapshot(index, 180),
+                    new GamePlaybackSnapshot(index, 180, 20),
                     new GameMediaSnapshot(
-                            "private/history-track-" + index + ".mp3", "checksum-" + index)));
+                            "private/history-track-" + index + ".mp3", "checksum-" + index),
+                    index < 4 ? index / 2 + 2 : null));
         }
         return tracks;
     }

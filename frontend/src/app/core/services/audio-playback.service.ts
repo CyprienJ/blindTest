@@ -13,6 +13,8 @@ export interface RoundPlaybackRequest {
   deadline: string;
   /** Administrator-configured offset into the track, in seconds. */
   excerptStartSeconds: number;
+  /** Window length looped from the offset; plays straight through when absent. */
+  excerptDurationSeconds?: number;
 }
 
 /** Factory for the media element — overridable in tests. */
@@ -26,7 +28,8 @@ export const AUDIO_ELEMENT = new InjectionToken<() => HTMLAudioElement>('AUDIO_E
  * the server timeline (seeking past any elapsed time), recovers from blocked
  * autoplay, and guarantees a round's audio is released before the next one.
  * Playback deliberately outlives the round deadline so the reveal keeps the music;
- * the owner stops it explicitly or by scheduling the next round.
+ * the owner stops it explicitly or by scheduling the next round. An excerpt window
+ * shorter than the round loops back to its start, mirroring the server's window.
  */
 /** Duration of the volume ramp applied whenever an excerpt starts. */
 const FADE_IN_MS = 500;
@@ -50,6 +53,7 @@ export class AudioPlaybackService implements OnDestroy {
     this.audio.preload = 'auto';
     this.audio.addEventListener('ended', this.onEnded);
     this.audio.addEventListener('error', this.onError);
+    this.audio.addEventListener('timeupdate', this.onTimeUpdate);
   }
 
   /** Buffers a media URL ahead of playback without starting it. */
@@ -110,6 +114,7 @@ export class AudioPlaybackService implements OnDestroy {
     this.teardownPlayback();
     this.audio.removeEventListener('ended', this.onEnded);
     this.audio.removeEventListener('error', this.onError);
+    this.audio.removeEventListener('timeupdate', this.onTimeUpdate);
     this.audio.removeAttribute('src');
     this.audio.load();
   }
@@ -158,9 +163,24 @@ export class AudioPlaybackService implements OnDestroy {
 
   /** Excerpt offset plus any time that elapsed since the server started the round. */
   private seekTarget(request: RoundPlaybackRequest): number {
-    const elapsedMs = Math.max(0, Date.now() - Date.parse(request.startsAt));
-    return request.excerptStartSeconds + elapsedMs / 1000;
+    const elapsedSeconds = Math.max(0, Date.now() - Date.parse(request.startsAt)) / 1000;
+    const window = this.loopWindow(request);
+    return request.excerptStartSeconds + (window ? elapsedSeconds % window : elapsedSeconds);
   }
+
+  private loopWindow(request: RoundPlaybackRequest): number | null {
+    const window = request.excerptDurationSeconds;
+    return window && window > 0 ? window : null;
+  }
+
+  /** Loops the excerpt window, including after the deadline while the reveal plays. */
+  private readonly onTimeUpdate = (): void => {
+    const request = this.pending;
+    const window = request && this.loopWindow(request);
+    if (request && window && this.audio.currentTime >= request.excerptStartSeconds + window) {
+      this.audio.currentTime = request.excerptStartSeconds;
+    }
+  };
 
   private fadeIn(): void {
     this.clearFade();
@@ -193,6 +213,13 @@ export class AudioPlaybackService implements OnDestroy {
   }
 
   private readonly onEnded = (): void => {
+    const request = this.pending;
+    if (request && this.loopWindow(request)) {
+      // The media ended inside a window that runs past it: restart the window.
+      this.audio.currentTime = request.excerptStartSeconds;
+      void this.audio.play().catch(() => this.setStatus('ended'));
+      return;
+    }
     this.pending = null;
     this.setStatus('ended');
   };

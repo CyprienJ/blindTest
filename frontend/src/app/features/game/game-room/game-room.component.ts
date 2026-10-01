@@ -327,6 +327,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
             deadline: round.deadline ?? new Date().toISOString(),
             playbackUrl: round.playbackUrl,
             excerptStartSeconds: round.excerptStartSeconds ?? 0,
+            excerptDurationSeconds: round.excerptDurationSeconds ?? undefined,
           });
           for (const type of snapshot.discoveredAnswerTypes) {
             this.discoveries[type] = null;
@@ -458,7 +459,11 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.audioPlayback.stop();
   }
 
-  private enterRound(payload: Omit<RoundStartedPayload, 'roundIndex' | 'totalRounds'>): void {
+  private enterRound(
+    payload: Omit<RoundStartedPayload, 'roundIndex' | 'totalRounds' | 'excerptDurationSeconds'> & {
+      excerptDurationSeconds?: number;
+    },
+  ): void {
     this.resetFeedback();
     this.clearReveal();
     this.phase = 'playing';
@@ -477,6 +482,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         startsAt: payload.startsAt,
         deadline: payload.deadline,
         excerptStartSeconds: payload.excerptStartSeconds,
+        excerptDurationSeconds: payload.excerptDurationSeconds,
       });
     }
   }

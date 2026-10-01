@@ -116,6 +116,7 @@ session topic:
     "startsAt": "2026-08-04T13:00:02Z",
     "deadline": "2026-08-04T13:00:32Z",
     "excerptStartSeconds": 15,
+    "excerptDurationSeconds": 20,
     "playbackUrl": "https://media.example/audio.mp3?signature=short-lived"
   }
 }
@@ -125,7 +126,7 @@ session topic:
 |---|---|
 | `SESSION_READY` | game `state`, `totalRounds`, `expiresAt` |
 | `ROUND_PREPARING` | `roundIndex`, `totalRounds` |
-| `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset, short-lived `playbackUrl` |
+| `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset and window length, short-lived `playbackUrl` |
 | `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, round and total points, `transitionAt` |
 | `SCORE_UPDATED` | `participantId`, round points, total score |
 | `GAME_FINISHED` | total score and title/skip/timeout aggregate counts |
@@ -187,7 +188,10 @@ the private queue and in only that participant's recovery snapshot.
 - A revealed round exposes `transitionAt`, exactly four seconds after `revealedAt`.
   The server advances automatically then; an owner `ADVANCE_ROUND` command may win
   the same transition earlier, and duplicate or late timer callbacks are harmless.
-- `CURRENT_SNAPSHOT` retains the original playback window while playing. During
+- `CURRENT_SNAPSHOT` retains the original playback window (`excerptStartSeconds`,
+  `excerptDurationSeconds`) while playing. Clients loop the window from its start
+  when it is shorter than the round
+  ([ADR-0016](adr/0016-per-track-looped-excerpt-window.md)). During
   reveal it also contains the canonical title, artist, optional composer/album,
   outcome, points, and `advanceAt`, plus only the requesting participant's private
 discoveries.

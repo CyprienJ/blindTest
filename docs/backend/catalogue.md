@@ -19,8 +19,10 @@ Public track responses expose the difficulty so players can filter game levels;
 streaming links stay administrator-only and unused.
 
 Publication requires primary metadata plus either a legacy audio URL or a complete
-private-object key/checksum/positive-size tuple. A nonzero excerpt offset requires
-known duration and at least 60 seconds remaining. Playlist membership only accepts
+private-object key/checksum/positive-size tuple. The excerpt window lasts 5 to 60
+seconds; a nonzero offset requires known duration with the whole window remaining.
+Pending previews require a completed import; published and rejected tracks with
+private media can be previewed from the track editor. Playlist membership only accepts
 published tracks, prevents duplicates, and keeps contiguous zero-based ordering.
 Rejection or deletion removes track membership and compacts positions.
 

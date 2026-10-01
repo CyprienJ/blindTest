@@ -82,6 +82,7 @@ public sealed interface PrivateSessionEventPayload permits
             Optional<Instant> deadline,
             Optional<URI> playbackUrl,
             Optional<Integer> excerptStartSeconds,
+            Optional<Integer> excerptDurationSeconds,
             Optional<RoundOutcome> outcome,
             Optional<String> title,
             Optional<String> artist,
@@ -99,6 +100,8 @@ public sealed interface PrivateSessionEventPayload permits
             playbackUrl = Objects.requireNonNull(playbackUrl, "playbackUrl is required");
             excerptStartSeconds = Objects.requireNonNull(
                     excerptStartSeconds, "excerptStartSeconds is required");
+            excerptDurationSeconds = Objects.requireNonNull(
+                    excerptDurationSeconds, "excerptDurationSeconds is required");
             outcome = Objects.requireNonNull(outcome, "outcome is required");
             title = requireOptionalText(title, "title");
             artist = requireOptionalText(artist, "artist");
@@ -107,6 +110,11 @@ public sealed interface PrivateSessionEventPayload permits
             advanceAt = Objects.requireNonNull(advanceAt, "advanceAt is required");
             excerptStartSeconds.ifPresent(
                     value -> SessionProtocol.requireNonNegative(value, "excerptStartSeconds"));
+            excerptDurationSeconds.ifPresent(value -> {
+                if (value <= 0) {
+                    throw new IllegalArgumentException("excerptDurationSeconds must be positive");
+                }
+            });
             SessionProtocol.requireNonNegative(roundPoints, "roundPoints");
         }
     }

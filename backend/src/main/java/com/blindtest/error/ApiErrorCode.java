@@ -24,7 +24,7 @@ public enum ApiErrorCode {
     CONFLICT(HttpStatus.CONFLICT, "Request conflicts with current state"),
     ANSWER_ALIAS_DUPLICATE(HttpStatus.CONFLICT, "Answer alias already exists"),
     TRACK_EXCERPT_INVALID(
-            HttpStatus.CONFLICT, "Track excerpt does not leave 60 playable seconds"),
+            HttpStatus.CONFLICT, "Track excerpt window does not fit the playable audio"),
     TRACK_METADATA_INCOMPLETE(HttpStatus.CONFLICT, "Track metadata is incomplete"),
     IMPORT_ALREADY_ACTIVE(HttpStatus.CONFLICT, "An import for this YouTube video is already active"),
     IMPORT_FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "The uploaded file exceeds the maximum allowed size"),
