@@ -358,7 +358,6 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.roundStartMs = null;
         this.lastRoundPoints = null;
         this.outcome = null;
-        this.audioPlayback.stop();
         return;
       case 'ROUND_STARTED':
         this.roundNumber = event.payload.roundIndex + 1;
@@ -508,7 +507,6 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.skipping = false;
     this.advancing = false;
     this.answer = '';
-    this.audioPlayback.stop();
     this.tick();
     this.announcement = `${this.outcomeLabel}. ${metadata.title ?? 'Round over'}. ${points} points.`;
   }

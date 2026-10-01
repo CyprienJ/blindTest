@@ -21,13 +21,12 @@ export const AUDIO_ELEMENT = new InjectionToken<() => HTMLAudioElement>('AUDIO_E
   factory: () => () => new Audio(),
 });
 
-/** Grace period kept after the round deadline before the excerpt is force-stopped. */
-const DEADLINE_GRACE_MS = 300;
-
 /**
  * Owns the single round-audio element: preloads the signed excerpt, starts it on
  * the server timeline (seeking past any elapsed time), recovers from blocked
  * autoplay, and guarantees a round's audio is released before the next one.
+ * Playback deliberately outlives the round deadline so the reveal keeps the music;
+ * the owner stops it explicitly or by scheduling the next round.
  */
 @Injectable({ providedIn: 'root' })
 export class AudioPlaybackService implements OnDestroy {
@@ -41,7 +40,6 @@ export class AudioPlaybackService implements OnDestroy {
 
   private pending: RoundPlaybackRequest | null = null;
   private startTimer: ReturnType<typeof setTimeout> | null = null;
-  private deadlineTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.audio.preload = 'auto';
@@ -78,7 +76,6 @@ export class AudioPlaybackService implements OnDestroy {
     this.pending = request;
     this.errorSubject.next(null);
     this.preload(request.url);
-    this.deadlineTimer = setTimeout(() => this.stop('ended'), deadlineMs - now + DEADLINE_GRACE_MS);
 
     if (startMs > now) {
       this.setStatus('loading');
@@ -162,10 +159,6 @@ export class AudioPlaybackService implements OnDestroy {
     if (this.startTimer) {
       clearTimeout(this.startTimer);
       this.startTimer = null;
-    }
-    if (this.deadlineTimer) {
-      clearTimeout(this.deadlineTimer);
-      this.deadlineTimer = null;
     }
     if (!this.audio.paused) {
       this.audio.pause();

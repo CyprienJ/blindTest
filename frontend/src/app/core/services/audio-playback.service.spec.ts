@@ -140,14 +140,14 @@ describe('AudioPlaybackService', () => {
     expect(audio.playCalls.at(-1)).toBe('https://media.example/next.mp3');
   });
 
-  it('force-stops the excerpt at the round deadline', async () => {
+  it('keeps playing past the round deadline so the reveal keeps the music', async () => {
     service.scheduleRound(round());
     await flush();
     audio.pause.calls.reset();
 
-    jasmine.clock().tick(30_000 + 300);
-    expect(audio.pause).toHaveBeenCalled();
-    expect(statuses.at(-1)).toBe('ended');
+    jasmine.clock().tick(30_000 + 5_000);
+    expect(audio.pause).not.toHaveBeenCalled();
+    expect(statuses.at(-1)).toBe('playing');
   });
 
   it('releases the media element on stop', async () => {

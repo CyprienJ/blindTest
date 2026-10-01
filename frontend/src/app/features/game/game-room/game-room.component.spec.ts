@@ -247,6 +247,7 @@ describe('GameRoomComponent', () => {
     const harness = await setup(SESSION_ID);
     const fixture = await harness.create();
     socket.publicEvents$.next(roundStarted(0));
+    audio.stop.calls.reset();
 
     socket.publicEvents$.next({
       metadata: meta(5),
@@ -266,7 +267,7 @@ describe('GameRoomComponent', () => {
     });
     fixture.changeDetectorRef.detectChanges();
 
-    expect(audio.stop).toHaveBeenCalled();
+    expect(audio.stop).not.toHaveBeenCalled();
     expect(text(fixture)).toContain('+120 points');
     expect(text(fixture)).toContain('Take On Me');
     expect(text(fixture)).toContain('Next track in 4 seconds');
