@@ -19,6 +19,7 @@ import com.blindtest.service.port.TurnstileVerifier;
 import jakarta.servlet.http.Cookie;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -98,6 +99,16 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void loginIgnoresEmailCase() throws Exception {
+        mockMvc.perform(post("/api/auth/login").
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{\"email\":\"" + ALICE_EMAIL.toUpperCase(Locale.ROOT)
+                                + "\",\"password\":\"" + ALICE_PASSWORD + "\"}")).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.user.email").value(ALICE_EMAIL));
+    }
+
+    @Test
     void loginWithWrongPasswordReturns401() throws Exception {
         mockMvc.perform(post("/api/auth/login").
                         contentType(MediaType.APPLICATION_JSON).
@@ -131,6 +142,18 @@ class AuthControllerIntegrationTest {
                 andExpect(jsonPath("$.code").value("EMAIL_TAKEN")).
                 andExpect(jsonPath("$.message").value("Email address is already registered")).
                 andExpect(jsonPath("$.requestId").isNotEmpty());
+    }
+
+    @Test
+    void registeringExistingEmailWithDifferentCaseReturnsConflict() throws Exception {
+        when(turnstileVerifier.verify(any())).thenReturn(true);
+
+        mockMvc.perform(post("/api/auth/register").
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{\"username\":\"charlie\",\"email\":\"" + ALICE_EMAIL.toUpperCase(Locale.ROOT)
+                                + "\",\"password\":\"password123\",\"turnstileToken\":\"valid\"}")).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("EMAIL_TAKEN"));
     }
 
     @Test
@@ -298,7 +321,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void resetPasswordWithEmailVerificationTokenReturns400() throws Exception {
-        UserEntity user = userRepository.findByEmail(ALICE_EMAIL).orElseThrow();
+        UserEntity user = userRepository.findByEmailIgnoreCase(ALICE_EMAIL).orElseThrow();
         String wrongPurposeToken = jwtTokenProvider.generateEmailVerificationToken(user.getId());
 
         mockMvc.perform(post("/api/auth/reset-password").

@@ -30,7 +30,7 @@ public class FirstAdminProvisioningService {
     @Transactional
     public FirstAdminProvisioningResult provision(String email) {
         userRepository.lockAllUsersForFirstAdminProvisioning();
-        Optional<UserEntity> target = userRepository.findByEmail(email);
+        Optional<UserEntity> target = userRepository.findByEmailIgnoreCase(email);
         List<UserEntity> administrators = userRepository.findByRole(UserRole.ADMIN);
 
         if (target.isEmpty()) {

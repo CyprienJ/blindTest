@@ -601,7 +601,7 @@ class AdminTrackControllerIntegrationTest {
     private PlaylistEntity playlist(String name) {
         PlaylistEntity playlist = new PlaylistEntity();
         playlist.setName(name);
-        playlist.setCreatedBy(userRepository.findByEmail("track-admin@example.com").orElseThrow());
+        playlist.setCreatedBy(userRepository.findByEmailIgnoreCase("track-admin@example.com").orElseThrow());
         return playlistRepository.save(playlist);
     }
 }

@@ -14,6 +14,7 @@ import com.blindtest.service.port.EmailSender;
 import com.blindtest.service.port.TurnstileVerifier;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -69,7 +70,8 @@ public class AuthService {
         if (!turnstileVerifier.verify(request.getTurnstileToken())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "TURNSTILE_FAILED");
         }
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String email = normalizeEmail(request.getEmail());
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "EMAIL_TAKEN");
         }
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -77,7 +79,7 @@ public class AuthService {
         }
         UserEntity user = new UserEntity();
         user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
+        user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         UserEntity saved = userRepository.save(user);
 
@@ -117,7 +119,7 @@ public class AuthService {
      */
     @Transactional
     public AuthResult login(LoginRequest request) {
-        UserEntity user = userRepository.findByEmail(request.getEmail()).
+        UserEntity user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.getEmail())).
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS"));
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
@@ -173,7 +175,7 @@ public class AuthService {
      * Always returns normally to avoid leaking whether an address is registered.
      */
     public void forgotPassword(String email) {
-        userRepository.findByEmail(email).ifPresent(user -> {
+        userRepository.findByEmailIgnoreCase(normalizeEmail(email)).ifPresent(user -> {
             String resetToken = jwtTokenProvider.generatePasswordResetToken(user.getId());
             emailSender.sendPasswordResetEmail(user.getEmail(), user.getUsername(), resetToken);
         });
@@ -195,6 +197,10 @@ public class AuthService {
                         () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_OR_EXPIRED_TOKEN"));
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+    }
+
+    private static String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private void persistRefreshToken(UserEntity user, String tokenValue) {
