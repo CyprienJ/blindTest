@@ -67,6 +67,11 @@ export interface RoundStartedPayload {
   playbackUrl: string | null;
 }
 
+/** Available listening links for a revealed track, keyed by platform. */
+export type RevealStreamingLinks = Partial<
+  Record<'deezer' | 'youtube' | 'spotify' | 'qobuz' | 'tidal' | 'soundcloud', string>
+>;
+
 export interface RoundRevealedPayload {
   roundIndex: number;
   totalRounds: number;
@@ -75,6 +80,7 @@ export interface RoundRevealedPayload {
   artist: string;
   composer: string | null;
   album: string | null;
+  streamingLinks: RevealStreamingLinks;
   roundPoints: number;
   totalScore: number;
   transitionAt: string;
@@ -134,6 +140,7 @@ export interface CurrentRoundProjection {
   artist: string | null;
   composer: string | null;
   album: string | null;
+  streamingLinks: RevealStreamingLinks;
   advanceAt: string | null;
   roundPoints: number;
 }

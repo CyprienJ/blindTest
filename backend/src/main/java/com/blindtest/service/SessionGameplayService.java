@@ -45,6 +45,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -463,6 +464,7 @@ public class SessionGameplayService {
                         answers.artist(),
                         Optional.ofNullable(answers.composer()),
                         Optional.ofNullable(answers.album()),
+                        round.track().streamingLinks().links(),
                         round.scoreState().totalPoints(),
                         totalScore,
                         advanceAt));
@@ -589,6 +591,7 @@ public class SessionGameplayService {
                 revealed
                         ? Optional.ofNullable(round.track().answers().album())
                         : Optional.empty(),
+                revealed ? round.track().streamingLinks().links() : Map.of(),
                 advanceAt,
                 round.scoreState().totalPoints());
     }

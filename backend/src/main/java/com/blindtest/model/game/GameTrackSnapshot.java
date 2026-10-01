@@ -7,6 +7,7 @@ import java.util.UUID;
  * One selected track and its stable position in a game.
  *
  * @param difficulty administrator difficulty from 1 to 5 at selection, or {@code null}
+ * @param streamingLinks listening links frozen at selection and shown on reveal
  */
 public record GameTrackSnapshot(
         UUID trackId,
@@ -14,7 +15,19 @@ public record GameTrackSnapshot(
         GameAnswerSnapshot answers,
         GamePlaybackSnapshot playback,
         GameMediaSnapshot media,
-        Integer difficulty) {
+        Integer difficulty,
+        GameStreamingLinks streamingLinks) {
+
+    /** Creates a game-track snapshot without streaming links. */
+    public GameTrackSnapshot(
+            UUID trackId,
+            int playOrder,
+            GameAnswerSnapshot answers,
+            GamePlaybackSnapshot playback,
+            GameMediaSnapshot media,
+            Integer difficulty) {
+        this(trackId, playOrder, answers, playback, media, difficulty, GameStreamingLinks.NONE);
+    }
 
     /** Creates an unrated game-track snapshot. */
     public GameTrackSnapshot(
@@ -35,6 +48,7 @@ public record GameTrackSnapshot(
         Objects.requireNonNull(answers, "answers are required");
         Objects.requireNonNull(playback, "playback is required");
         Objects.requireNonNull(media, "media is required");
+        Objects.requireNonNull(streamingLinks, "streamingLinks are required");
     }
 
     static GameTrackSnapshot atOrder(GameTrackCandidate candidate, int playOrder) {
@@ -44,6 +58,7 @@ public record GameTrackSnapshot(
                 candidate.answers(),
                 candidate.playback(),
                 candidate.media(),
-                candidate.difficulty());
+                candidate.difficulty(),
+                candidate.streamingLinks());
     }
 }

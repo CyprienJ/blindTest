@@ -49,6 +49,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.enableSimpleBroker("/topic", "/queue");
         registry.setApplicationDestinationPrefixes("/app");
         registry.setUserDestinationPrefix("/user");
+        // Deliver each client's events in publish order: SCORE_UPDATED, ROUND_REVEALED and
+        // other events sharing a session version must not overtake one another.
+        registry.setPreservePublishOrder(true);
     }
 
     @Override

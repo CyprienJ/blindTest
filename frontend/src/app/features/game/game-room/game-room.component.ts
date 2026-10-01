@@ -45,6 +45,15 @@ type GamePhase =
 
 const COMMAND_GUARD_MS = 400;
 
+const STREAMING_PLATFORMS = [
+  { key: 'deezer', label: 'Deezer' },
+  { key: 'spotify', label: 'Spotify' },
+  { key: 'youtube', label: 'YouTube' },
+  { key: 'qobuz', label: 'Qobuz' },
+  { key: 'tidal', label: 'Tidal' },
+  { key: 'soundcloud', label: 'SoundCloud' },
+] as const;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-game-room',
@@ -75,7 +84,10 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   lastRoundPoints: number | null = null;
   outcome: RoundOutcome | null = null;
   finished: GameFinishedPayload | null = null;
-  reveal: Pick<CurrentRoundProjection, 'title' | 'artist' | 'composer' | 'album'> | null = null;
+  reveal: Pick<
+    CurrentRoundProjection,
+    'title' | 'artist' | 'composer' | 'album' | 'streamingLinks'
+  > | null = null;
   advancing = false;
   private advanceAtMs: number | null = null;
 
@@ -493,6 +505,15 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.advancing = false;
     this.lastRoundPoints = null;
     this.outcome = null;
+  }
+
+  /** Listening links of the revealed track, in a stable platform order. */
+  revealLinks(): { label: string; url: string }[] {
+    const links = this.reveal?.streamingLinks ?? {};
+    return STREAMING_PLATFORMS.flatMap(({ key, label }) => {
+      const url = links[key];
+      return url && /^https?:\/\//i.test(url) ? [{ label, url }] : [];
+    });
   }
 
   private enterReveal(

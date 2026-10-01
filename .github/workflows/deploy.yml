@@ -35,7 +35,7 @@ jobs:
       - name: Checkout deployment files
         uses: actions/checkout@v6
         with:
-          ref: ${{ env.DEPLOY_SHA }}
+          ref: ${{ env.DEPLOY_SH+
 
       - name: Prepare deployment directory
         uses: appleboy/ssh-action@v1

@@ -17,6 +17,7 @@ import com.blindtest.model.game.GameConfigurationError;
 import com.blindtest.model.game.GameConfigurationValidationException;
 import com.blindtest.model.game.GameConfigurationValidator;
 import com.blindtest.model.game.GameMediaSnapshot;
+import com.blindtest.model.game.GameStreamingLinks;
 import com.blindtest.model.game.GameParticipantId;
 import com.blindtest.model.game.GamePlaybackSnapshot;
 import com.blindtest.model.game.GameRandom;
@@ -191,7 +192,10 @@ public class SoloSessionService {
                         track.getExcerptDurationSeconds()),
                 new GameMediaSnapshot(
                         track.getAudioObjectKey(), track.getAudioChecksum()),
-                track.getDifficulty() == null ? null : track.getDifficulty().intValue());
+                track.getDifficulty() == null ? null : track.getDifficulty().intValue(),
+                GameStreamingLinks.of(
+                        track.getDeezerUrl(), track.getStreamingYoutubeUrl(), track.getSpotifyUrl(),
+                        track.getQobuzUrl(), track.getTidalUrl(), track.getSoundcloudUrl()));
     }
 
     private GameAnswerType toGameAnswerType(TrackAnswerType answerType) {

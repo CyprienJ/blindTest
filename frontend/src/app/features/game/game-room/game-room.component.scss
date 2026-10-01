@@ -405,3 +405,26 @@
 .reveal-strip button {
   margin-left: auto;
 }
+
+.streaming-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+
+  > span {
+    color: var(--fg-2);
+  }
+
+  a {
+    color: var(--fg-0);
+    text-decoration: none;
+  }
+
+  a:hover,
+  a:focus-visible {
+    color: var(--accent);
+  }
+}

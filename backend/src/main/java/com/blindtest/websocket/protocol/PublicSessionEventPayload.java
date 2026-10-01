@@ -4,6 +4,9 @@ import com.blindtest.model.game.GameStatus;
 import com.blindtest.model.game.RoundOutcome;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -68,7 +71,11 @@ public sealed interface PublicSessionEventPayload permits
         }
     }
 
-    /** Reveals canonical answers and the authoritative score for one terminal round. */
+    /**
+     * Reveals canonical answers and the authoritative score for one terminal round.
+     *
+     * @param streamingLinks available HTTP(S) listening links keyed by platform
+     */
     record RoundRevealed(
             int roundIndex,
             int totalRounds,
@@ -77,6 +84,7 @@ public sealed interface PublicSessionEventPayload permits
             String artist,
             Optional<String> composer,
             Optional<String> album,
+            Map<String, String> streamingLinks,
             int roundPoints,
             int totalScore,
             Instant transitionAt) implements PublicSessionEventPayload {
@@ -89,6 +97,8 @@ public sealed interface PublicSessionEventPayload permits
             SessionProtocol.requireText(artist, "artist");
             composer = requireOptionalText(composer, "composer");
             album = requireOptionalText(album, "album");
+            streamingLinks = Collections.unmodifiableMap(new LinkedHashMap<>(
+                    Objects.requireNonNull(streamingLinks, "streamingLinks are required")));
             SessionProtocol.requireNonNegative(roundPoints, "roundPoints");
             SessionProtocol.requireNonNegative(totalScore, "totalScore");
             SessionProtocol.requireInstant(transitionAt, "transitionAt");

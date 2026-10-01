@@ -15,8 +15,9 @@ normalized key prevents duplicate aliases; gameplay matching uses its own rules.
 Tracks also carry an administrator difficulty from 1 (easiest) to 5 stars and
 optional Deezer, YouTube, Spotify, Qobuz, Tidal, and SoundCloud links, each
 validated against its platform domain. The import review requires a difficulty.
-Public track responses expose the difficulty so players can filter game levels;
-streaming links stay administrator-only and unused.
+Public track responses expose the difficulty so players can filter game levels.
+Streaming links are snapshotted with selected game tracks and shown to players
+on reveal; catalogue responses keep them administrator-only.
 
 Publication requires primary metadata plus either a legacy audio URL or a complete
 private-object key/checksum/positive-size tuple. The excerpt window lasts 5 to 60

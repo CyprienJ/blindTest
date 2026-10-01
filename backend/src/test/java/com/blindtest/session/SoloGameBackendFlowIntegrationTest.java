@@ -246,6 +246,9 @@ class SoloGameBackendFlowIntegrationTest {
 
         JsonNode revealed = awaitPublic(member, "ROUND_REVEALED");
         assertThat(revealed.at("/payload/outcome").asText()).isEqualTo("TIMEOUT");
+        assertThat(revealed.at("/payload/streamingLinks/spotify").asText()).
+                startsWith("https://open.spotify.com/track/flow-");
+        assertThat(revealed.at("/payload/streamingLinks").size()).isOne();
         assertThat(currentVersion(sessionId)).isEqualTo(startedVersion + 1);
         assertThat(drainPublicOfType(member, "ROUND_REVEALED")).isZero();
         member.session.disconnect();
@@ -606,6 +609,7 @@ class SoloGameBackendFlowIntegrationTest {
         track.setComposer("Flow Composer " + index);
         track.setAlbum("Flow Album " + index);
         track.setAudioObjectKey("tracks/flow-" + index + "/audio.mp3");
+        track.setSpotifyUrl("https://open.spotify.com/track/flow-" + index);
         track.setAudioChecksum("checksum-" + index);
         track.setAudioSizeBytes(2048L + index);
         track.setDurationSeconds(240);

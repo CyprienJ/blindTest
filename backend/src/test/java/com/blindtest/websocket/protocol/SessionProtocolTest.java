@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -210,6 +211,7 @@ class SessionProtocolTest {
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
+                Map.of(),
                 Optional.empty(),
                 0);
         var snapshot = new PrivateSessionEventPayload.CurrentSnapshot(
@@ -259,6 +261,7 @@ class SessionProtocolTest {
                 "a-ha",
                 Optional.of("  "),
                 Optional.empty(),
+                Map.of(),
                 800,
                 800,
                 NOW.plusSeconds(4))).

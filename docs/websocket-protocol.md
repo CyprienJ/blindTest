@@ -56,6 +56,10 @@ The current `protocolVersion` is `1`. Every command includes it directly and eve
 event includes it in `metadata`. A server supporting only V1 rejects another
 version rather than guessing its shape.
 
+The broker preserves publish order per client connection, so events sharing a
+session version (for example `SCORE_UPDATED` then `ROUND_REVEALED`) arrive in the
+order the server emitted them.
+
 Every command contains:
 
 - `commandId`: client-generated UUID used as its idempotency identity;
@@ -127,7 +131,7 @@ session topic:
 | `SESSION_READY` | game `state`, `totalRounds`, `expiresAt` |
 | `ROUND_PREPARING` | `roundIndex`, `totalRounds` |
 | `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset and window length, short-lived `playbackUrl` |
-| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, round and total points, `transitionAt` |
+| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, `streamingLinks` (available HTTP(S) links keyed by platform), round and total points, `transitionAt` |
 | `SCORE_UPDATED` | `participantId`, round points, total score |
 | `GAME_FINISHED` | total score and title/skip/timeout aggregate counts |
 
@@ -193,6 +197,7 @@ the private queue and in only that participant's recovery snapshot.
   when it is shorter than the round
   ([ADR-0016](adr/0016-per-track-looped-excerpt-window.md)). During
   reveal it also contains the canonical title, artist, optional composer/album,
+  streaming links,
   outcome, points, and `advanceAt`, plus only the requesting participant's private
 discoveries.
 

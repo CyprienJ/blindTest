@@ -6,7 +6,10 @@ import com.blindtest.model.game.RoundOutcome;
 import com.blindtest.model.game.RoundStatus;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -88,6 +91,7 @@ public sealed interface PrivateSessionEventPayload permits
             Optional<String> artist,
             Optional<String> composer,
             Optional<String> album,
+            Map<String, String> streamingLinks,
             Optional<Instant> advanceAt,
             int roundPoints) {
 
@@ -107,6 +111,8 @@ public sealed interface PrivateSessionEventPayload permits
             artist = requireOptionalText(artist, "artist");
             composer = requireOptionalText(composer, "composer");
             album = requireOptionalText(album, "album");
+            streamingLinks = Collections.unmodifiableMap(new LinkedHashMap<>(
+                    Objects.requireNonNull(streamingLinks, "streamingLinks are required")));
             advanceAt = Objects.requireNonNull(advanceAt, "advanceAt is required");
             excerptStartSeconds.ifPresent(
                     value -> SessionProtocol.requireNonNegative(value, "excerptStartSeconds"));
