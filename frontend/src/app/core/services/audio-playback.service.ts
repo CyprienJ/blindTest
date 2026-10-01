@@ -21,14 +21,17 @@ export const AUDIO_ELEMENT = new InjectionToken<() => HTMLAudioElement>('AUDIO_E
   factory: () => () => new Audio(),
 });
 
-/** Grace period kept after the round deadline before the excerpt is force-stopped. */
-const DEADLINE_GRACE_MS = 300;
-
 /**
  * Owns the single round-audio element: preloads the signed excerpt, starts it on
  * the server timeline (seeking past any elapsed time), recovers from blocked
  * autoplay, and guarantees a round's audio is released before the next one.
+ * Playback deliberately outlives the round deadline so the reveal keeps the music;
+ * the owner stops it explicitly or by scheduling the next round.
  */
+/** Duration of the volume ramp applied whenever an excerpt starts. */
+const FADE_IN_MS = 500;
+const FADE_STEP_MS = 25;
+
 @Injectable({ providedIn: 'root' })
 export class AudioPlaybackService implements OnDestroy {
   private readonly audio = inject(AUDIO_ELEMENT)();
@@ -41,7 +44,7 @@ export class AudioPlaybackService implements OnDestroy {
 
   private pending: RoundPlaybackRequest | null = null;
   private startTimer: ReturnType<typeof setTimeout> | null = null;
-  private deadlineTimer: ReturnType<typeof setTimeout> | null = null;
+  private fadeTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.audio.preload = 'auto';
@@ -78,7 +81,6 @@ export class AudioPlaybackService implements OnDestroy {
     this.pending = request;
     this.errorSubject.next(null);
     this.preload(request.url);
-    this.deadlineTimer = setTimeout(() => this.stop('ended'), deadlineMs - now + DEADLINE_GRACE_MS);
 
     if (startMs > now) {
       this.setStatus('loading');
@@ -126,11 +128,13 @@ export class AudioPlaybackService implements OnDestroy {
       } catch {
         // Seeking before metadata is ready; the queued value applies on load.
       }
+      this.audio.volume = 0;
       void this.audio
         .play()
         .then(() => {
           if (this.pending === request) {
             this.setStatus('playing');
+            this.fadeIn();
           }
         })
         .catch((error: unknown) => {
@@ -158,14 +162,30 @@ export class AudioPlaybackService implements OnDestroy {
     return request.excerptStartSeconds + elapsedMs / 1000;
   }
 
+  private fadeIn(): void {
+    this.clearFade();
+    const fadeStartMs = Date.now();
+    this.fadeTimer = setInterval(() => {
+      const progress = Math.min(1, (Date.now() - fadeStartMs) / FADE_IN_MS);
+      this.audio.volume = progress;
+      if (progress >= 1) {
+        this.clearFade();
+      }
+    }, FADE_STEP_MS);
+  }
+
+  private clearFade(): void {
+    if (this.fadeTimer) {
+      clearInterval(this.fadeTimer);
+      this.fadeTimer = null;
+    }
+  }
+
   private teardownPlayback(): void {
+    this.clearFade();
     if (this.startTimer) {
       clearTimeout(this.startTimer);
       this.startTimer = null;
-    }
-    if (this.deadlineTimer) {
-      clearTimeout(this.deadlineTimer);
-      this.deadlineTimer = null;
     }
     if (!this.audio.paused) {
       this.audio.pause();

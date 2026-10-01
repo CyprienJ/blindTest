@@ -1,4 +1,5 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
@@ -6,6 +7,7 @@ import {
   ElementRef,
   HostListener,
   inject,
+  Injector,
   OnDestroy,
   OnInit,
   ViewChild,
@@ -59,6 +61,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   private readonly gameSocket = inject(GameSocketService);
   private readonly audioPlayback = inject(AudioPlaybackService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly injector = inject(Injector);
 
   @ViewChild('answerInput') private answerInput?: ElementRef<HTMLInputElement>;
 
@@ -355,7 +358,6 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.roundStartMs = null;
         this.lastRoundPoints = null;
         this.outcome = null;
-        this.audioPlayback.stop();
         return;
       case 'ROUND_STARTED':
         this.roundNumber = event.payload.roundIndex + 1;
@@ -505,7 +507,6 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.skipping = false;
     this.advancing = false;
     this.answer = '';
-    this.audioPlayback.stop();
     this.tick();
     this.announcement = `${this.outcomeLabel}. ${metadata.title ?? 'Round over'}. ${points} points.`;
   }
@@ -517,7 +518,11 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.cooldownSeconds = 0;
   }
 
+  // Event coalescing defers rendering past a plain timeout, and ngModel re-enables
+  // the input asynchronously, so focus only once the next render has settled.
   private focusInput(): void {
-    window.setTimeout(() => this.answerInput?.nativeElement.focus(), 0);
+    afterNextRender(() => window.setTimeout(() => this.answerInput?.nativeElement.focus(), 0), {
+      injector: this.injector,
+    });
   }
 }

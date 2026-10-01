@@ -21,6 +21,7 @@ function round(overrides: Partial<RoundPlaybackRequest> = {}): RoundPlaybackRequ
 class FakeAudio extends EventTarget {
   preload = '';
   currentTime = 0;
+  volume = 1;
   paused = true;
   readyState: number = HTMLMediaElement.HAVE_METADATA;
   src = '';
@@ -83,6 +84,29 @@ describe('AudioPlaybackService', () => {
     expect(statuses).toEqual(['idle', 'loading', 'playing']);
   });
 
+  it('fades the excerpt in over half a second once playback starts', async () => {
+    service.scheduleRound(round());
+    expect(audio.volume).toBe(0);
+    await flush();
+
+    jasmine.clock().tick(250);
+    expect(audio.volume).toBeCloseTo(0.5, 1);
+    jasmine.clock().tick(250);
+    expect(audio.volume).toBe(1);
+  });
+
+  it('restarts the fade-in silently for the next round', async () => {
+    service.scheduleRound(round());
+    await flush();
+    jasmine.clock().tick(500);
+
+    service.scheduleRound(round({ url: 'https://media.example/next.mp3' }));
+    expect(audio.volume).toBe(0);
+    await flush();
+    jasmine.clock().tick(500);
+    expect(audio.volume).toBe(1);
+  });
+
   it('defers playback until the scheduled start instant', async () => {
     service.scheduleRound(round({ startsAt: new Date(NOW + 2_000).toISOString() }));
     await flush();
@@ -140,14 +164,14 @@ describe('AudioPlaybackService', () => {
     expect(audio.playCalls.at(-1)).toBe('https://media.example/next.mp3');
   });
 
-  it('force-stops the excerpt at the round deadline', async () => {
+  it('keeps playing past the round deadline so the reveal keeps the music', async () => {
     service.scheduleRound(round());
     await flush();
     audio.pause.calls.reset();
 
-    jasmine.clock().tick(30_000 + 300);
-    expect(audio.pause).toHaveBeenCalled();
-    expect(statuses.at(-1)).toBe('ended');
+    jasmine.clock().tick(30_000 + 5_000);
+    expect(audio.pause).not.toHaveBeenCalled();
+    expect(statuses.at(-1)).toBe('playing');
   });
 
   it('releases the media element on stop', async () => {

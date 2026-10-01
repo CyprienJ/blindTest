@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideZoneChangeDetection } from '@angular/core';
+import { NgZone, provideZoneChangeDetection } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { ActiveSoloSession } from '../../../core/models/game-session.model';
@@ -112,7 +112,7 @@ describe('GameRoomComponent', () => {
       imports: [GameRoomComponent],
       providers: [
         provideRouter([]),
-        provideZoneChangeDetection(),
+        provideZoneChangeDetection({ eventCoalescing: true }),
         { provide: GameSocketService, useValue: socket },
         { provide: AudioPlaybackService, useValue: audio },
         {
@@ -247,6 +247,7 @@ describe('GameRoomComponent', () => {
     const harness = await setup(SESSION_ID);
     const fixture = await harness.create();
     socket.publicEvents$.next(roundStarted(0));
+    audio.stop.calls.reset();
 
     socket.publicEvents$.next({
       metadata: meta(5),
@@ -266,7 +267,7 @@ describe('GameRoomComponent', () => {
     });
     fixture.changeDetectorRef.detectChanges();
 
-    expect(audio.stop).toHaveBeenCalled();
+    expect(audio.stop).not.toHaveBeenCalled();
     expect(text(fixture)).toContain('+120 points');
     expect(text(fixture)).toContain('Take On Me');
     expect(text(fixture)).toContain('Next track in 4 seconds');
@@ -280,6 +281,46 @@ describe('GameRoomComponent', () => {
     socket.publicEvents$.next(roundStarted(1));
     fixture.changeDetectorRef.detectChanges();
     expect(fixture.nativeElement.querySelector('#answer-input')).not.toBeNull();
+  });
+
+  it('focuses the answer input once the next round has rendered', async () => {
+    sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+    const harness = await setup(SESSION_ID);
+    const fixture = await harness.create();
+    socket.publicEvents$.next(roundStarted(0));
+    socket.publicEvents$.next({
+      metadata: meta(5),
+      type: 'ROUND_REVEALED',
+      payload: {
+        roundIndex: 0,
+        totalRounds: 12,
+        outcome: 'TIMEOUT',
+        title: 'Take On Me',
+        artist: 'a-ha',
+        composer: null,
+        album: null,
+        roundPoints: 0,
+        totalScore: 0,
+        transitionAt: new Date(NOW + 4_000).toISOString(),
+      },
+    });
+    await fixture.whenStable();
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    // Deliver the event from a DOM event task, as a WebSocket message would be,
+    // so the app's event coalescing defers rendering like it does in production.
+    const zone = TestBed.inject(NgZone);
+    const deliver = (): void => socket.publicEvents$.next(roundStarted(1));
+    zone.run(() => window.addEventListener('test-socket-message', deliver));
+    window.dispatchEvent(new Event('test-socket-message'));
+    window.removeEventListener('test-socket-message', deliver);
+    jasmine.clock().tick(0);
+    await fixture.whenStable();
+    jasmine.clock().tick(0);
+
+    const input = fixture.nativeElement.querySelector('#answer-input') as HTMLInputElement;
+    expect(input.disabled).toBeFalse();
+    expect(document.activeElement).toBe(input);
   });
 
   for (const outcome of ['TITLE_FOUND', 'TIMEOUT', 'SKIPPED'] as const) {
