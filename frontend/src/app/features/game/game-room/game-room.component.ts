@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  HostListener,
   inject,
   OnDestroy,
   OnInit,
@@ -87,6 +88,16 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     if (!this.canAdvance) return;
     this.advancing = true;
     this.gameSocket.advanceRound();
+  }
+
+  @HostListener('window:keydown.enter', ['$event'])
+  onEnter(event: Event): void {
+    const keyboard = event as KeyboardEvent;
+    if (keyboard.repeat || this.phase !== 'revealed') return;
+    const target = keyboard.target;
+    if (target instanceof Element && target.closest('button, a, input, textarea, select')) return;
+    event.preventDefault();
+    this.advance();
   }
 
   feedback = '';
