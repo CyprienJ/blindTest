@@ -61,8 +61,9 @@ The countdown projects the event's `transitionAt`, or the recovered snapshot's
 `advanceAt`, under [ADR-0015](../adr/0015-four-second-automatic-reveal-transition.md).
 Reconnecting restores the reveal metadata, outcome, points, and remaining time.
 At zero the UI waits for the server; it never starts or reveals another track itself.
-The connected owner can send `ADVANCE_ROUND` with “Next now”; repeated clicks are
-blocked while pending. Rejected commands request a snapshot, and recoverable errors
+The connected owner can send `ADVANCE_ROUND` with “Next now” or the Enter
+key (ignored on auto-repeat or when a button, link, or field has focus); repeated
+clicks are blocked while pending. Rejected commands request a snapshot, and recoverable errors
 permit retry. The last round instead shows a results countdown and “Finish now”.
 Only `GAME_FINISHED` or a finished snapshot opens the existing finish view.
 

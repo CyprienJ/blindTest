@@ -330,6 +330,10 @@ describe('GameRoomComponent', () => {
       socket.status$.next('connected');
       fixture.changeDetectorRef.detectChanges();
       expect(button.textContent).toContain('Finish now');
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true }));
+      expect(socket.advanceRound).not.toHaveBeenCalled();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      expect(socket.advanceRound).toHaveBeenCalledTimes(1);
       button.click();
       fixture.componentInstance.advance();
       expect(socket.advanceRound).toHaveBeenCalledTimes(1);
