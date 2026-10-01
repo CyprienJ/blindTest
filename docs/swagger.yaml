@@ -545,8 +545,16 @@ components:
       allOf:
         - $ref: '#/components/schemas/Track'
         - type: object
-          required: [excerptStartSeconds]
+          required: [excerptStartSeconds, streamingLinks]
           properties:
+            difficulty:
+              type: integer
+              minimum: 1
+              maximum: 5
+              nullable: true
+              description: 1 (easiest) to 5 (hardest); null until rated.
+            streamingLinks:
+              $ref: '#/components/schemas/TrackStreamingLinks'
             excerptStartSeconds:
               type: integer
               minimum: 0
@@ -670,6 +678,31 @@ components:
         imageUrl:
           type: string
           nullable: true
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        streamingLinks:
+          allOf:
+            - $ref: '#/components/schemas/TrackStreamingLinks'
+          nullable: true
+          description: |
+            When present, replaces all six links; null or blank values clear
+            a link. Omit the object to keep the stored links.
+
+    TrackStreamingLinks:
+      type: object
+      description: |
+        Optional public listening links. Each value is empty/null or an HTTP(S)
+        URL on the platform's domain (for example open.spotify.com for Spotify).
+      properties:
+        deezer: { type: string, nullable: true, maxLength: 500 }
+        youtube: { type: string, nullable: true, maxLength: 500 }
+        spotify: { type: string, nullable: true, maxLength: 500 }
+        qobuz: { type: string, nullable: true, maxLength: 500 }
+        tidal: { type: string, nullable: true, maxLength: 500 }
+        soundcloud: { type: string, nullable: true, maxLength: 500 }
 
     TrackAnswerType:
       type: string

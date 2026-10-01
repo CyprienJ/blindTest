@@ -324,6 +324,51 @@
                 </label>
               </div>
 
+              <div class="alias-section">
+                <div class="field">
+                  <span id="difficulty-label">Difficulty *</span>
+                  <app-difficulty-rating
+                    formControlName="difficulty"
+                    labelledBy="difficulty-label"
+                    (click)="invalidateSelection()"
+                  />
+                  @if (
+                    importForm.controls.difficulty.touched && importForm.controls.difficulty.invalid
+                  ) {
+                    <small>Choose a difficulty from 1 to 5 stars.</small>
+                  }
+                </div>
+
+                <div class="alias-section" formGroupName="streamingLinks">
+                  <div class="alias-heading">
+                    <div>
+                      <h3>Streaming links</h3>
+                      <p>Optional links to this song on streaming platforms.</p>
+                    </div>
+                  </div>
+                  <div class="form-grid compact-fields">
+                    @for (platform of streamingPlatforms; track platform.key) {
+                      <label class="field">
+                        <span>{{ platform.label }}</span>
+                        <input
+                          class="bt-input"
+                          type="url"
+                          [formControlName]="platform.key"
+                          placeholder="https://…"
+                          (input)="invalidateSelection()"
+                        />
+                        @if (
+                          importForm.controls.streamingLinks.controls[platform.key].touched &&
+                          importForm.controls.streamingLinks.controls[platform.key].invalid
+                        ) {
+                          <small>Enter a {{ platform.label }} link.</small>
+                        }
+                      </label>
+                    }
+                  </div>
+                </div>
+              </div>
+
               <div class="excerpt-editor">
                 <div class="excerpt-labels">
                   <strong>60-second game window</strong>

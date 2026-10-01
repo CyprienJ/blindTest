@@ -32,6 +32,8 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 - Backend multiplayer joining, guest tokens, social APIs, profile management,
   general history browsing, and administrator user management are absent.
 - Restarting the backend loses active games; completed history is durable.
+- Track difficulty and streaming links are captured only in the import review;
+  the track editor, public catalogue, and gameplay do not use them yet.
 
 ## Roadmap discrepancy
 

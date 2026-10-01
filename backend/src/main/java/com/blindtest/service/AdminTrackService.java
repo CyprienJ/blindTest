@@ -157,6 +157,12 @@ public class AdminTrackService {
         if (request.getImageUrl() != null) {
             track.setImageUrl(request.getImageUrl());
         }
+        if (request.getDifficulty() != null) {
+            track.setDifficulty(request.getDifficulty());
+        }
+        if (request.getStreamingLinks() != null) {
+            request.getStreamingLinks().applyTo(track);
+        }
         if (track.getStatus() == TrackStatus.PUBLISHED) {
             validatePublishable(track);
         }

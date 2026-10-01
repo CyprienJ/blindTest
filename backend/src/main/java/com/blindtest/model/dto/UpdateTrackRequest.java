@@ -1,5 +1,7 @@
 package com.blindtest.model.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -20,4 +22,10 @@ public class UpdateTrackRequest {
     @Min(0)
     private Integer excerptStartSeconds;
     private String imageUrl;
+    @Min(1)
+    @Max(5)
+    private Short difficulty;
+    /** When present, replaces all streaming links; blank links are cleared. */
+    @Valid
+    private TrackStreamingLinks streamingLinks;
 }

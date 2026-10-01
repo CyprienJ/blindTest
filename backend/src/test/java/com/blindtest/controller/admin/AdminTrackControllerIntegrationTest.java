@@ -300,6 +300,75 @@ class AdminTrackControllerIntegrationTest {
     }
 
     @Test
+    void updateTrackStoresDifficultyAndStreamingLinks() throws Exception {
+        String url = "/api/admin/tracks/" + pendingTrack.getId();
+        mockMvc.perform(put(url).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {
+                                  "difficulty": 4,
+                                  "streamingLinks": {
+                                    "deezer": "https://www.deezer.com/track/3135556",
+                                    "youtube": "https://music.youtube.com/watch?v=dQw4w9WgXcQ",
+                                    "spotify": "https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC",
+                                    "qobuz": "https://open.qobuz.com/track/123",
+                                    "tidal": "https://tidal.com/browse/track/123",
+                                    "soundcloud": ""
+                                  }
+                                }
+                                """)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.difficulty").value(4)).
+                andExpect(jsonPath("$.streamingLinks.deezer").value("https://www.deezer.com/track/3135556")).
+                andExpect(jsonPath("$.streamingLinks.spotify").
+                        value("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC")).
+                andExpect(jsonPath("$.streamingLinks.soundcloud").doesNotExist());
+
+        mockMvc.perform(put(url).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"title": "Renamed"}
+                                """)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.difficulty").value(4)).
+                andExpect(jsonPath("$.streamingLinks.tidal").value("https://tidal.com/browse/track/123"));
+
+        mockMvc.perform(put(url).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"streamingLinks": {"deezer": "https://www.deezer.com/track/1"}}
+                                """)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.streamingLinks.deezer").value("https://www.deezer.com/track/1")).
+                andExpect(jsonPath("$.streamingLinks.tidal").doesNotExist());
+    }
+
+    @Test
+    void updateTrackRejectsOutOfRangeDifficultyAndForeignStreamingLink() throws Exception {
+        String url = "/api/admin/tracks/" + pendingTrack.getId();
+        mockMvc.perform(put(url).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"difficulty": 6}
+                                """)).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        mockMvc.perform(put(url).
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(HttpHeaders.AUTHORIZATION, adminToken).
+                        content("""
+                                {"streamingLinks": {"spotify": "https://evil.example/open.spotify.com"}}
+                                """)).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
     void administratorCanCreateListUpdateAndDeleteAliasesWithoutNormalizationLeak()
             throws Exception {
         String aliasesUrl = "/api/admin/tracks/" + pendingTrack.getId() + "/aliases";

@@ -1,5 +1,7 @@
 export type TrackStatus = 'PENDING' | 'PUBLISHED' | 'REJECTED';
 export type TrackAnswerType = 'TITLE' | 'ARTIST' | 'COMPOSER' | 'ALBUM';
+export type StreamingPlatform = 'deezer' | 'youtube' | 'spotify' | 'qobuz' | 'tidal' | 'soundcloud';
+export type TrackStreamingLinks = Record<StreamingPlatform, string | null>;
 
 export interface AdminTrack {
   id: string;
@@ -13,6 +15,9 @@ export interface AdminTrack {
   durationSeconds: number | null;
   excerptStartSeconds: number;
   imageUrl: string | null;
+  /** 1 (easiest) to 5 (hardest); null when not rated yet. */
+  difficulty: number | null;
+  streamingLinks: TrackStreamingLinks;
   audioUrl: string | null;
   audioChecksum: string | null;
   audioSizeBytes: number | null;
@@ -48,6 +53,9 @@ export interface TrackUpdate {
   durationSeconds: number | null;
   excerptStartSeconds: number;
   imageUrl: string | null;
+  difficulty?: number;
+  /** Replaces every stored link when present; null clears a link. */
+  streamingLinks?: TrackStreamingLinks;
 }
 
 export interface MediaPreview {

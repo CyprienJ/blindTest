@@ -17,9 +17,11 @@ import {
   FormGroup,
   FormBuilder,
   ReactiveFormsModule,
+  ValidatorFn,
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { DifficultyRatingComponent } from '../../../shared/difficulty-rating/difficulty-rating.component';
 import {
   catchError,
   concatMap,
@@ -34,6 +36,8 @@ import {
 import {
   AdminTrack,
   MediaPreview,
+  StreamingPlatform,
+  TrackStreamingLinks,
   TrackAnswerType,
   TrackUpdate,
   TrackWaveform,
@@ -55,6 +59,32 @@ const IMPORT_ALIASES_KEY = 'active_admin_import_aliases';
 const PREVIEW_DURATION_SECONDS = 60;
 /** Mirrors the server's default app.import.max-size-bytes so oversized files fail before upload. */
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+/** Mirrors TrackStreamingLinks on the server: an empty value or a URL on the platform domain. */
+const STREAMING_PLATFORMS: { key: StreamingPlatform; label: string; hosts: string }[] = [
+  { key: 'deezer', label: 'Deezer', hosts: 'deezer\\.com|deezer\\.page\\.link|dzr\\.page\\.link' },
+  { key: 'youtube', label: 'YouTube', hosts: 'youtube\\.com|youtu\\.be' },
+  { key: 'spotify', label: 'Spotify', hosts: 'spotify\\.com|spotify\\.link' },
+  { key: 'qobuz', label: 'Qobuz', hosts: 'qobuz\\.com' },
+  { key: 'tidal', label: 'Tidal', hosts: 'tidal\\.com' },
+  { key: 'soundcloud', label: 'SoundCloud', hosts: 'soundcloud\\.com|snd\\.sc' },
+];
+
+function streamingLinkValidator(hosts: string): ValidatorFn {
+  const pattern = new RegExp(`^https?://([a-z0-9-]+\\.)*(${hosts})(/\\S*)?$`, 'i');
+  return (control) => {
+    const value = String(control.value ?? '').trim();
+    return value === '' || (value.length <= 500 && pattern.test(value))
+      ? null
+      : { streamingLink: true };
+  };
+}
+
+function streamingLinkControls(): Record<StreamingPlatform, [string, ValidatorFn]> {
+  return Object.fromEntries(
+    STREAMING_PLATFORMS.map(({ key, hosts }) => [key, ['', streamingLinkValidator(hosts)]]),
+  ) as Record<StreamingPlatform, [string, ValidatorFn]>;
+}
+
 type AliasFormGroup = FormGroup<{
   type: FormControl<TrackAnswerType>;
   value: FormControl<string>;
@@ -64,7 +94,7 @@ type AliasFormGroup = FormGroup<{
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-track-import',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, DifficultyRatingComponent],
   templateUrl: './track-import.component.html',
   styleUrl: './track-import.component.scss',
 })
@@ -78,6 +108,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly aliasTypes: TrackAnswerType[] = ['TITLE', 'ARTIST', 'COMPOSER', 'ALBUM'];
+  readonly streamingPlatforms = STREAMING_PLATFORMS;
   private readonly aliasControls = this.formBuilder.array<AliasFormGroup>([]);
   readonly importForm = this.formBuilder.nonNullable.group({
     youtubeUrl: [
@@ -98,6 +129,8 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     durationSeconds: ['', [Validators.pattern(/^\d*$/), Validators.min(1)]],
     excerptStartSeconds: [0, [Validators.required, Validators.min(0)]],
     imageUrl: ['', Validators.maxLength(500)],
+    difficulty: this.formBuilder.control<number | null>(null, Validators.required),
+    streamingLinks: this.formBuilder.nonNullable.group(streamingLinkControls()),
     aliases: this.aliasControls,
   });
 
@@ -552,7 +585,9 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       durationSeconds: '',
       excerptStartSeconds: 0,
       imageUrl: '',
+      difficulty: null,
     });
+    this.importForm.controls.streamingLinks.reset();
     this.aliases.clear();
   }
 
@@ -764,6 +799,10 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       durationSeconds: track.durationSeconds?.toString() ?? '',
       excerptStartSeconds: track.excerptStartSeconds,
       imageUrl: track.imageUrl ?? '',
+      difficulty: track.difficulty,
+      streamingLinks: Object.fromEntries(
+        STREAMING_PLATFORMS.map(({ key }) => [key, track.streamingLinks?.[key] ?? '']),
+      ),
     });
     this.importForm.enable();
     this.importForm.controls.youtubeUrl.disable();
@@ -813,6 +852,10 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       durationSeconds: this.optionalNumber(value.durationSeconds),
       excerptStartSeconds: this.excerptStart,
       imageUrl: this.optional(value.imageUrl),
+      difficulty: value.difficulty ?? undefined,
+      streamingLinks: Object.fromEntries(
+        STREAMING_PLATFORMS.map(({ key }) => [key, this.optional(value.streamingLinks[key])]),
+      ) as TrackStreamingLinks,
     };
   }
 

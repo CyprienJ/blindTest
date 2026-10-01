@@ -71,6 +71,28 @@ public class TrackEntity {
     @Column(name = "excerpt_start_seconds", nullable = false)
     private int excerptStartSeconds;
 
+    /** Perceived difficulty from 1 (easiest) to 5 (hardest); {@code null} when not rated. */
+    private Short difficulty;
+
+    @Column(name = "deezer_url", length = 500)
+    private String deezerUrl;
+
+    /** Public listening link; distinct from {@link #youtubeUrl}, the import source. */
+    @Column(name = "streaming_youtube_url", length = 500)
+    private String streamingYoutubeUrl;
+
+    @Column(name = "spotify_url", length = 500)
+    private String spotifyUrl;
+
+    @Column(name = "qobuz_url", length = 500)
+    private String qobuzUrl;
+
+    @Column(name = "tidal_url", length = 500)
+    private String tidalUrl;
+
+    @Column(name = "soundcloud_url", length = 500)
+    private String soundcloudUrl;
+
     @Column(name = "waveform_peaks", columnDefinition = "TEXT")
     private String waveformPeaks;
 

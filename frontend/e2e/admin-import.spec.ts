@@ -21,6 +21,15 @@ const track = {
   durationSeconds: 294,
   excerptStartSeconds: 0,
   imageUrl: null,
+  difficulty: null,
+  streamingLinks: {
+    deezer: null,
+    youtube: null,
+    spotify: null,
+    qobuz: null,
+    tidal: null,
+    soundcloud: null,
+  },
   audioUrl: null,
   audioChecksum: 'a'.repeat(64),
   audioSizeBytes: 1234,
@@ -142,11 +151,29 @@ test.describe('administrator track import', () => {
     await page.getByLabel('Excerpt start').fill('30');
     await expect(livePreview).toHaveAttribute('data-played-from-slider', 'true');
     await page.getByRole('button', { name: 'Validate selection' }).click();
+    await expect(page.getByText('Choose a difficulty from 1 to 5 stars.')).toBeVisible();
+    await page.getByRole('radio', { name: '4 stars' }).click();
+    await page.getByLabel('Spotify').fill('https://evil.example/track');
+    await page.getByRole('button', { name: 'Validate selection' }).click();
+    await expect(page.getByText('Enter a Spotify link.')).toBeVisible();
+    await page
+      .getByLabel('Spotify')
+      .fill(' https://open.spotify.com/track/7J1uxwnxfQLu4APicE5Rnj ');
+    await page.getByRole('button', { name: 'Validate selection' }).click();
 
     await expect(page.getByText('Saved title alias.')).toBeVisible();
     expect(aliasBody).toEqual({ type: 'TITLE', value: 'Billie-Jean' });
     expect(updateBody['title']).toBe('Billie Jean (edited)');
     expect(updateBody['excerptStartSeconds']).toBe(30);
+    expect(updateBody['difficulty']).toBe(4);
+    expect(updateBody['streamingLinks']).toEqual({
+      deezer: null,
+      youtube: null,
+      spotify: 'https://open.spotify.com/track/7J1uxwnxfQLu4APicE5Rnj',
+      qobuz: null,
+      tidal: null,
+      soundcloud: null,
+    });
 
     await expect(page.locator('audio')).toBeVisible();
     await page.getByRole('button', { name: 'Publish track' }).click();
@@ -203,6 +230,7 @@ test.describe('administrator track import', () => {
 
     const publishButton = page.getByRole('button', { name: 'Publish track' });
     await expect(publishButton).toBeDisabled();
+    await page.getByRole('radio', { name: '2 stars' }).click();
     await page.getByRole('button', { name: 'Validate selection' }).click();
     await expect(page.locator('audio')).toBeVisible();
     await expect(publishButton).toBeEnabled();

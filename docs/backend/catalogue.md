@@ -12,6 +12,11 @@ A track has a canonical primary title, display artist, and optional album,
 composer, work, category, decade, duration, and image metadata. Administrators
 manage alternative answers for title, artist, composer, and album. An internal
 normalized key prevents duplicate aliases; gameplay matching uses its own rules.
+Tracks also carry an administrator difficulty from 1 (easiest) to 5 stars and
+optional Deezer, YouTube, Spotify, Qobuz, Tidal, and SoundCloud links, each
+validated against its platform domain. These fields are stored and returned to
+administrators only; the import review requires a difficulty, but gameplay and
+public catalogue responses do not use them yet.
 
 Publication requires primary metadata plus either a legacy audio URL or a complete
 private-object key/checksum/positive-size tuple. A nonzero excerpt offset requires
@@ -46,8 +51,9 @@ YouTube blocks many datacenter IPs as bots).
    waveform peaks, then uploads a content-addressed object to private storage.
 6. Object existence is confirmed before completion. Temporary files are cleaned
    up; errors exposed to clients are sanitized.
-7. The administrator previews the completed unpublished import, edits metadata
-   and aliases, and publishes or rejects it transactionally and idempotently.
+7. The administrator previews the completed unpublished import, edits metadata,
+   difficulty, streaming links, and aliases, and publishes or rejects it
+   transactionally and idempotently.
 
 STOMP user messages provide live progress. Polling retains progress and lifecycle
 state across browser reloads; startup recovery resolves interrupted active jobs.

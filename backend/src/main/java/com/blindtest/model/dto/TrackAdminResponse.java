@@ -21,6 +21,8 @@ public record TrackAdminResponse(
         Integer durationSeconds,
         int excerptStartSeconds,
         String imageUrl,
+        Short difficulty,
+        TrackStreamingLinks streamingLinks,
         String audioUrl,
         String audioChecksum,
         Long audioSizeBytes,
@@ -34,7 +36,7 @@ public record TrackAdminResponse(
                 entity.getId(), entity.getTitle(), entity.getArtist(),
                 entity.getAlbum(), entity.getComposer(), entity.getWork(), entity.getCategory(),
                 entity.getDecade(), entity.getDurationSeconds(), entity.getExcerptStartSeconds(),
-                entity.getImageUrl(),
+                entity.getImageUrl(), entity.getDifficulty(), TrackStreamingLinks.from(entity),
                 entity.getAudioUrl(), entity.getAudioChecksum(), entity.getAudioSizeBytes(),
                 entity.getYoutubeUrl(),
                 entity.getStatus().name(), entity.getCreatedAt());
