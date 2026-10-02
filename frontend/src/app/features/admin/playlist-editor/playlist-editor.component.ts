@@ -4,51 +4,45 @@ import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   HostListener,
   inject,
   OnInit,
+  viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, finalize } from 'rxjs';
+import { finalize } from 'rxjs';
 import { AdminTrack } from '../track-list/admin-track.model';
-import { AdminTrackService } from '../track-list/admin-track.service';
 import {
   AdminPlaylistDetail,
   AdminPlaylistSummary,
   PlaylistMetadata,
 } from './admin-playlist.model';
 import { AdminPlaylistService } from './admin-playlist.service';
+import { PlaylistTrackPickerComponent } from './playlist-track-picker.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-playlist-editor',
   standalone: true,
-  imports: [CommonModule, DragDropModule, ReactiveFormsModule],
+  imports: [CommonModule, DragDropModule, ReactiveFormsModule, PlaylistTrackPickerComponent],
   templateUrl: './playlist-editor.component.html',
   styleUrl: './playlist-editor.component.scss',
 })
 export class PlaylistEditorComponent implements OnInit {
   private readonly playlistsService = inject(AdminPlaylistService);
-  private readonly tracksService = inject(AdminTrackService);
   private readonly formBuilder = inject(FormBuilder);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly picker = viewChild(PlaylistTrackPickerComponent);
 
   readonly metadataForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
     description: ['', Validators.maxLength(1000)],
     imageUrl: ['', Validators.maxLength(500)],
   });
-  readonly searchControl = this.formBuilder.nonNullable.control('');
-
   playlists: AdminPlaylistSummary[] = [];
   selected: AdminPlaylistDetail | null = null;
-  availableTracks: AdminTrack[] = [];
   creating = false;
   loadingPlaylists = true;
   loadingDetail = false;
-  loadingTracks = false;
   savingMetadata = false;
   deleting = false;
   reordering = false;
@@ -56,16 +50,11 @@ export class PlaylistEditorComponent implements OnInit {
   deleteConfirmation = false;
   listError = '';
   detailError = '';
-  catalogueError = '';
   actionError = '';
   successMessage = '';
 
   ngOnInit(): void {
-    this.searchControl.valueChanges
-      .pipe(debounceTime(250), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.loadAvailableTracks());
     this.loadPlaylists();
-    this.loadAvailableTracks();
   }
 
   loadPlaylists(preferredId?: string): void {
@@ -225,6 +214,7 @@ export class PlaylistEditorComponent implements OnInit {
             return;
           }
           this.applyTracks(this.selected.tracks.filter((item) => item.id !== track.id));
+          this.picker()?.reload();
           this.showSuccess(`${track.title} removed from the playlist.`);
         },
         error: (error) => (this.actionError = this.errorMessage(error)),
@@ -249,8 +239,8 @@ export class PlaylistEditorComponent implements OnInit {
     return this.selected?.tracks.some((track) => track.id === trackId) ?? false;
   }
 
-  visibleAvailableTracks(): AdminTrack[] {
-    return this.availableTracks.filter((track) => !this.hasTrack(track.id));
+  get memberIds(): string[] {
+    return this.selected?.tracks.map((track) => track.id) ?? [];
   }
 
   formatDuration(seconds: number | null): string {
@@ -294,18 +284,6 @@ export class PlaylistEditorComponent implements OnInit {
           this.metadataForm.markAsPristine();
         },
         error: (error) => (this.detailError = this.errorMessage(error)),
-      });
-  }
-
-  loadAvailableTracks(): void {
-    this.loadingTracks = true;
-    this.catalogueError = '';
-    this.tracksService
-      .list(0, 20, 'PUBLISHED', this.searchControl.value)
-      .pipe(finalize(() => (this.loadingTracks = false)))
-      .subscribe({
-        next: (response) => (this.availableTracks = response.content),
-        error: (error) => (this.catalogueError = this.errorMessage(error)),
       });
   }
 

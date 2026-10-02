@@ -1,5 +1,6 @@
 package com.blindtest.controller.admin;
 
+import com.blindtest.model.dto.AdminTrackFilter;
 import com.blindtest.model.dto.MediaPreviewResponse;
 import com.blindtest.model.dto.TrackAnswerAliasRequest;
 import com.blindtest.model.dto.TrackAnswerAliasResponse;
@@ -40,8 +41,18 @@ public class AdminTrackController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) TrackStatus status,
-            @RequestParam(required = false) String search) {
-        return adminTrackService.getAllTracks(page, size, status, search);
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Short decade,
+            @RequestParam(required = false) Short difficulty,
+            @RequestParam(required = false) UUID excludePlaylistId) {
+        return adminTrackService.getAllTracks(page, size, new AdminTrackFilter(
+                status, search, category, decade, difficulty, excludePlaylistId));
+    }
+
+    @GetMapping("/categories")
+    public List<String> getCategories() {
+        return adminTrackService.getCategories();
     }
 
     @GetMapping("/{id}/preview-url")

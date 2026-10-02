@@ -194,8 +194,7 @@
   white-space: nowrap;
 }
 
-.compact-state,
-.catalogue-state {
+.compact-state {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -206,13 +205,11 @@
   text-align: center;
 }
 
-.compact-state.empty,
-.catalogue-state.error-text {
+.compact-state.empty {
   flex-direction: column;
 }
 
-.compact-state p,
-.catalogue-state p {
+.compact-state p {
   margin: 0;
 }
 
@@ -256,6 +253,7 @@
 .tracks-panel,
 .details-panel,
 .catalogue-panel {
+  display: block;
   border: 1px solid var(--line-soft);
   border-radius: var(--r-lg);
   background: var(--bg-0);
@@ -340,8 +338,7 @@
   gap: 3px;
 }
 
-.order-actions button,
-.catalogue-results button {
+.order-actions button {
   display: grid;
   place-items: center;
   width: 28px;
@@ -353,14 +350,12 @@
   cursor: pointer;
 }
 
-.order-actions button:hover:not(:disabled),
-.catalogue-results button:hover:not(:disabled) {
+.order-actions button:hover:not(:disabled) {
   color: var(--fg-0);
   background: var(--bg-3);
 }
 
-.order-actions button:disabled,
-.catalogue-results button:disabled {
+.order-actions button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
@@ -469,55 +464,6 @@
 
 .unsaved {
   color: var(--warn) !important;
-}
-
-.search-field {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 38px;
-  margin-bottom: 10px;
-  padding: 0 11px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  color: var(--fg-3);
-  background: var(--bg-1);
-}
-
-.search-field:focus-within {
-  border-color: var(--accent);
-}
-
-.search-field input {
-  min-width: 0;
-  width: 100%;
-  border: 0;
-  outline: 0;
-  color: var(--fg-0);
-  background: transparent;
-  font: 12px var(--font-sans);
-}
-
-.catalogue-results {
-  display: grid;
-  gap: 3px;
-  max-height: 280px;
-  overflow-y: auto;
-}
-
-.catalogue-results article {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 3px;
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.track-art.small {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  font-size: 10px;
 }
 
 .error-text {

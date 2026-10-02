@@ -1546,6 +1546,9 @@ paths:
     get:
       tags: [Admin - Tracks]
       summary: Search and paginate tracks across every publication status
+      description: |
+        Results are ordered newest first, then by ID, so consecutive pages never
+        repeat or skip a track. Every supplied filter must match.
       parameters:
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/SizeParam'
@@ -1559,6 +1562,28 @@ paths:
           description: Case-insensitive title, artist, album, or category search.
           schema:
             type: string
+        - name: category
+          in: query
+          description: Exact category, ignoring case.
+          schema:
+            type: string
+        - name: decade
+          in: query
+          schema:
+            type: integer
+            example: 1980
+        - name: difficulty
+          in: query
+          description: Administrator difficulty; values outside 1–5 fail with `INVALID_PARAMETER`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+        - name: excludePlaylistId
+          in: query
+          description: Hides tracks that already belong to this playlist.
+          schema:
+            $ref: '#/components/schemas/UUID'
       responses:
         '200':
           description: Administrator catalogue page
@@ -1579,6 +1604,26 @@ paths:
                     type: integer
                   size:
                     type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/tracks/categories:
+    get:
+      tags: [Admin - Tracks]
+      summary: List the distinct track categories
+      responses:
+        '200':
+          description: Non-blank categories used by any track, alphabetically
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

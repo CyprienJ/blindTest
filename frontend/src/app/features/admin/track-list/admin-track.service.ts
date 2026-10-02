@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { API_BASE } from '../../../core/config';
 import {
   AdminTrack,
+  AdminTrackFilters,
   CoverQuery,
   CoverSuggestion,
   MediaPreview,
@@ -25,6 +26,7 @@ export class AdminTrackService {
     size: number,
     status: TrackStatus | null = null,
     search = '',
+    filters: AdminTrackFilters = {},
   ): Observable<PageResponse<AdminTrack>> {
     let params = new HttpParams().set('page', page).set('size', size);
     if (status) {
@@ -33,7 +35,16 @@ export class AdminTrackService {
     if (search.trim()) {
       params = params.set('search', search.trim());
     }
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== null && value !== undefined && value !== '') {
+        params = params.set(key, value);
+      }
+    }
     return this.http.get<PageResponse<AdminTrack>>(this.baseUrl, { params });
+  }
+
+  categories(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.baseUrl}/categories`);
   }
 
   update(id: string, update: TrackUpdate): Observable<AdminTrack> {

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 
 /** Spring Data JPA repository for {@link TrackEntity}. */
 public interface TrackRepository extends JpaRepository<TrackEntity, UUID>,
@@ -22,6 +23,14 @@ public interface TrackRepository extends JpaRepository<TrackEntity, UUID>,
 
     /** Returns only identifiers and object keys for tracks backed by object storage. */
     List<TrackMediaReference> findAllProjectedByAudioObjectKeyIsNotNull();
+
+    /** Returns the distinct non-blank categories, alphabetically. */
+    @Query("""
+            SELECT DISTINCT t.category FROM TrackEntity t
+            WHERE t.category IS NOT NULL AND TRIM(t.category) <> ''
+            ORDER BY t.category
+            """)
+    List<String> findDistinctCategories();
 
     /** Returns only identifiers and cover IDs for tracks with a stored cover. */
     List<TrackCoverReference> findCoverReferencesByCoverIdIsNotNull();

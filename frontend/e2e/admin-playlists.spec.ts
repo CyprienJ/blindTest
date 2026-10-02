@@ -181,4 +181,103 @@ test.describe('admin playlist editor', () => {
     await page.getByRole('link', { name: 'Track catalogue' }).click();
     await expect(page).toHaveURL(/\/admin\/playlists/);
   });
+
+  test('filters, pages and previews published tracks outside the playlist', async ({ page }) => {
+    const playlist = {
+      id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      name: 'Eighties',
+      description: null,
+      imageUrl: null,
+      trackCount: 1,
+      tracks: [firstTrack],
+    };
+    const catalogue = Array.from({ length: 25 }, (_, index) => ({
+      ...track(
+        `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+        `Song ${index + 1}`,
+        'Band',
+      ),
+      difficulty: (index % 5) + 1,
+      excerptStartSeconds: 2,
+      excerptDurationSeconds: 5,
+    }));
+    const listRequests: URLSearchParams[] = [];
+    await page.route('**/api/admin/playlists', (route) =>
+      route.fulfill({ json: [{ ...playlist, tracks: undefined }] }),
+    );
+    await page.route(`**/api/admin/playlists/${playlist.id}`, (route) =>
+      route.fulfill({ json: playlist }),
+    );
+    await page.route('**/api/admin/tracks/categories', (route) =>
+      route.fulfill({ json: ['Pop', 'Rock'] }),
+    );
+    await page.route('**/api/admin/tracks?*', async (route) => {
+      const params = new URL(route.request().url()).searchParams;
+      listRequests.push(params);
+      const pageIndex = Number(params.get('page'));
+      await route.fulfill({
+        json: {
+          ...pageResponse(catalogue.slice(pageIndex * 20, pageIndex * 20 + 20)),
+          totalElements: catalogue.length,
+          totalPages: 2,
+          number: pageIndex,
+        },
+      });
+    });
+    await page.route('**/api/admin/tracks/*/preview-url', (route) =>
+      route.fulfill({
+        json: { url: '/media/catalogue-preview.wav', expiresAt: '2026-10-02T18:00:00Z' },
+      }),
+    );
+    await page.route('**/media/catalogue-preview.wav', (route) =>
+      route.fulfill({ status: 200, contentType: 'audio/wav', body: wavSilence(10) }),
+    );
+
+    await page.goto('/admin/playlists');
+    await expect(page.getByText('25 published tracks not in this playlist')).toBeVisible();
+    expect(listRequests.at(-1)?.get('excludePlaylistId')).toBe(playlist.id);
+    await expect(page.locator('.catalogue-results article')).toHaveCount(20);
+    await expect(page.getByLabel('Difficulty 1 of 5').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Show more (5 remaining)' }).click();
+    await expect(page.locator('.catalogue-results article')).toHaveCount(25);
+    expect(listRequests.at(-1)?.get('page')).toBe('1');
+
+    await page.getByRole('combobox', { name: 'Category' }).selectOption('Rock');
+    await page.getByRole('combobox', { name: 'Decade' }).selectOption('1980');
+    await page.getByRole('combobox', { name: 'Difficulty' }).selectOption('3');
+    await expect
+      .poll(() => {
+        const params = listRequests.at(-1);
+        return [params?.get('category'), params?.get('decade'), params?.get('difficulty')];
+      })
+      .toEqual(['Rock', '1980', '3']);
+    expect(listRequests.at(-1)?.get('page')).toBe('0');
+
+    const preview = page.getByRole('button', { name: 'Preview Song 1', exact: true });
+    await preview.click();
+    const stop = page.getByRole('button', { name: 'Stop preview of Song 1' });
+    await expect(stop).toHaveAttribute('aria-pressed', 'true');
+    await stop.click();
+    await expect(preview).toHaveAttribute('aria-pressed', 'false');
+  });
 });
+
+function wavSilence(seconds: number, rate = 8_000): Buffer {
+  const dataLength = seconds * rate * 2;
+  const wav = Buffer.alloc(44 + dataLength);
+  wav.write('RIFF', 0);
+  wav.writeUInt32LE(36 + dataLength, 4);
+  wav.write('WAVE', 8);
+  wav.write('fmt ', 12);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(rate, 24);
+  wav.writeUInt32LE(rate * 2, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36);
+  wav.writeUInt32LE(dataLength, 40);
+  return wav;
+}

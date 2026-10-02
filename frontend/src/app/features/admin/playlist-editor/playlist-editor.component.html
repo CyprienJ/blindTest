@@ -296,75 +296,14 @@
               </form>
             </section>
 
-            <section class="catalogue-panel">
-              <div class="panel-heading">
-                <div>
-                  <h3>Add tracks</h3>
-                  <p>Published catalogue only</p>
-                </div>
-              </div>
-              <label class="search-field">
-                <span aria-hidden="true">⌕</span>
-                <span class="sr-only">Search published tracks</span>
-                <input
-                  type="search"
-                  [formControl]="searchControl"
-                  placeholder="Search title or artist…"
-                />
-              </label>
-
-              @if (loadingTracks) {
-                <div class="catalogue-state" role="status">
-                  <span class="spinner" aria-hidden="true"></span> Searching…
-                </div>
-              } @else if (catalogueError) {
-                <div class="catalogue-state error-text" role="alert">
-                  <p>{{ catalogueError }}</p>
-                  <button
-                    class="bt-btn bt-btn-sm bt-btn-ghost"
-                    type="button"
-                    (click)="loadAvailableTracks()"
-                  >
-                    Retry
-                  </button>
-                </div>
-              } @else if (visibleAvailableTracks().length === 0) {
-                <div class="catalogue-state">
-                  <p>No available published tracks found.</p>
-                </div>
-              } @else {
-                <div class="catalogue-results">
-                  @for (track of visibleAvailableTracks(); track track.id) {
-                    <article>
-                      <span class="track-art small" aria-hidden="true">
-                        @if (track.coverUrl ?? track.imageUrl; as cover) {
-                          <img [src]="cover" alt="" />
-                        } @else {
-                          ♪
-                        }
-                      </span>
-                      <span class="track-copy">
-                        <strong>{{ track.title }}</strong>
-                        <small>{{ track.artist }}</small>
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Add {{ track.title }}"
-                        title="Add track"
-                        [disabled]="!selected || !!trackActionId"
-                        (click)="addTrack(track)"
-                      >
-                        @if (trackActionId === track.id) {
-                          <span class="spinner" aria-hidden="true"></span>
-                        } @else {
-                          ＋
-                        }
-                      </button>
-                    </article>
-                  }
-                </div>
-              }
-            </section>
+            <app-playlist-track-picker
+              class="catalogue-panel"
+              [playlistId]="selected?.id ?? null"
+              [memberIds]="memberIds"
+              [canAdd]="!!selected && !trackActionId"
+              [addingTrackId]="trackActionId"
+              (add)="addTrack($event)"
+            />
           </aside>
         </div>
       }

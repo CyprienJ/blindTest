@@ -1,0 +1,130 @@
+<div class="panel-heading">
+  <div>
+    <h3>Add tracks</h3>
+    <p>
+      @if (loading) {
+        Published tracks not in this playlist
+      } @else {
+        {{ availableCount }} published {{ availableCount === 1 ? 'track' : 'tracks' }} not in this
+        playlist
+      }
+    </p>
+  </div>
+</div>
+<label class="search-field">
+  <span aria-hidden="true">⌕</span>
+  <span class="sr-only">Search published tracks</span>
+  <input type="search" [formControl]="searchControl" placeholder="Search title or artist…" />
+</label>
+<div class="catalogue-filters" [formGroup]="filters">
+  <select class="bt-input" formControlName="category" aria-label="Category">
+    <option value="">All categories</option>
+    @for (category of categories; track category) {
+      <option [value]="category">{{ category }}</option>
+    }
+  </select>
+  <select class="bt-input" formControlName="decade" aria-label="Decade">
+    <option value="">All decades</option>
+    @for (decade of decades; track decade) {
+      <option [value]="decade">{{ decade }}s</option>
+    }
+  </select>
+  <select class="bt-input" formControlName="difficulty" aria-label="Difficulty">
+    <option value="">Any difficulty</option>
+    @for (level of difficulties; track level) {
+      <option [value]="level">{{ level }} {{ level === 1 ? 'star' : 'stars' }}</option>
+    }
+  </select>
+</div>
+@if (previewError) {
+  <p class="catalogue-state error-text" role="alert">{{ previewError }}</p>
+}
+
+@if (loading) {
+  <div class="catalogue-state" role="status">
+    <span class="spinner" aria-hidden="true"></span> Searching…
+  </div>
+} @else if (error) {
+  <div class="catalogue-state error-text" role="alert">
+    <p>{{ error }}</p>
+    <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="reload()">Retry</button>
+  </div>
+} @else if (visibleTracks.length === 0) {
+  <div class="catalogue-state">
+    <p>No published track matches these filters outside this playlist.</p>
+  </div>
+} @else {
+  <div class="catalogue-results">
+    @for (track of visibleTracks; track track.id) {
+      <article>
+        <span class="track-art" aria-hidden="true">
+          @if (track.coverUrl ?? track.imageUrl; as cover) {
+            <img [src]="cover" alt="" />
+          } @else {
+            ♪
+          }
+        </span>
+        <span class="track-copy">
+          <strong>{{ track.title }}</strong>
+          <small>{{ track.artist }}</small>
+          <small class="track-facts">
+            @if (track.difficulty) {
+              <span class="stars" [attr.aria-label]="'Difficulty ' + track.difficulty + ' of 5'">{{
+                difficultyStars(track.difficulty)
+              }}</span>
+            } @else {
+              <span>Unrated</span>
+            }
+            <span class="mono">{{ formatDuration(track.durationSeconds) }}</span>
+          </small>
+        </span>
+        <button
+          type="button"
+          class="preview-button"
+          [class.playing]="previewTrackId === track.id"
+          [attr.aria-label]="
+            (previewTrackId === track.id ? 'Stop preview of ' : 'Preview ') + track.title
+          "
+          [attr.aria-pressed]="previewTrackId === track.id"
+          [title]="previewTrackId === track.id ? 'Stop preview' : 'Preview excerpt'"
+          (click)="togglePreview(track)"
+        >
+          @if (previewLoadingId === track.id) {
+            <span class="spinner" aria-hidden="true"></span>
+          } @else if (previewTrackId === track.id) {
+            ■
+          } @else {
+            ▶
+          }
+        </button>
+        <button
+          type="button"
+          aria-label="Add {{ track.title }}"
+          title="Add track"
+          [disabled]="!canAdd"
+          (click)="add.emit(track)"
+        >
+          @if (addingTrackId === track.id) {
+            <span class="spinner" aria-hidden="true"></span>
+          } @else {
+            ＋
+          }
+        </button>
+      </article>
+    }
+  </div>
+  @if (hasMore) {
+    <button
+      class="bt-btn bt-btn-sm bt-btn-ghost load-more"
+      type="button"
+      [disabled]="loadingMore"
+      (click)="loadMore()"
+    >
+      @if (loadingMore) {
+        <span class="spinner" aria-hidden="true"></span> Loading…
+      } @else {
+        Show more ({{ total - tracks.length }} remaining)
+      }
+    </button>
+  }
+}

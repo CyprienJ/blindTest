@@ -4,11 +4,13 @@ import com.blindtest.config.properties.S3Properties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.blindtest.model.dto.AdminTrackFilter;
 import com.blindtest.model.dto.MediaPreviewResponse;
 import com.blindtest.model.dto.TrackAdminResponse;
 import com.blindtest.model.dto.TrackWaveformResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
 import com.blindtest.model.entity.ImportJobStatus;
+import com.blindtest.model.entity.PlaylistTrackEntity;
 import com.blindtest.model.entity.TrackEntity;
 import com.blindtest.model.entity.TrackCovers;
 import com.blindtest.model.entity.TrackImportJobEntity;
@@ -32,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -66,15 +69,37 @@ public class AdminTrackService {
     /** Returns tracks filtered by workflow status and a case-insensitive metadata search. */
     public Page<TrackAdminResponse> getAllTracks(
             int pageNum, int pageSize, TrackStatus status, String search) {
-        Pageable pageable = PageRequest.of(pageNum, Math.min(pageSize, 100));
-        Specification<TrackEntity> specification = Specification.where(null);
-        if (status != null) {
-            specification = specification.and(
-                    (root, query, builder) -> builder.equal(root.get("status"), status));
+        return getAllTracks(pageNum, pageSize, AdminTrackFilter.of(status, search));
+    }
+
+    /**
+     * Returns tracks matching every supplied criterion, newest first with a stable tie-break so
+     * consecutive pages never repeat or skip a track.
+     */
+    public Page<TrackAdminResponse> getAllTracks(int pageNum, int pageSize, AdminTrackFilter filter) {
+        if (filter.difficulty() != null && (filter.difficulty() < 1 || filter.difficulty() > 5)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_PARAMETER");
         }
-        if (search != null && !search.isBlank()) {
+        Pageable pageable = PageRequest.of(pageNum, Math.min(pageSize, 100),
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")));
+        return trackRepository.findAll(specification(filter), pageable).map(TrackAdminResponse::from);
+    }
+
+    /** Returns the distinct non-blank categories used by tracks, alphabetically. */
+    @Transactional(readOnly = true)
+    public List<String> getCategories() {
+        return trackRepository.findDistinctCategories();
+    }
+
+    private Specification<TrackEntity> specification(AdminTrackFilter filter) {
+        Specification<TrackEntity> specification = Specification.where(null);
+        if (filter.status() != null) {
+            specification = specification.and(
+                    (root, query, builder) -> builder.equal(root.get("status"), filter.status()));
+        }
+        if (filter.search() != null && !filter.search().isBlank()) {
             String pattern = "%"
-                    + escapeLike(search.strip().toLowerCase(Locale.ROOT))
+                    + escapeLike(filter.search().strip().toLowerCase(Locale.ROOT))
                     + "%";
             specification = specification.and((root, query, builder) -> builder.or(
                     builder.like(builder.lower(root.get("title")), pattern, '\\'),
@@ -82,7 +107,29 @@ public class AdminTrackService {
                     builder.like(builder.lower(root.get("album")), pattern, '\\'),
                     builder.like(builder.lower(root.get("category")), pattern, '\\')));
         }
-        return trackRepository.findAll(specification, pageable).map(TrackAdminResponse::from);
+        if (filter.category() != null && !filter.category().isBlank()) {
+            String category = filter.category().strip().toLowerCase(Locale.ROOT);
+            specification = specification.and((root, query, builder) ->
+                    builder.equal(builder.lower(root.get("category")), category));
+        }
+        if (filter.decade() != null) {
+            specification = specification.and(
+                    (root, query, builder) -> builder.equal(root.get("decade"), filter.decade()));
+        }
+        if (filter.difficulty() != null) {
+            specification = specification.and((root, query, builder) ->
+                    builder.equal(root.get("difficulty"), filter.difficulty()));
+        }
+        if (filter.excludePlaylistId() != null) {
+            specification = specification.and((root, query, builder) -> {
+                var members = query.subquery(UUID.class);
+                var entry = members.from(PlaylistTrackEntity.class);
+                members.select(entry.get("id").get("trackId")).where(builder.equal(
+                        entry.get("id").get("playlistId"), filter.excludePlaylistId()));
+                return builder.not(root.get("id").in(members));
+            });
+        }
+        return specification;
     }
 
     /**

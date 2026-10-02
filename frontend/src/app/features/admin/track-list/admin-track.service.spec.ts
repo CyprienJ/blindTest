@@ -99,4 +99,24 @@ describe('AdminTrackService', () => {
     expect((upload.request.body as FormData).get('file')).toBeInstanceOf(File);
     upload.flush({ candidateId: 'u1', source: 'UPLOAD', album: '', artist: '' });
   });
+
+  it('sends catalogue filters and reads the category list', () => {
+    service
+      .list(1, 20, 'PUBLISHED', '', {
+        category: 'Rock',
+        decade: 1980,
+        difficulty: null,
+        excludePlaylistId: 'p1',
+      })
+      .subscribe();
+    const list = http.expectOne((request) => request.url === '/api/admin/tracks');
+    expect(list.request.params.get('category')).toBe('Rock');
+    expect(list.request.params.get('decade')).toBe('1980');
+    expect(list.request.params.has('difficulty')).toBeFalse();
+    expect(list.request.params.get('excludePlaylistId')).toBe('p1');
+    list.flush({ content: [], totalElements: 0, totalPages: 0, number: 1, size: 20 });
+
+    service.categories().subscribe((categories) => expect(categories).toEqual(['Pop']));
+    http.expectOne('/api/admin/tracks/categories').flush(['Pop']);
+  });
 });

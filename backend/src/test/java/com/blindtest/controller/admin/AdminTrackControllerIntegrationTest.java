@@ -193,6 +193,70 @@ class AdminTrackControllerIntegrationTest {
     }
 
     @Test
+    void getAllTracksFiltersPlaylistCandidatesAndPagesNewestFirst() throws Exception {
+        TrackEntity rock = buildTrack("Rock Anthem", TrackStatus.PUBLISHED);
+        rock.setCategory("Rock");
+        rock.setDecade((short) 1980);
+        rock.setDifficulty((short) 2);
+        rock = trackRepository.saveAndFlush(rock);
+        TrackEntity member = buildTrack("Rock Member", TrackStatus.PUBLISHED);
+        member.setCategory("rock");
+        member.setDecade((short) 1980);
+        member.setDifficulty((short) 2);
+        member = trackRepository.saveAndFlush(member);
+        PlaylistEntity playlist = playlist("Rock night");
+        playlistTrackRepository.saveAndFlush(new PlaylistTrackEntity(playlist, member, 0));
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("status", "PUBLISHED").
+                        param("category", "ROCK").
+                        param("decade", "1980").
+                        param("difficulty", "2").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalElements").value(2)).
+                andExpect(jsonPath("$.content[0].id").value(member.getId().toString()));
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("status", "PUBLISHED").
+                        param("category", "rock").
+                        param("excludePlaylistId", playlist.getId().toString()).
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalElements").value(1)).
+                andExpect(jsonPath("$.content[0].id").value(rock.getId().toString()));
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("difficulty", "3").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalElements").value(0));
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("difficulty", "6").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+    }
+
+    @Test
+    void listsDistinctCategoriesAlphabetically() throws Exception {
+        pendingTrack.setCategory("Rock");
+        trackRepository.saveAndFlush(pendingTrack);
+        publishedTrack.setCategory("Cinema");
+        trackRepository.saveAndFlush(publishedTrack);
+        TrackEntity blank = buildTrack("Blank", TrackStatus.PUBLISHED);
+        blank.setCategory("  ");
+        trackRepository.saveAndFlush(blank);
+
+        mockMvc.perform(get("/api/admin/tracks/categories").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.length()").value(2)).
+                andExpect(jsonPath("$[0]").value("Cinema")).
+                andExpect(jsonPath("$[1]").value("Rock"));
+    }
+
+    @Test
     void getAllTracksIncludesMediaMetadataButNotObjectKey() throws Exception {
         pendingTrack.setAudioChecksum("a".repeat(64));
         pendingTrack.setAudioSizeBytes(1234L);

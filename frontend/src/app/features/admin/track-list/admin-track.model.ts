@@ -69,6 +69,15 @@ export interface TrackUpdate {
   removeCover?: boolean;
 }
 
+/** Optional administrator list criteria; omitted values match any track. */
+export interface AdminTrackFilters {
+  category?: string | null;
+  decade?: number | null;
+  difficulty?: number | null;
+  /** Hides tracks already in this playlist. */
+  excludePlaylistId?: string | null;
+}
+
 export interface CoverQuery {
   title: string;
   artist: string;
