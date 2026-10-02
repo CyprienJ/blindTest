@@ -26,9 +26,11 @@ Pending previews require a completed import; published and rejected tracks with
 private media can be previewed from the track editor. Playlist membership only accepts
 published tracks, prevents duplicates, and keeps contiguous zero-based ordering.
 Rejection or deletion removes track membership and compacts positions.
-The administrator track list orders tracks newest first with an ID tie-break, so
-pages are stable, and accepts category (ignoring case), decade, difficulty, and
-`excludePlaylistId` filters; `GET /api/admin/tracks/categories` lists the
+The administrator track list orders tracks newest first by default. With
+`sort=CATEGORY` it orders by category ignoring case, always lists uncategorized
+tracks last, and breaks ties newest first; `direction=ASC|DESC` reverses either
+order. Every order ends with an ID tie-break, so pages are stable. The list accepts
+category (ignoring case), decade, difficulty, and `excludePlaylistId` filters; `GET /api/admin/tracks/categories` lists the
 distinct categories for filter menus.
 
 ## Cover art

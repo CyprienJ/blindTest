@@ -1,13 +1,13 @@
 package com.blindtest.controller.admin;
 
 import com.blindtest.model.dto.AdminTrackFilter;
+import com.blindtest.model.dto.AdminTrackSort;
 import com.blindtest.model.dto.MediaPreviewResponse;
 import com.blindtest.model.dto.TrackAnswerAliasRequest;
 import com.blindtest.model.dto.TrackAnswerAliasResponse;
 import com.blindtest.model.dto.TrackAdminResponse;
 import com.blindtest.model.dto.TrackWaveformResponse;
 import com.blindtest.model.dto.UpdateTrackRequest;
-import com.blindtest.model.entity.TrackStatus;
 import com.blindtest.service.AdminTrackService;
 import com.blindtest.service.TrackAnswerAliasService;
 import jakarta.validation.Valid;
@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -36,18 +37,19 @@ public class AdminTrackController {
     private final AdminTrackService adminTrackService;
     private final TrackAnswerAliasService aliasService;
 
+    /**
+     * Lists tracks matching the optional filter query parameters ({@code status}, {@code search},
+     * {@code category}, {@code decade}, {@code difficulty}, {@code excludePlaylistId}), ordered by
+     * {@code sort} ({@code ADDED} or {@code CATEGORY}) and {@code direction} ({@code ASC} or
+     * {@code DESC}).
+     */
     @GetMapping
     public Page<TrackAdminResponse> getAllTracks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) TrackStatus status,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) Short decade,
-            @RequestParam(required = false) Short difficulty,
-            @RequestParam(required = false) UUID excludePlaylistId) {
-        return adminTrackService.getAllTracks(page, size, new AdminTrackFilter(
-                status, search, category, decade, difficulty, excludePlaylistId));
+            @ModelAttribute AdminTrackFilter filter,
+            @ModelAttribute AdminTrackSort order) {
+        return adminTrackService.getAllTracks(page, size, filter, order);
     }
 
     @GetMapping("/categories")

@@ -76,6 +76,17 @@ export interface AdminTrackFilters {
   difficulty?: number | null;
   /** Hides tracks already in this playlist. */
   excludePlaylistId?: string | null;
+  /** Column to order by; the backend defaults to ADDED (newest first). */
+  sort?: TrackSortField | null;
+  direction?: SortDirection | null;
+}
+
+export type TrackSortField = 'ADDED' | 'CATEGORY';
+export type SortDirection = 'ASC' | 'DESC';
+
+/** Whether the track has at least one public streaming link. */
+export function hasStreamingLinks(track: Pick<AdminTrack, 'streamingLinks'>): boolean {
+  return Object.values(track.streamingLinks ?? {}).some((link) => !!link?.trim());
 }
 
 export interface CoverQuery {

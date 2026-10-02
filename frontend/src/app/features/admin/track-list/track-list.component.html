@@ -73,11 +73,22 @@
           <thead>
             <tr>
               <th>Track</th>
-              <th>Category</th>
+              <th [attr.aria-sort]="ariaSort('CATEGORY')">
+                <button class="sort-button" type="button" (click)="sortBy('CATEGORY')">
+                  Category
+                  <span aria-hidden="true">{{ sortIndicator('CATEGORY') }}</span>
+                </button>
+              </th>
               <th>Decade</th>
               <th>Duration</th>
+              <th>Streaming</th>
               <th>Status</th>
-              <th>Added</th>
+              <th [attr.aria-sort]="ariaSort('ADDED')">
+                <button class="sort-button" type="button" (click)="sortBy('ADDED')">
+                  Added
+                  <span aria-hidden="true">{{ sortIndicator('ADDED') }}</span>
+                </button>
+              </th>
               <th><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -102,6 +113,11 @@
                 <td>{{ track.category || '—' }}</td>
                 <td class="mono">{{ track.decade ? track.decade + 's' : '—' }}</td>
                 <td class="mono">{{ formatDuration(track.durationSeconds) }}</td>
+                <td>
+                  <span class="link-flag" [class.yes]="hasStreamingLinks(track)">
+                    {{ hasStreamingLinks(track) ? 'Yes' : 'No' }}
+                  </span>
+                </td>
                 <td>
                   <span class="status-badge" [class]="'status-badge ' + track.status.toLowerCase()">
                     {{ statusLabel(track.status) }}

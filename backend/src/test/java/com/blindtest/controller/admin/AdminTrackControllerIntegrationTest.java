@@ -193,6 +193,48 @@ class AdminTrackControllerIntegrationTest {
     }
 
     @Test
+    void getAllTracksSortsByCategoryIgnoringCaseWithUncategorizedLast() throws Exception {
+        TrackEntity rock = buildTrack("Rock Anthem", TrackStatus.PUBLISHED);
+        rock.setCategory("Rock");
+        rock = trackRepository.saveAndFlush(rock);
+        TrackEntity jazz = buildTrack("Jazz Standard", TrackStatus.PUBLISHED);
+        jazz.setCategory("jazz");
+        jazz = trackRepository.saveAndFlush(jazz);
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("sort", "CATEGORY").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalElements").value(4)).
+                andExpect(jsonPath("$.content[0].id").value(jazz.getId().toString())).
+                andExpect(jsonPath("$.content[1].id").value(rock.getId().toString())).
+                andExpect(jsonPath("$.content[2].category").doesNotExist()).
+                andExpect(jsonPath("$.content[3].category").doesNotExist());
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("sort", "CATEGORY").
+                        param("direction", "DESC").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.content[0].id").value(rock.getId().toString())).
+                andExpect(jsonPath("$.content[1].id").value(jazz.getId().toString())).
+                andExpect(jsonPath("$.content[3].category").doesNotExist());
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("sort", "ADDED").
+                        param("direction", "ASC").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.content[0].id").value(pendingTrack.getId().toString())).
+                andExpect(jsonPath("$.content[3].id").value(jazz.getId().toString()));
+
+        mockMvc.perform(get("/api/admin/tracks").
+                        param("sort", "POPULARITY").
+                        header(HttpHeaders.AUTHORIZATION, adminToken)).
+                andExpect(status().isBadRequest());
+    }
+
+    @Test
     void getAllTracksFiltersPlaylistCandidatesAndPagesNewestFirst() throws Exception {
         TrackEntity rock = buildTrack("Rock Anthem", TrackStatus.PUBLISHED);
         rock.setCategory("Rock");

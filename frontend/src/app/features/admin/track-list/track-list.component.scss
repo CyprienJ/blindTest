@@ -124,6 +124,37 @@ th {
   text-transform: uppercase;
 }
 
+.sort-button {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 5px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.sort-button:hover,
+th[aria-sort='ascending'] .sort-button,
+th[aria-sort='descending'] .sort-button {
+  color: var(--fg-0);
+}
+
+.link-flag {
+  color: var(--fg-3);
+  font-weight: 600;
+}
+
+.link-flag.yes {
+  color: var(--accent);
+}
+
 td {
   padding: 13px 16px;
   border-bottom: 1px solid var(--line-soft);

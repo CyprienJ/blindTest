@@ -33,7 +33,16 @@ const publishedTrack = {
   ...pendingTrack,
   id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
   title: 'Neon Hearts',
+  category: 'Disco',
   status: 'PUBLISHED',
+  streamingLinks: {
+    deezer: 'https://www.deezer.com/track/1',
+    youtube: null,
+    spotify: null,
+    qobuz: null,
+    tidal: null,
+    soundcloud: null,
+  },
 };
 
 function pageResponse(content: unknown[], totalElements = content.length) {
@@ -97,6 +106,37 @@ test.describe('admin track catalogue', () => {
 
     await page.getByLabel('Search tracks').fill('nothing matches');
     await expect(page.getByRole('heading', { name: 'No tracks found' })).toBeVisible();
+  });
+
+  test('sorts by category and added date and flags streaming links', async ({ page }) => {
+    const sortRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (url.pathname === '/api/admin/tracks' && url.searchParams.get('size') === '10') {
+        sortRequests.push(`${url.searchParams.get('sort')} ${url.searchParams.get('direction')}`);
+      }
+    });
+    await page.goto('/admin/tracks');
+
+    const row = (title: string) => page.getByRole('row', { name: new RegExp(title) });
+    await expect(row('Neon Hearts').getByRole('cell', { name: 'Yes', exact: true })).toBeVisible();
+    await expect(row('Midnight Echo').getByRole('cell', { name: 'No', exact: true })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /Added/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+
+    await page.getByRole('button', { name: /Category/ }).click();
+    await expect(page.getByRole('columnheader', { name: /Category/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    );
+    await page.getByRole('button', { name: /Category/ }).click();
+    await expect(page.getByRole('columnheader', { name: /Category/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+    await expect.poll(() => sortRequests).toEqual(['ADDED DESC', 'CATEGORY ASC', 'CATEGORY DESC']);
   });
 
   test('suggests covers from the metadata and saves the chosen one', async ({ page }) => {

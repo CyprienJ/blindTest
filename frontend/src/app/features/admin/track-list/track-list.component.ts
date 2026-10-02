@@ -7,9 +7,12 @@ import { debounceTime, distinctUntilChanged, finalize, forkJoin } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AdminTrack,
+  hasStreamingLinks,
   MediaPreview,
+  SortDirection,
   TrackAlias,
   TrackAnswerType,
+  TrackSortField,
   TrackStatus,
   TrackUpdate,
 } from './admin-track.model';
@@ -86,6 +89,9 @@ export class TrackListComponent implements OnInit {
   tracks: AdminTrack[] = [];
   counts: Record<string, number> = { ALL: 0, PUBLISHED: 0, PENDING: 0, REJECTED: 0 };
   activeStatus: StatusFilter = null;
+  sortField: TrackSortField = 'ADDED';
+  sortDirection: SortDirection = 'DESC';
+  readonly hasStreamingLinks = hasStreamingLinks;
   page = 0;
   totalPages = 0;
   totalElements = 0;
@@ -400,6 +406,32 @@ export class TrackListComponent implements OnInit {
     return this.counts[status ?? 'ALL'];
   }
 
+  /** Toggles the direction of the current column, or starts a new column in its natural order. */
+  sortBy(field: TrackSortField): void {
+    if (this.sortField === field) {
+      this.sortDirection = this.sortDirection === 'ASC' ? 'DESC' : 'ASC';
+    } else {
+      this.sortField = field;
+      this.sortDirection = field === 'ADDED' ? 'DESC' : 'ASC';
+    }
+    this.page = 0;
+    this.loadTracks();
+  }
+
+  sortIndicator(field: TrackSortField): string {
+    if (this.sortField !== field) {
+      return '↕';
+    }
+    return this.sortDirection === 'ASC' ? '↑' : '↓';
+  }
+
+  ariaSort(field: TrackSortField): 'ascending' | 'descending' | 'none' {
+    if (this.sortField !== field) {
+      return 'none';
+    }
+    return this.sortDirection === 'ASC' ? 'ascending' : 'descending';
+  }
+
   trackById(_index: number, track: AdminTrack): string {
     return track.id;
   }
@@ -408,7 +440,10 @@ export class TrackListComponent implements OnInit {
     this.loading = true;
     this.listError = '';
     this.service
-      .list(this.page, this.pageSize, this.activeStatus, this.searchControl.value)
+      .list(this.page, this.pageSize, this.activeStatus, this.searchControl.value, {
+        sort: this.sortField,
+        direction: this.sortDirection,
+      })
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (response) => {

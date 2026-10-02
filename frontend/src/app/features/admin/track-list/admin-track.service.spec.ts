@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { hasStreamingLinks } from './admin-track.model';
 import { AdminTrackService } from './admin-track.service';
 
 describe('AdminTrackService', () => {
@@ -107,6 +108,8 @@ describe('AdminTrackService', () => {
         decade: 1980,
         difficulty: null,
         excludePlaylistId: 'p1',
+        sort: 'CATEGORY',
+        direction: 'DESC',
       })
       .subscribe();
     const list = http.expectOne((request) => request.url === '/api/admin/tracks');
@@ -114,9 +117,30 @@ describe('AdminTrackService', () => {
     expect(list.request.params.get('decade')).toBe('1980');
     expect(list.request.params.has('difficulty')).toBeFalse();
     expect(list.request.params.get('excludePlaylistId')).toBe('p1');
+    expect(list.request.params.get('sort')).toBe('CATEGORY');
+    expect(list.request.params.get('direction')).toBe('DESC');
     list.flush({ content: [], totalElements: 0, totalPages: 0, number: 1, size: 20 });
 
     service.categories().subscribe((categories) => expect(categories).toEqual(['Pop']));
     http.expectOne('/api/admin/tracks/categories').flush(['Pop']);
+  });
+});
+
+describe('hasStreamingLinks', () => {
+  const none = {
+    deezer: null,
+    youtube: null,
+    spotify: null,
+    qobuz: null,
+    tidal: null,
+    soundcloud: null,
+  };
+
+  it('is true only when at least one link is filled in', () => {
+    expect(hasStreamingLinks({ streamingLinks: none })).toBeFalse();
+    expect(hasStreamingLinks({ streamingLinks: { ...none, tidal: '  ' } })).toBeFalse();
+    expect(
+      hasStreamingLinks({ streamingLinks: { ...none, spotify: 'https://open.spotify.com/x' } }),
+    ).toBeTrue();
   });
 });

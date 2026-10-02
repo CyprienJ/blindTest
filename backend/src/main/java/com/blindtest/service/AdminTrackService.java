@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.blindtest.model.dto.AdminTrackFilter;
+import com.blindtest.model.dto.AdminTrackSort;
 import com.blindtest.model.dto.MediaPreviewResponse;
 import com.blindtest.model.dto.TrackAdminResponse;
 import com.blindtest.model.dto.TrackWaveformResponse;
@@ -26,6 +27,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Order;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -34,7 +39,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -63,7 +67,7 @@ public class AdminTrackService {
 
     /** Returns all tracks across all statuses, paginated. */
     public Page<TrackAdminResponse> getAllTracks(int pageNum, int pageSize) {
-        return getAllTracks(pageNum, pageSize, null, null);
+        return getAllTracks(pageNum, pageSize, (TrackStatus) null, null);
     }
 
     /** Returns tracks filtered by workflow status and a case-insensitive metadata search. */
@@ -72,23 +76,57 @@ public class AdminTrackService {
         return getAllTracks(pageNum, pageSize, AdminTrackFilter.of(status, search));
     }
 
-    /**
-     * Returns tracks matching every supplied criterion, newest first with a stable tie-break so
-     * consecutive pages never repeat or skip a track.
-     */
+    /** Returns tracks matching every supplied criterion, newest first. */
     public Page<TrackAdminResponse> getAllTracks(int pageNum, int pageSize, AdminTrackFilter filter) {
+        return getAllTracks(pageNum, pageSize, filter, AdminTrackSort.defaultOrder());
+    }
+
+    /**
+     * Returns tracks matching every supplied criterion in the requested order. Every order ends
+     * with a stable tie-break so consecutive pages never repeat or skip a track.
+     */
+    public Page<TrackAdminResponse> getAllTracks(
+            int pageNum, int pageSize, AdminTrackFilter filter, AdminTrackSort order) {
         if (filter.difficulty() != null && (filter.difficulty() < 1 || filter.difficulty() > 5)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_PARAMETER");
         }
-        Pageable pageable = PageRequest.of(pageNum, Math.min(pageSize, 100),
-                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")));
-        return trackRepository.findAll(specification(filter), pageable).map(TrackAdminResponse::from);
+        // The order is part of the specification: Spring Data's Sort cannot express "uncategorized
+        // last" portably. Spring Data drops it from the count query.
+        Pageable pageable = PageRequest.of(pageNum, Math.min(pageSize, 100));
+        return trackRepository.findAll(specification(filter).and(ordered(order)), pageable).
+                map(TrackAdminResponse::from);
     }
 
     /** Returns the distinct non-blank categories used by tracks, alphabetically. */
     @Transactional(readOnly = true)
     public List<String> getCategories() {
         return trackRepository.findDistinctCategories();
+    }
+
+    /**
+     * Orders by the requested column. Category ignores case and always lists uncategorized
+     * tracks last; ties fall back to newest first, and the identifier keeps paging stable.
+     */
+    private static Specification<TrackEntity> ordered(AdminTrackSort order) {
+        return (root, query, builder) -> {
+            boolean ascending = order.effectiveDirection().isAscending();
+            Expression<LocalDateTime> createdAt = root.get("createdAt");
+            List<Order> orders = new ArrayList<>();
+            if (order.effectiveField() == AdminTrackSort.Field.CATEGORY) {
+                Expression<String> category = builder.lower(builder.trim(root.get("category")));
+                Expression<Integer> uncategorized = builder.<Integer>selectCase().
+                        when(builder.or(builder.isNull(category), builder.equal(category, "")), 1).
+                        otherwise(0);
+                orders.add(builder.asc(uncategorized));
+                orders.add(ascending ? builder.asc(category) : builder.desc(category));
+                orders.add(builder.desc(createdAt));
+            } else {
+                orders.add(ascending ? builder.asc(createdAt) : builder.desc(createdAt));
+            }
+            orders.add(builder.asc(root.get("id")));
+            query.orderBy(orders);
+            return null;
+        };
     }
 
     private Specification<TrackEntity> specification(AdminTrackFilter filter) {
