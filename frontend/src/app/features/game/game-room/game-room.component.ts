@@ -616,6 +616,8 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   ): void {
     this.resetFeedback();
     this.phase = 'revealed';
+    // Keep the music going from where it is rather than restarting the excerpt.
+    this.audioPlayback.releaseLoop();
     this.reveal = metadata;
     this.outcome = outcome;
     this.lastRoundPoints = points;

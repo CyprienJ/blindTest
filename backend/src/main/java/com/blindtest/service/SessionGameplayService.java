@@ -19,6 +19,7 @@ import com.blindtest.model.game.RoundStateSnapshot;
 import com.blindtest.model.game.RoundStatus;
 import com.blindtest.model.game.SecondaryDiscoveryOutcome;
 import com.blindtest.model.game.SecondaryDiscoveryResult;
+import com.blindtest.model.game.SecondaryDiscoveryState;
 import com.blindtest.model.game.SecondaryDiscoveryTracker;
 import com.blindtest.model.game.SkipVoteRule;
 import com.blindtest.model.game.TitleScoreCalculator;
@@ -406,9 +407,10 @@ public class SessionGameplayService {
         RoundStateSnapshot startedRound = playing.currentRound().orElseThrow();
         URI playbackUrl = resolvePlaybackUrl(startedRound);
         RoundPlaybackWindow playbackWindow = startedRound.playbackWindow().orElseThrow();
+        // Secondary discoveries belong to one round: every track starts with none found.
         ActiveSessionSnapshot persisted = session.next(
                 playing,
-                session.discoveries(),
+                SecondaryDiscoveryState.empty(),
                 session.processedCommands(),
                 now,
                 expirationPolicy.expiresAt(playing.status(), now)).

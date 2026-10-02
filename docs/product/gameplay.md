@@ -41,7 +41,8 @@ and three beyond 20. Read the matcher for tier ordering and token-boundary detai
 
 - A correct title ends the solo round and awards points once.
 - Artist, composer, and album matches are private discoveries. They award no
-  points, do not end the round, and are acknowledged only once per field/player.
+  points, do not end the round, and are acknowledged only once per field, player,
+  and round; every new track starts with nothing found.
 - Wrong guesses do not deduct points.
 - Skip and timeout reveal the answer and award zero title points.
 - The server automatically advances after a four-second reveal interval.
@@ -81,7 +82,8 @@ Administrators configure a non-negative whole-second start offset and a window
 length from 5 to 60 seconds (default 60). Publishing a nonzero offset requires the
 whole window to fit in the track duration. A round plays the snapshot window from
 its offset and loops it until the round ends when the window is shorter than the
-answer time ([ADR-0016](../adr/0016-per-track-looped-excerpt-window.md)). Signed
+answer time ([ADR-0016](../adr/0016-per-track-looped-excerpt-window.md)). After the
+reveal the track keeps playing from where it is rather than restarting the window. Signed
 URLs cover the remaining round plus a 30-second reconnect buffer.
 
 ## Source and decisions

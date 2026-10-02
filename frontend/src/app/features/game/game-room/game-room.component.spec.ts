@@ -88,6 +88,7 @@ class FakeAudio {
   scheduleRound = jasmine.createSpy('scheduleRound');
   resume = jasmine.createSpy('resume');
   stop = jasmine.createSpy('stop');
+  releaseLoop = jasmine.createSpy('releaseLoop');
 }
 
 describe('GameRoomComponent', () => {

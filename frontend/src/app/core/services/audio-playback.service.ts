@@ -29,7 +29,9 @@ export const AUDIO_ELEMENT = new InjectionToken<() => HTMLAudioElement>('AUDIO_E
  * autoplay, and guarantees a round's audio is released before the next one.
  * Playback deliberately outlives the round deadline so the reveal keeps the music;
  * the owner stops it explicitly or by scheduling the next round. An excerpt window
- * shorter than the round loops back to its start, mirroring the server's window.
+ * shorter than the round loops back to its start, mirroring the server's window, but
+ * only while the round is open: once it is revealed or its deadline passes, the track
+ * plays on from where it is instead of restarting the excerpt.
  */
 /** Duration of the volume ramp applied whenever an excerpt starts. */
 const FADE_IN_MS = 500;
@@ -46,6 +48,8 @@ export class AudioPlaybackService implements OnDestroy {
   readonly error$ = this.errorSubject.asObservable();
 
   private pending: RoundPlaybackRequest | null = null;
+  /** Set when the round is revealed; the excerpt then stops looping. */
+  private loopReleased = false;
   private startTimer: ReturnType<typeof setTimeout> | null = null;
   private fadeTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -71,6 +75,7 @@ export class AudioPlaybackService implements OnDestroy {
   scheduleRound(request: RoundPlaybackRequest): void {
     this.teardownPlayback();
     this.pending = null;
+    this.loopReleased = false;
 
     const startMs = Date.parse(request.startsAt);
     const deadlineMs = Date.parse(request.deadline);
@@ -92,6 +97,11 @@ export class AudioPlaybackService implements OnDestroy {
     } else {
       this.begin();
     }
+  }
+
+  /** Lets the current track play on past its excerpt window, e.g. once the round is revealed. */
+  releaseLoop(): void {
+    this.loopReleased = true;
   }
 
   /** Retries playback after the browser blocked autoplay — call from a user gesture. */
@@ -173,11 +183,23 @@ export class AudioPlaybackService implements OnDestroy {
     return window && window > 0 ? window : null;
   }
 
-  /** Loops the excerpt window, including after the deadline while the reveal plays. */
+  /** Whether the excerpt window should still loop: only while the round is open. */
+  private looping(request: RoundPlaybackRequest | null): request is RoundPlaybackRequest {
+    return (
+      !!request &&
+      !!this.loopWindow(request) &&
+      !this.loopReleased &&
+      Date.now() < Date.parse(request.deadline)
+    );
+  }
+
+  /** Loops the excerpt window while the round is open; afterwards the track continues. */
   private readonly onTimeUpdate = (): void => {
     const request = this.pending;
-    const window = request && this.loopWindow(request);
-    if (request && window && this.audio.currentTime >= request.excerptStartSeconds + window) {
+    if (
+      this.looping(request) &&
+      this.audio.currentTime >= request.excerptStartSeconds + this.loopWindow(request)!
+    ) {
       this.audio.currentTime = request.excerptStartSeconds;
     }
   };
@@ -214,7 +236,7 @@ export class AudioPlaybackService implements OnDestroy {
 
   private readonly onEnded = (): void => {
     const request = this.pending;
-    if (request && this.loopWindow(request)) {
+    if (this.looping(request)) {
       // The media ended inside a window that runs past it: restart the window.
       this.audio.currentTime = request.excerptStartSeconds;
       void this.audio.play().catch(() => this.setStatus('ended'));

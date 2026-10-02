@@ -94,9 +94,11 @@ For a playing round it:
    volume in over 500 ms once playback starts;
 4. reports blocked autoplay and offers a user-gesture resume action;
 5. loops the excerpt window back to its offset when it is shorter than the round,
-   both on time updates and when the media ends inside the window;
+   both on time updates and when the media ends inside the window, but only while
+   the round is open;
 6. keeps playing past the deadline, so the reveal keeps the music until the next
-   round's playback replaces it.
+   round's playback replaces it. Once the round is revealed (`releaseLoop()`) or its
+   deadline passes, the track continues from where it is instead of restarting.
 
 Already expired rounds never start audio. The game room stops playback on finish,
 fatal error, snapshot resynchronization, and component destruction. Unit tests use a fake audio

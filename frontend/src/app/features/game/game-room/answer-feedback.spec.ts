@@ -53,6 +53,7 @@ describe('Game room answer feedback', () => {
           useValue: {
             ...audio,
             scheduleRound: () => undefined,
+            releaseLoop: () => undefined,
             status$: new BehaviorSubject('playing'),
             error$: new BehaviorSubject(null),
           },

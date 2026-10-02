@@ -219,6 +219,7 @@ class SoloGameBackendFlowIntegrationTest {
 
         playCorrectTitleRound(member, sessionId, 0);
         playTimeoutRound(member, sessionId, 1);
+        assertSecondaryDiscoveryResetsEachRound(member, sessionId, 2);
         playSkippedRound(member, sessionId, 2);
         member = reconnectAndProbeRound(member, sessionId, 3);
         playSkippedRound(member, sessionId, 3);
@@ -329,6 +330,20 @@ class SoloGameBackendFlowIntegrationTest {
         JsonNode revealed = awaitPublic(member, "ROUND_REVEALED");
         assertThat(revealed.at("/payload/outcome").asText()).isEqualTo("TIMEOUT");
         advanceToNextRound(member);
+    }
+
+    /** An artist found in an earlier round must not count as already found for this track. */
+    private void assertSecondaryDiscoveryResetsEachRound(
+            Member member,
+            UUID sessionId,
+            int roundIndex) throws Exception {
+        clock.advance(Duration.ofSeconds(1));
+        String artist = expectedAnswer(sessionId, roundIndex, false);
+        send(member, sessionId, SessionCommandType.SUBMIT_ANSWER, currentVersion(sessionId), artist);
+        JsonNode secondary = awaitPrivate(member, "SECONDARY_MATCH");
+        assertThat(secondary.at("/payload/answerType").asText()).isEqualTo("ARTIST");
+        assertThat(secondary.at("/payload/matchedValue").asText()).isEqualTo(artist);
+        assertThat(secondary.at("/payload/alreadyFound").asBoolean()).isFalse();
     }
 
     private void playSkippedRound(Member member, UUID sessionId, int roundIndex) throws Exception {

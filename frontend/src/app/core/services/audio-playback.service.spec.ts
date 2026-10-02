@@ -239,4 +239,42 @@ describe('AudioPlaybackService', () => {
     expect(audio.playCalls.length).toBe(playsBefore + 1);
     expect(statuses.at(-1)).toBe('playing');
   });
+
+  it('lets the track play on once the round is revealed instead of restarting the excerpt', async () => {
+    service.scheduleRound(round({ excerptDurationSeconds: 10 }));
+    await flush();
+
+    service.releaseLoop();
+    audio.currentTime = 25;
+    audio.emit('timeupdate');
+
+    expect(audio.currentTime).toBe(25);
+    expect(statuses.at(-1)).toBe('playing');
+  });
+
+  it('stops looping once the round deadline has passed', async () => {
+    service.scheduleRound(round({ excerptDurationSeconds: 10 }));
+    await flush();
+
+    jasmine.clock().mockDate(new Date(NOW + 30_000));
+    audio.currentTime = 25;
+    audio.emit('timeupdate');
+    expect(audio.currentTime).toBe(25);
+
+    audio.emit('ended');
+    expect(statuses.at(-1)).toBe('ended');
+  });
+
+  it('loops again for the next round after a release', async () => {
+    service.scheduleRound(round({ excerptDurationSeconds: 10 }));
+    await flush();
+    service.releaseLoop();
+
+    service.scheduleRound(round({ excerptDurationSeconds: 10 }));
+    await flush();
+    audio.currentTime = 25;
+    audio.emit('timeupdate');
+
+    expect(audio.currentTime).toBe(15);
+  });
 });
