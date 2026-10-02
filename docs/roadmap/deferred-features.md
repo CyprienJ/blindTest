@@ -13,7 +13,6 @@ boundary level:
 - profile editing;
 - history browsing and public player history;
 - game detail pages;
-- admin user management;
 - horizontal backend scaling;
 - Redis-backed sessions and pub/sub;
 - managed external S3 or a distributed MinIO deployment;

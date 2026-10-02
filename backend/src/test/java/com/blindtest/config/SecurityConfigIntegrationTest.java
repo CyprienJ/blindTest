@@ -14,6 +14,7 @@ import com.blindtest.security.JwtAuthFilter;
 import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.AdminPlaylistService;
 import com.blindtest.service.AdminTrackService;
+import com.blindtest.service.AdminUserService;
 import com.blindtest.service.AuthService;
 import com.blindtest.service.CatalogueService;
 import com.blindtest.service.GameHistorySummaryService;
@@ -76,6 +77,9 @@ class SecurityConfigIntegrationTest {
 
     @MockBean
     private InvitationService invitationService;
+
+    @MockBean
+    private AdminUserService adminUserService;
 
     @MockBean
     private RegistrationService registrationService;
@@ -200,7 +204,7 @@ class SecurityConfigIntegrationTest {
     @Test
     void adminRouteWithAdminTokenReturnsNotFound() throws Exception {
         String token = jwtTokenProvider.generateAccessToken(UUID.randomUUID(), UserRole.ADMIN);
-        var req = get("/api/admin/users").header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+        var req = get("/api/admin/unknown-route").header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
         mockMvc.perform(req).andExpect(status().isNotFound());
     }
 }

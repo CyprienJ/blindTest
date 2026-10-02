@@ -42,3 +42,4 @@ Allowed statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, and
 | [ADR-0015](0015-four-second-automatic-reveal-transition.md) | Accepted | Advance automatically after a four-second reveal |
 | [ADR-0016](0016-per-track-looped-excerpt-window.md) | Accepted | Let administrators set a looped per-track excerpt window |
 | [ADR-0017](0017-invitation-only-registration.md) | Accepted | Make registration invitation-only |
+| [ADR-0018](0018-administrator-account-management.md) | Accepted | Let administrators manage accounts |

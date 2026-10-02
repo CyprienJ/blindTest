@@ -32,6 +32,13 @@ when server logout fails.
 Password recovery and reset exist, but reset JWTs are not persisted as single-use
 tokens. See [known limitations](../product/status.md#known-release-risks).
 
+Administrators manage accounts through `/api/admin/users`
+([ADR-0018](../adr/0018-administrator-account-management.md)). They can change
+another account's username, email, and role, or delete it, but never their own
+role or account. A role change and a deletion both revoke the account's refresh
+tokens; an access token already issued stays valid until it expires (15 minutes by
+default). Accounts that own playlists cannot be deleted.
+
 ## Authorization boundaries
 
 Public catalogue reads and authentication endpoints are accessible anonymously.

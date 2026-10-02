@@ -11,7 +11,7 @@ configuration; full-stack browser acceptance remains separate.
 
 | Area | Backend | Browser |
 |---|---|---|
-| Accounts | Invitation-only registration, administrator invitations, login, refresh, logout, password recovery | Invitation registration form, Turnstile, administrator invitations page, session recovery, guards |
+| Accounts | Invitation-only registration, administrator invitations and account management, login, refresh, logout, password recovery | Invitation registration form, Turnstile, administrator Users page (accounts and invitations), session recovery, guards |
 | Home and navigation | Account role information | Public home, authenticated home, shared application shell |
 | Catalogue | Public tracks/playlists; administrator track, alias, and playlist management; cover suggestions, uploads, and storage | Track review, import workflow, cover picker, playlist editor |
 | Imports and media | Bounded audio-file uploads and best-effort YouTube imports, waveform generation, private MinIO, signed URLs, deletion outbox | Import progress/polling, waveform excerpt selection, administrator preview |
@@ -28,10 +28,12 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 - Recovery uses the active session retained in browser `sessionStorage`; an
   unknown session ID sends the user back to configuration.
 - Lobby joining/room, profile/history browsing, friends/requests, and several
-  extracted gameplay widgets remain scaffolds. The administrator Users page manages
-  invitations only; it does not list or edit existing accounts.
-- Backend multiplayer joining, guest tokens, social APIs, profile management,
-  general history browsing, and administrator user management are absent.
+  extracted gameplay widgets remain scaffolds.
+- A deleted or demoted account keeps its current access token for up to 15
+  minutes; account changes are not audited. See
+  [ADR-0018](../adr/0018-administrator-account-management.md).
+- Backend multiplayer joining, guest tokens, social APIs, profile management, and
+  general history browsing are absent.
 - Restarting the backend loses active games; completed history is durable.
 - Administrator invitations are delivered only by email, and Resend failures are
   only logged. The admin page cannot show or copy an invitation link, so an

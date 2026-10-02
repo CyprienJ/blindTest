@@ -137,6 +137,27 @@ Acceptance:
 - only administrators can issue invitations;
 - after migration, only administrator accounts remain.
 
+#### FND-08 — Let administrators manage accounts
+
+Status: completed on 2026-10-02.
+
+Decision: [ADR-0018](../adr/0018-administrator-account-management.md).
+
+Work:
+
+- list every account with role, verification, sign-up, last sign-in, and game count;
+- sort, filter, and search the list in the administrator Users page;
+- edit username, email, and role;
+- delete accounts.
+
+Acceptance:
+
+- only administrators can list, edit, or delete accounts;
+- administrators cannot change their own role or delete themselves;
+- a role change applies at the account's next sign-in;
+- deleting an account keeps its completed games as anonymous history and never
+  removes playlists.
+
 ### Lot exit criteria
 
 - known committed secret is rotated;

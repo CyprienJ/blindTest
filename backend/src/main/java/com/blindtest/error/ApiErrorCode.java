@@ -24,6 +24,9 @@ public enum ApiErrorCode {
     USERNAME_TAKEN(HttpStatus.CONFLICT, "Username is already registered"),
     CONFLICT(HttpStatus.CONFLICT, "Request conflicts with current state"),
     INVITATION_ALREADY_ACCEPTED(HttpStatus.CONFLICT, "Invitation has already been accepted"),
+    ADMIN_SELF_CHANGE_FORBIDDEN(
+            HttpStatus.CONFLICT, "Administrators cannot delete their own account or change their own role"),
+    USER_OWNS_PLAYLISTS(HttpStatus.CONFLICT, "Delete this user's playlists before deleting the user"),
     ANSWER_ALIAS_DUPLICATE(HttpStatus.CONFLICT, "Answer alias already exists"),
     TRACK_EXCERPT_INVALID(
             HttpStatus.CONFLICT, "Track excerpt window does not fit the playable audio"),

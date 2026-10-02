@@ -18,8 +18,9 @@ YouTube imports are blocked by bot detection; resume
 once CAT-11 is done.
 
 [FND-07 — Make registration invitation-only](roadmap/lot-0-foundation.md#fnd-07--make-registration-invitation-only)
-was completed on 2026-10-02 at the product owner's request without moving this
-pointer. While validating it, the Docker full-stack run showed the admin catalogue,
+and [FND-08 — Let administrators manage accounts](roadmap/lot-0-foundation.md#fnd-08--let-administrators-manage-accounts)
+were completed on 2026-10-02 at the product owner's request without moving this
+pointer. While validating FND-07, the Docker full-stack run showed the admin catalogue,
 solo game, and mid-game failure-injection specs stalling at the import step's
 "Validate selection" button. Identical failures reproduce on unmodified `main`
 (`ac0554d`), so they belong to this CAT-11 follow-up rather than FND-07.

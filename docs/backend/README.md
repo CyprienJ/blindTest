@@ -45,6 +45,7 @@ roadmap have not all replaced this layout.
 |---|---|
 | `/api/auth/**` | Invitation lookup, invitation-only registration, verify, login, refresh, logout, recover/reset password |
 | `/api/admin/invitations/**` | Administrator invitations: create, list, resend, revoke |
+| `/api/admin/users/**` | Administrator account list, edit (username, email, role), and deletion |
 | `GET /api/tracks`, `GET /api/playlists`, `GET /api/playlists/{id}` | Public catalogue |
 | `POST /api/sessions` | Verified-account solo creation |
 | `GET /api/sessions/{sessionId}/summary` | Owner-only durable completed-game summary |

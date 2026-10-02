@@ -16,6 +16,9 @@ public interface PlaylistRepository extends JpaRepository<PlaylistEntity, UUID> 
     /** Returns all playlists created by the given user. */
     List<PlaylistEntity> findByCreatedById(UUID userId);
 
+    /** Counts playlists created by the given user. */
+    long countByCreatedById(UUID userId);
+
     /** Returns public playlists in a stable name and identifier order. */
     List<PlaylistEntity> findAllByOrderByNameAscIdAsc();
 

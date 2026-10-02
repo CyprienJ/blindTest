@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { AdminInvitation } from './admin-invitation.model';
 import { AdminInvitationService } from './admin-invitation.service';
-import { UserManagementComponent } from './user-management.component';
+import { InvitationManagerComponent } from './invitation-manager.component';
 
 const PENDING: AdminInvitation = {
   id: 'pending-id',
@@ -24,9 +24,9 @@ const ACCEPTED: AdminInvitation = {
   acceptedAt: '2026-10-02T09:00:00Z',
 };
 
-describe('UserManagementComponent', () => {
+describe('InvitationManagerComponent', () => {
   let service: jasmine.SpyObj<AdminInvitationService>;
-  let fixture: ComponentFixture<UserManagementComponent>;
+  let fixture: ComponentFixture<InvitationManagerComponent>;
 
   beforeEach(async () => {
     service = jasmine.createSpyObj<AdminInvitationService>('AdminInvitationService', [
@@ -38,11 +38,11 @@ describe('UserManagementComponent', () => {
     service.list.and.returnValue(of([PENDING, ACCEPTED]));
 
     await TestBed.configureTestingModule({
-      imports: [UserManagementComponent],
+      imports: [InvitationManagerComponent],
       providers: [{ provide: AdminInvitationService, useValue: service }],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(UserManagementComponent);
+    fixture = TestBed.createComponent(InvitationManagerComponent);
     fixture.detectChanges();
   });
 

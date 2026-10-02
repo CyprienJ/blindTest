@@ -1,20 +1,18 @@
 .invitations {
-  width: 100%;
-  max-width: 1100px;
-  padding: 42px 40px 80px;
+  display: block;
 }
 
-.page-heading {
-  margin-bottom: 26px;
+.section-heading {
+  margin-bottom: 18px;
 }
 
-.page-heading h1 {
-  margin: 0 0 7px;
-  font-size: 27px;
-  letter-spacing: -0.03em;
+.section-heading h2 {
+  margin: 0 0 6px;
+  font-size: 19px;
+  letter-spacing: -0.02em;
 }
 
-.page-heading p {
+.section-heading p {
   margin: 0;
   color: var(--fg-2);
   font-size: 13px;
@@ -151,10 +149,6 @@ tbody tr:hover {
 }
 
 @media (max-width: 720px) {
-  .invitations {
-    padding: 28px 16px 60px;
-  }
-
   .invite-row {
     flex-direction: column;
   }

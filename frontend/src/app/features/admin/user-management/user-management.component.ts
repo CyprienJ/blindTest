@@ -1,131 +1,48 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { AdminInvitation } from './admin-invitation.model';
-import { AdminInvitationService } from './admin-invitation.service';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { AccountListComponent } from './account-list.component';
+import { InvitationManagerComponent } from './invitation-manager.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-user-management',
   standalone: true,
-  imports: [DatePipe, ReactiveFormsModule],
-  templateUrl: './user-management.component.html',
-  styleUrl: './user-management.component.scss',
+  imports: [AccountListComponent, InvitationManagerComponent],
+  template: `
+    <main class="user-management">
+      <div class="page-heading">
+        <h1>Users</h1>
+        <p>Manage accounts and invite new players. Registration is invitation-only.</p>
+      </div>
+      <app-account-list />
+      <app-invitation-manager />
+    </main>
+  `,
+  styles: `
+    .user-management {
+      display: grid;
+      gap: 42px;
+      width: 100%;
+      max-width: 1100px;
+      padding: 42px 40px 80px;
+    }
+
+    .page-heading h1 {
+      margin: 0 0 7px;
+      font-size: 27px;
+      letter-spacing: -0.03em;
+    }
+
+    .page-heading p {
+      margin: 0;
+      color: var(--fg-2);
+      font-size: 13px;
+    }
+
+    @media (max-width: 720px) {
+      .user-management {
+        padding: 28px 16px 60px;
+      }
+    }
+  `,
 })
-export class UserManagementComponent implements OnInit {
-  private readonly invitationService = inject(AdminInvitationService);
-
-  readonly emailControl = new FormControl('', {
-    nonNullable: true,
-    validators: [Validators.required, Validators.email, Validators.maxLength(255)],
-  });
-  readonly inviteForm = new FormGroup({ email: this.emailControl });
-  invitations: AdminInvitation[] = [];
-  loading = true;
-  sending = false;
-  busyId: string | null = null;
-  listError = '';
-  actionError = '';
-  successMessage = '';
-
-  ngOnInit(): void {
-    this.refresh();
-  }
-
-  refresh(): void {
-    this.loading = true;
-    this.listError = '';
-    this.invitationService.list().subscribe({
-      next: (invitations) => {
-        this.invitations = invitations;
-        this.loading = false;
-      },
-      error: () => {
-        this.listError = 'Invitations could not be loaded.';
-        this.loading = false;
-      },
-    });
-  }
-
-  invite(): void {
-    if (this.sending) {
-      return;
-    }
-    if (this.emailControl.invalid) {
-      this.emailControl.markAsTouched();
-      return;
-    }
-    const email = this.emailControl.value.trim();
-    this.sending = true;
-    this.clearMessages();
-    this.invitationService.invite(email).subscribe({
-      next: (invitation) => {
-        this.sending = false;
-        this.emailControl.reset();
-        this.successMessage = `Invitation sent to ${invitation.email}.`;
-        this.refresh();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.sending = false;
-        this.actionError = this.describeError(error);
-      },
-    });
-  }
-
-  resend(invitation: AdminInvitation): void {
-    this.runRowAction(invitation, this.invitationService.resend(invitation.id), () => {
-      this.successMessage = `A new invitation link was sent to ${invitation.email}.`;
-    });
-  }
-
-  revoke(invitation: AdminInvitation): void {
-    this.runRowAction(invitation, this.invitationService.revoke(invitation.id), () => {
-      this.successMessage = `The invitation for ${invitation.email} was revoked.`;
-    });
-  }
-
-  private runRowAction(
-    invitation: AdminInvitation,
-    action: Observable<unknown>,
-    onSuccess: () => void,
-  ): void {
-    if (this.busyId) {
-      return;
-    }
-    this.busyId = invitation.id;
-    this.clearMessages();
-    action.subscribe({
-      next: () => {
-        this.busyId = null;
-        onSuccess();
-        this.refresh();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.busyId = null;
-        this.actionError = this.describeError(error);
-        this.refresh();
-      },
-    });
-  }
-
-  private clearMessages(): void {
-    this.successMessage = '';
-    this.actionError = '';
-  }
-
-  private describeError(error: HttpErrorResponse): string {
-    const code: string = error.error?.code ?? '';
-    if (code === 'EMAIL_TAKEN') {
-      return 'An account already uses this email.';
-    }
-    if (code === 'INVITATION_ALREADY_ACCEPTED') {
-      return 'This invitation was already accepted.';
-    }
-    if (error.status === 400) {
-      return 'Enter a valid email address.';
-    }
-    return 'The invitation could not be updated. Please try again.';
-  }
-}
+export class UserManagementComponent {}

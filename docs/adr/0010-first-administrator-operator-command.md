@@ -6,7 +6,8 @@
 - Related tickets: DG-04, FND-05
 - Supersedes: N/A
 - Superseded by: [ADR-0017](0017-invitation-only-registration.md) for how the
-  account to promote is created (registration is invitation-only)
+  account to promote is created (registration is invitation-only), and
+  [ADR-0018](0018-administrator-account-management.md) for general role management
 
 ## Context
 

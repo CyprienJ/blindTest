@@ -55,10 +55,12 @@ async function mockInvitationApi(page: Page) {
 
 test('an administrator invites a player and revokes the pending invitation', async ({ page }) => {
   await installSession(page, admin);
+  await page.route('**/api/admin/users', (route) => route.fulfill({ json: [] }));
   const requests = await mockInvitationApi(page);
 
   await page.goto('/admin/users');
-  await expect(page.getByRole('heading', { name: 'Invitations' })).toBeVisible();
+  const section = page.getByRole('region', { name: 'Invitations', exact: true });
+  await expect(section).toBeVisible();
   await expect(page.getByRole('cell', { name: 'joined@example.com', exact: true })).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Revoke invitation to joined@example.com' }),
@@ -67,14 +69,14 @@ test('an administrator invites a player and revokes the pending invitation', asy
   await page.getByLabel('Email address').fill('friend@example.com');
   await page.getByRole('button', { name: 'Send invitation' }).click();
 
-  await expect(page.getByRole('status')).toHaveText(/Invitation sent to friend@example.com\./);
+  await expect(section.getByRole('status')).toHaveText(/Invitation sent to friend@example.com\./);
   await expect(page.getByRole('cell', { name: 'friend@example.com', exact: true })).toBeVisible();
   expect(requests).toContainEqual(
     expect.objectContaining({ method: 'POST', body: { email: 'friend@example.com' } }),
   );
 
   await page.getByRole('button', { name: 'Revoke invitation to friend@example.com' }).click();
-  await expect(page.getByRole('status')).toHaveText(/was revoked\./);
+  await expect(section.getByRole('status')).toHaveText(/was revoked\./);
   await expect(
     page.getByRole('button', { name: 'Revoke invitation to friend@example.com' }),
   ).toHaveCount(0);

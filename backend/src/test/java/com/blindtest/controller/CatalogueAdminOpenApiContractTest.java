@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.blindtest.controller.admin.AdminCoverController;
 import com.blindtest.controller.admin.AdminImportController;
+import com.blindtest.controller.admin.AdminInvitationController;
 import com.blindtest.controller.admin.AdminMediaController;
 import com.blindtest.controller.admin.AdminPlaylistController;
 import com.blindtest.controller.admin.AdminTrackController;
+import com.blindtest.controller.admin.AdminUserController;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -34,9 +36,11 @@ class CatalogueAdminOpenApiContractTest {
             CoverController.class,
             AdminCoverController.class,
             AdminImportController.class,
+            AdminInvitationController.class,
             AdminMediaController.class,
             AdminPlaylistController.class,
-            AdminTrackController.class);
+            AdminTrackController.class,
+            AdminUserController.class);
 
     private static Map<String, Object> specification;
 
