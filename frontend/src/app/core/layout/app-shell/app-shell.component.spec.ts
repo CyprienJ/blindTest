@@ -73,7 +73,7 @@ describe('AppShellComponent', () => {
     expect(element.querySelector('.bt-account-name')?.textContent).toContain('musicfan');
     expect(element.querySelector('.bt-avatar')?.textContent?.trim()).toBe('M');
 
-    const button = element.querySelector('.bt-topbar-account button') as HTMLButtonElement;
+    const button = element.querySelector('.bt-sign-out') as HTMLButtonElement;
     expect(button.textContent).toContain('Sign out');
     button.click();
 
@@ -86,7 +86,8 @@ describe('AppShellComponent', () => {
     fixture.changeDetectorRef.markForCheck();
     fixture.changeDetectorRef.detectChanges();
     expect(element.querySelector('a[href="/admin"]')).toBeNull();
-    expect(element.querySelector('.bt-topbar-account')).toBeNull();
+    expect(element.querySelector('.bt-account-name')).toBeNull();
+    expect(element.querySelector('.bt-sign-out')).toBeNull();
   });
 
   it('prevents duplicate logout requests while sign-out is pending', async () => {
@@ -98,13 +99,14 @@ describe('AppShellComponent', () => {
     fixture.changeDetectorRef.markForCheck();
     fixture.changeDetectorRef.detectChanges();
     expect(logout).toHaveBeenCalledTimes(1);
-    expect(fixture.nativeElement.querySelector('button').disabled).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.bt-sign-out').disabled).toBeTrue();
     pending.complete();
   });
 
-  it('omits the account cluster when no session is restored', async () => {
+  it('omits the account details when no session is restored', async () => {
     const element = await render(null);
-    expect(element.querySelector('.bt-topbar-account')).toBeNull();
+    expect(element.querySelector('.bt-account-name')).toBeNull();
+    expect(element.querySelector('.bt-sign-out')).toBeNull();
     expect(element.querySelector('nav[aria-label="Primary navigation"]')).not.toBeNull();
   });
 });

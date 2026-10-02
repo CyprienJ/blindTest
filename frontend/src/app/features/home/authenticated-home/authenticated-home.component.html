@@ -1,51 +1,53 @@
 <main class="dashboard-shell">
   @if (currentUser$ | async; as currentUser) {
     <section class="welcome" aria-labelledby="dashboard-title">
-      <p class="eyebrow">Player home</p>
-      <h1 id="dashboard-title">
+      <p class="eyebrow" i18n>Player home</p>
+      <h1 id="dashboard-title" i18n>
         Ready for the next track, <strong>{{ currentUser.username }}</strong
         >?
       </h1>
-      <p>Choose where to start. Your next game is only a playlist away.</p>
+      <p i18n>Choose where to start. Your next game is only a playlist away.</p>
     </section>
 
     <section class="actions" aria-labelledby="actions-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Play</p>
-          <h2 id="actions-title">Start listening</h2>
+          <p class="eyebrow" i18n>Play</p>
+          <h2 id="actions-title" i18n>Start listening</h2>
         </div>
-        <span class="status"><i aria-hidden="true"></i> Solo available</span>
+        <span class="status"
+          ><i aria-hidden="true"></i> <ng-container i18n>Solo and multiplayer</ng-container></span
+        >
       </div>
 
       <div class="action-grid">
         <a class="action-card action-card-primary" routerLink="/lobby/create">
           <span class="action-icon" aria-hidden="true">▶</span>
           <span class="action-copy">
-            <span class="action-label">Solo game</span>
-            <strong>Create a game</strong>
-            <span>Choose a public playlist, track count, and answer time.</span>
+            <span class="action-label" i18n>Solo or with friends</span>
+            <strong i18n>Create a game</strong>
+            <span i18n>Choose a public playlist, track count, and answer time.</span>
           </span>
           <span class="arrow" aria-hidden="true">→</span>
         </a>
 
-        <div class="action-card action-card-disabled" aria-describedby="join-status">
+        <a class="action-card" routerLink="/lobby/join">
           <span class="action-icon" aria-hidden="true">＋</span>
           <span class="action-copy">
-            <span class="action-label">Multiplayer</span>
-            <strong>Join a game</strong>
-            <span id="join-status">Room codes will become available with multiplayer.</span>
+            <span class="action-label" i18n>Multiplayer</span>
+            <strong i18n>Join a game</strong>
+            <span i18n>Enter the 6-character code your host shared.</span>
           </span>
-          <span class="coming-soon">Coming later</span>
-        </div>
+          <span class="arrow" aria-hidden="true">→</span>
+        </a>
       </div>
     </section>
 
     <section class="library" aria-labelledby="library-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Library</p>
-          <h2 id="library-title">Music and playlists</h2>
+          <p class="eyebrow" i18n>Library</p>
+          <h2 id="library-title" i18n>Music and playlists</h2>
         </div>
       </div>
 
@@ -53,8 +55,8 @@
         <a class="library-card" routerLink="/lobby/create">
           <span class="library-icon" aria-hidden="true">♫</span>
           <span>
-            <strong>Explore public playlists</strong>
-            <small>Browse the available selections while configuring a game.</small>
+            <strong i18n>Explore public playlists</strong>
+            <small i18n>Browse the available selections while configuring a game.</small>
           </span>
           <span class="arrow" aria-hidden="true">→</span>
         </a>
@@ -63,10 +65,10 @@
           <a class="library-card admin-card" routerLink="/admin/playlists">
             <span class="library-icon" aria-hidden="true">☷</span>
             <span>
-              <strong>Edit playlists</strong>
-              <small>Create, order, and maintain the public catalogue.</small>
+              <strong i18n>Edit playlists</strong>
+              <small i18n>Create, order, and maintain the public catalogue.</small>
             </span>
-            <span class="admin-badge">Admin</span>
+            <span class="admin-badge" i18n>Admin</span>
           </a>
         }
       </div>
@@ -74,8 +76,8 @@
   } @else {
     <section class="restoring" aria-live="polite">
       <span class="restoring-mark" aria-hidden="true"></span>
-      <h1>Restoring your session…</h1>
-      <p>Your player home will be ready in a moment.</p>
+      <h1 i18n>Restoring your session…</h1>
+      <p i18n>Your player home will be ready in a moment.</p>
     </section>
   }
 </main>

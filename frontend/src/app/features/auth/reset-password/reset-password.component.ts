@@ -22,11 +22,12 @@ type State = 'form' | 'success' | 'error';
         <div class="bt-card">
           @if (state === 'form') {
             <h1
+              i18n
               style="font-size: 20px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em;"
             >
               Choose a new password
             </h1>
-            <p style="color: var(--fg-2); font-size: 13.5px; margin: 0 0 24px;">
+            <p i18n style="color: var(--fg-2); font-size: 13.5px; margin: 0 0 24px;">
               Must be at least 8 characters.
             </p>
 
@@ -36,7 +37,7 @@ type State = 'form' | 'success' | 'error';
               style="display: flex; flex-direction: column; gap: 16px;"
             >
               <div class="bt-field">
-                <label class="bt-label" for="newPassword">New password</label>
+                <label i18n class="bt-label" for="newPassword">New password</label>
                 <div style="position: relative;">
                   <input
                     id="newPassword"
@@ -52,13 +53,13 @@ type State = 'form' | 'success' | 'error';
                     (click)="showPassword = !showPassword"
                     style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
                            background: none; border: none; cursor: pointer; color: var(--fg-2); padding: 0;"
-                    [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                    [attr.aria-label]="showPassword ? hidePasswordLabel : showPasswordLabel"
                   >
                     {{ showPassword ? '🙈' : '👁' }}
                   </button>
                 </div>
                 @if (form.get('newPassword')?.invalid && form.get('newPassword')?.touched) {
-                  <span class="bt-error">At least 8 characters required</span>
+                  <span i18n class="bt-error">At least 8 characters required</span>
                 }
               </div>
 
@@ -78,7 +79,10 @@ type State = 'form' | 'success' | 'error';
                 style="width: 100%;"
                 [disabled]="loading"
               >
-                {{ loading ? 'Saving…' : 'Set new password' }}
+                <ng-container i18n>{loading, select,
+                  true {Saving…}
+                  other {Set new password}
+                }</ng-container>
               </button>
             </form>
           }
@@ -86,11 +90,14 @@ type State = 'form' | 'success' | 'error';
           @if (state === 'success') {
             <div style="text-align: center;">
               <div style="font-size: 40px; margin-bottom: 16px;">✅</div>
-              <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">Password updated!</h1>
-              <p style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px;">
+              <h1 i18n style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">
+                Password updated!
+              </h1>
+              <p i18n style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px;">
                 You can now sign in with your new password.
               </p>
               <a
+                i18n
                 routerLink="/auth/login"
                 class="bt-btn bt-btn-primary bt-btn-lg"
                 style="width: 100%;"
@@ -103,13 +110,17 @@ type State = 'form' | 'success' | 'error';
           @if (state === 'error') {
             <div style="text-align: center;">
               <div style="font-size: 40px; margin-bottom: 16px;">❌</div>
-              <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 8px; color: var(--danger);">
+              <h1
+                i18n
+                style="font-size: 20px; font-weight: 700; margin: 0 0 8px; color: var(--danger);"
+              >
                 Invalid link
               </h1>
-              <p style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px;">
+              <p i18n style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px;">
                 This reset link is invalid or has expired.
               </p>
               <a
+                i18n
                 routerLink="/auth/forgot-password"
                 class="bt-btn bt-btn-ghost"
                 style="width: 100%;"
@@ -123,6 +134,7 @@ type State = 'form' | 'success' | 'error';
         @if (state === 'form') {
           <p style="text-align: center; margin-top: 20px; font-size: 13.5px; color: var(--fg-2);">
             <a
+              i18n
               routerLink="/auth/login"
               style="color: var(--accent); text-decoration: none; font-weight: 600;"
             >
@@ -135,6 +147,9 @@ type State = 'form' | 'success' | 'error';
   `,
 })
 export class ResetPasswordComponent implements OnInit {
+  readonly showPasswordLabel = $localize`Show password`;
+  readonly hidePasswordLabel = $localize`Hide password`;
+
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
@@ -174,7 +189,7 @@ export class ResetPasswordComponent implements OnInit {
         if (err.status === 400) {
           this.state = 'error';
         } else {
-          this.errorMessage = 'Something went wrong. Please try again.';
+          this.errorMessage = $localize`Something went wrong. Please try again.`;
         }
       },
     });

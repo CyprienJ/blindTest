@@ -35,7 +35,7 @@ export class EndScreenComponent implements OnInit {
     const sessionId = this.route.snapshot.paramMap.get('sessionId');
     if (!sessionId) {
       this.view = 'error';
-      this.errorMessage = 'This link is missing a game to summarize.';
+      this.errorMessage = $localize`This link is missing a game to summarize.`;
       this.changeDetector.markForCheck();
       return;
     }
@@ -49,8 +49,8 @@ export class EndScreenComponent implements OnInit {
       error: (response: HttpErrorResponse) => {
         this.errorMessage =
           response.status === 404
-            ? "We couldn't find a summary for this game."
-            : 'Something went wrong loading this summary.';
+            ? $localize`We couldn't find a summary for this game.`
+            : $localize`Something went wrong loading this summary.`;
         this.view = 'error';
         this.changeDetector.markForCheck();
       },
@@ -64,11 +64,11 @@ export class EndScreenComponent implements OnInit {
   outcomeLabel(outcome: RoundOutcome): string {
     switch (outcome) {
       case 'TITLE_FOUND':
-        return 'Found';
+        return $localize`Found`;
       case 'TIMEOUT':
-        return 'Timed out';
+        return $localize`Timed out`;
       case 'SKIPPED':
-        return 'Skipped';
+        return $localize`Skipped`;
     }
   }
 

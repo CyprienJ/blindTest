@@ -50,6 +50,10 @@ export class JoinSessionComponent implements OnInit {
     return this.characters.filter((character) => !character).length;
   }
 
+  cellLabel(index: number): string {
+    return $localize`Code character ${index + 1}:position: of ${this.positions.length}:total:`;
+  }
+
   onInput(index: number, event: Event): void {
     const input = event.target as HTMLInputElement;
     const previous = this.characters[index];
@@ -105,7 +109,7 @@ export class JoinSessionComponent implements OnInit {
       .split('')
       .filter((character) => LOBBY_CODE_ALPHABET.includes(character));
     if (raw && accepted.length === 0) {
-      this.errorMessage = 'Codes use letters and the digits 2 to 9 only.';
+      this.errorMessage = $localize`Codes use letters and the digits 2 to 9 only.`;
       return;
     }
     let position = index;
@@ -130,18 +134,18 @@ export class JoinSessionComponent implements OnInit {
     if (error instanceof HttpErrorResponse) {
       switch (error.error?.code) {
         case 'LOBBY_NOT_FOUND':
-          return 'No open lobby uses this code. Check it with your host — the game may have already started.';
+          return $localize`No open lobby uses this code. Check it with your host — the game may have already started.`;
         case 'LOBBY_FULL':
-          return 'This lobby is full (10 players).';
+          return $localize`This lobby is full (10 players).`;
         case 'EMAIL_NOT_VERIFIED':
-          return 'Verify your email address before joining a game.';
+          return $localize`Verify your email address before joining a game.`;
         default:
           break;
       }
       if (error.status === 0) {
-        return 'The server can’t be reached. Check your connection and try again.';
+        return $localize`The server can’t be reached. Check your connection and try again.`;
       }
     }
-    return 'You could not join this lobby. Please try again.';
+    return $localize`You could not join this lobby. Please try again.`;
   }
 }

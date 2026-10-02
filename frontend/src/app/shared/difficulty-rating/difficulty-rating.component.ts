@@ -20,14 +20,14 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
           role="radio"
           [class.filled]="level <= (value() ?? 0)"
           [attr.aria-checked]="value() === level"
-          [attr.aria-label]="level + (level === 1 ? ' star' : ' stars')"
+          [attr.aria-label]="starLabel(level)"
           [disabled]="disabled()"
           (click)="select(level)"
         >
           ★
         </button>
       }
-      <span>1 = easiest · 5 = hardest</span>
+      <span i18n>1 = easiest · 5 = hardest</span>
     </div>
   `,
   styles: `
@@ -57,6 +57,10 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
   `,
 })
 export class DifficultyRatingComponent implements ControlValueAccessor {
+  starLabel(level: number): string {
+    return level === 1 ? $localize`1 star` : $localize`${level}:level: stars`;
+  }
+
   readonly labelledBy = input<string | null>(null);
   readonly levels = [1, 2, 3, 4, 5];
   readonly value = signal<number | null>(null);

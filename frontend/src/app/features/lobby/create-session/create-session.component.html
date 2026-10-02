@@ -2,15 +2,17 @@
   <main class="session-page">
     <div class="page-heading">
       <div>
-        <span class="eyebrow">{{
-          mode === 'solo' ? 'Solo blindtest' : 'Multiplayer blindtest'
-        }}</span>
-        <h1>Configure a new game</h1>
-        <p>Choose a public playlist, the number of rounds and the maximum answer time.</p>
+        <span class="eyebrow" i18n>{mode, select,
+          solo {Solo blindtest}
+          other {Multiplayer blindtest}
+        }</span>
+        <h1 i18n>Configure a new game</h1>
+        <p i18n>Choose a public playlist, the number of rounds and the maximum answer time.</p>
       </div>
       <div class="heading-actions">
-        <div class="mode-switch" role="radiogroup" aria-label="Game mode">
+        <div class="mode-switch" role="radiogroup" i18n-aria-label aria-label="Game mode">
           <button
+            i18n
             type="button"
             role="radio"
             [attr.aria-checked]="mode === 'solo'"
@@ -20,6 +22,7 @@
             Solo
           </button>
           <button
+            i18n
             type="button"
             role="radio"
             [attr.aria-checked]="mode === 'multiplayer'"
@@ -29,14 +32,14 @@
             With friends
           </button>
         </div>
-        <a class="bt-btn bt-btn-ghost" routerLink="/lobby/join">Join instead</a>
+        <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/join">Join instead</a>
       </div>
     </div>
 
     @if (errorMessage) {
       <div class="notice error" role="alert">
         <span>{{ errorMessage }}</span>
-        <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="loadPlaylists()">
+        <button i18n class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="loadPlaylists()">
           Retry
         </button>
       </div>
@@ -48,32 +51,37 @@
           <div class="section-heading">
             <div>
               <span class="step">1</span>
-              <h2>Choose the music</h2>
+              <h2 i18n>Choose the music</h2>
             </div>
-            <span class="bt-chip">{{ playlists.length }} eligible</span>
+            <span i18n class="bt-chip">{{ playlists.length }} eligible</span>
           </div>
 
           @if (loading) {
             <div class="state-panel" role="status">
               <span class="spinner" aria-hidden="true"></span>
-              <p>Loading public playlists…</p>
+              <p i18n>Loading public playlists…</p>
             </div>
           } @else if (!errorMessage && playlists.length === 0) {
             <div class="state-panel">
               <span class="state-symbol" aria-hidden="true">♫</span>
-              <h3>No playable playlist yet</h3>
-              <p>
+              <h3 i18n>No playable playlist yet</h3>
+              <p i18n>
                 A playlist needs at least {{ limits.trackCount.minimum }} published tracks to become
                 eligible.
               </p>
               @if (auth.isAdmin()) {
-                <a class="bt-btn bt-btn-ghost" routerLink="/admin/playlists"
+                <a i18n class="bt-btn bt-btn-ghost" routerLink="/admin/playlists"
                   >Open playlist editor</a
                 >
               }
             </div>
           } @else {
-            <div class="playlist-grid" role="radiogroup" aria-label="Public playlists">
+            <div
+              class="playlist-grid"
+              role="radiogroup"
+              i18n-aria-label
+              aria-label="Public playlists"
+            >
               @for (playlist of playlists; track playlist.id) {
                 <button
                   type="button"
@@ -91,7 +99,7 @@
                   </span>
                   <span>
                     <strong>{{ playlist.name }}</strong>
-                    <small>{{ playlist.trackCount }} tracks</small>
+                    <small i18n>{{ playlist.trackCount }} tracks</small>
                   </span>
                   <span class="radio-mark" aria-hidden="true"></span>
                 </button>
@@ -108,10 +116,14 @@
               <div class="preview-heading">
                 <div>
                   <h3>{{ selected.name }}</h3>
-                  <p>{{ selected.description || 'Public blindtest playlist' }}</p>
+                  @if (selected.description) {
+                    <p>{{ selected.description }}</p>
+                  } @else {
+                    <p i18n>Public blindtest playlist</p>
+                  }
                 </div>
                 @if (loadingDetail) {
-                  <span class="spinner" aria-label="Loading playlist detail"></span>
+                  <span class="spinner" i18n-aria-label aria-label="Loading playlist detail"></span>
                 }
               </div>
               <div class="track-preview">
@@ -126,7 +138,7 @@
                   </div>
                 }
                 @if (selected.trackCount > 5) {
-                  <p>+ {{ selected.trackCount - 5 }} more tracks</p>
+                  <p i18n>+ {{ selected.trackCount - 5 }} more tracks</p>
                 }
               </div>
             </div>
@@ -137,15 +149,18 @@
           <div class="section-heading">
             <div>
               <span class="step">2</span>
-              <h2>Set the rules</h2>
+              <h2 i18n>Set the rules</h2>
             </div>
           </div>
 
           <form [formGroup]="form">
             <div class="range-field">
               <span>
-                <strong id="difficulty-heading">Difficulty</strong>
-                <output>{{ matchingTrackCount() }} tracks</output>
+                <strong i18n id="difficulty-heading">Difficulty</strong>
+                <output i18n>{matchingTrackCount(), plural,
+                  =1 {1 track}
+                  other {{{ matchingTrackCount() }} tracks}
+                }</output>
               </span>
               <div class="difficulty-options" role="group" aria-labelledby="difficulty-heading">
                 @for (level of difficultyLevels; track level) {
@@ -168,10 +183,14 @@
                   [attr.aria-label]="difficultyLabel(null)"
                   (click)="toggleDifficulty(null)"
                 >
-                  Not rated <small>{{ difficultyCount(null) }}</small>
+                  <ng-container i18n
+                    >Not rated <small>{{ difficultyCount(null) }}</small></ng-container
+                  >
                 </button>
               </div>
-              <small>1 ★ is the easiest, 5 ★ the hardest. Deselect levels to leave them out.</small>
+              <small i18n
+                >1 ★ is the easiest, 5 ★ the hardest. Deselect levels to leave them out.</small
+              >
               @if (difficultyError()) {
                 <p class="inline-error" role="alert">{{ difficultyError() }}</p>
               }
@@ -179,7 +198,7 @@
 
             <label class="range-field">
               <span>
-                <strong>Number of tracks</strong>
+                <strong i18n>Number of tracks</strong>
                 <output>{{ form.controls.trackCount.value }}</output>
               </span>
               <input
@@ -188,9 +207,10 @@
                 [min]="limits.trackCount.minimum"
                 [max]="trackCountMaximum()"
                 [step]="limits.trackCount.increment"
+                i18n-aria-label
                 aria-label="Number of tracks"
               />
-              <small>
+              <small i18n>
                 Between {{ limits.trackCount.minimum }} and {{ trackCountMaximum() }}, without
                 repeating a track.
               </small>
@@ -198,7 +218,7 @@
 
             <label class="range-field">
               <span>
-                <strong>Maximum answer time</strong>
+                <strong i18n>Maximum answer time</strong>
                 <output>{{ form.controls.maxRoundSeconds.value }}s</output>
               </span>
               <input
@@ -207,16 +227,17 @@
                 [min]="limits.roundDurationSeconds.minimum"
                 [max]="limits.roundDurationSeconds.maximum"
                 [step]="limits.roundDurationSeconds.increment"
+                i18n-aria-label
                 aria-label="Maximum answer time"
               />
-              <small>Each round ends sooner when the title is found.</small>
+              <small i18n>Each round ends sooner when the title is found.</small>
             </label>
           </form>
         </section>
       </div>
 
       <aside class="summary-card bt-card">
-        <span class="bt-chip bt-chip-accent">Configuration summary</span>
+        <span i18n class="bt-chip bt-chip-accent">Configuration summary</span>
         <div class="summary-cover" aria-hidden="true">
           @if (selected?.imageUrl) {
             <img [src]="selected?.imageUrl" alt="" />
@@ -224,34 +245,41 @@
             ♪
           }
         </div>
-        <h2>{{ selected?.name || 'Choose a playlist' }}</h2>
-        <p>{{ selected?.description || 'Your selected music will appear here.' }}</p>
+        @if (selected?.name; as name) {
+          <h2>{{ name }}</h2>
+        } @else {
+          <h2 i18n>Choose a playlist</h2>
+        }
+        @if (selected?.description; as description) {
+          <p>{{ description }}</p>
+        } @else {
+          <p i18n>Your selected music will appear here.</p>
+        }
 
         <dl>
           <div>
-            <dt>Tracks</dt>
+            <dt i18n>Tracks</dt>
             <dd>{{ form.controls.trackCount.value }}</dd>
           </div>
           <div>
-            <dt>Difficulty</dt>
+            <dt i18n>Difficulty</dt>
             <dd>{{ difficultySummary() }}</dd>
           </div>
           <div>
-            <dt>Time per track</dt>
-            <dd>{{ form.controls.maxRoundSeconds.value }} seconds</dd>
+            <dt i18n>Time per track</dt>
+            <dd i18n>{{ form.controls.maxRoundSeconds.value }} seconds</dd>
           </div>
           <div>
-            <dt>Estimated duration</dt>
-            <dd>~{{ estimatedMinutes() }} minutes</dd>
+            <dt i18n>Estimated duration</dt>
+            <dd i18n>~{{ estimatedMinutes() }} minutes</dd>
           </div>
           <div>
-            <dt>Mode</dt>
-            <dd>
-              {{
-                mode === 'solo'
-                  ? 'Solo · title answer'
-                  : 'Up to 10 players · everyone who finds scores'
-              }}
+            <dt i18n>Mode</dt>
+            <dd i18n>
+              {mode, select,
+                solo {Solo · title answer}
+                other {Up to 10 players · everyone who finds scores}
+              }
             </dd>
           </div>
         </dl>
@@ -269,9 +297,15 @@
           (click)="createSession()"
         >
           @if (mode === 'solo') {
-            {{ submitting ? 'Creating game…' : 'Create session →' }}
+            <ng-container i18n>{submitting, select,
+              true {Creating game…}
+              other {Create session →}
+            }</ng-container>
           } @else {
-            {{ submitting ? 'Opening lobby…' : 'Open lobby →' }}
+            <ng-container i18n>{submitting, select,
+              true {Opening lobby…}
+              other {Open lobby →}
+            }</ng-container>
           }
         </button>
       </aside>

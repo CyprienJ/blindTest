@@ -76,6 +76,7 @@ on demand, shows difficulty and duration, and previews each track's game excerpt
 - [Features](../../frontend/src/app/features): routed screens and feature components.
 - [Shared](../../frontend/src/app/shared): reusable UI pieces; some are scaffolds.
 - [Gameplay client](gameplay.md): command/event flow, recovery, and audio.
+- [Translations](i18n.md): French default, English switch, and the extraction workflow.
 - [Frontend quick start](../../frontend/README.md).
 - [Local development](../development/README.md) and [testing](../testing.md).
 - [UI reference](../Blindtest/Blindtest%20Views.html): visual intent and adjacent JSX.

@@ -101,11 +101,12 @@ test.describe('authenticated application shell', () => {
     await installSession(page);
     await mockJson(page, '/api/auth/refresh', 401, {});
     await page.goto('/home');
-    await page.evaluate(() => localStorage.removeItem('access_token'));
-    await page
+    const play = page
       .getByRole('navigation', { name: 'Primary navigation' })
-      .getByRole('link', { name: 'Play', exact: true })
-      .click();
+      .getByRole('link', { name: 'Play', exact: true });
+    await expect(play).toBeVisible();
+    await page.evaluate(() => localStorage.removeItem('access_token'));
+    await play.click();
     await expect(page).toHaveURL(/\/auth\/login\?returnUrl=%2Flobby%2Fcreate$/);
   });
 

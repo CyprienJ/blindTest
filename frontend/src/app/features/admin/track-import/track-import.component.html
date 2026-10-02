@@ -1,9 +1,9 @@
 <main class="import-page">
   <div class="page-heading">
     <div>
-      <a class="back-link" routerLink="/admin/tracks">← Track catalogue</a>
-      <h1>Import a track</h1>
-      <p>
+      <a i18n class="back-link" routerLink="/admin/tracks">← Track catalogue</a>
+      <h1 i18n>Import a track</h1>
+      <p i18n>
         Upload an audio file or paste a YouTube link; FFmpeg processes the audio securely on the
         server.
       </p>
@@ -18,7 +18,7 @@
   @if (monitorError) {
     <div class="notice error" role="alert">
       <span>{{ monitorError }}</span>
-      <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="retryPolling()">
+      <button i18n class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="retryPolling()">
         Retry now
       </button>
     </div>
@@ -29,15 +29,18 @@
       <div class="panel-title">
         <div>
           <span class="step-number">1</span>
-          <h2>{{ source === 'UPLOAD' ? 'Choose the audio file' : 'Paste the YouTube link' }}</h2>
+          <h2 i18n>
+            {source, select, UPLOAD {Choose the audio file} other {Paste the YouTube link}}
+          </h2>
         </div>
         @if (importLocked) {
-          <span class="locked">Locked during import</span>
+          <span i18n class="locked">Locked during import</span>
         }
       </div>
 
-      <div class="source-switch" role="group" aria-label="Import source">
+      <div class="source-switch" role="group" i18n-aria-label aria-label="Import source">
         <button
+          i18n
           type="button"
           [class.active]="source === 'UPLOAD'"
           [attr.aria-pressed]="source === 'UPLOAD'"
@@ -47,6 +50,7 @@
           Audio file
         </button>
         <button
+          i18n
           type="button"
           [class.active]="source === 'YOUTUBE'"
           [attr.aria-pressed]="source === 'YOUTUBE'"
@@ -72,6 +76,7 @@
               class="visually-hidden"
               type="file"
               accept="audio/*,.mp3,.m4a,.aac,.flac,.ogg,.opus,.wav,.webm"
+              i18n-aria-label
               aria-label="Audio file"
               [disabled]="importLocked"
               (change)="onFileSelected(fileInput)"
@@ -79,13 +84,13 @@
             <span class="step-number" aria-hidden="true">♪</span>
             @if (selectedFile) {
               <strong class="file-name">{{ selectedFile.name }}</strong>
-              <small>{{ formatBytes(selectedFile.size) }} · click or drop to replace</small>
+              <small i18n>{{ formatBytes(selectedFile.size) }} · click or drop to replace</small>
             } @else if (job?.originalFilename) {
               <strong class="file-name">{{ job!.originalFilename }}</strong>
-              <small>Uploaded file</small>
+              <small i18n>Uploaded file</small>
             } @else {
-              <strong>Drop an audio file here or click to browse</strong>
-              <small
+              <strong i18n>Drop an audio file here or click to browse</strong>
+              <small i18n
                 >MP3, M4A/AAC, FLAC, Ogg/Opus, WAV or WebM · up to {{ maxUploadLabel }} and 15
                 minutes</small
               >
@@ -97,21 +102,31 @@
 
           <div class="form-grid">
             <label class="field">
-              <span>Title (optional)</span>
-              <input class="bt-input" formControlName="title" placeholder="From file tags" />
+              <span i18n>Title (optional)</span>
+              <input
+                class="bt-input"
+                formControlName="title"
+                i18n-placeholder
+                placeholder="From file tags"
+              />
               @if (uploadForm.controls.title.invalid && uploadForm.controls.title.touched) {
-                <small>Use 255 characters or fewer.</small>
+                <small i18n>Use 255 characters or fewer.</small>
               }
             </label>
             <label class="field">
-              <span>Artist (optional)</span>
-              <input class="bt-input" formControlName="artist" placeholder="From file tags" />
+              <span i18n>Artist (optional)</span>
+              <input
+                class="bt-input"
+                formControlName="artist"
+                i18n-placeholder
+                placeholder="From file tags"
+              />
               @if (uploadForm.controls.artist.invalid && uploadForm.controls.artist.touched) {
-                <small>Use 255 characters or fewer.</small>
+                <small i18n>Use 255 characters or fewer.</small>
               }
             </label>
           </div>
-          <p class="hint">
+          <p i18n class="hint">
             Leave blank to use the file's embedded tags. You can edit everything before publishing.
           </p>
 
@@ -121,9 +136,11 @@
 
           @if (uploadProgress !== null) {
             <div class="upload-progress" role="status">
-              <span>{{
-                uploadProgress < 100 ? 'Uploading… ' + uploadProgress + '%' : 'Verifying the file…'
-              }}</span>
+              @if (uploadProgress < 100) {
+                <span i18n>Uploading… {{ uploadProgress }}%</span>
+              } @else {
+                <span i18n>Verifying the file…</span>
+              }
               <div class="progress"><span [style.width.%]="uploadProgress"></span></div>
             </div>
           }
@@ -134,26 +151,28 @@
             [disabled]="importLocked || !selectedFile"
           >
             @if (submitting) {
-              <span class="spinner" aria-hidden="true"></span> Uploading…
+              <span class="spinner" aria-hidden="true"></span>
+              <ng-container i18n>Uploading…</ng-container>
             } @else {
-              ↑ Upload and import
+              <ng-container i18n>↑ Upload and import</ng-container>
             }
           </button>
         </form>
       } @else {
         <form [formGroup]="importForm" (ngSubmit)="startImport()">
           <label class="field wide">
-            <span>YouTube URL *</span>
+            <span i18n>YouTube URL *</span>
             <input
               class="bt-input"
               formControlName="youtubeUrl"
+              i18n-placeholder
               placeholder="https://www.youtube.com/watch?v=…"
             />
             @if (importForm.controls.youtubeUrl.invalid && importForm.controls.youtubeUrl.touched) {
-              <small>Enter a supported YouTube watch, short, or Shorts URL.</small>
+              <small i18n>Enter a supported YouTube watch, short, or Shorts URL.</small>
             }
           </label>
-          <p class="hint">
+          <p i18n class="hint">
             YouTube may block downloads from the server. Upload a file if the import fails.
           </p>
 
@@ -167,9 +186,10 @@
             [disabled]="submitting || importForm.disabled || !!job"
           >
             @if (submitting) {
-              <span class="spinner" aria-hidden="true"></span> Starting import…
+              <span class="spinner" aria-hidden="true"></span>
+              <ng-container i18n>Starting import…</ng-container>
             } @else {
-              ↓ Download music
+              <ng-container i18n>↓ Download music</ng-container>
             }
           </button>
         </form>
@@ -181,7 +201,7 @@
         <div class="panel-title pipeline-title">
           <div>
             <span class="step-number">2</span>
-            <h2>Import pipeline</h2>
+            <h2 i18n>Import pipeline</h2>
           </div>
           @if (job) {
             <span class="job-id mono">{{ shortJobId(job.jobId) }}</span>
@@ -191,47 +211,49 @@
         @if (recovering && !job) {
           <div class="empty-state" role="status">
             <span class="spinner"></span>
-            <h3>Recovering import…</h3>
-            <p>Reading the latest durable state from the server.</p>
+            <h3 i18n>Recovering import…</h3>
+            <p i18n>Reading the latest durable state from the server.</p>
           </div>
         } @else if (!job) {
           <div class="empty-state">
             <span class="pipeline-icon" aria-hidden="true">↥</span>
-            <h3>No import running</h3>
-            <p>Upload an audio file or submit a YouTube URL to start the pipeline.</p>
+            <h3 i18n>No import running</h3>
+            <p i18n>Upload an audio file or submit a YouTube URL to start the pipeline.</p>
           </div>
         } @else {
           <div class="connection">
             <span [class]="realtimeState"></span>
-            {{
-              realtimeState === 'connected'
-                ? 'Live updates connected'
-                : realtimeState === 'connecting'
-                  ? 'Connecting live updates…'
-                  : 'Polling recovery active'
-            }}
+            <ng-container i18n>{realtimeState, select,
+              connected {Live updates connected}
+              connecting {Connecting live updates…}
+              other {Polling recovery active}
+            }</ng-container>
           </div>
 
           <div class="stages">
             <div class="stage" [attr.data-state]="stageState('QUEUED')">
               <span class="stage-dot">{{ stageState('QUEUED') === 'done' ? '✓' : '1' }}</span>
-              <div><strong>Queued</strong><small>Request accepted and persisted</small></div>
+              <div>
+                <strong i18n>Queued</strong><small i18n>Request accepted and persisted</small>
+              </div>
             </div>
             <div class="stage" [attr.data-state]="stageState('DOWNLOADING')">
               <span class="stage-dot">{{ stageState('DOWNLOADING') === 'done' ? '✓' : '2' }}</span>
               <div>
                 @if (job.source === 'UPLOAD') {
-                  <strong>Received</strong><small>File uploaded and verified with ffprobe</small>
+                  <strong i18n>Received</strong
+                  ><small i18n>File uploaded and verified with ffprobe</small>
                 } @else {
-                  <strong>Downloading</strong><small>yt-dlp retrieves the source audio</small>
+                  <strong i18n>Downloading</strong
+                  ><small i18n>yt-dlp retrieves the source audio</small>
                 }
               </div>
             </div>
             <div class="stage" [attr.data-state]="stageState('PROCESSING')">
               <span class="stage-dot">{{ stageState('PROCESSING') === 'done' ? '✓' : '3' }}</span>
               <div>
-                <strong>Processing</strong>
-                <small>FFmpeg conversion, validation and private upload</small>
+                <strong i18n>Processing</strong>
+                <small i18n>FFmpeg conversion, validation and private upload</small>
                 @if (job.status === 'DOWNLOADING' || job.status === 'PROCESSING') {
                   <div class="progress">
                     <span [style.width.%]="job.progress"></span>
@@ -244,25 +266,36 @@
             </div>
             <div class="stage" [attr.data-state]="stageState('DONE')">
               <span class="stage-dot">{{ stageState('DONE') === 'done' ? '✓' : '4' }}</span>
-              <div><strong>Ready</strong><small>Preview and administrator review</small></div>
+              <div>
+                <strong i18n>Ready</strong><small i18n>Preview and administrator review</small>
+              </div>
             </div>
           </div>
 
           @if (job.status === 'FAILED') {
             <div class="failure" role="alert">
-              <strong>Import failed</strong>
-              <p>{{ job.errorMessage || 'The media import failed.' }}</p>
-              <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="resetImport()">
+              <strong i18n>Import failed</strong>
+              @if (job.errorMessage) {
+                <p>{{ job.errorMessage }}</p>
+              } @else {
+                <p i18n>The media import failed.</p>
+              }
+              <button
+                i18n
+                class="bt-btn bt-btn-sm bt-btn-ghost"
+                type="button"
+                (click)="resetImport()"
+              >
                 Start another import
               </button>
             </div>
           }
 
-          <div class="activity" aria-label="Import activity">
+          <div class="activity" i18n-aria-label aria-label="Import activity">
             @for (line of activity; track $index) {
               <div>{{ line }}</div>
             } @empty {
-              <div>Waiting for pipeline activity…</div>
+              <div i18n>Waiting for pipeline activity…</div>
             }
           </div>
         }
@@ -273,10 +306,13 @@
           <div class="panel-title">
             <div>
               <span class="step-number">3</span>
-              <h2>Choose the excerpt start</h2>
+              <h2 i18n>Choose the excerpt start</h2>
             </div>
             @if (aliasState === 'saving') {
-              <span class="saving"><span class="spinner"></span> Saving aliases…</span>
+              <span class="saving"
+                ><span class="spinner"></span>
+                <ng-container i18n>Saving aliases…</ng-container></span
+              >
             }
           </div>
 
@@ -293,17 +329,17 @@
                 <div>
                   <h3>{{ importForm.controls.title.value }}</h3>
                   <p>{{ importForm.controls.artist.value }}</p>
-                  <small>Metadata detected automatically — edit it if necessary.</small>
+                  <small i18n>Metadata detected automatically — edit it if necessary.</small>
                 </div>
               </div>
 
               <div class="form-grid compact-fields">
                 <label class="field">
-                  <span>Title *</span>
+                  <span i18n>Title *</span>
                   <input class="bt-input" formControlName="title" (input)="invalidateSelection()" />
                 </label>
                 <label class="field">
-                  <span>Artist *</span>
+                  <span i18n>Artist *</span>
                   <input
                     class="bt-input"
                     formControlName="artist"
@@ -311,11 +347,11 @@
                   />
                 </label>
                 <label class="field">
-                  <span>Album</span>
+                  <span i18n>Album</span>
                   <input class="bt-input" formControlName="album" (input)="invalidateSelection()" />
                 </label>
                 <label class="field">
-                  <span>Category</span>
+                  <span i18n>Category</span>
                   <input
                     class="bt-input"
                     formControlName="category"
@@ -326,7 +362,7 @@
 
               <div class="alias-section">
                 <div class="field">
-                  <span id="difficulty-label">Difficulty *</span>
+                  <span i18n id="difficulty-label">Difficulty *</span>
                   <app-difficulty-rating
                     formControlName="difficulty"
                     labelledBy="difficulty-label"
@@ -335,15 +371,15 @@
                   @if (
                     importForm.controls.difficulty.touched && importForm.controls.difficulty.invalid
                   ) {
-                    <small>Choose a difficulty from 1 to 5 stars.</small>
+                    <small i18n>Choose a difficulty from 1 to 5 stars.</small>
                   }
                 </div>
 
                 <div class="alias-section">
                   <div class="alias-heading">
                     <div>
-                      <h3>Cover</h3>
-                      <p>Shown to players when the track is revealed.</p>
+                      <h3 i18n>Cover</h3>
+                      <p i18n>Shown to players when the track is revealed.</p>
                     </div>
                   </div>
                   <app-cover-picker
@@ -360,8 +396,8 @@
                 <div class="alias-section" formGroupName="streamingLinks">
                   <div class="alias-heading">
                     <div>
-                      <h3>Streaming links</h3>
-                      <p>Optional links to this song on streaming platforms.</p>
+                      <h3 i18n>Streaming links</h3>
+                      <p i18n>Optional links to this song on streaming platforms.</p>
                     </div>
                   </div>
                   <div class="form-grid compact-fields">
@@ -372,6 +408,7 @@
                           class="bt-input"
                           type="url"
                           [formControlName]="platform.key"
+                          i18n-placeholder
                           placeholder="https://…"
                           (input)="invalidateSelection()"
                         />
@@ -379,7 +416,7 @@
                           importForm.controls.streamingLinks.controls[platform.key].touched &&
                           importForm.controls.streamingLinks.controls[platform.key].invalid
                         ) {
-                          <small>Enter a {{ platform.label }} link.</small>
+                          <small i18n>Enter a {{ platform.label }} link.</small>
                         }
                       </label>
                     }
@@ -400,12 +437,13 @@
                 (playbackBlocked)="showBlockedPlayback()"
               >
                 @if (waveformLoading) {
-                  <small class="preview-status">Generating the waveform display…</small>
+                  <small i18n class="preview-status">Generating the waveform display…</small>
                 }
                 @if (waveformError) {
                   <div class="notice error" role="alert">
                     <span>{{ waveformError }}</span>
                     <button
+                      i18n
                       class="bt-btn bt-btn-sm bt-btn-ghost"
                       type="button"
                       (click)="loadWaveform()"
@@ -415,12 +453,13 @@
                   </div>
                 }
                 @if (previewLoading) {
-                  <small class="preview-status">Loading the secure audio preview…</small>
+                  <small i18n class="preview-status">Loading the secure audio preview…</small>
                 }
                 @if (previewError) {
                   <div class="notice error" role="alert">
                     <span>{{ previewError }}</span>
                     <button
+                      i18n
                       class="bt-btn bt-btn-sm bt-btn-ghost"
                       type="button"
                       (click)="loadPreview()"
@@ -434,10 +473,11 @@
               <div class="alias-section">
                 <div class="alias-heading">
                   <div>
-                    <h3>Alternative answers</h3>
-                    <p>Optional accepted variants.</p>
+                    <h3 i18n>Alternative answers</h3>
+                    <p i18n>Optional accepted variants.</p>
                   </div>
                   <button
+                    i18n
                     class="bt-btn bt-btn-sm bt-btn-ghost"
                     type="button"
                     [disabled]="aliases.length >= 10"
@@ -461,6 +501,7 @@
                       <input
                         class="bt-input"
                         formControlName="value"
+                        i18n-aria-label
                         aria-label="Alternative answer"
                         (input)="invalidateSelection()"
                       />
@@ -477,6 +518,7 @@
               <div class="notice error" role="alert">
                 <span>{{ aliasError }}</span>
                 <button
+                  i18n
                   class="bt-btn bt-btn-sm bt-btn-ghost"
                   type="button"
                   (click)="retryAliases()"
@@ -494,9 +536,11 @@
               [disabled]="selectionSaving || previewLoading"
               (click)="validateSelection()"
             >
-              {{
-                selectionSaving || previewLoading ? 'Preparing preview…' : '✓ Validate selection'
-              }}
+              @if (selectionSaving || previewLoading) {
+                <ng-container i18n>Preparing preview…</ng-container>
+              } @else {
+                <ng-container i18n>✓ Validate selection</ng-container>
+              }
             </button>
 
             @if (selectionValidated) {
@@ -504,10 +548,10 @@
                 <div class="panel-title">
                   <div>
                     <span class="step-number">4</span>
-                    <h2>Preview the result</h2>
+                    <h2 i18n>Preview the result</h2>
                   </div>
                 </div>
-                <small class="preview-expiry">
+                <small i18n class="preview-expiry">
                   Selection validated: {{ formatTime(track.excerptStartSeconds) }} for
                   {{ track.excerptDurationSeconds }} seconds, looped through longer rounds. The
                   player above remains available for review.
@@ -521,7 +565,7 @@
               <div class="panel-title">
                 <div>
                   <span class="step-number">5</span>
-                  <h2>Finish</h2>
+                  <h2 i18n>Finish</h2>
                 </div>
               </div>
               <div class="review-actions">
@@ -531,9 +575,13 @@
                   [disabled]="workflowBusy || !selectionValidated || !preview"
                   (click)="publish()"
                 >
-                  {{ workflowBusy ? 'Publishing…' : '✓ Publish track' }}
+                  <ng-container i18n>{workflowBusy, select,
+                    true {Publishing…}
+                    other {✓ Publish track}
+                  }</ng-container>
                 </button>
                 <button
+                  i18n
                   class="bt-btn bt-btn-danger"
                   type="button"
                   [disabled]="workflowBusy"
@@ -545,25 +593,27 @@
             </div>
           } @else if (job!.status === 'PUBLISHED') {
             <div class="completion success" role="status">
-              <strong>Track published</strong>
-              <p>It is now available to public playlists and future games.</p>
+              <strong i18n>Track published</strong>
+              <p i18n>It is now available to public playlists and future games.</p>
             </div>
             <div class="review-actions">
-              <a class="bt-btn bt-btn-ghost" routerLink="/admin/tracks">Open catalogue</a>
-              <button class="bt-btn bt-btn-primary" type="button" (click)="resetImport()">
+              <a i18n class="bt-btn bt-btn-ghost" routerLink="/admin/tracks">Open catalogue</a>
+              <button i18n class="bt-btn bt-btn-primary" type="button" (click)="resetImport()">
                 New import
               </button>
             </div>
           } @else if (job!.status === 'REJECTED') {
             <div class="completion rejected" role="status">
-              <strong>Track rejected</strong>
-              <p>It remains unavailable from the public catalogue.</p>
+              <strong i18n>Track rejected</strong>
+              <p i18n>It remains unavailable from the public catalogue.</p>
             </div>
-            <button class="bt-btn bt-btn-primary submit" type="button" (click)="resetImport()">
+            <button i18n class="bt-btn bt-btn-primary submit" type="button" (click)="resetImport()">
               New import
             </button>
           } @else {
-            <p class="waiting-copy">Preview and publication unlock after media finalization.</p>
+            <p i18n class="waiting-copy">
+              Preview and publication unlock after media finalization.
+            </p>
           }
         </section>
       }
@@ -580,12 +630,12 @@
       aria-labelledby="reject-title"
     >
       <span>!</span>
-      <h2 id="reject-title">Reject this import?</h2>
-      <p>
+      <h2 i18n id="reject-title">Reject this import?</h2>
+      <p i18n>
         <strong>{{ track.title }}</strong> will not be available in the public catalogue.
       </p>
       <div>
-        <button class="bt-btn bt-btn-ghost" type="button" (click)="confirmReject = false">
+        <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="confirmReject = false">
           Cancel
         </button>
         <button
@@ -594,7 +644,10 @@
           [disabled]="workflowBusy"
           (click)="reject()"
         >
-          {{ workflowBusy ? 'Rejecting…' : 'Reject track' }}
+          <ng-container i18n>{workflowBusy, select,
+            true {Rejecting…}
+            other {Reject track}
+          }</ng-container>
         </button>
       </div>
     </section>

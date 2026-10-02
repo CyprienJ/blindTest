@@ -1,17 +1,17 @@
 <div class="join-screen">
   <section class="bt-card join-card" aria-labelledby="join-title">
-    <span class="eyebrow">Multiplayer blindtest</span>
-    <h1 id="join-title">Join a session</h1>
-    <p class="subtitle">Enter the 6-character code your host shared.</p>
+    <span i18n class="eyebrow">Multiplayer blindtest</span>
+    <h1 i18n id="join-title">Join a session</h1>
+    <p i18n class="subtitle">Enter the 6-character code your host shared.</p>
 
-    <div class="code-cells" role="group" aria-label="Session code">
+    <div class="code-cells" role="group" i18n-aria-label aria-label="Session code">
       @for (index of positions; track index) {
         <input
           #cell
           class="mono"
           [class.filled]="!!characters[index]"
           [value]="characters[index]"
-          [attr.aria-label]="'Code character ' + (index + 1) + ' of ' + positions.length"
+          [attr.aria-label]="cellLabel(index)"
           autocomplete="off"
           autocapitalize="characters"
           spellcheck="false"
@@ -35,17 +35,20 @@
       (click)="join()"
     >
       @if (joining) {
-        Joining…
+        <ng-container i18n>Joining…</ng-container>
       } @else if (missing > 0) {
-        Enter {{ missing }} more character{{ missing === 1 ? '' : 's' }}
+        <ng-container i18n>{missing, plural,
+          =1 {Enter 1 more character}
+          other {Enter {{ missing }} more characters}
+        }</ng-container>
       } @else {
-        Join lobby →
+        <ng-container i18n>Join lobby →</ng-container>
       }
     </button>
 
     <p class="footer">
-      Don't have a code?
-      <a routerLink="/lobby/create" [queryParams]="{ mode: 'multiplayer' }">Host your own</a>
+      <ng-container i18n>Don't have a code?</ng-container>
+      <a i18n routerLink="/lobby/create" [queryParams]="{ mode: 'multiplayer' }">Host your own</a>
     </p>
   </section>
 </div>

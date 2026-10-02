@@ -57,10 +57,10 @@ export class TrackListComponent implements OnInit {
 
   readonly pageSize = 10;
   readonly filters: { value: StatusFilter; label: string }[] = [
-    { value: null, label: 'All tracks' },
-    { value: 'PUBLISHED', label: 'Published' },
-    { value: 'PENDING', label: 'Pending review' },
-    { value: 'REJECTED', label: 'Rejected' },
+    { value: null, label: $localize`All tracks` },
+    { value: 'PUBLISHED', label: $localize`Published` },
+    { value: 'PENDING', label: $localize`Pending review` },
+    { value: 'REJECTED', label: $localize`Rejected` },
   ];
   readonly aliasTypes: TrackAnswerType[] = ['TITLE', 'ARTIST', 'COMPOSER', 'ALBUM'];
 
@@ -222,7 +222,7 @@ export class TrackListComponent implements OnInit {
           this.replaceTrack(track);
           this.editingTrack = track;
           this.coverSelection = KEEP_COVER;
-          this.showSuccess('Track metadata saved.');
+          this.showSuccess($localize`Track metadata saved.`);
         },
         error: (error) => (this.editError = this.errorMessage(error)),
       });
@@ -298,7 +298,9 @@ export class TrackListComponent implements OnInit {
               ? [...this.aliases, alias]
               : this.aliases.map((item) => (item.id === alias.id ? alias : item));
           this.cancelAliasEdit();
-          this.showSuccess(index < 0 ? 'Alternative answer added.' : 'Alternative answer saved.');
+          this.showSuccess(
+            index < 0 ? $localize`Alternative answer added.` : $localize`Alternative answer saved.`,
+          );
         },
         error: (error) => (this.aliasError = this.errorMessage(error)),
       });
@@ -316,7 +318,7 @@ export class TrackListComponent implements OnInit {
       .subscribe({
         next: () => {
           this.aliases = this.aliases.filter((item) => item.id !== alias.id);
-          this.showSuccess('Alternative answer deleted.');
+          this.showSuccess($localize`Alternative answer deleted.`);
         },
         error: (error) => (this.aliasError = this.errorMessage(error)),
       });
@@ -369,7 +371,7 @@ export class TrackListComponent implements OnInit {
         .subscribe({
           next: () => {
             this.confirmation = null;
-            this.showSuccess('Track deleted.');
+            this.showSuccess($localize`Track deleted.`);
             this.refreshAfterRemoval();
           },
           error: (error) => {
@@ -397,9 +399,14 @@ export class TrackListComponent implements OnInit {
   }
 
   statusLabel(status: TrackStatus): string {
-    return status === 'PENDING'
-      ? 'Pending review'
-      : status.charAt(0) + status.slice(1).toLowerCase();
+    switch (status) {
+      case 'PENDING':
+        return $localize`Pending review`;
+      case 'PUBLISHED':
+        return $localize`Published`;
+      case 'REJECTED':
+        return $localize`Rejected`;
+    }
   }
 
   countFor(status: StatusFilter): number {
@@ -489,7 +496,11 @@ export class TrackListComponent implements OnInit {
       .subscribe({
         next: (updated) => {
           beforeSuccess?.();
-          this.showSuccess(updated.status === 'PUBLISHED' ? 'Track published.' : 'Track rejected.');
+          this.showSuccess(
+            updated.status === 'PUBLISHED'
+              ? $localize`Track published.`
+              : $localize`Track rejected.`,
+          );
           if (this.activeStatus && updated.status !== this.activeStatus) {
             this.refreshAfterRemoval();
           } else {
@@ -524,19 +535,19 @@ export class TrackListComponent implements OnInit {
       const code = error.error?.code as string | undefined;
       const message = error.error?.message as string | undefined;
       if (code === 'TRACK_METADATA_INCOMPLETE') {
-        return 'Complete all required metadata before publishing this track.';
+        return $localize`Complete all required metadata before publishing this track.`;
       }
       if (code === 'TRACK_EXCERPT_INVALID') {
-        return 'The excerpt window does not fit in the track: move its start or shorten it.';
+        return $localize`The excerpt window does not fit in the track: move its start or shorten it.`;
       }
       if (code === 'IMPORT_NOT_DONE' || code === 'INVALID_IMPORT_STATUS_TRANSITION') {
-        return 'This import is not ready for review.';
+        return $localize`This import is not ready for review.`;
       }
       if (error.status === 0) {
-        return 'The server cannot be reached. Check your connection and try again.';
+        return $localize`The server cannot be reached. Check your connection and try again.`;
       }
-      return message || 'The operation could not be completed. Please try again.';
+      return message || $localize`The operation could not be completed. Please try again.`;
     }
-    return 'The operation could not be completed. Please try again.';
+    return $localize`The operation could not be completed. Please try again.`;
   }
 }

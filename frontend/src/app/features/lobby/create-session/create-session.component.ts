@@ -113,7 +113,7 @@ export class CreateSessionComponent implements OnInit {
         next: (detail) => {
           if (detail.trackCount < this.limits.trackCount.minimum) {
             this.selected = null;
-            this.detailError = 'This playlist no longer contains enough published tracks.';
+            this.detailError = $localize`This playlist no longer contains enough published tracks.`;
             this.setTrackCountMaximum(this.limits.trackCount.maximum);
             return;
           }
@@ -150,9 +150,16 @@ export class CreateSessionComponent implements OnInit {
   }
 
   difficultyLabel(level: number | null): string {
-    const name = level === null ? 'Not rated' : `${level} ${level === 1 ? 'star' : 'stars'}`;
+    const name =
+      level === null
+        ? $localize`Not rated`
+        : level === 1
+          ? $localize`1 star`
+          : $localize`${level}:level: stars`;
     const count = this.difficultyCount(level);
-    return `${name}, ${count} ${count === 1 ? 'track' : 'tracks'}`;
+    return count === 1
+      ? $localize`${name}:name:, 1 track`
+      : $localize`${name}:name:, ${count}:count: tracks`;
   }
 
   matchingTrackCount(): number {
@@ -168,14 +175,13 @@ export class CreateSessionComponent implements OnInit {
       return '';
     }
     if (this.selectedLevels.size === 0 && !this.includeUnrated) {
-      return 'Select at least one difficulty level.';
+      return $localize`Select at least one difficulty level.`;
     }
     const matching = this.matchingTrackCount();
     if (matching < this.limits.trackCount.minimum) {
-      return (
-        `Only ${matching} ${matching === 1 ? 'track matches' : 'tracks match'} these levels; ` +
-        `a game needs at least ${this.limits.trackCount.minimum}. Include more levels.`
-      );
+      return matching === 1
+        ? $localize`Only 1 track matches these levels; a game needs at least ${this.limits.trackCount.minimum}:minimum:. Include more levels.`
+        : $localize`Only ${matching}:count: tracks match these levels; a game needs at least ${this.limits.trackCount.minimum}:minimum:. Include more levels.`;
     }
     return '';
   }
@@ -183,13 +189,13 @@ export class CreateSessionComponent implements OnInit {
   difficultySummary(): string {
     const levels = [...this.selectedLevels].sort((a, b) => a - b);
     if (levels.length === this.difficultyLevels.length && this.includeUnrated) {
-      return 'All levels';
+      return $localize`All levels`;
     }
     const parts = levels.length > 0 ? [`${levels.join(', ')} ★`] : [];
     if (this.includeUnrated) {
-      parts.push('not rated');
+      parts.push($localize`not rated`);
     }
-    return parts.join(' · ') || 'None';
+    return parts.join(' · ') || $localize`None`;
   }
 
   setMode(mode: 'solo' | 'multiplayer'): void {
@@ -263,40 +269,34 @@ export class CreateSessionComponent implements OnInit {
       const message = error.error?.message as string | undefined;
       switch (code) {
         case 'GAME_PLAYLIST_REQUIRED':
-          return 'Choose a playlist before starting a game.';
+          return $localize`Choose a playlist before starting a game.`;
         case 'GAME_TRACK_COUNT_INVALID':
-          return 'The track count is outside the allowed range.';
+          return $localize`The track count is outside the allowed range.`;
         case 'GAME_ROUND_DURATION_INVALID':
-          return 'The answer time is outside the allowed range.';
+          return $localize`The answer time is outside the allowed range.`;
         case 'GAME_CONFIGURATION_EXTENSION_UNSUPPORTED':
-          return "That game option isn't available yet.";
+          return $localize`That game option isn't available yet.`;
         case 'GAME_PLAYLIST_NOT_FOUND':
-          return 'That playlist is no longer available. The list has been refreshed.';
+          return $localize`That playlist is no longer available. The list has been refreshed.`;
         case 'GAME_PLAYLIST_INELIGIBLE':
-          return 'This playlist has no tracks ready to play right now.';
+          return $localize`This playlist has no tracks ready to play right now.`;
         case 'GAME_DIFFICULTY_INVALID':
-          return 'Select at least one difficulty level.';
+          return $localize`Select at least one difficulty level.`;
         case 'GAME_DIFFICULTY_INSUFFICIENT_TRACKS':
-          return (
-            `Not enough tracks match the selected difficulty levels for ${trackCount} rounds. ` +
-            'Include more levels or pick fewer tracks.'
-          );
+          return $localize`Not enough tracks match the selected difficulty levels for ${trackCount}:count: rounds. Include more levels or pick fewer tracks.`;
         case 'GAME_PLAYLIST_INSUFFICIENT_TRACKS':
-          return (
-            `This playlist doesn't have enough ready tracks for ${trackCount} rounds. ` +
-            'Pick fewer tracks or another playlist.'
-          );
+          return $localize`This playlist doesn't have enough ready tracks for ${trackCount}:count: rounds. Pick fewer tracks or another playlist.`;
         case 'EMAIL_NOT_VERIFIED':
-          return 'Verify your email address before starting a game.';
+          return $localize`Verify your email address before starting a game.`;
         default:
           break;
       }
       if (error.status === 0) {
-        return 'The server can’t be reached. Check your connection and try again.';
+        return $localize`The server can’t be reached. Check your connection and try again.`;
       }
-      return message || 'The game could not be created. Please try again.';
+      return message || $localize`The game could not be created. Please try again.`;
     }
-    return 'The game could not be created. Please try again.';
+    return $localize`The game could not be created. Please try again.`;
   }
 
   estimatedMinutes(): number {
@@ -320,9 +320,9 @@ export class CreateSessionComponent implements OnInit {
 
   private errorText(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
-      return error.error?.message || error.message || 'The catalogue could not be loaded.';
+      return error.error?.message || $localize`The catalogue could not be loaded.`;
     }
-    return 'The catalogue could not be loaded.';
+    return $localize`The catalogue could not be loaded.`;
   }
 
   /** Caps the track count to the tracks matching the difficulty selection. */

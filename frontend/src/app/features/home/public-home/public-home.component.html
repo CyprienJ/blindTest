@@ -1,48 +1,51 @@
 <main class="home-shell">
-  <header class="home-header" aria-label="Main navigation">
-    <a class="bt-logo" routerLink="/" aria-label="Blindtest home">
+  <header class="home-header" i18n-aria-label aria-label="Main navigation">
+    <a class="bt-logo" routerLink="/" i18n-aria-label aria-label="Blindtest home">
       <span class="bt-logo-mark" aria-hidden="true"></span>
       <span>Blindtest</span>
     </a>
 
-    @if ((authenticatedUser$ | async) === null) {
-      <nav class="home-navigation" aria-label="Account">
-        <a class="bt-btn bt-btn-primary" routerLink="/auth/login">Sign in</a>
-      </nav>
-    }
+    <nav class="home-navigation" i18n-aria-label aria-label="Account">
+      <app-language-switch />
+      @if ((authenticatedUser$ | async) === null) {
+        <a class="bt-btn bt-btn-primary" routerLink="/auth/login" i18n>Sign in</a>
+      }
+    </nav>
   </header>
 
   <section class="hero" aria-labelledby="home-title">
     <div class="hero-copy">
       <p class="eyebrow">
-        <span aria-hidden="true"></span> Your music knowledge, against the clock
+        <span aria-hidden="true"></span>
+        <ng-container i18n>Your music knowledge, against the clock</ng-container>
       </p>
-      <h1 id="home-title">Hear it.<br /><strong>Name it.</strong></h1>
-      <p class="hero-intro">
+      <h1 id="home-title" i18n>Hear it.<br /><strong>Name it.</strong></h1>
+      <p class="hero-intro" i18n>
         Pick a playlist, catch the opening notes, and find the title before time runs out.
       </p>
 
       @if (authenticatedUser$ | async; as currentUser) {
         <div class="hero-actions">
           <a class="bt-btn bt-btn-primary bt-btn-lg" routerLink="/home">
-            Continue as {{ currentUser.username }}
+            <ng-container i18n>Continue as {{ currentUser.username }}</ng-container>
             <span aria-hidden="true">→</span>
           </a>
         </div>
       } @else {
         <div class="hero-actions">
           <a class="bt-btn bt-btn-primary bt-btn-lg" routerLink="/auth/login">
-            Sign in to play
+            <ng-container i18n>Sign in to play</ng-container>
             <span aria-hidden="true">→</span>
           </a>
         </div>
-        <p class="invitation-note">
+        <p class="invitation-note" i18n>
           Blindtest is invitation-only. New players join from an emailed invitation.
         </p>
       }
 
       <p class="availability">
-        <span aria-hidden="true">●</span> Solo mode first. Multiplayer comes next.
+        <span aria-hidden="true">●</span>
+        <ng-container i18n>Play solo or with up to ten friends.</ng-container>
       </p>
     </div>
 
@@ -51,7 +54,7 @@
       <div class="record record-back"><span></span></div>
       <div class="record record-front"><span></span></div>
       <div class="now-playing">
-        <div class="playing-label">Now playing</div>
+        <div class="playing-label" i18n>Now playing</div>
         <div class="track-line"></div>
         <div class="waveform">
           <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
@@ -65,40 +68,40 @@
 
   <section class="steps" aria-labelledby="steps-title">
     <div class="steps-heading">
-      <p class="section-kicker">One simple rule</p>
-      <h2 id="steps-title">Trust your ears.</h2>
+      <p class="section-kicker" i18n>One simple rule</p>
+      <h2 id="steps-title" i18n>Trust your ears.</h2>
     </div>
 
     <ol class="steps-list">
       <li>
         <span class="step-number">01</span>
         <div>
-          <h3>Listen</h3>
-          <p>A track starts from a carefully selected excerpt.</p>
+          <h3 i18n>Listen</h3>
+          <p i18n>A track starts from a carefully selected excerpt.</p>
         </div>
       </li>
       <li>
         <span class="step-number">02</span>
         <div>
-          <h3>Guess</h3>
-          <p>Type the title. Close answers and aliases are recognized.</p>
+          <h3 i18n>Guess</h3>
+          <p i18n>Type the title. Close answers and aliases are recognized.</p>
         </div>
       </li>
       <li>
         <span class="step-number">03</span>
         <div>
-          <h3>Score</h3>
-          <p>Answer quickly: every second you save is worth points.</p>
+          <h3 i18n>Score</h3>
+          <p i18n>Answer quickly: every second you save is worth points.</p>
         </div>
       </li>
     </ol>
   </section>
 
   <footer class="home-footer">
-    <a class="bt-logo footer-logo" routerLink="/" aria-label="Blindtest home">
+    <a class="bt-logo footer-logo" routerLink="/" i18n-aria-label aria-label="Blindtest home">
       <span class="bt-logo-mark" aria-hidden="true"></span>
       <span>Blindtest</span>
     </a>
-    <p>Built for people who always know the song.</p>
+    <p i18n>Built for people who always know the song.</p>
   </footer>
 </main>

@@ -41,6 +41,10 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
+  readonly hostLabel = $localize`Host`;
+  readonly readyLabel = $localize`Ready`;
+  readonly notReadyLabel = $localize`Not ready`;
+
   state: LobbyState = 'loading';
   lobby: Lobby | null = null;
   busy = false;
@@ -91,8 +95,12 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
       return '';
     }
     return this.lobby.participants.length < 2
-      ? 'Waiting for at least one more player.'
-      : 'Waiting for every player to be ready.';
+      ? $localize`Waiting for at least one more player.`
+      : $localize`Waiting for every player to be ready.`;
+  }
+
+  removeLabel(name: string): string {
+    return $localize`Remove ${name}:name:`;
   }
 
   initials(name: string): string {
@@ -249,25 +257,25 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
     if (error instanceof HttpErrorResponse) {
       switch (error.error?.code) {
         case 'LOBBY_NOT_FOUND':
-          return 'This lobby is no longer open. It may have started, expired, or closed.';
+          return $localize`This lobby is no longer open. It may have started, expired, or closed.`;
         case 'LOBBY_HOST_REQUIRED':
-          return 'Only the host can do this.';
+          return $localize`Only the host can do this.`;
         case 'LOBBY_NOT_READY':
-          return 'Every player must be ready, and at least two players must be present.';
+          return $localize`Every player must be ready, and at least two players must be present.`;
         case 'LOBBY_PARTICIPANT_NOT_FOUND':
-          return 'That player has already left the lobby.';
+          return $localize`That player has already left the lobby.`;
         case 'GAME_PLAYLIST_INSUFFICIENT_TRACKS':
         case 'GAME_DIFFICULTY_INSUFFICIENT_TRACKS':
         case 'GAME_PLAYLIST_INELIGIBLE':
         case 'GAME_PLAYLIST_NOT_FOUND':
-          return 'The playlist no longer has enough ready tracks. Open a new lobby with other settings.';
+          return $localize`The playlist no longer has enough ready tracks. Open a new lobby with other settings.`;
         default:
           break;
       }
       if (error.status === 0) {
-        return 'The server can’t be reached. Check your connection and try again.';
+        return $localize`The server can’t be reached. Check your connection and try again.`;
       }
     }
-    return 'Something went wrong. Please try again.';
+    return $localize`Something went wrong. Please try again.`;
   }
 }

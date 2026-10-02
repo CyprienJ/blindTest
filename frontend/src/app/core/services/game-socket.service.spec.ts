@@ -239,12 +239,12 @@ describe('GameSocketService', () => {
       headers: { message: 'Session is unavailable or access is denied' },
     });
 
-    expect(fatalMessages).toEqual(['Session is unavailable or access is denied']);
+    expect(fatalMessages).toEqual(['This game session is no longer available.']);
     expect(client.deactivateCalls).toBe(1);
     expect(statuses[statuses.length - 1]).toBe('idle');
   });
 
-  it('falls back to a default message when the error frame has none', () => {
+  it('reports the same message when the error frame has none', () => {
     const fatalMessages: string[] = [];
     service.fatalError$.subscribe((message) => fatalMessages.push(message));
 

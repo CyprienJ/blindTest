@@ -20,11 +20,12 @@ import { AuthService } from '../../../core/services/auth.service';
         <div class="bt-card">
           @if (!sent) {
             <h1
+              i18n
               style="font-size: 20px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em;"
             >
               Reset your password
             </h1>
-            <p style="color: var(--fg-2); font-size: 13.5px; margin: 0 0 24px;">
+            <p i18n style="color: var(--fg-2); font-size: 13.5px; margin: 0 0 24px;">
               Enter your email and we'll send you a reset link.
             </p>
 
@@ -34,17 +35,18 @@ import { AuthService } from '../../../core/services/auth.service';
               style="display: flex; flex-direction: column; gap: 16px;"
             >
               <div class="bt-field">
-                <label class="bt-label" for="email">Email</label>
+                <label i18n class="bt-label" for="email">Email</label>
                 <input
                   id="email"
                   class="bt-input"
                   type="email"
                   formControlName="email"
+                  i18n-placeholder
                   placeholder="you@example.com"
                   autocomplete="email"
                 />
                 @if (form.get('email')?.invalid && form.get('email')?.touched) {
-                  <span class="bt-error">Enter a valid email address</span>
+                  <span i18n class="bt-error">Enter a valid email address</span>
                 }
               </div>
 
@@ -54,7 +56,10 @@ import { AuthService } from '../../../core/services/auth.service';
                 style="width: 100%;"
                 [disabled]="loading"
               >
-                {{ loading ? 'Sending…' : 'Send reset link' }}
+                <ng-container i18n>{loading, select,
+                  true {Sending…}
+                  other {Send reset link}
+                }</ng-container>
               </button>
             </form>
           }
@@ -62,8 +67,13 @@ import { AuthService } from '../../../core/services/auth.service';
           @if (sent) {
             <div style="text-align: center;">
               <div style="font-size: 40px; margin-bottom: 16px;">📧</div>
-              <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">Check your inbox</h1>
-              <p style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px; line-height: 1.6;">
+              <h1 i18n style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">
+                Check your inbox
+              </h1>
+              <p
+                i18n
+                style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px; line-height: 1.6;"
+              >
                 If an account exists for that email, we've sent a reset link.
               </p>
             </div>
@@ -72,6 +82,7 @@ import { AuthService } from '../../../core/services/auth.service';
 
         <p style="text-align: center; margin-top: 20px; font-size: 13.5px; color: var(--fg-2);">
           <a
+            i18n
             routerLink="/auth/login"
             style="color: var(--accent); text-decoration: none; font-weight: 600;"
           >

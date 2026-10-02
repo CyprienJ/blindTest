@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { LanguageSwitchComponent } from '../../../shared/language-switch/language-switch.component';
 import { TURNSTILE_SITE_KEY } from '../../../core/config';
 
 declare const turnstile: {
@@ -24,7 +25,7 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, LanguageSwitchComponent, ReactiveFormsModule, RouterLink],
   template: `
     <div class="bt-screen" style="justify-content: center; align-items: center; min-height: 100vh;">
       <div style="width: 100%; max-width: 420px; padding: 24px;">
@@ -32,21 +33,25 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
           <div class="bt-logo-mark"></div>
           <span>Blindtest</span>
         </div>
+        <div style="display: flex; justify-content: center; margin: -16px 0 20px;">
+          <app-language-switch />
+        </div>
 
         <div class="bt-card">
           @switch (invitationState) {
             @case ('checking') {
-              <p role="status" style="color: var(--fg-2); font-size: 13.5px; margin: 0;">
+              <p i18n role="status" style="color: var(--fg-2); font-size: 13.5px; margin: 0;">
                 Checking your invitation…
               </p>
             }
             @case ('ready') {
               <h1
+                i18n
                 style="font-size: 20px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em;"
               >
                 Create an account
               </h1>
-              <p style="color: var(--fg-2); font-size: 13.5px; margin: 0 0 24px;">
+              <p i18n style="color: var(--fg-2); font-size: 13.5px; margin: 0 0 24px;">
                 You're invited to join the game
               </p>
 
@@ -56,7 +61,7 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
                 style="display: flex; flex-direction: column; gap: 16px;"
               >
                 <div class="bt-field">
-                  <label class="bt-label" for="email">Email</label>
+                  <label i18n class="bt-label" for="email">Email</label>
                   <input
                     id="email"
                     class="bt-input"
@@ -68,22 +73,23 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
                 </div>
 
                 <div class="bt-field">
-                  <label class="bt-label" for="username">Username</label>
+                  <label i18n class="bt-label" for="username">Username</label>
                   <input
                     id="username"
                     class="bt-input"
                     type="text"
                     formControlName="username"
+                    i18n-placeholder
                     placeholder="coolplayer42"
                     autocomplete="username"
                   />
                   @if (form.get('username')?.invalid && form.get('username')?.touched) {
-                    <span class="bt-error">3–32 characters required</span>
+                    <span i18n class="bt-error">3–32 characters required</span>
                   }
                 </div>
 
                 <div class="bt-field">
-                  <label class="bt-label" for="password">Password</label>
+                  <label i18n class="bt-label" for="password">Password</label>
                   <div style="position: relative;">
                     <input
                       id="password"
@@ -99,7 +105,7 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
                       (click)="showPassword = !showPassword"
                       style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
                              background: none; border: none; cursor: pointer; color: var(--fg-2); padding: 0;"
-                      [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                      [attr.aria-label]="showPassword ? hidePasswordLabel : showPasswordLabel"
                     >
                       {{ showPassword ? '🙈' : '👁' }}
                     </button>
@@ -116,7 +122,7 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
                     </div>
                   }
                   @if (form.get('password')?.invalid && form.get('password')?.touched) {
-                    <span class="bt-error">At least 8 characters required</span>
+                    <span i18n class="bt-error">At least 8 characters required</span>
                   }
                 </div>
 
@@ -138,7 +144,10 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
                   style="width: 100%;"
                   [disabled]="loading || !turnstileToken"
                 >
-                  {{ loading ? 'Creating account…' : 'Create account' }}
+                  <ng-container i18n>{loading, select,
+                    true {Creating account…}
+                    other {Create account}
+                  }</ng-container>
                 </button>
               </form>
             }
@@ -146,15 +155,22 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
               <h1
                 style="font-size: 20px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em;"
               >
-                {{ invitationState === 'invalid' ? 'Invitation unavailable' : 'Invitation only' }}
+                <ng-container i18n>{invitationState, select,
+                  invalid {Invitation unavailable}
+                  other {Invitation only}
+                }</ng-container>
               </h1>
               <p style="color: var(--fg-2); font-size: 13.5px; line-height: 1.55; margin: 0;">
                 @if (invitationState === 'invalid') {
-                  This invitation is invalid, has expired, or was already used. Ask an administrator
-                  for a new one.
+                  <ng-container i18n
+                    >This invitation is invalid, has expired, or was already used. Ask an
+                    administrator for a new one.</ng-container
+                  >
                 } @else {
-                  Blindtest is invitation-only. Open the link from your invitation email to create
-                  an account.
+                  <ng-container i18n
+                    >Blindtest is invitation-only. Open the link from your invitation email to
+                    create an account.</ng-container
+                  >
                 }
               </p>
             }
@@ -162,8 +178,9 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
         </div>
 
         <p style="text-align: center; margin-top: 20px; font-size: 13.5px; color: var(--fg-2);">
-          Already have an account?
+          <ng-container i18n>Already have an account?</ng-container>
           <a
+            i18n
             routerLink="/auth/login"
             style="color: var(--accent); text-decoration: none; font-weight: 600;"
           >
@@ -175,6 +192,9 @@ type InvitationState = 'checking' | 'ready' | 'invalid' | 'missing';
   `,
 })
 export class RegisterComponent implements OnInit, OnDestroy {
+  readonly showPasswordLabel = $localize`Show password`;
+  readonly hidePasswordLabel = $localize`Hide password`;
+
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
@@ -247,7 +267,7 @@ export class RegisterComponent implements OnInit, OnDestroy {
       return;
     }
     if (!this.turnstileToken) {
-      this.showTurnstileError('Please complete the security check.');
+      this.showTurnstileError($localize`Please complete the security check.`);
       return;
     }
     const turnstileToken = this.turnstileToken;
@@ -266,19 +286,19 @@ export class RegisterComponent implements OnInit, OnDestroy {
         const code: string = err.error?.code ?? err.error?.detail ?? '';
         if (err.status === 409) {
           this.errorMessage = code.includes('EMAIL')
-            ? 'An account already exists for this email. Sign in instead.'
-            : 'Username already taken.';
+            ? $localize`An account already exists for this email. Sign in instead.`
+            : $localize`Username already taken.`;
         } else if (err.status === 403) {
-          this.errorMessage = 'Security check failed. Please try again.';
+          this.errorMessage = $localize`Security check failed. Please try again.`;
           this.turnstileErrorActive = true;
         } else if (err.status === 400 && code === 'INVITATION_INVALID') {
           this.invitationState = 'invalid';
         } else if (err.status === 400) {
-          this.errorMessage = 'Please check the form and try again.';
+          this.errorMessage = $localize`Please check the form and try again.`;
         } else if (err.status === 0) {
-          this.errorMessage = 'Cannot reach the server — is the backend running?';
+          this.errorMessage = $localize`Cannot reach the server — is the backend running?`;
         } else {
-          this.errorMessage = 'Something went wrong. Please try again.';
+          this.errorMessage = $localize`Something went wrong. Please try again.`;
         }
       },
     });
@@ -317,12 +337,14 @@ export class RegisterComponent implements OnInit, OnDestroy {
       },
       'expired-callback': () => {
         this.zone.run(() => {
-          this.showTurnstileError('Security check expired. Please complete it again.');
+          this.showTurnstileError($localize`Security check expired. Please complete it again.`);
         });
       },
       'error-callback': (): boolean => {
         this.zone.run(() => {
-          this.showTurnstileError('Security check could not be completed. Please try again.');
+          this.showTurnstileError(
+            $localize`Security check could not be completed. Please try again.`,
+          );
         });
         return true;
       },

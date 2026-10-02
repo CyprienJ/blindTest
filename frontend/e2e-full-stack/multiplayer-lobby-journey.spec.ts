@@ -45,6 +45,8 @@ test('two players meet in a live lobby and play a game to the ranked end screen'
   });
 
   const friendContext = await browser.newContext();
+  // Hand-made contexts do not inherit the config's English storage state.
+  await friendContext.addInitScript(() => localStorage.setItem('locale', 'en'));
   const friend = await friendContext.newPage();
   try {
     await test.step('a friend joins by code and the host sees it live', async () => {

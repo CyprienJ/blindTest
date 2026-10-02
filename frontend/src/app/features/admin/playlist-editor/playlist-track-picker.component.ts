@@ -30,6 +30,25 @@ import { AdminTrackService } from '../track-list/admin-track.service';
   styleUrl: './playlist-track-picker.component.scss',
 })
 export class PlaylistTrackPickerComponent implements OnInit, OnChanges {
+  readonly stopPreviewLabel = $localize`Stop preview`;
+  readonly previewExcerptLabel = $localize`Preview excerpt`;
+
+  stopPreviewOf(title: string): string {
+    return $localize`Stop preview of ${title}:title:`;
+  }
+
+  difficultyLabel(difficulty: number): string {
+    return $localize`Difficulty ${difficulty}:difficulty: of 5`;
+  }
+
+  addLabel(title: string): string {
+    return $localize`Add ${title}:title:`;
+  }
+
+  previewOf(title: string): string {
+    return $localize`Preview ${title}:title:`;
+  }
+
   private readonly tracksService = inject(AdminTrackService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -200,15 +219,15 @@ export class PlaylistTrackPickerComponent implements OnInit, OnChanges {
     audio.play().catch(() => {
       if (this.previewTrackId === track.id) {
         this.previewTrackId = null;
-        this.previewError = 'The browser blocked playback. Press play again.';
+        this.previewError = $localize`The browser blocked playback. Press play again.`;
       }
     });
   }
 
   private errorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
-      return error.error?.message || error.message || 'The request could not be completed.';
+      return error.error?.message || $localize`The request could not be completed.`;
     }
-    return 'The request could not be completed.';
+    return $localize`The request could not be completed.`;
   }
 }

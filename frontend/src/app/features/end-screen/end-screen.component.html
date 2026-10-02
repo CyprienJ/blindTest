@@ -4,29 +4,29 @@
       @case ('loading') {
         <section class="bt-card centered-card" aria-live="polite">
           <span class="setup-spinner" aria-hidden="true"></span>
-          <p class="eyebrow">Solo blindtest</p>
-          <h1>Loading your summary…</h1>
+          <p i18n class="eyebrow">Solo blindtest</p>
+          <h1 i18n>Loading your summary…</h1>
         </section>
       }
 
       @case ('error') {
         <section class="bt-card centered-card" role="alert">
-          <p class="eyebrow">Solo blindtest</p>
-          <h1>Summary unavailable</h1>
+          <p i18n class="eyebrow">Solo blindtest</p>
+          <h1 i18n>Summary unavailable</h1>
           <p class="muted">{{ errorMessage }}</p>
-          <a class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+          <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
         </section>
       }
 
       @case ('ready') {
         @if (summary; as summary) {
           <header class="end-heading">
-            <span class="bt-chip bt-chip-accent">Game finished</span>
-            <h1>That's a wrap.</h1>
+            <span i18n class="bt-chip bt-chip-accent">Game finished</span>
+            <h1 i18n>That's a wrap.</h1>
             <p class="muted">
-              {{ summary.totalRounds }} tracks
+              <ng-container i18n>{{ summary.totalRounds }} tracks</ng-container>
               @if (summary.gameMode === 'MULTIPLAYER') {
-                · {{ summary.standings.length }} players
+                <ng-container i18n>· {{ summary.standings.length }} players</ng-container>
               }
               @if (durationLabel) {
                 · {{ durationLabel }}
@@ -34,26 +34,26 @@
             </p>
           </header>
 
-          <section class="bt-card score-card" aria-label="Final score">
-            <p class="eyebrow">
-              {{ summary.gameMode === 'MULTIPLAYER' ? 'Your score' : 'Total score' }}
+          <section class="bt-card score-card" i18n-aria-label aria-label="Final score">
+            <p class="eyebrow" i18n>
+              {summary.gameMode, select, MULTIPLAYER {Your score} other {Total score}}
             </p>
             <p class="final-score mono">{{ summary.totalScore }}</p>
-            <p class="muted">
+            <p i18n class="muted">
               {{ summary.titlesFound }} found · {{ summary.skippedRounds }} skipped ·
               {{ summary.timedOutRounds }} timed out
             </p>
           </section>
 
           @if (summary.gameMode === 'MULTIPLAYER' && summary.standings.length > 0) {
-            <section class="bt-card" aria-label="Final standings">
-              <h2 class="bt-h2 rounds-heading">Final standings</h2>
+            <section class="bt-card" i18n-aria-label aria-label="Final standings">
+              <h2 i18n class="bt-h2 rounds-heading">Final standings</h2>
               <table class="standings">
                 <thead>
                   <tr>
                     <th scope="col">#</th>
-                    <th scope="col">Player</th>
-                    <th scope="col" class="numeric">Score</th>
+                    <th i18n scope="col">Player</th>
+                    <th i18n scope="col" class="numeric">Score</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -63,10 +63,10 @@
                       <td>
                         {{ standing.displayName }}
                         @if (standing.guest) {
-                          <span class="bt-chip guest-chip">guest</span>
+                          <span i18n class="bt-chip guest-chip">guest</span>
                         }
                         @if (standing.participantId === summary.participantId) {
-                          <span class="muted">(you)</span>
+                          <span i18n class="muted">(you)</span>
                         }
                       </td>
                       <td class="mono numeric">{{ standing.finalScore }}</td>
@@ -77,8 +77,8 @@
             </section>
           }
 
-          <section class="bt-card" aria-label="Rounds played">
-            <h2 class="bt-h2 rounds-heading">Rounds played</h2>
+          <section class="bt-card" i18n-aria-label aria-label="Rounds played">
+            <h2 i18n class="bt-h2 rounds-heading">Rounds played</h2>
             <ul class="rounds-list">
               @for (round of summary.rounds; track round.roundIndex) {
                 <li>
@@ -89,7 +89,7 @@
                   </span>
                   <span
                     class="round-outcome"
-                    [class.is-found]="round.titleFound ?? round.outcome === 'TITLE_FOUND'"
+                    [class.is-found]="round.titleFound"
                   >
                     {{ outcomeLabel(round.outcome) }}
                   </span>
@@ -101,7 +101,12 @@
           </section>
 
           <div class="end-actions">
-            <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
+            <button
+              i18n
+              class="bt-btn bt-btn-primary bt-btn-lg"
+              type="button"
+              (click)="playAgain()"
+            >
               Play again
             </button>
           </div>

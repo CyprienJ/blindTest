@@ -128,7 +128,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     title: ['', Validators.maxLength(255)],
     artist: ['', Validators.maxLength(255)],
   });
-  readonly maxUploadLabel = '25 MB';
+  readonly maxUploadLabel = $localize`25 MB`;
   source: ImportSource = 'UPLOAD';
   selectedFile: File | null = null;
   fileError = '';
@@ -179,7 +179,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       this.importForm.disable();
       this.uploadForm.disable();
       this.recovering = true;
-      this.appendActivity('Recovering the active import from the server.');
+      this.appendActivity($localize`Recovering the active import from the server.`);
       this.startMonitoring(savedJobId);
     }
   }
@@ -238,9 +238,9 @@ export class TrackImportComponent implements OnInit, OnDestroy {
 
   formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) {
-      return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+      return $localize`${Math.max(1, Math.round(bytes / 1024))}:size: KB`;
     }
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return $localize`${(bytes / (1024 * 1024)).toFixed(1)}:size: MB`;
   }
 
   startUpload(): void {
@@ -249,7 +249,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       return;
     }
     if (!file) {
-      this.fileError = 'Choose an audio file to import.';
+      this.fileError = $localize`Choose an audio file to import.`;
       return;
     }
     if (this.uploadForm.invalid) {
@@ -261,7 +261,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     this.submitError = '';
     this.uploadProgress = 0;
     this.activity = [];
-    this.appendActivity(`Uploading ${file.name}.`);
+    this.appendActivity($localize`Uploading ${file.name}.`);
     const metadata = this.uploadForm.getRawValue();
     this.uploadForm.disable();
     this.importService
@@ -301,7 +301,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     this.submitting = true;
     this.submitError = '';
     this.activity = [];
-    this.appendActivity('Submitting the YouTube URL and metadata.');
+    this.appendActivity($localize`Submitting the YouTube URL and metadata.`);
     this.importService
       .start(request)
       .pipe(finalize(() => (this.submitting = false)))
@@ -331,7 +331,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (preview) => {
           this.preview = preview;
-          this.appendActivity('Secure audio preview ready.');
+          this.appendActivity($localize`Secure audio preview ready.`);
         },
         error: (error) => (this.previewError = this.errorMessage(error)),
       });
@@ -390,8 +390,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
             this.selectionSaving = false;
             this.selectionValidated = true;
             this.appendActivity(
-              `Excerpt: ${this.formatTime(updated.excerptStartSeconds)} for ` +
-                `${updated.excerptDurationSeconds}s.`,
+              $localize`Excerpt: ${this.formatTime(updated.excerptStartSeconds)}:start: for ${updated.excerptDurationSeconds}:duration:s.`,
             );
             this.loadPreview();
           },
@@ -424,7 +423,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   readonly formatTime = formatExcerptTime;
 
   showBlockedPlayback(): void {
-    this.previewError = 'Your browser blocked automatic playback. Press play to listen.';
+    this.previewError = $localize`Your browser blocked automatic playback. Press play to listen.`;
   }
 
   get excerptStart(): number {
@@ -448,7 +447,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
           }
           this.preview = null;
           this.clearRecoveryState();
-          this.appendActivity('Track published to the public catalogue.');
+          this.appendActivity($localize`Track published to the public catalogue.`);
         },
         error: (error) => (this.workflowError = this.errorMessage(error)),
       });
@@ -472,7 +471,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
           this.confirmReject = false;
           this.preview = null;
           this.clearRecoveryState();
-          this.appendActivity('Track rejected and kept out of the public catalogue.');
+          this.appendActivity($localize`Track rejected and kept out of the public catalogue.`);
         },
         error: (error) => {
           this.confirmReject = false;
@@ -546,15 +545,31 @@ export class TrackImportComponent implements OnInit, OnDestroy {
 
   statusLabel(status: ImportJobStatus): string {
     const labels: Record<ImportJobStatus, string> = {
-      QUEUED: 'Queued',
-      DOWNLOADING: 'Downloading',
-      PROCESSING: 'Processing',
-      DONE: 'Ready for review',
-      PUBLISHED: 'Published',
-      REJECTED: 'Rejected',
-      FAILED: 'Import failed',
+      QUEUED: $localize`Queued`,
+      DOWNLOADING: $localize`Downloading`,
+      PROCESSING: $localize`Processing`,
+      DONE: $localize`Ready for review`,
+      PUBLISHED: $localize`Published`,
+      REJECTED: $localize`Rejected`,
+      FAILED: $localize`Import failed`,
     };
     return labels[status];
+  }
+
+  /** Lower-case answer type used inside activity sentences. */
+  aliasTypeLabel(type: string): string {
+    switch (type) {
+      case 'TITLE':
+        return $localize`title`;
+      case 'ARTIST':
+        return $localize`artist`;
+      case 'COMPOSER':
+        return $localize`composer`;
+      case 'ALBUM':
+        return $localize`album`;
+      default:
+        return type.toLowerCase();
+    }
   }
 
   shortJobId(jobId: string): string {
@@ -569,9 +584,9 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     }
     this.selectedFile = null;
     if (file.size === 0) {
-      this.fileError = 'The selected file is empty.';
+      this.fileError = $localize`The selected file is empty.`;
     } else if (file.size > MAX_UPLOAD_BYTES) {
-      this.fileError = `The file is larger than ${this.maxUploadLabel}.`;
+      this.fileError = $localize`The file is larger than ${this.maxUploadLabel}.`;
     } else {
       this.selectedFile = file;
     }
@@ -581,7 +596,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     sessionStorage.setItem(ACTIVE_JOB_KEY, jobId);
     this.importForm.disable();
     this.uploadForm.disable();
-    this.appendActivity(`Import accepted · ${this.shortJobId(jobId)}.`);
+    this.appendActivity($localize`Import accepted · ${this.shortJobId(jobId)}.`);
     this.startMonitoring(jobId);
   }
 
@@ -592,7 +607,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
         if (event.kind === 'progress') {
           this.applyRealtimeProgress(event.status, event.progress);
         } else if (event.kind === 'done') {
-          this.appendActivity('WebSocket reported that finalization completed.');
+          this.appendActivity($localize`WebSocket reported that finalization completed.`);
           this.pollJob(jobId);
         } else {
           this.appendActivity(event.errorMessage);
@@ -600,7 +615,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
         }
       },
       error: () => {
-        this.appendActivity('WebSocket interrupted; polling remains active.');
+        this.appendActivity($localize`WebSocket interrupted; polling remains active.`);
       },
     });
     this.pollingSubscription = timer(0, 3000)
@@ -659,7 +674,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
     const changed = this.job.status !== status;
     this.job = { ...this.job, status, progress };
     if (changed || progress % 10 === 0) {
-      this.appendActivity(`WebSocket · ${this.statusLabel(status)} ${progress}%.`);
+      this.appendActivity($localize`WebSocket · ${this.statusLabel(status)} ${progress}%.`);
     }
   }
 
@@ -670,7 +685,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   ): void {
     if (!trackId) {
       this.aliasState = 'error';
-      this.aliasError = 'The finalized track is missing. Refresh the import status.';
+      this.aliasError = $localize`The finalized track is missing. Refresh the import status.`;
       onError();
       return;
     }
@@ -697,7 +712,13 @@ export class TrackImportComponent implements OnInit, OnDestroy {
             concatMap((alias) =>
               this.trackService
                 .saveAlias(trackId, alias.type, alias.value)
-                .pipe(tap(() => this.appendActivity(`Saved ${alias.type.toLowerCase()} alias.`))),
+                .pipe(
+                  tap(() =>
+                    this.appendActivity(
+                      $localize`Saved ${this.aliasTypeLabel(alias.type)}:type: alias.`,
+                    ),
+                  ),
+                ),
             ),
           )
           .subscribe({
@@ -808,39 +829,39 @@ export class TrackImportComponent implements OnInit, OnDestroy {
 
   private errorMessage(error: unknown): string {
     if (!(error instanceof HttpErrorResponse)) {
-      return 'The operation could not be completed. Please try again.';
+      return $localize`The operation could not be completed. Please try again.`;
     }
     const code = error.error?.code as string | undefined;
     const message = error.error?.message as string | undefined;
     if (code === 'IMPORT_ALREADY_ACTIVE') {
-      return 'This YouTube video already has an active import.';
+      return $localize`This YouTube video already has an active import.`;
     }
     if (code === 'VALIDATION_FAILED') {
       return this.source === 'UPLOAD'
-        ? 'Check the title and artist fields.'
-        : 'Check the YouTube URL and metadata fields.';
+        ? $localize`Check the title and artist fields.`
+        : $localize`Check the YouTube URL and metadata fields.`;
     }
     if (code === 'IMPORT_FILE_TOO_LARGE' || error.status === 413) {
-      return `The file is larger than ${this.maxUploadLabel}.`;
+      return $localize`The file is larger than ${this.maxUploadLabel}.`;
     }
     if (code === 'IMPORT_FILE_UNSUPPORTED') {
-      return 'This file is not a supported audio file (MP3, M4A/AAC, FLAC, Ogg/Opus, WAV or WebM).';
+      return $localize`This file is not a supported audio file (MP3, M4A/AAC, FLAC, Ogg/Opus, WAV or WebM).`;
     }
     if (code === 'IMPORT_AUDIO_TOO_LONG') {
-      return 'The audio is longer than 15 minutes.';
+      return $localize`The audio is longer than 15 minutes.`;
     }
     if (code === 'IMPORT_METADATA_REQUIRED') {
-      return 'This file has no title or artist tags. Fill in both fields.';
+      return $localize`This file has no title or artist tags. Fill in both fields.`;
     }
     if (code === 'TRACK_METADATA_INCOMPLETE') {
-      return 'Complete the required metadata before publishing.';
+      return $localize`Complete the required metadata before publishing.`;
     }
     if (code === 'TRACK_EXCERPT_INVALID') {
-      return 'The imported audio is too short for the selected excerpt.';
+      return $localize`The imported audio is too short for the selected excerpt.`;
     }
     if (error.status === 0) {
-      return 'The server cannot be reached. Polling will retry automatically.';
+      return $localize`The server cannot be reached. Polling will retry automatically.`;
     }
-    return message || 'The operation could not be completed. Please try again.';
+    return message || $localize`The operation could not be completed. Please try again.`;
   }
 }

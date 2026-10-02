@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { LanguageSwitchComponent } from '../../../shared/language-switch/language-switch.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, LanguageSwitchComponent, ReactiveFormsModule, RouterLink],
   template: `
     <div class="bt-screen" style="justify-content: center; align-items: center; min-height: 100vh;">
       <div style="width: 100%; max-width: 400px; padding: 24px;">
@@ -16,12 +17,18 @@ import { AuthService } from '../../../core/services/auth.service';
           <div class="bt-logo-mark"></div>
           <span>Blindtest</span>
         </div>
+        <div style="display: flex; justify-content: center; margin: -16px 0 20px;">
+          <app-language-switch />
+        </div>
 
         <div class="bt-card">
-          <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em;">
+          <h1
+            i18n
+            style="font-size: 20px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em;"
+          >
             Welcome back
           </h1>
-          <p style="color: var(--fg-2); font-size: 13.5px; margin: 0 0 24px;">
+          <p i18n style="color: var(--fg-2); font-size: 13.5px; margin: 0 0 24px;">
             Sign in to your account
           </p>
 
@@ -31,22 +38,23 @@ import { AuthService } from '../../../core/services/auth.service';
             style="display: flex; flex-direction: column; gap: 16px;"
           >
             <div class="bt-field">
-              <label class="bt-label" for="email">Email</label>
+              <label class="bt-label" for="email" i18n>Email</label>
               <input
                 id="email"
                 class="bt-input"
                 type="email"
                 formControlName="email"
+                i18n-placeholder
                 placeholder="you@example.com"
                 autocomplete="email"
               />
               @if (form.get('email')?.invalid && form.get('email')?.touched) {
-                <span class="bt-error">Enter a valid email address</span>
+                <span class="bt-error" i18n>Enter a valid email address</span>
               }
             </div>
 
             <div class="bt-field">
-              <label class="bt-label" for="password">Password</label>
+              <label class="bt-label" for="password" i18n>Password</label>
               <div style="position: relative;">
                 <input
                   id="password"
@@ -62,13 +70,13 @@ import { AuthService } from '../../../core/services/auth.service';
                   (click)="showPassword = !showPassword"
                   style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
                          background: none; border: none; cursor: pointer; color: var(--fg-2); padding: 0;"
-                  [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                  [attr.aria-label]="showPassword ? hidePasswordLabel : showPasswordLabel"
                 >
                   {{ showPassword ? '🙈' : '👁' }}
                 </button>
               </div>
               @if (form.get('password')?.invalid && form.get('password')?.touched) {
-                <span class="bt-error">Password is required</span>
+                <span class="bt-error" i18n>Password is required</span>
               }
             </div>
 
@@ -88,12 +96,17 @@ import { AuthService } from '../../../core/services/auth.service';
               style="width: 100%;"
               [disabled]="loading"
             >
-              {{ loading ? 'Signing in…' : 'Sign in' }}
+              @if (loading) {
+                <ng-container i18n>Signing in…</ng-container>
+              } @else {
+                <ng-container i18n>Sign in</ng-container>
+              }
             </button>
           </form>
 
           <div style="text-align: center; margin-top: 16px;">
             <a
+              i18n
               routerLink="/auth/forgot-password"
               style="font-size: 13px; color: var(--fg-2); text-decoration: none;"
             >
@@ -102,7 +115,10 @@ import { AuthService } from '../../../core/services/auth.service';
           </div>
         </div>
 
-        <p style="text-align: center; margin-top: 20px; font-size: 13.5px; color: var(--fg-2);">
+        <p
+          i18n
+          style="text-align: center; margin-top: 20px; font-size: 13.5px; color: var(--fg-2);"
+        >
           No account? Blindtest is invitation-only; ask an administrator for an invitation.
         </p>
       </div>
@@ -121,6 +137,8 @@ export class LoginComponent {
   });
   loading = false;
   showPassword = false;
+  readonly showPasswordLabel = $localize`Show password`;
+  readonly hidePasswordLabel = $localize`Hide password`;
   errorMessage = '';
 
   submit(): void {
@@ -140,11 +158,11 @@ export class LoginComponent {
       error: (err) => {
         this.loading = false;
         if (err.status === 401) {
-          this.errorMessage = 'Invalid email or password.';
+          this.errorMessage = $localize`Invalid email or password.`;
         } else if (err.status === 403) {
-          this.errorMessage = 'Please verify your email before signing in.';
+          this.errorMessage = $localize`Please verify your email before signing in.`;
         } else {
-          this.errorMessage = 'Something went wrong. Please try again.';
+          this.errorMessage = $localize`Something went wrong. Please try again.`;
         }
       },
     });

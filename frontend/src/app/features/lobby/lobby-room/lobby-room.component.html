@@ -4,26 +4,26 @@
       @case ('loading') {
         <section class="bt-card centered-card" role="status">
           <span class="spinner" aria-hidden="true"></span>
-          <p>Opening the lobby…</p>
+          <p i18n>Opening the lobby…</p>
         </section>
       }
       @case ('unavailable') {
         <section class="bt-card centered-card">
-          <h1>Lobby unavailable</h1>
+          <h1 i18n>Lobby unavailable</h1>
           <p role="alert">{{ errorMessage }}</p>
           <div class="actions">
-            <a class="bt-btn bt-btn-primary" routerLink="/lobby/join">Join another lobby</a>
-            <a class="bt-btn bt-btn-ghost" routerLink="/home">Back home</a>
+            <a i18n class="bt-btn bt-btn-primary" routerLink="/lobby/join">Join another lobby</a>
+            <a i18n class="bt-btn bt-btn-ghost" routerLink="/home">Back home</a>
           </div>
         </section>
       }
       @case ('removed') {
         <section class="bt-card centered-card">
-          <h1>You left this lobby</h1>
-          <p role="alert">The host removed you from the lobby.</p>
+          <h1 i18n>You left this lobby</h1>
+          <p i18n role="alert">The host removed you from the lobby.</p>
           <div class="actions">
-            <a class="bt-btn bt-btn-primary" routerLink="/lobby/join">Join another lobby</a>
-            <a class="bt-btn bt-btn-ghost" routerLink="/home">Back home</a>
+            <a i18n class="bt-btn bt-btn-primary" routerLink="/lobby/join">Join another lobby</a>
+            <a i18n class="bt-btn bt-btn-ghost" routerLink="/home">Back home</a>
           </div>
         </section>
       }
@@ -31,18 +31,23 @@
         @if (lobby; as lobby) {
           <div class="lobby-heading">
             <div>
-              <div class="eyebrow">Session code</div>
+              <div i18n class="eyebrow">Session code</div>
               <div class="code-row">
-                <span class="mono code" aria-label="Session code">{{ lobby.code }}</span>
+                <span class="mono code" i18n-aria-label aria-label="Session code">{{
+                  lobby.code
+                }}</span>
                 <button class="bt-btn bt-btn-ghost bt-btn-sm" type="button" (click)="copyCode()">
-                  {{ copied ? '✓ Copied' : 'Copy invite' }}
+                  <ng-container i18n>{copied, select,
+                    true {✓ Copied}
+                    other {Copy invite}
+                  }</ng-container>
                 </button>
               </div>
-              <p class="hint">Share the code — friends join from “Join a session”.</p>
+              <p i18n class="hint">Share the code — friends join from “Join a session”.</p>
             </div>
             <div class="chips">
-              <span class="bt-chip bt-chip-accent">● Lobby open</span>
-              <span class="bt-chip"
+              <span i18n class="bt-chip bt-chip-accent">● Lobby open</span>
+              <span i18n class="bt-chip"
                 >{{ lobby.participants.length }} / {{ lobby.maxParticipants }} players</span
               >
             </div>
@@ -54,8 +59,8 @@
 
           <section class="bt-card" aria-labelledby="players-title">
             <div class="card-heading">
-              <h2 id="players-title" class="bt-h2">Players in lobby</h2>
-              <span class="muted">{{ readyCount }}/{{ lobby.participants.length }} ready</span>
+              <h2 i18n id="players-title" class="bt-h2">Players in lobby</h2>
+              <span i18n class="muted">{{ readyCount }}/{{ lobby.participants.length }} ready</span>
             </div>
             <ul class="players" aria-live="polite">
               @for (participant of lobby.participants; track participant.participantId) {
@@ -67,23 +72,30 @@
                     <div class="player-name">
                       <span>{{ participant.displayName }}</span>
                       @if (participant.host) {
-                        <span class="bt-chip bt-chip-accent host-chip">HOST</span>
+                        <span i18n class="bt-chip bt-chip-accent host-chip">HOST</span>
                       }
                       @if (participant.participantId === lobby.participantId) {
-                        <span class="you">(you)</span>
+                        <span i18n class="you">(you)</span>
                       }
                     </div>
-                    <div class="player-status">
-                      {{ participant.guest ? 'Guest' : 'Registered' }} ·
-                      {{ participant.host ? 'Host' : participant.ready ? 'Ready' : 'Not ready' }}
+                    <div class="player-status" i18n>
+                      {participant.guest, select, true {Guest} other {Registered}} ·
+                      {{
+                        participant.host
+                          ? hostLabel
+                          : participant.ready
+                            ? readyLabel
+                            : notReadyLabel
+                      }}
                     </div>
                   </div>
                   @if (isHost && !participant.host) {
                     <button
+                      i18n
                       class="bt-btn bt-btn-ghost bt-btn-sm"
                       type="button"
                       [disabled]="busy"
-                      [attr.aria-label]="'Remove ' + participant.displayName"
+                      [attr.aria-label]="removeLabel(participant.displayName)"
                       (click)="kick(participant)"
                     >
                       Remove
@@ -99,28 +111,29 @@
           </section>
 
           <section class="bt-card" aria-labelledby="rules-title">
-            <h2 id="rules-title" class="bt-h2">Game rules</h2>
+            <h2 i18n id="rules-title" class="bt-h2">Game rules</h2>
             <dl class="rules">
               <div>
-                <dt>Scoring</dt>
-                <dd>Everyone who finds</dd>
+                <dt i18n>Scoring</dt>
+                <dd i18n>Everyone who finds</dd>
               </div>
               <div>
-                <dt>Tracks</dt>
+                <dt i18n>Tracks</dt>
                 <dd>{{ lobby.trackCount }}</dd>
               </div>
               <div>
-                <dt>Timer</dt>
+                <dt i18n>Timer</dt>
                 <dd>{{ lobby.maxRoundSeconds }}s</dd>
               </div>
               <div>
-                <dt>Source</dt>
+                <dt i18n>Source</dt>
                 <dd>{{ lobby.playlistName }}</dd>
               </div>
             </dl>
             <div class="actions">
               @if (isHost) {
                 <button
+                  i18n
                   class="bt-btn bt-btn-primary bt-btn-lg start"
                   type="button"
                   [disabled]="!lobby.canStart || busy"
@@ -138,17 +151,26 @@
                   [attr.aria-pressed]="!!me?.ready"
                   (click)="toggleReady()"
                 >
-                  {{ me?.ready ? 'Not ready' : "I'm ready" }}
+                  <ng-container i18n>{!!me?.ready, select,
+                    true {Not ready}
+                    other {I'm ready}
+                  }</ng-container>
                 </button>
               }
-              <button class="bt-btn bt-btn-ghost" type="button" [disabled]="busy" (click)="leave()">
+              <button
+                i18n
+                class="bt-btn bt-btn-ghost"
+                type="button"
+                [disabled]="busy"
+                (click)="leave()"
+              >
                 Leave lobby
               </button>
             </div>
             @if (isHost && startHint) {
               <p class="muted start-hint">{{ startHint }}</p>
             } @else if (!isHost) {
-              <p class="muted start-hint">The host starts the game once everyone is ready.</p>
+              <p i18n class="muted start-hint">The host starts the game once everyone is ready.</p>
             }
           </section>
         }

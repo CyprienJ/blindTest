@@ -31,7 +31,7 @@ test.describe('authenticated home', () => {
       '/lobby/create',
     );
     await expect(page.getByText('Join a game')).toBeVisible();
-    await expect(page.getByText('Coming later')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Join a game/ })).toHaveAttribute('href', '/lobby/join');
     await expect(page.getByRole('link', { name: /Edit playlists/ })).toHaveCount(0);
   });
 

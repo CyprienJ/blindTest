@@ -159,7 +159,7 @@ export class AudioPlaybackService implements OnDestroy {
           if (error instanceof DOMException && error.name === 'NotAllowedError') {
             this.setStatus('blocked');
           } else {
-            this.fail('Playback could not start.');
+            this.fail($localize`Playback could not start.`);
           }
         });
     };
@@ -248,7 +248,7 @@ export class AudioPlaybackService implements OnDestroy {
 
   private readonly onError = (): void => {
     if (this.audio.currentSrc) {
-      this.fail('The audio could not be loaded.');
+      this.fail($localize`The audio could not be loaded.`);
     }
   };
 

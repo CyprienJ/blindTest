@@ -21,37 +21,48 @@ type State = 'check-inbox' | 'verifying' | 'success' | 'error';
         <div class="bt-card" style="text-align: center;">
           @if (state === 'check-inbox') {
             <div style="font-size: 40px; margin-bottom: 16px;">📬</div>
-            <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">Check your inbox</h1>
+            <h1 i18n style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">
+              Check your inbox
+            </h1>
             <p style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px; line-height: 1.6;">
-              We sent a verification link to
               @if (email) {
-                <strong style="color: var(--fg-0);">{{ email }}</strong>
+                <ng-container i18n
+                  >We sent a verification link to
+                  <strong style="color: var(--fg-0);">{{ email }}</strong
+                  >. Click it to activate your account.</ng-container
+                >
+              } @else {
+                <ng-container i18n
+                  >We sent you a verification link. Click it to activate your account.</ng-container
+                >
               }
-              . Click it to activate your account.
             </p>
-            <p style="color: var(--fg-3); font-size: 13px; margin: 0 0 20px;">
+            <p i18n style="color: var(--fg-3); font-size: 13px; margin: 0 0 20px;">
               Didn't get it? Check your spam folder.
             </p>
-            <a routerLink="/auth/login" class="bt-btn bt-btn-ghost" style="width: 100%;">
+            <a i18n routerLink="/auth/login" class="bt-btn bt-btn-ghost" style="width: 100%;">
               Back to sign in
             </a>
           }
 
           @if (state === 'verifying') {
             <div style="font-size: 40px; margin-bottom: 16px;">⏳</div>
-            <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">Verifying…</h1>
-            <p style="color: var(--fg-2); font-size: 14px; margin: 0;">
+            <h1 i18n style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">Verifying…</h1>
+            <p i18n style="color: var(--fg-2); font-size: 14px; margin: 0;">
               Please wait while we verify your email.
             </p>
           }
 
           @if (state === 'success') {
             <div style="font-size: 40px; margin-bottom: 16px;">✅</div>
-            <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">Email verified!</h1>
-            <p style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px;">
+            <h1 i18n style="font-size: 20px; font-weight: 700; margin: 0 0 8px;">
+              Email verified!
+            </h1>
+            <p i18n style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px;">
               Your account is active. You can now sign in.
             </p>
             <a
+              i18n
               routerLink="/auth/login"
               class="bt-btn bt-btn-primary bt-btn-lg"
               style="width: 100%;"
@@ -62,13 +73,16 @@ type State = 'check-inbox' | 'verifying' | 'success' | 'error';
 
           @if (state === 'error') {
             <div style="font-size: 40px; margin-bottom: 16px;">❌</div>
-            <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 8px; color: var(--danger);">
+            <h1
+              i18n
+              style="font-size: 20px; font-weight: 700; margin: 0 0 8px; color: var(--danger);"
+            >
               Invalid link
             </h1>
-            <p style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px;">
+            <p i18n style="color: var(--fg-2); font-size: 14px; margin: 0 0 24px;">
               This verification link is invalid or has expired.
             </p>
-            <a routerLink="/auth/login" class="bt-btn bt-btn-ghost" style="width: 100%;">
+            <a i18n routerLink="/auth/login" class="bt-btn bt-btn-ghost" style="width: 100%;">
               Back to sign in
             </a>
           }

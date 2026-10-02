@@ -1,5 +1,5 @@
 <div class="cover-picker">
-  <div class="cover-grid" role="radiogroup" aria-label="Cover image">
+  <div class="cover-grid" role="radiogroup" i18n-aria-label aria-label="Cover image">
     @if (currentCoverUrl(); as current) {
       <button
         type="button"
@@ -11,7 +11,7 @@
         (click)="keep()"
       >
         <img [src]="current" alt="" />
-        <span class="caption">Current cover</span>
+        <span i18n class="caption">Current cover</span>
       </button>
     }
     @for (tile of tiles(); track tile.candidateId) {
@@ -29,7 +29,11 @@
         } @else {
           <span class="thumb-placeholder" aria-hidden="true">♪</span>
         }
-        <span class="caption">{{ tile.album || 'Uploaded image' }}</span>
+        @if (tile.album) {
+          <span class="caption">{{ tile.album }}</span>
+        } @else {
+          <span class="caption" i18n>Uploaded image</span>
+        }
         <small>{{ sourceLabel(tile.source) }}</small>
       </button>
     }
@@ -43,7 +47,7 @@
       (click)="chooseNoCover()"
     >
       <span class="thumb-placeholder" aria-hidden="true">∅</span>
-      <span class="caption">No cover</span>
+      <span i18n class="caption">No cover</span>
     </button>
   </div>
 
@@ -52,7 +56,10 @@
       class="bt-btn bt-btn-sm bt-btn-ghost upload"
       [class.disabled]="disabled() || uploading()"
     >
-      {{ uploading() ? 'Uploading…' : 'Upload image' }}
+      <ng-container i18n>{uploading(), select,
+        true {Uploading…}
+        other {Upload image}
+      }</ng-container>
       <input
         #fileInput
         class="sr-only"
@@ -65,20 +72,24 @@
     <small class="hint" role="status">
       @switch (searchState()) {
         @case ('loading') {
-          Searching covers…
+          <ng-container i18n>Searching covers…</ng-container>
         }
         @case ('error') {
-          Cover search is unavailable; you can still upload an image.
+          <ng-container i18n
+            >Cover search is unavailable; you can still upload an image.</ng-container
+          >
         }
         @case ('ready') {
           @if (tiles().length === 0) {
-            No cover found; try adjusting the album or upload an image.
+            <ng-container i18n
+              >No cover found; try adjusting the album or upload an image.</ng-container
+            >
           } @else {
-            Suggestions from Deezer, iTunes and Cover Art Archive.
+            <ng-container i18n>Suggestions from Deezer, iTunes and Cover Art Archive.</ng-container>
           }
         }
         @default {
-          Fill in the title and artist to get suggestions.
+          <ng-container i18n>Fill in the title and artist to get suggestions.</ng-container>
         }
       }
     </small>

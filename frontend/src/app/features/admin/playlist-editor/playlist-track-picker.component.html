@@ -1,38 +1,45 @@
 <div class="panel-heading">
   <div>
-    <h3>Add tracks</h3>
+    <h3 i18n>Add tracks</h3>
     <p>
       @if (loading) {
-        Published tracks not in this playlist
+        <ng-container i18n>Published tracks not in this playlist</ng-container>
       } @else {
-        {{ availableCount }} published {{ availableCount === 1 ? 'track' : 'tracks' }} not in this
-        playlist
+        <ng-container i18n>{availableCount, plural,
+          =1 {1 published track not in this playlist}
+          other {{{ availableCount }} published tracks not in this playlist}
+        }</ng-container>
       }
     </p>
   </div>
 </div>
 <label class="search-field">
   <span aria-hidden="true">⌕</span>
-  <span class="sr-only">Search published tracks</span>
-  <input type="search" [formControl]="searchControl" placeholder="Search title or artist…" />
+  <span i18n class="sr-only">Search published tracks</span>
+  <input
+    type="search"
+    [formControl]="searchControl"
+    i18n-placeholder
+    placeholder="Search title or artist…"
+  />
 </label>
 <div class="catalogue-filters" [formGroup]="filters">
-  <select class="bt-input" formControlName="category" aria-label="Category">
-    <option value="">All categories</option>
+  <select class="bt-input" formControlName="category" i18n-aria-label aria-label="Category">
+    <option i18n value="">All categories</option>
     @for (category of categories; track category) {
       <option [value]="category">{{ category }}</option>
     }
   </select>
-  <select class="bt-input" formControlName="decade" aria-label="Decade">
-    <option value="">All decades</option>
+  <select class="bt-input" formControlName="decade" i18n-aria-label aria-label="Decade">
+    <option i18n value="">All decades</option>
     @for (decade of decades; track decade) {
       <option [value]="decade">{{ decade }}s</option>
     }
   </select>
-  <select class="bt-input" formControlName="difficulty" aria-label="Difficulty">
-    <option value="">Any difficulty</option>
+  <select class="bt-input" formControlName="difficulty" i18n-aria-label aria-label="Difficulty">
+    <option i18n value="">Any difficulty</option>
     @for (level of difficulties; track level) {
-      <option [value]="level">{{ level }} {{ level === 1 ? 'star' : 'stars' }}</option>
+      <option [value]="level" i18n>{level, plural, =1 {1 star} other {{{ level }} stars}}</option>
     }
   </select>
 </div>
@@ -42,16 +49,18 @@
 
 @if (loading) {
   <div class="catalogue-state" role="status">
-    <span class="spinner" aria-hidden="true"></span> Searching…
+    <span class="spinner" aria-hidden="true"></span> <ng-container i18n>Searching…</ng-container>
   </div>
 } @else if (error) {
   <div class="catalogue-state error-text" role="alert">
     <p>{{ error }}</p>
-    <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="reload()">Retry</button>
+    <button i18n class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="reload()">
+      Retry
+    </button>
   </div>
 } @else if (visibleTracks.length === 0) {
   <div class="catalogue-state">
-    <p>No published track matches these filters outside this playlist.</p>
+    <p i18n>No published track matches these filters outside this playlist.</p>
   </div>
 } @else {
   <div class="catalogue-results">
@@ -69,11 +78,11 @@
           <small>{{ track.artist }}</small>
           <small class="track-facts">
             @if (track.difficulty) {
-              <span class="stars" [attr.aria-label]="'Difficulty ' + track.difficulty + ' of 5'">{{
+              <span class="stars" [attr.aria-label]="difficultyLabel(track.difficulty)">{{
                 difficultyStars(track.difficulty)
               }}</span>
             } @else {
-              <span>Unrated</span>
+              <span i18n>Unrated</span>
             }
             <span class="mono">{{ formatDuration(track.durationSeconds) }}</span>
           </small>
@@ -83,10 +92,10 @@
           class="preview-button"
           [class.playing]="previewTrackId === track.id"
           [attr.aria-label]="
-            (previewTrackId === track.id ? 'Stop preview of ' : 'Preview ') + track.title
+            previewTrackId === track.id ? stopPreviewOf(track.title) : previewOf(track.title)
           "
           [attr.aria-pressed]="previewTrackId === track.id"
-          [title]="previewTrackId === track.id ? 'Stop preview' : 'Preview excerpt'"
+          [title]="previewTrackId === track.id ? stopPreviewLabel : previewExcerptLabel"
           (click)="togglePreview(track)"
         >
           @if (previewLoadingId === track.id) {
@@ -99,7 +108,8 @@
         </button>
         <button
           type="button"
-          aria-label="Add {{ track.title }}"
+          [attr.aria-label]="addLabel(track.title)"
+          i18n-title
           title="Add track"
           [disabled]="!canAdd"
           (click)="add.emit(track)"
@@ -121,9 +131,9 @@
       (click)="loadMore()"
     >
       @if (loadingMore) {
-        <span class="spinner" aria-hidden="true"></span> Loading…
+        <span class="spinner" aria-hidden="true"></span> <ng-container i18n>Loading…</ng-container>
       } @else {
-        Show more ({{ total - tracks.length }} remaining)
+        <ng-container i18n>Show more ({{ total - tracks.length }} remaining)</ng-container>
       }
     </button>
   }

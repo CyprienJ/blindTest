@@ -1,6 +1,6 @@
 import { inject, Injectable, InjectionToken, OnDestroy } from '@angular/core';
 import { RxStomp, RxStompState } from '@stomp/rx-stomp';
-import { IFrame, ReconnectionTimeMode } from '@stomp/stompjs';
+import { ReconnectionTimeMode } from '@stomp/stompjs';
 import { BehaviorSubject, filter, map, Observable, Subject, Subscription } from 'rxjs';
 import { AuthService } from './auth.service';
 import { ActiveSoloSession } from '../models/game-session.model';
@@ -123,9 +123,7 @@ export class GameSocketService implements OnDestroy {
     this.clientSubscriptions.add(
       client.connectionState$.subscribe((state) => this.onConnectionState(state)),
     );
-    this.clientSubscriptions.add(
-      client.stompErrors$.subscribe((frame) => this.onStompError(frame)),
-    );
+    this.clientSubscriptions.add(client.stompErrors$.subscribe(() => this.onStompError()));
     this.clientSubscriptions.add(
       client
         .watch(session.connection.eventDestination)
@@ -224,10 +222,10 @@ export class GameSocketService implements OnDestroy {
     }
   }
 
-  private onStompError(frame: IFrame): void {
-    const message = frame.headers['message'] || 'This game session is no longer available.';
+  private onStompError(): void {
+    // The frame's message header is English server text, so a translated message is shown instead.
     this.disconnect();
-    this.fatalErrorSubject.next(message);
+    this.fatalErrorSubject.next($localize`This game session is no longer available.`);
   }
 
   private emitPublic(body: string): void {

@@ -37,18 +37,18 @@ export class AccountListComponent implements OnInit {
   private readonly authService = inject(AuthService);
 
   readonly filters: { value: AccountFilter; label: string }[] = [
-    { value: 'ALL', label: 'All' },
-    { value: 'USER', label: 'Players' },
-    { value: 'ADMIN', label: 'Admins' },
-    { value: 'UNVERIFIED', label: 'Unverified' },
+    { value: 'ALL', label: $localize`All` },
+    { value: 'USER', label: $localize`Players` },
+    { value: 'ADMIN', label: $localize`Admins` },
+    { value: 'UNVERIFIED', label: $localize`Unverified` },
   ];
   readonly columns: { key: AccountSortKey; label: string }[] = [
-    { key: 'username', label: 'User' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role' },
-    { key: 'createdAt', label: 'Joined' },
-    { key: 'lastConnexion', label: 'Last sign-in' },
-    { key: 'gamesPlayed', label: 'Games' },
+    { key: 'username', label: $localize`User` },
+    { key: 'email', label: $localize`Email` },
+    { key: 'role', label: $localize`Role` },
+    { key: 'createdAt', label: $localize`Joined` },
+    { key: 'lastConnexion', label: $localize`Last sign-in` },
+    { key: 'gamesPlayed', label: $localize`Games` },
   ];
 
   users: AdminUser[] = [];
@@ -57,6 +57,7 @@ export class AccountListComponent implements OnInit {
   listError = '';
   successMessage = '';
   search = '';
+  readonly selfDeleteTitle = $localize`You cannot delete your own account`;
   filter: AccountFilter = 'ALL';
   sortKey: AccountSortKey = 'createdAt';
   sortDirection: 'asc' | 'desc' = 'desc';
@@ -96,7 +97,7 @@ export class AccountListComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
-        this.listError = 'Accounts could not be loaded.';
+        this.listError = $localize`Accounts could not be loaded.`;
         this.loading = false;
       },
     });
@@ -119,11 +120,14 @@ export class AccountListComponent implements OnInit {
   get stats(): { label: string; value: number }[] {
     const weekAgo = Date.now() - WEEK_MS;
     return [
-      { label: 'Total users', value: this.users.length },
-      { label: 'Verified', value: this.users.filter((user) => user.emailVerified).length },
-      { label: 'Admins', value: this.users.filter((user) => user.role === 'ADMIN').length },
+      { label: $localize`Total users`, value: this.users.length },
+      { label: $localize`Verified`, value: this.users.filter((user) => user.emailVerified).length },
       {
-        label: 'New this week',
+        label: $localize`Admins`,
+        value: this.users.filter((user) => user.role === 'ADMIN').length,
+      },
+      {
+        label: $localize`New this week`,
         value: this.users.filter((user) => Date.parse(user.createdAt) >= weekAgo).length,
       },
     ];
@@ -192,8 +196,8 @@ export class AccountListComponent implements OnInit {
           this.editing = null;
           this.successMessage =
             updated.role !== user.role
-              ? `${updated.username} was updated and will get the new role at the next sign-in.`
-              : `${updated.username} was updated.`;
+              ? $localize`${updated.username} was updated and will get the new role at the next sign-in.`
+              : $localize`${updated.username} was updated.`;
         },
         error: (error: HttpErrorResponse) => {
           this.saving = false;
@@ -224,7 +228,7 @@ export class AccountListComponent implements OnInit {
         this.deleteBusy = false;
         this.users = this.users.filter((candidate) => candidate.id !== user.id);
         this.deleting = null;
-        this.successMessage = `${user.username} was deleted.`;
+        this.successMessage = $localize`${user.username} was deleted.`;
       },
       error: (error: HttpErrorResponse) => {
         this.deleteBusy = false;
@@ -265,17 +269,17 @@ export class AccountListComponent implements OnInit {
   private describeError(error: HttpErrorResponse): string {
     switch (error.error?.code) {
       case 'USERNAME_TAKEN':
-        return 'This username is already taken.';
+        return $localize`This username is already taken.`;
       case 'EMAIL_TAKEN':
-        return 'Another account already uses this email.';
+        return $localize`Another account already uses this email.`;
       case 'ADMIN_SELF_CHANGE_FORBIDDEN':
-        return 'You cannot delete your own account or change your own role.';
+        return $localize`You cannot delete your own account or change your own role.`;
       case 'USER_OWNS_PLAYLISTS':
-        return 'This user still owns playlists. Delete their playlists first.';
+        return $localize`This user still owns playlists. Delete their playlists first.`;
       default:
         return error.status === 404
-          ? 'This account no longer exists. Refresh the list.'
-          : 'The account could not be updated. Please try again.';
+          ? $localize`This account no longer exists. Refresh the list.`
+          : $localize`The account could not be updated. Please try again.`;
     }
   }
 }

@@ -1,10 +1,10 @@
 <main class="playlist-page">
   <div class="page-heading">
     <div>
-      <h1>Playlist editor</h1>
-      <p>Create public playlists and arrange their published tracks.</p>
+      <h1 i18n>Playlist editor</h1>
+      <p i18n>Create public playlists and arrange their published tracks.</p>
     </div>
-    <button class="bt-btn bt-btn-primary" type="button" (click)="startCreate()">
+    <button i18n class="bt-btn bt-btn-primary" type="button" (click)="startCreate()">
       ＋ New playlist
     </button>
   </div>
@@ -12,7 +12,12 @@
   @if (successMessage) {
     <div class="notice success" role="status">
       <span>{{ successMessage }}</span>
-      <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
+      <button
+        type="button"
+        i18n-aria-label
+        aria-label="Dismiss notification"
+        (click)="successMessage = ''"
+      >
         ×
       </button>
     </div>
@@ -20,21 +25,25 @@
   @if (actionError) {
     <div class="notice error" role="alert">
       <span>{{ actionError }}</span>
-      <button type="button" aria-label="Dismiss error" (click)="actionError = ''">×</button>
+      <button type="button" i18n-aria-label aria-label="Dismiss error" (click)="actionError = ''">
+        ×
+      </button>
     </div>
   }
 
   <div class="workspace">
-    <section class="playlist-browser" aria-label="Playlists">
+    <section class="playlist-browser" i18n-aria-label aria-label="Playlists">
       <div class="browser-heading">
         <div>
-          <h2>Public playlists</h2>
+          <h2 i18n>Public playlists</h2>
           <span>{{ playlists.length }}</span>
         </div>
         <button
           class="icon-button"
           type="button"
+          i18n-aria-label
           aria-label="Refresh playlists"
+          i18n-title
           title="Refresh playlists"
           (click)="refreshPlaylists()"
         >
@@ -44,20 +53,26 @@
 
       @if (loadingPlaylists) {
         <div class="compact-state" role="status">
-          <span class="spinner" aria-hidden="true"></span> Loading playlists…
+          <span class="spinner" aria-hidden="true"></span>
+          <ng-container i18n>Loading playlists…</ng-container>
         </div>
       } @else if (listError) {
         <div class="compact-state error-text" role="alert">
           <p>{{ listError }}</p>
-          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="loadPlaylists()">
+          <button
+            i18n
+            class="bt-btn bt-btn-sm bt-btn-ghost"
+            type="button"
+            (click)="loadPlaylists()"
+          >
             Retry
           </button>
         </div>
       } @else if (playlists.length === 0) {
         <div class="compact-state empty">
           <span aria-hidden="true">☷</span>
-          <p>No playlists yet.</p>
-          <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="startCreate()">
+          <p i18n>No playlists yet.</p>
+          <button i18n class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="startCreate()">
             Create the first one
           </button>
         </div>
@@ -78,7 +93,7 @@
               </span>
               <span class="playlist-copy">
                 <strong>{{ playlist.name }}</strong>
-                <small>{{ playlist.trackCount }} tracks</small>
+                <small i18n>{{ playlist.trackCount }} tracks</small>
               </span>
               <span aria-hidden="true">›</span>
             </button>
@@ -91,46 +106,57 @@
       @if (loadingDetail) {
         <div class="large-state" role="status">
           <span class="spinner" aria-hidden="true"></span>
-          <p>Loading playlist…</p>
+          <p i18n>Loading playlist…</p>
         </div>
       } @else if (detailError) {
         <div class="large-state" role="alert">
           <span class="state-symbol">!</span>
-          <h2>Playlist unavailable</h2>
+          <h2 i18n>Playlist unavailable</h2>
           <p>{{ detailError }}</p>
-          <button class="bt-btn bt-btn-ghost" type="button" (click)="loadPlaylists()">
+          <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="loadPlaylists()">
             Reload playlists
           </button>
         </div>
       } @else if (!selected && !creating) {
         <div class="large-state">
           <span class="state-symbol">☷</span>
-          <h2>Create your first public playlist</h2>
-          <p>Add published tracks and choose the exact order used by future games.</p>
-          <button class="bt-btn bt-btn-primary" type="button" (click)="startCreate()">
+          <h2 i18n>Create your first public playlist</h2>
+          <p i18n>Add published tracks and choose the exact order used by future games.</p>
+          <button i18n class="bt-btn bt-btn-primary" type="button" (click)="startCreate()">
             ＋ New playlist
           </button>
         </div>
       } @else {
         <div class="editor-heading">
           <div>
-            <span class="eyebrow">{{ creating ? 'New playlist' : 'Editing playlist' }}</span>
+            <span class="eyebrow" i18n>{creating, select,
+              true {New playlist}
+              other {Editing playlist}
+            }</span>
             <div class="title-line">
-              <h2>{{ creating ? 'Untitled playlist' : selected?.name }}</h2>
+              @if (creating) {
+                <h2 i18n>Untitled playlist</h2>
+              } @else {
+                <h2>{{ selected?.name }}</h2>
+              }
               @if (selected) {
-                <span class="bt-chip">{{ selected.trackCount }} tracks</span>
+                <span i18n class="bt-chip">{{ selected.trackCount }} tracks</span>
               }
             </div>
-            <p>
-              {{
-                creating
-                  ? 'Save the details before adding tracks.'
-                  : 'Drag tracks or use the arrow buttons to change their order.'
-              }}
+            <p i18n>
+              {creating, select,
+                true {Save the details before adding tracks.}
+                other {Drag tracks or use the arrow buttons to change their order.}
+              }
             </p>
           </div>
           @if (selected) {
-            <button class="bt-btn bt-btn-danger bt-btn-sm" type="button" (click)="requestDelete()">
+            <button
+              i18n
+              class="bt-btn bt-btn-danger bt-btn-sm"
+              type="button"
+              (click)="requestDelete()"
+            >
               Delete playlist
             </button>
           }
@@ -140,12 +166,13 @@
           <section class="tracks-panel">
             <div class="panel-heading">
               <div>
-                <h3>Tracks</h3>
-                <p>Published tracks play from top to bottom.</p>
+                <h3 i18n>Tracks</h3>
+                <p i18n>Published tracks play from top to bottom.</p>
               </div>
               @if (reordering) {
                 <span class="saving-label" role="status">
-                  <span class="spinner" aria-hidden="true"></span> Saving order…
+                  <span class="spinner" aria-hidden="true"></span>
+                  <ng-container i18n>Saving order…</ng-container>
                 </span>
               }
             </div>
@@ -153,13 +180,13 @@
             @if (!selected) {
               <div class="track-state">
                 <span aria-hidden="true">①</span>
-                <p>Save the playlist details to unlock track selection.</p>
+                <p i18n>Save the playlist details to unlock track selection.</p>
               </div>
             } @else if (selected.tracks.length === 0) {
               <div class="track-state">
                 <span aria-hidden="true">♫</span>
-                <h3>This playlist is empty</h3>
-                <p>Use catalogue search to add its first published track.</p>
+                <h3 i18n>This playlist is empty</h3>
+                <p i18n>Use catalogue search to add its first published track.</p>
               </div>
             } @else {
               <div
@@ -176,7 +203,8 @@
                       class="drag-handle"
                       type="button"
                       cdkDragHandle
-                      aria-label="Drag {{ track.title }}"
+                      [attr.aria-label]="dragLabel(track.title)"
+                      i18n-title
                       title="Drag to reorder"
                     >
                       ⠿
@@ -196,7 +224,8 @@
                     <span class="order-actions">
                       <button
                         type="button"
-                        aria-label="Move {{ track.title }} up"
+                        [attr.aria-label]="moveUpLabel(track.title)"
+                        i18n-title
                         title="Move up"
                         [disabled]="index === 0 || reordering"
                         (click)="moveTrack(index, -1)"
@@ -205,7 +234,8 @@
                       </button>
                       <button
                         type="button"
-                        aria-label="Move {{ track.title }} down"
+                        [attr.aria-label]="moveDownLabel(track.title)"
+                        i18n-title
                         title="Move down"
                         [disabled]="index === selected.tracks.length - 1 || reordering"
                         (click)="moveTrack(index, 1)"
@@ -215,7 +245,8 @@
                       <button
                         class="remove"
                         type="button"
-                        aria-label="Remove {{ track.title }}"
+                        [attr.aria-label]="removeLabel(track.title)"
+                        i18n-title
                         title="Remove track"
                         [disabled]="!!trackActionId || reordering"
                         (click)="removeTrack(track)"
@@ -237,35 +268,43 @@
             <section class="details-panel">
               <div class="panel-heading">
                 <div>
-                  <h3>Details</h3>
+                  <h3 i18n>Details</h3>
                   @if (metadataForm.dirty) {
-                    <p class="unsaved">Unsaved changes</p>
+                    <p i18n class="unsaved">Unsaved changes</p>
                   }
                 </div>
               </div>
               <form [formGroup]="metadataForm" (ngSubmit)="saveMetadata()">
                 <label class="field">
-                  <span>Name *</span>
-                  <input class="bt-input" formControlName="name" aria-label="Playlist name" />
+                  <span i18n>Name *</span>
+                  <input
+                    class="bt-input"
+                    formControlName="name"
+                    i18n-aria-label
+                    aria-label="Playlist name"
+                  />
                   @if (metadataForm.controls.name.invalid && metadataForm.controls.name.touched) {
-                    <small>Use between 2 and 100 characters.</small>
+                    <small i18n>Use between 2 and 100 characters.</small>
                   }
                 </label>
                 <label class="field">
-                  <span>Description</span>
+                  <span i18n>Description</span>
                   <textarea
                     class="bt-input textarea"
                     formControlName="description"
                     rows="3"
+                    i18n-aria-label
                     aria-label="Playlist description"
                   ></textarea>
                 </label>
                 <label class="field">
-                  <span>Cover URL</span>
+                  <span i18n>Cover URL</span>
                   <input
                     class="bt-input"
                     formControlName="imageUrl"
+                    i18n-placeholder
                     placeholder="https://…"
+                    i18n-aria-label
                     aria-label="Playlist cover URL"
                   />
                 </label>
@@ -273,11 +312,12 @@
                   @if (metadataForm.controls.imageUrl.value) {
                     <img
                       [src]="metadataForm.controls.imageUrl.value"
+                      i18n-alt
                       alt="Playlist cover preview"
                     />
                   } @else {
                     <span aria-hidden="true">♪</span>
-                    <small>Playlist cover</small>
+                    <small i18n>Playlist cover</small>
                   }
                 </div>
                 <button
@@ -288,9 +328,13 @@
                   "
                 >
                   @if (savingMetadata) {
-                    <span class="spinner" aria-hidden="true"></span> Saving…
+                    <span class="spinner" aria-hidden="true"></span>
+                    <ng-container i18n>Saving…</ng-container>
                   } @else {
-                    {{ creating ? 'Create playlist' : 'Save details' }}
+                    <ng-container i18n>{creating, select,
+                      true {Create playlist}
+                      other {Save details}
+                    }</ng-container>
                   }
                 </button>
               </form>
@@ -320,13 +364,13 @@
       aria-labelledby="delete-playlist-title"
     >
       <span class="danger-symbol" aria-hidden="true">!</span>
-      <h2 id="delete-playlist-title">Delete this playlist?</h2>
-      <p>
+      <h2 i18n id="delete-playlist-title">Delete this playlist?</h2>
+      <p i18n>
         <strong>{{ selected.name }}</strong> and its ordering will be removed. Catalogue tracks are
         not deleted.
       </p>
       <div>
-        <button class="bt-btn bt-btn-ghost" type="button" (click)="deleteConfirmation = false">
+        <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="deleteConfirmation = false">
           Cancel
         </button>
         <button
@@ -335,7 +379,10 @@
           [disabled]="deleting"
           (click)="confirmDelete()"
         >
-          {{ deleting ? 'Deleting…' : 'Delete playlist' }}
+          <ng-container i18n>{deleting, select,
+            true {Deleting…}
+            other {Delete playlist}
+          }</ng-container>
         </button>
       </div>
     </section>

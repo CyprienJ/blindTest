@@ -46,6 +46,7 @@ async function focusedIdentity(locator: Locator): Promise<string> {
 test.describe('keyboard and visible focus', () => {
   test('reaches every sign-in control by keyboard with a visible focus ring', async ({ page }) => {
     await page.goto('/auth/login');
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
 
     const expectedControls = [
       'Email',
@@ -74,6 +75,7 @@ test.describe('keyboard and visible focus', () => {
     page,
   }) => {
     await page.goto('/');
+    await expect(page.getByRole('link', { name: 'Sign in to play' })).toBeVisible();
 
     const expectedControls = ['Sign in', 'Sign in to play'];
     const visited = new Set<string>();

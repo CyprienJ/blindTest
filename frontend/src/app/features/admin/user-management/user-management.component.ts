@@ -10,8 +10,8 @@ import { InvitationManagerComponent } from './invitation-manager.component';
   template: `
     <main class="user-management">
       <div class="page-heading">
-        <h1>Users</h1>
-        <p>Manage accounts and invite new players. Registration is invitation-only.</p>
+        <h1 i18n>Users</h1>
+        <p i18n>Manage accounts and invite new players. Registration is invitation-only.</p>
       </div>
       <app-account-list />
       <app-invitation-manager />

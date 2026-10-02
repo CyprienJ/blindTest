@@ -1,6 +1,6 @@
 <div class="excerpt-editor">
   <div class="excerpt-labels">
-    <strong>{{ window() }}-second game window</strong>
+    <strong i18n>{{ window() }}-second game window</strong>
     <span class="mono">{{ formatTime(start()) }} → {{ formatTime(end()) }}</span>
   </div>
   <ng-content />
@@ -42,6 +42,7 @@
     type="range"
     min="0"
     step="1"
+    i18n-aria-label
     aria-label="Excerpt start"
     [max]="maxStart()"
     [value]="start()"
@@ -53,10 +54,11 @@
     <span>{{ formatTime(durationSeconds() || 0) }}</span>
   </div>
   <label class="window-length">
-    <span>Window length</span>
+    <span i18n>Window length</span>
     <input
       type="range"
       step="1"
+      i18n-aria-label
       aria-label="Window length"
       [min]="limits.minimum"
       [max]="limits.maximum"
@@ -76,9 +78,9 @@
       (timeupdate)="loopWindow(audio)"
       (ended)="restartWindow(audio)"
     >
-      Your browser cannot play this audio.
+      <ng-container i18n>Your browser cannot play this audio.</ng-container>
     </audio>
-    <small class="hint"
+    <small i18n class="hint"
       >Moving a slider plays the window from its start; it loops like a round.</small
     >
   }

@@ -1,16 +1,21 @@
 <main class="catalogue">
   <div class="page-heading">
     <div>
-      <h1>Track catalogue</h1>
-      <p>Review imported tracks, improve their answers and control publication.</p>
+      <h1 i18n>Track catalogue</h1>
+      <p i18n>Review imported tracks, improve their answers and control publication.</p>
     </div>
-    <a class="bt-btn bt-btn-primary" routerLink="/admin/tracks/import">＋ Import track</a>
+    <a i18n class="bt-btn bt-btn-primary" routerLink="/admin/tracks/import">＋ Import track</a>
   </div>
 
   @if (successMessage) {
     <div class="notice notice-success" role="status">
       <span>{{ successMessage }}</span>
-      <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
+      <button
+        type="button"
+        i18n-aria-label
+        aria-label="Dismiss notification"
+        (click)="successMessage = ''"
+      >
         ×
       </button>
     </div>
@@ -18,12 +23,14 @@
   @if (listError) {
     <div class="notice notice-error" role="alert">
       <span>{{ listError }}</span>
-      <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">Retry</button>
+      <button i18n class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">
+        Retry
+      </button>
     </div>
   }
 
   <section class="catalogue-card">
-    <div class="status-tabs" aria-label="Filter tracks by status">
+    <div class="status-tabs" i18n-aria-label aria-label="Filter tracks by status">
       @for (filter of filters; track filter.label) {
         <button
           type="button"
@@ -40,30 +47,31 @@
     <div class="toolbar">
       <label class="search-field">
         <span aria-hidden="true">⌕</span>
-        <span class="sr-only">Search tracks</span>
+        <span i18n class="sr-only">Search tracks</span>
         <input
           type="search"
           [formControl]="searchControl"
+          i18n-placeholder
           placeholder="Search title, artist, album or category…"
         />
       </label>
-      <button class="bt-btn bt-btn-ghost" type="button" (click)="refresh()">↻ Refresh</button>
+      <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="refresh()">↻ Refresh</button>
     </div>
 
     @if (loading) {
       <div class="state-panel" role="status">
         <span class="spinner" aria-hidden="true"></span>
-        <p>Loading catalogue…</p>
+        <p i18n>Loading catalogue…</p>
       </div>
     } @else if (!listError && tracks.length === 0) {
       <div class="state-panel">
         <span class="state-icon" aria-hidden="true">♫</span>
-        <h2>No tracks found</h2>
+        <h2 i18n>No tracks found</h2>
         <p>
           @if (searchControl.value || activeStatus) {
-            Try another search or status.
+            <ng-container i18n>Try another search or status.</ng-container>
           } @else {
-            Import your first track to start the catalogue.
+            <ng-container i18n>Import your first track to start the catalogue.</ng-container>
           }
         </p>
       </div>
@@ -72,24 +80,24 @@
         <table>
           <thead>
             <tr>
-              <th>Track</th>
+              <th i18n>Track</th>
               <th [attr.aria-sort]="ariaSort('CATEGORY')">
                 <button class="sort-button" type="button" (click)="sortBy('CATEGORY')">
-                  Category
+                  <ng-container i18n>Category</ng-container>
                   <span aria-hidden="true">{{ sortIndicator('CATEGORY') }}</span>
                 </button>
               </th>
-              <th>Decade</th>
-              <th>Duration</th>
-              <th>Streaming</th>
-              <th>Status</th>
+              <th i18n>Decade</th>
+              <th i18n>Duration</th>
+              <th i18n>Streaming</th>
+              <th i18n>Status</th>
               <th [attr.aria-sort]="ariaSort('ADDED')">
                 <button class="sort-button" type="button" (click)="sortBy('ADDED')">
-                  Added
+                  <ng-container i18n>Added</ng-container>
                   <span aria-hidden="true">{{ sortIndicator('ADDED') }}</span>
                 </button>
               </th>
-              <th><span class="sr-only">Actions</span></th>
+              <th><span i18n class="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +123,10 @@
                 <td class="mono">{{ formatDuration(track.durationSeconds) }}</td>
                 <td>
                   <span class="link-flag" [class.yes]="hasStreamingLinks(track)">
-                    {{ hasStreamingLinks(track) ? 'Yes' : 'No' }}
+                    <ng-container i18n>{hasStreamingLinks(track), select,
+                      true {Yes}
+                      other {No}
+                    }</ng-container>
                   </span>
                 </td>
                 <td>
@@ -127,11 +138,17 @@
                 <td>
                   <div class="row-actions">
                     @if (actionTrackId === track.id) {
-                      <span class="mini-spinner" role="status" aria-label="Updating track"></span>
+                      <span
+                        class="mini-spinner"
+                        role="status"
+                        i18n-aria-label
+                        aria-label="Updating track"
+                      ></span>
                     }
                     @if (track.status === 'PENDING') {
                       <button
                         type="button"
+                        i18n-title
                         title="Preview audio"
                         [disabled]="actionTrackId === track.id"
                         (click)="openPreview(track)"
@@ -141,6 +158,7 @@
                     }
                     <button
                       type="button"
+                      i18n-title
                       title="Edit track"
                       [disabled]="actionTrackId === track.id"
                       (click)="openEdit(track)"
@@ -151,6 +169,7 @@
                       <button
                         class="publish"
                         type="button"
+                        i18n-title
                         title="Publish track"
                         [disabled]="actionTrackId === track.id"
                         (click)="validate(track)"
@@ -160,6 +179,7 @@
                       <button
                         class="danger"
                         type="button"
+                        i18n-title
                         title="Reject track"
                         [disabled]="actionTrackId === track.id"
                         (click)="requestConfirmation(track, 'reject')"
@@ -170,6 +190,7 @@
                     <button
                       class="danger"
                       type="button"
+                      i18n-title
                       title="Delete track"
                       [disabled]="actionTrackId === track.id"
                       (click)="requestConfirmation(track, 'delete')"
@@ -185,9 +206,10 @@
       </div>
 
       <footer class="pagination">
-        <p>{{ totalElements }} track{{ totalElements === 1 ? '' : 's' }}</p>
+        <p i18n>{totalElements, plural, =1 {1 track} other {{{ totalElements }} tracks}}</p>
         <div>
           <button
+            i18n
             class="bt-btn bt-btn-sm bt-btn-ghost"
             type="button"
             [disabled]="page === 0"
@@ -195,8 +217,9 @@
           >
             Previous
           </button>
-          <span>Page {{ page + 1 }} of {{ totalPages }}</span>
+          <span i18n>Page {{ page + 1 }} of {{ totalPages }}</span>
           <button
+            i18n
             class="bt-btn bt-btn-sm bt-btn-ghost"
             type="button"
             [disabled]="page + 1 >= totalPages"
@@ -215,27 +238,40 @@
     <section class="modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
       <header>
         <div>
-          <span class="eyebrow">Track details</span>
-          <h2 id="edit-title">Edit {{ editingTrack.title }}</h2>
+          <span i18n class="eyebrow">Track details</span>
+          <h2 i18n id="edit-title">Edit {{ editingTrack.title }}</h2>
         </div>
-        <button type="button" aria-label="Close editor" (click)="closeEdit()">×</button>
+        <button type="button" i18n-aria-label aria-label="Close editor" (click)="closeEdit()">
+          ×
+        </button>
       </header>
 
       <form class="metadata-form" [formGroup]="editForm" (ngSubmit)="saveTrack()">
         <div class="form-grid">
-          <label>Title <input class="bt-input" formControlName="title" /></label>
-          <label>Artist <input class="bt-input" formControlName="artist" /></label>
-          <label>Album <input class="bt-input" formControlName="album" /></label>
-          <label>Composer <input class="bt-input" formControlName="composer" /></label>
-          <label>Work / film <input class="bt-input" formControlName="work" /></label>
-          <label>Category <input class="bt-input" formControlName="category" /></label>
-          <label>Decade <input class="bt-input" type="number" formControlName="decade" /></label>
+          <label><span i18n>Title</span> <input class="bt-input" formControlName="title" /></label>
           <label
-            >Duration (seconds)
+            ><span i18n>Artist</span> <input class="bt-input" formControlName="artist"
+          /></label>
+          <label><span i18n>Album</span> <input class="bt-input" formControlName="album" /></label>
+          <label
+            ><span i18n>Composer</span> <input class="bt-input" formControlName="composer"
+          /></label>
+          <label
+            ><span i18n>Work / film</span> <input class="bt-input" formControlName="work"
+          /></label>
+          <label
+            ><span i18n>Category</span> <input class="bt-input" formControlName="category"
+          /></label>
+          <label
+            ><span i18n>Decade</span>
+            <input class="bt-input" type="number" formControlName="decade"
+          /></label>
+          <label
+            ><span i18n>Duration (seconds)</span>
             <input class="bt-input" type="number" formControlName="durationSeconds" />
           </label>
           <div class="wide cover-field">
-            <span>Cover</span>
+            <span i18n>Cover</span>
             <app-cover-picker
               [title]="editForm.controls.title.value"
               [artist]="editForm.controls.artist.value"
@@ -246,7 +282,7 @@
             />
           </div>
           <div class="wide difficulty">
-            <span id="edit-difficulty-label">Difficulty</span>
+            <span i18n id="edit-difficulty-label">Difficulty</span>
             <app-difficulty-rating
               formControlName="difficulty"
               labelledBy="edit-difficulty-label"
@@ -254,8 +290,8 @@
           </div>
         </div>
         <fieldset class="streaming-links" formGroupName="streamingLinks">
-          <legend>Streaming links</legend>
-          <p class="muted">Shown to players when the track is revealed.</p>
+          <legend i18n>Streaming links</legend>
+          <p i18n class="muted">Shown to players when the track is revealed.</p>
           <div class="form-grid">
             @for (platform of streamingPlatforms; track platform.key) {
               <label
@@ -264,20 +300,21 @@
                   class="bt-input"
                   type="url"
                   [formControlName]="platform.key"
+                  i18n-placeholder
                   placeholder="https://…"
                 />
                 @if (
                   editForm.controls.streamingLinks.controls[platform.key].touched &&
                   editForm.controls.streamingLinks.controls[platform.key].invalid
                 ) {
-                  <small class="form-error">Enter a {{ platform.label }} link.</small>
+                  <small i18n class="form-error">Enter a {{ platform.label }} link.</small>
                 }
               </label>
             }
           </div>
         </fieldset>
         <div class="excerpt">
-          <h3>Game excerpt</h3>
+          <h3 i18n>Game excerpt</h3>
           <app-excerpt-editor
             [previewUrl]="editPreview?.url ?? null"
             [peaks]="editPeaks"
@@ -289,48 +326,53 @@
             (playbackBlocked)="editMediaError = 'Press play to listen.'"
           >
             @if (editMediaLoading) {
-              <p class="muted" role="status">Preparing audio…</p>
+              <p i18n class="muted" role="status">Preparing audio…</p>
             }
             @if (editMediaError) {
               <p class="form-error" role="alert">
                 {{ editMediaError }}
-                <button type="button" (click)="loadEditMedia(editingTrack)">Retry</button>
+                <button i18n type="button" (click)="loadEditMedia(editingTrack)">Retry</button>
               </p>
             }
           </app-excerpt-editor>
         </div>
         @if (editForm.invalid && editForm.touched) {
-          <p class="form-error">Complete the required fields with valid values.</p>
+          <p i18n class="form-error">Complete the required fields with valid values.</p>
         }
         @if (editError) {
           <p class="form-error" role="alert">{{ editError }}</p>
         }
         <div class="form-actions">
-          <button class="bt-btn bt-btn-ghost" type="button" (click)="closeEdit()">Cancel</button>
+          <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="closeEdit()">
+            Cancel
+          </button>
           <button class="bt-btn bt-btn-primary" type="submit" [disabled]="editSaving">
-            {{ editSaving ? 'Saving…' : 'Save metadata' }}
+            <ng-container i18n>{editSaving, select,
+              true {Saving…}
+              other {Save metadata}
+            }</ng-container>
           </button>
         </div>
       </form>
 
       <div class="aliases">
         <div>
-          <h3>Alternative answers</h3>
-          <p>Accepted variants for title and secondary metadata.</p>
+          <h3 i18n>Alternative answers</h3>
+          <p i18n>Accepted variants for title and secondary metadata.</p>
         </div>
         @if (aliasesLoading) {
-          <p class="muted" role="status">Loading alternative answers…</p>
+          <p i18n class="muted" role="status">Loading alternative answers…</p>
         } @else {
           @if (aliases.length === 0) {
-            <p class="empty-inline">No alternative answers yet.</p>
+            <p i18n class="empty-inline">No alternative answers yet.</p>
           } @else {
             <ul>
               @for (alias of aliases; track alias.id) {
                 <li>
                   <span class="alias-type">{{ alias.type }}</span>
                   <span>{{ alias.value }}</span>
-                  <button type="button" (click)="editAlias(alias)">Edit</button>
-                  <button class="danger-text" type="button" (click)="deleteAlias(alias)">
+                  <button i18n type="button" (click)="editAlias(alias)">Edit</button>
+                  <button i18n class="danger-text" type="button" (click)="deleteAlias(alias)">
                     Delete
                   </button>
                 </li>
@@ -338,7 +380,12 @@
             </ul>
           }
           <form class="alias-form" [formGroup]="aliasForm" (ngSubmit)="saveAlias()">
-            <select class="bt-input" formControlName="type" aria-label="Answer type">
+            <select
+              class="bt-input"
+              formControlName="type"
+              i18n-aria-label
+              aria-label="Answer type"
+            >
               @for (type of aliasTypes; track type) {
                 <option [value]="type">{{ type }}</option>
               }
@@ -346,14 +393,22 @@
             <input
               class="bt-input"
               formControlName="value"
+              i18n-aria-label
               aria-label="Alternative answer"
+              i18n-placeholder
               placeholder="Alternative answer"
             />
             <button class="bt-btn bt-btn-primary" type="submit" [disabled]="aliasSaving">
-              {{ aliasSaving ? 'Saving…' : editingAliasId ? 'Save alias' : 'Add alias' }}
+              @if (aliasSaving) {
+                <ng-container i18n>Saving…</ng-container>
+              } @else if (editingAliasId) {
+                <ng-container i18n>Save alias</ng-container>
+              } @else {
+                <ng-container i18n>Add alias</ng-container>
+              }
             </button>
             @if (editingAliasId) {
-              <button class="bt-btn bt-btn-ghost" type="button" (click)="cancelAliasEdit()">
+              <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="cancelAliasEdit()">
                 Cancel
               </button>
             }
@@ -377,25 +432,29 @@
     >
       <header>
         <div>
-          <span class="eyebrow">Audio preview</span>
+          <span i18n class="eyebrow">Audio preview</span>
           <h2 id="preview-title">{{ previewTrack.title }}</h2>
           <p>{{ previewTrack.artist }}</p>
         </div>
-        <button type="button" aria-label="Close preview" (click)="closePreview()">×</button>
+        <button type="button" i18n-aria-label aria-label="Close preview" (click)="closePreview()">
+          ×
+        </button>
       </header>
       @if (previewLoading) {
         <div class="state-panel" role="status">
           <span class="spinner"></span>
-          <p>Preparing audio…</p>
+          <p i18n>Preparing audio…</p>
         </div>
       } @else if (previewError) {
         <div class="notice notice-error" role="alert">{{ previewError }}</div>
-        <button class="bt-btn bt-btn-ghost" type="button" (click)="openPreview(previewTrack)">
+        <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="openPreview(previewTrack)">
           Retry
         </button>
       } @else if (preview) {
-        <audio controls autoplay [src]="preview.url">Your browser cannot play this audio.</audio>
-        <p class="muted">
+        <audio controls autoplay [src]="preview.url">
+          <ng-container i18n>Your browser cannot play this audio.</ng-container>
+        </audio>
+        <p class="muted" i18n>
           This secure preview link expires at {{ preview.expiresAt | date: 'shortTime' }}.
         </p>
       }
@@ -412,29 +471,34 @@
       aria-labelledby="confirm-title"
     >
       <span class="confirm-icon" aria-hidden="true">!</span>
-      <h2 id="confirm-title">
-        {{ confirmation.action === 'delete' ? 'Delete this track?' : 'Reject this track?' }}
+      <h2 id="confirm-title" i18n>
+        {confirmation.action, select, delete {Delete this track?} other {Reject this track?}}
       </h2>
-      <p>
-        <strong>{{ confirmation.track.title }}</strong>
-        {{
-          confirmation.action === 'delete'
-            ? 'will be removed from the catalogue. Its stored media will be queued for deletion.'
-            : 'will stay in the catalogue as rejected and will not be public.'
-        }}
+      <p i18n>
+        {confirmation.action, select,
+          delete {
+            <strong>{{ confirmation.track.title }}</strong>
+            will be removed from the catalogue. Its stored media will be queued for deletion.
+          }
+          other {
+            <strong>{{ confirmation.track.title }}</strong>
+            will stay in the catalogue as rejected and will not be public.
+          }
+        }
       </p>
       <div class="form-actions">
-        <button class="bt-btn bt-btn-ghost" type="button" (click)="closeConfirmation()">
+        <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="closeConfirmation()">
           Cancel
         </button>
         <button class="bt-btn bt-btn-danger" type="button" (click)="confirmAction()">
-          {{
-            actionTrackId
-              ? 'Working…'
-              : confirmation.action === 'delete'
-                ? 'Delete track'
-                : 'Reject track'
-          }}
+          @if (actionTrackId) {
+            <ng-container i18n>Working…</ng-container>
+          } @else {
+            <ng-container i18n>{confirmation.action, select,
+              delete {Delete track}
+              other {Reject track}
+            }</ng-container>
+          }
         </button>
       </div>
     </section>

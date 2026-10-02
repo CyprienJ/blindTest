@@ -72,6 +72,17 @@ class ErrorContractIntegrationTest {
     }
 
     @Test
+    void errorMessageFollowsTheRequestLanguage() throws Exception {
+        mockMvc.perform(get("/test/errors/not-found").header("Accept-Language", "fr")).
+                andExpect(status().isNotFound()).
+                andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND")).
+                andExpect(jsonPath("$.message").value("Ressource introuvable"));
+
+        mockMvc.perform(get("/test/errors/not-found").header("Accept-Language", "en")).
+                andExpect(jsonPath("$.message").value("Resource not found"));
+    }
+
+    @Test
     void internalErrorHidesExceptionDetailsAndProviderSecrets() throws Exception {
         mockMvc.perform(get("/test/errors/internal")).
                 andExpect(status().isInternalServerError()).

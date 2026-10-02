@@ -65,4 +65,5 @@ infer implementation from a security matcher or contract entry alone.
 - [Catalogue and imports](catalogue.md): publication, media and playlist integrity.
 - [Sessions](sessions.md): state, transport, deadlines, history and cleanup.
 - [Data model](../architecture/data.md): persistence ownership and migrations.
+- [Translations](../frontend/i18n.md#backend): request language, emails and error messages.
 - [Testing](../testing.md): deterministic adapters and real infrastructure checks.

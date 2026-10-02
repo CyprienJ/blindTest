@@ -7,8 +7,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.MessageSource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,12 +27,17 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** Converts controller, validation, domain, and unexpected exceptions to one safe REST contract. */
 @RestControllerAdvice
+@RequiredArgsConstructor
 @Slf4j
 public class GlobalExceptionHandler {
+
+    private final MessageSource messages;
+    private final LocaleResolver localeResolver;
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(
@@ -158,7 +165,8 @@ public class GlobalExceptionHandler {
             HttpServletRequest request,
             ApiErrorCode errorCode,
             Map<String, String> fieldErrors) {
-        ApiErrorResponse response = RestErrorResponseFactory.create(request, errorCode, fieldErrors);
+        ApiErrorResponse response = RestErrorResponseFactory.create(
+                request, errorCode, fieldErrors, messages, localeResolver.resolveLocale(request));
         return ResponseEntity.status(errorCode.getStatus()).body(response);
     }
 

@@ -1,7 +1,7 @@
 <section class="accounts" aria-labelledby="accounts-title">
   <div class="section-heading">
-    <h2 id="accounts-title">Accounts</h2>
-    <p>Review every account, change usernames, emails, and roles, or delete accounts.</p>
+    <h2 i18n id="accounts-title">Accounts</h2>
+    <p i18n>Review every account, change usernames, emails, and roles, or delete accounts.</p>
   </div>
 
   <dl class="stats">
@@ -16,7 +16,12 @@
   @if (successMessage) {
     <div class="notice notice-success" role="status">
       <span>{{ successMessage }}</span>
-      <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
+      <button
+        type="button"
+        i18n-aria-label
+        aria-label="Dismiss notification"
+        (click)="successMessage = ''"
+      >
         ×
       </button>
     </div>
@@ -24,17 +29,24 @@
   @if (listError) {
     <div class="notice notice-error" role="alert">
       <span>{{ listError }}</span>
-      <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">Retry</button>
+      <button i18n class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">
+        Retry
+      </button>
     </div>
   }
 
   <div class="toolbar">
     <label class="search-field">
       <span aria-hidden="true">⌕</span>
-      <span class="sr-only">Search accounts</span>
-      <input type="search" [(ngModel)]="search" placeholder="Search by username or email…" />
+      <span i18n class="sr-only">Search accounts</span>
+      <input
+        type="search"
+        [(ngModel)]="search"
+        i18n-placeholder
+        placeholder="Search by username or email…"
+      />
     </label>
-    <div class="segment" role="group" aria-label="Filter accounts">
+    <div class="segment" role="group" i18n-aria-label aria-label="Filter accounts">
       @for (option of filters; track option.value) {
         <button
           type="button"
@@ -50,9 +62,9 @@
 
   <div class="account-card">
     @if (loading && users.length === 0) {
-      <p class="state" role="status">Loading accounts…</p>
+      <p i18n class="state" role="status">Loading accounts…</p>
     } @else if (!listError && visibleUsers.length === 0) {
-      <p class="state">No account matches this search.</p>
+      <p i18n class="state">No account matches this search.</p>
     } @else if (visibleUsers.length > 0) {
       <div class="table-scroll">
         <table>
@@ -68,7 +80,7 @@
                   </button>
                 </th>
               }
-              <th><span class="sr-only">Actions</span></th>
+              <th><span i18n class="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -77,26 +89,32 @@
                 <td class="username">
                   {{ user.username }}
                   @if (isSelf(user)) {
-                    <span class="you">you</span>
+                    <span i18n class="you">you</span>
                   }
                 </td>
                 <td>
                   {{ user.email }}
                   @if (!user.emailVerified) {
-                    <span class="badge warn">unverified</span>
+                    <span i18n class="badge warn">unverified</span>
                   }
                 </td>
                 <td>
-                  <span class="badge" [class.admin]="user.role === 'ADMIN'">{{
-                    user.role === 'ADMIN' ? 'Admin' : 'Player'
-                  }}</span>
+                  <span class="badge" [class.admin]="user.role === 'ADMIN'" i18n>{user.role, select,
+                    ADMIN {Admin}
+                    other {Player}
+                  }</span>
                 </td>
                 <td>{{ user.createdAt | date: 'mediumDate' }}</td>
-                <td>{{ user.lastConnexion ? (user.lastConnexion | date: 'medium') : 'Never' }}</td>
+                @if (user.lastConnexion) {
+                  <td>{{ user.lastConnexion | date: 'medium' }}</td>
+                } @else {
+                  <td i18n>Never</td>
+                }
                 <td class="numeric">{{ user.gamesPlayed }}</td>
                 <td>
                   <div class="row-actions">
                     <button
+                      i18n
                       class="bt-btn bt-btn-sm bt-btn-ghost"
                       type="button"
                       [attr.aria-label]="'Edit ' + user.username"
@@ -105,10 +123,11 @@
                       Edit
                     </button>
                     <button
+                      i18n
                       class="bt-btn bt-btn-sm bt-btn-ghost danger"
                       type="button"
                       [disabled]="isSelf(user)"
-                      [attr.title]="isSelf(user) ? 'You cannot delete your own account' : null"
+                      [attr.title]="isSelf(user) ? selfDeleteTitle : null"
                       [attr.aria-label]="'Delete ' + user.username"
                       (click)="openDelete(user)"
                     >
@@ -130,42 +149,44 @@
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-user-title">
       <header>
         <div>
-          <h2 id="edit-user-title">Edit {{ editing.username }}</h2>
-          <p>Joined {{ editing.createdAt | date: 'mediumDate' }}</p>
+          <h2 i18n id="edit-user-title">Edit {{ editing.username }}</h2>
+          <p i18n>Joined {{ editing.createdAt | date: 'mediumDate' }}</p>
         </div>
-        <button type="button" aria-label="Close" (click)="closeEdit()">×</button>
+        <button type="button" i18n-aria-label aria-label="Close" (click)="closeEdit()">×</button>
       </header>
       <form class="edit-form" [formGroup]="editForm" (ngSubmit)="saveEdit()">
-        <label class="bt-label" for="edit-username">Username</label>
+        <label i18n class="bt-label" for="edit-username">Username</label>
         <input id="edit-username" class="bt-input" type="text" formControlName="username" />
         @if (editForm.controls.username.invalid && editForm.controls.username.touched) {
-          <span class="bt-error">3–50 characters required</span>
+          <span i18n class="bt-error">3–50 characters required</span>
         }
 
-        <label class="bt-label" for="edit-email">Email</label>
+        <label i18n class="bt-label" for="edit-email">Email</label>
         <input id="edit-email" class="bt-input" type="email" formControlName="email" />
         @if (editForm.controls.email.invalid && editForm.controls.email.touched) {
-          <span class="bt-error">Enter a valid email address</span>
+          <span i18n class="bt-error">Enter a valid email address</span>
         }
 
-        <label class="bt-label" for="edit-role">Role</label>
+        <label i18n class="bt-label" for="edit-role">Role</label>
         <select id="edit-role" class="bt-input" formControlName="role">
-          <option value="USER">Player</option>
-          <option value="ADMIN">Admin</option>
+          <option i18n value="USER">Player</option>
+          <option i18n value="ADMIN">Admin</option>
         </select>
         @if (isSelf(editing)) {
-          <span class="hint">You cannot change your own role.</span>
+          <span i18n class="hint">You cannot change your own role.</span>
         } @else {
-          <span class="hint">A new role applies the next time this person signs in.</span>
+          <span i18n class="hint">A new role applies the next time this person signs in.</span>
         }
 
         @if (editError) {
           <p class="form-error" role="alert">{{ editError }}</p>
         }
         <div class="form-actions">
-          <button class="bt-btn bt-btn-ghost" type="button" (click)="closeEdit()">Cancel</button>
+          <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="closeEdit()">
+            Cancel
+          </button>
           <button class="bt-btn bt-btn-primary" type="submit" [disabled]="saving">
-            {{ saving ? 'Saving…' : 'Save changes' }}
+            <ng-container i18n>{saving, select, true {Saving…} other {Save changes}}</ng-container>
           </button>
         </div>
       </form>
@@ -181,15 +202,18 @@
       aria-modal="true"
       aria-labelledby="delete-user-title"
     >
-      <h2 id="delete-user-title">Delete {{ deleting.username }}?</h2>
+      <h2 i18n id="delete-user-title">Delete {{ deleting.username }}?</h2>
       <p>
-        The account and its sessions are removed permanently.
+        <ng-container i18n>The account and its sessions are removed permanently.</ng-container>
         @if (deleting.gamesPlayed > 0) {
-          Its {{ deleting.gamesPlayed }} completed games stay in history without its name.
+          <ng-container i18n
+            >Its {{ deleting.gamesPlayed }} completed games stay in history without its
+            name.</ng-container
+          >
         }
       </p>
       @if (deleting.playlistCount > 0) {
-        <p class="form-error">
+        <p i18n class="form-error">
           This user owns {{ deleting.playlistCount }} playlist(s). Delete them before deleting the
           account.
         </p>
@@ -198,14 +222,19 @@
         <p class="form-error" role="alert">{{ deleteError }}</p>
       }
       <div class="form-actions">
-        <button class="bt-btn bt-btn-ghost" type="button" (click)="closeDelete()">Cancel</button>
+        <button i18n class="bt-btn bt-btn-ghost" type="button" (click)="closeDelete()">
+          Cancel
+        </button>
         <button
           class="bt-btn bt-btn-danger"
           type="button"
           [disabled]="deleteBusy || deleting.playlistCount > 0"
           (click)="confirmDelete()"
         >
-          {{ deleteBusy ? 'Deleting…' : 'Delete account' }}
+          <ng-container i18n>{deleteBusy, select,
+            true {Deleting…}
+            other {Delete account}
+          }</ng-container>
         </button>
       </div>
     </section>

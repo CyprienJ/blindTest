@@ -1,7 +1,7 @@
 <section class="scoreboard" aria-labelledby="scoreboard-title">
   <header>
-    <h2 id="scoreboard-title" class="bt-h2">Scoreboard</h2>
-    <span class="bt-chip live">LIVE</span>
+    <h2 i18n id="scoreboard-title" class="bt-h2">Scoreboard</h2>
+    <span i18n class="bt-chip live">LIVE</span>
   </header>
   <ol class="rows">
     @for (player of ranked; track player.participantId) {
@@ -10,27 +10,27 @@
         [class.found]="found.has(player.participantId)"
         [class.me]="player.participantId === meId"
       >
-        <span class="rank" aria-label="Rank">{{ player.rank }}</span>
+        <span class="rank" i18n-aria-label aria-label="Rank">{{ player.rank }}</span>
         <span class="avatar" aria-hidden="true">{{ initials(player.displayName) }}</span>
         <span class="who">
           <span class="name">
             {{ player.displayName }}
             @if (player.participantId === hostId) {
-              <span class="host" aria-label="host">★</span>
+              <span class="host" i18n-aria-label aria-label="host">★</span>
             }
             @if (player.participantId === meId) {
-              <span class="you">(you)</span>
+              <span i18n class="you">(you)</span>
             }
           </span>
           <span class="mono points">
-            {{ player.totalScore }} pts
+            <ng-container i18n>{{ player.totalScore }} pts</ng-container>
             @if (player.roundPoints > 0) {
               <span class="delta">+{{ player.roundPoints }}</span>
             }
           </span>
         </span>
         @if (found.has(player.participantId)) {
-          <span class="check" aria-label="found the title">✓</span>
+          <span class="check" i18n-aria-label aria-label="found the title">✓</span>
         }
       </li>
     }

@@ -43,7 +43,7 @@ export class InvitationManagerComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
-        this.listError = 'Invitations could not be loaded.';
+        this.listError = $localize`Invitations could not be loaded.`;
         this.loading = false;
       },
     });
@@ -64,7 +64,7 @@ export class InvitationManagerComponent implements OnInit {
       next: (invitation) => {
         this.sending = false;
         this.emailControl.reset();
-        this.successMessage = `Invitation sent to ${invitation.email}.`;
+        this.successMessage = $localize`Invitation sent to ${invitation.email}.`;
         this.refresh();
       },
       error: (error: HttpErrorResponse) => {
@@ -76,13 +76,13 @@ export class InvitationManagerComponent implements OnInit {
 
   resend(invitation: AdminInvitation): void {
     this.runRowAction(invitation, this.invitationService.resend(invitation.id), () => {
-      this.successMessage = `A new invitation link was sent to ${invitation.email}.`;
+      this.successMessage = $localize`A new invitation link was sent to ${invitation.email}.`;
     });
   }
 
   revoke(invitation: AdminInvitation): void {
     this.runRowAction(invitation, this.invitationService.revoke(invitation.id), () => {
-      this.successMessage = `The invitation for ${invitation.email} was revoked.`;
+      this.successMessage = $localize`The invitation for ${invitation.email} was revoked.`;
     });
   }
 
@@ -118,14 +118,14 @@ export class InvitationManagerComponent implements OnInit {
   private describeError(error: HttpErrorResponse): string {
     const code: string = error.error?.code ?? '';
     if (code === 'EMAIL_TAKEN') {
-      return 'An account already uses this email.';
+      return $localize`An account already uses this email.`;
     }
     if (code === 'INVITATION_ALREADY_ACCEPTED') {
-      return 'This invitation was already accepted.';
+      return $localize`This invitation was already accepted.`;
     }
     if (error.status === 400) {
-      return 'Enter a valid email address.';
+      return $localize`Enter a valid email address.`;
     }
-    return 'The invitation could not be updated. Please try again.';
+    return $localize`The invitation could not be updated. Please try again.`;
   }
 }

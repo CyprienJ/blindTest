@@ -120,7 +120,7 @@ class AuthControllerIntegrationTest {
                         content("{\"email\":\"" + ALICE_EMAIL + "\",\"password\":\"wrongpass\"}")).
                 andExpect(status().isUnauthorized()).
                 andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS")).
-                andExpect(jsonPath("$.message").value("Invalid credentials")).
+                andExpect(jsonPath("$.message").value("Identifiants invalides")).
                 andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 

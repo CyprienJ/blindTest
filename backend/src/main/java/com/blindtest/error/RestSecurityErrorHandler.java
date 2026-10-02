@@ -8,12 +8,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.LocaleResolver;
 
 /** Writes Spring Security authentication and authorization failures using the REST error contract. */
 @Component
@@ -21,6 +23,8 @@ import org.springframework.stereotype.Component;
 public class RestSecurityErrorHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
+    private final MessageSource messages;
+    private final LocaleResolver localeResolver;
 
     @Override
     public void commence(
@@ -46,7 +50,8 @@ public class RestSecurityErrorHandler implements AuthenticationEntryPoint, Acces
         if (response.isCommitted()) {
             return;
         }
-        ApiErrorResponse body = RestErrorResponseFactory.create(request, errorCode, Map.of());
+        ApiErrorResponse body = RestErrorResponseFactory.create(
+                request, errorCode, Map.of(), messages, localeResolver.resolveLocale(request));
         response.setStatus(errorCode.getStatus().value());
         response.setCharacterEncoding("UTF-8");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

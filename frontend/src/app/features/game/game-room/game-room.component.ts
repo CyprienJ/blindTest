@@ -139,7 +139,11 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   feedback = '';
   discoveries: Partial<Record<SecondaryAnswerType, string | null>> = {};
   readonly secondaryTypes: SecondaryAnswerType[] = ['ARTIST', 'COMPOSER', 'ALBUM'];
-  readonly secondaryLabels = { ARTIST: 'Artist', COMPOSER: 'Composer', ALBUM: 'Album' };
+  readonly secondaryLabels = {
+    ARTIST: $localize`Artist`,
+    COMPOSER: $localize`Composer`,
+    ALBUM: $localize`Album`,
+  };
   cooldownSeconds = 0;
   private retryAtMs = 0;
 
@@ -253,21 +257,23 @@ export class GameRoomComponent implements OnInit, OnDestroy {
 
   get stateLabel(): string {
     if (this.phase === 'revealed') {
-      return 'Revealed';
+      return $localize`Revealed`;
     }
-    return this.phase === 'preparing' ? 'Next' : 'Playing';
+    return this.phase === 'preparing' ? $localize`Next` : $localize`Playing`;
   }
 
   get outcomeLabel(): string {
     switch (this.outcome) {
       case 'TITLE_FOUND':
-        return this.multiplayer ? 'Everyone found the title' : 'You found the title';
+        return this.multiplayer
+          ? $localize`Everyone found the title`
+          : $localize`You found the title`;
       case 'SKIPPED':
-        return 'Round skipped';
+        return $localize`Round skipped`;
       case 'TIMEOUT':
-        return 'Time ran out';
+        return $localize`Time ran out`;
       default:
-        return 'Round over';
+        return $localize`Round over`;
     }
   }
 
@@ -368,7 +374,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.audioPlayback.stop();
         return;
       case 'ABORTED':
-        this.gameError = 'This game has ended.';
+        this.gameError = $localize`This game has ended.`;
         this.phase = 'error';
         this.audioPlayback.stop();
         return;
@@ -425,7 +431,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.totalRounds = event.payload.totalRounds;
         this.resetRoundVotes();
         this.enterRound(event.payload);
-        this.announcement = `Round ${this.roundNumber} of ${this.totalRounds} started.`;
+        this.announcement = $localize`Round ${this.roundNumber} of ${this.totalRounds} started.`;
         return;
       case 'ROUND_REVEALED': {
         this.roundNumber = event.payload.roundIndex + 1;
@@ -454,16 +460,16 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.found = new Set(this.found).add(participantId);
         const name =
           this.scores.find((score) => score.participantId === participantId)?.displayName ??
-          'A player';
+          $localize`A player`;
         if (participantId === this.session?.participantId) {
           this.titleFound = true;
           this.totalScore = totalScore;
           this.lastRoundPoints = roundPoints;
           this.sending = false;
-          this.feedback = `You found the title! +${roundPoints} points. Waiting for the others…`;
+          this.feedback = $localize`You found the title! +${roundPoints} points. Waiting for the others…`;
           this.announcement = this.feedback;
         } else {
-          this.announcement = `${name} found the title.`;
+          this.announcement = $localize`${name}:name: found the title.`;
         }
         return;
       }
@@ -484,7 +490,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
             (standing) => standing.participantId === this.session?.participantId,
           )?.totalScore ?? event.payload.totalScore;
         this.audioPlayback.stop();
-        this.announcement = 'Game finished.';
+        this.announcement = $localize`Game finished.`;
         return;
     }
   }
@@ -501,30 +507,30 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.sending = false;
         switch (event.payload.reason) {
           case 'WRONG_ANSWER':
-            this.feedback = 'Not a match. Keep trying!';
+            this.feedback = $localize`Not a match. Keep trying!`;
             break;
           case 'ALREADY_FOUND':
             this.feedback = this.titleFound
-              ? 'You already found this title.'
-              : 'Already found. Keep guessing the title.';
+              ? $localize`You already found this title.`
+              : $localize`Already found. Keep guessing the title.`;
             break;
           case 'COOLDOWN': {
             const retryAt = Date.parse(event.payload.retryAt ?? '');
             this.retryAtMs = Number.isFinite(retryAt) ? retryAt : 0;
             this.tick();
-            this.feedback = 'You are answering too quickly. Try again shortly.';
+            this.feedback = $localize`You are answering too quickly. Try again shortly.`;
             break;
           }
           case 'STALE_SESSION_VERSION':
-            this.feedback = 'The game has moved on. Refreshing the round…';
+            this.feedback = $localize`The game has moved on. Refreshing the round…`;
             this.gameSocket.requestSnapshot();
             break;
           case 'INVALID_ROUND_STATE':
-            this.feedback = 'Answers are not accepted right now. Refreshing the round…';
+            this.feedback = $localize`Answers are not accepted right now. Refreshing the round…`;
             this.gameSocket.requestSnapshot();
             break;
           case 'DUPLICATE_COMMAND':
-            this.feedback = 'That attempt was already received.';
+            this.feedback = $localize`That attempt was already received.`;
             break;
         }
         this.focusInput();
@@ -534,13 +540,16 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.sending = false;
         const { answerType, matchedValue, alreadyFound } = event.payload;
         this.discoveries = { ...this.discoveries, [answerType]: matchedValue };
-        this.feedback = `${this.secondaryLabels[answerType]} ${alreadyFound ? 'already found' : 'found'}: ${matchedValue}. Keep guessing the title.`;
+        const label = this.secondaryLabels[answerType];
+        this.feedback = alreadyFound
+          ? $localize`${label}:type: already found: ${matchedValue}:value:. Keep guessing the title.`
+          : $localize`${label}:type: found: ${matchedValue}:value:. Keep guessing the title.`;
         this.focusInput();
         return;
       }
       case 'ERROR':
         this.advancing = false;
-        this.gameError = event.payload.message;
+        this.gameError = this.commandErrorMessage(event.payload.code);
         if (!event.payload.recoverable) {
           this.phase = 'error';
           this.audioPlayback.stop();
@@ -548,6 +557,19 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         return;
       case 'CURRENT_SNAPSHOT':
         return;
+    }
+  }
+
+  private commandErrorMessage(code: string): string {
+    switch (code) {
+      case 'SESSION_OWNER_REQUIRED':
+        return $localize`Only the session owner can do this.`;
+      case 'SESSION_EXPIRED':
+        return $localize`This game has ended.`;
+      case 'SESSION_RATE_LIMITED':
+        return $localize`Too many gameplay commands. Try again shortly.`;
+      default:
+        return $localize`The gameplay command was not accepted.`;
     }
   }
 
@@ -629,7 +651,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.advancing = false;
     this.answer = '';
     this.tick();
-    this.announcement = `${this.outcomeLabel}. ${metadata.title ?? 'Round over'}. ${points} points.`;
+    this.announcement = $localize`${this.outcomeLabel}. ${metadata.title ?? $localize`Round over`}. ${points} points.`;
   }
 
   /** This player's entry in a multiplayer score list. */

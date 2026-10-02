@@ -17,6 +17,13 @@ export default defineConfig({
   reporter: [['list'], ['html', { outputFolder: 'playwright-report-full-stack', open: 'never' }]],
   use: {
     baseURL,
+    // The UI defaults to French; specs read the English source text.
+    storageState: {
+      cookies: [],
+      origins: [
+        { origin: new URL(baseURL).origin, localStorage: [{ name: 'locale', value: 'en' }] },
+      ],
+    },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

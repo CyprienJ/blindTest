@@ -1,3 +1,4 @@
+import { LanguageSwitchComponent } from '../../../shared/language-switch/language-switch.component';
 import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -7,7 +8,7 @@ import { AuthService } from '../../services/auth.service';
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-shell',
   standalone: true,
-  imports: [AsyncPipe, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [AsyncPipe, LanguageSwitchComponent, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss',
 })

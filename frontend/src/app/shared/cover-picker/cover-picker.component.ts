@@ -33,7 +33,7 @@ const SOURCE_LABELS: Record<CoverSource, string> = {
   DEEZER: 'Deezer',
   ITUNES: 'iTunes',
   COVER_ART_ARCHIVE: 'Cover Art Archive',
-  UPLOAD: 'Upload',
+  UPLOAD: $localize`Upload`,
 };
 
 /** Track-update fields for a cover selection; keeping the cover sends nothing. */
@@ -142,7 +142,7 @@ export class CoverPickerComponent {
       return;
     }
     if (file.size > MAX_COVER_BYTES) {
-      this.uploadError.set(`The image is larger than ${this.maxUploadLabel}.`);
+      this.uploadError.set($localize`The image is larger than ${this.maxUploadLabel}.`);
       return;
     }
     this.uploading.set(true);
@@ -216,11 +216,11 @@ export class CoverPickerComponent {
   private uploadErrorMessage(error: unknown): string {
     const code = error instanceof HttpErrorResponse ? error.error?.code : undefined;
     if (code === 'COVER_IMAGE_TOO_LARGE' || (error as HttpErrorResponse)?.status === 413) {
-      return `The image is larger than ${this.maxUploadLabel}.`;
+      return $localize`The image is larger than ${this.maxUploadLabel}.`;
     }
     if (code === 'COVER_IMAGE_UNSUPPORTED') {
-      return 'Choose a JPEG, PNG or WebP image.';
+      return $localize`Choose a JPEG, PNG or WebP image.`;
     }
-    return 'The image could not be uploaded. Please try again.';
+    return $localize`The image could not be uploaded. Please try again.`;
   }
 }

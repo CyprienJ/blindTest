@@ -28,7 +28,7 @@ describe('AuthenticatedHomeComponent', () => {
     expect(element.querySelector('h1')?.textContent).toContain('musicfan');
     expect(element.querySelector('a[href="/lobby/create"]')).not.toBeNull();
     expect(element.textContent).toContain('Join a game');
-    expect(element.textContent).toContain('Coming later');
+    expect(element.textContent).toContain('Enter the 6-character code your host shared.');
     expect(element.querySelector('a[href="/admin/playlists"]')).toBeNull();
   });
 

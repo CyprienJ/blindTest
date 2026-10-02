@@ -140,7 +140,9 @@ export class PlaylistEditorComponent implements OnInit {
         this.metadataForm.markAsPristine();
         this.selected = { ...playlist, tracks: existingTracks };
         this.upsertSummary(playlist);
-        this.showSuccess(existingTracks.length ? 'Playlist details saved.' : 'Playlist saved.');
+        this.showSuccess(
+          existingTracks.length ? $localize`Playlist details saved.` : $localize`Playlist saved.`,
+        );
       },
       error: (error) => (this.actionError = this.errorMessage(error)),
     });
@@ -168,7 +170,7 @@ export class PlaylistEditorComponent implements OnInit {
           this.selected = null;
           this.playlists = this.playlists.filter((playlist) => playlist.id !== deletedId);
           this.metadataForm.markAsPristine();
-          this.showSuccess('Playlist deleted.');
+          this.showSuccess($localize`Playlist deleted.`);
           const next = this.playlists[0];
           if (next) {
             this.loadPlaylist(next.id);
@@ -192,7 +194,7 @@ export class PlaylistEditorComponent implements OnInit {
       .subscribe({
         next: (detail) => {
           this.applyMembershipDetail(detail);
-          this.showSuccess(`${track.title} added to the playlist.`);
+          this.showSuccess($localize`${track.title} added to the playlist.`);
         },
         error: (error) => (this.actionError = this.errorMessage(error)),
       });
@@ -215,7 +217,7 @@ export class PlaylistEditorComponent implements OnInit {
           }
           this.applyTracks(this.selected.tracks.filter((item) => item.id !== track.id));
           this.picker()?.reload();
-          this.showSuccess(`${track.title} removed from the playlist.`);
+          this.showSuccess($localize`${track.title} removed from the playlist.`);
         },
         error: (error) => (this.actionError = this.errorMessage(error)),
       });
@@ -243,6 +245,22 @@ export class PlaylistEditorComponent implements OnInit {
     return this.selected?.tracks.map((track) => track.id) ?? [];
   }
 
+  dragLabel(title: string): string {
+    return $localize`Drag ${title}:title:`;
+  }
+
+  moveUpLabel(title: string): string {
+    return $localize`Move ${title}:title: up`;
+  }
+
+  moveDownLabel(title: string): string {
+    return $localize`Move ${title}:title: down`;
+  }
+
+  removeLabel(title: string): string {
+    return $localize`Remove ${title}:title:`;
+  }
+
   formatDuration(seconds: number | null): string {
     if (!seconds) {
       return '—';
@@ -256,7 +274,7 @@ export class PlaylistEditorComponent implements OnInit {
   }
 
   canDeactivate(): boolean {
-    return !this.metadataForm.dirty || window.confirm('Discard unsaved playlist changes?');
+    return !this.metadataForm.dirty || window.confirm($localize`Discard unsaved playlist changes?`);
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -307,13 +325,13 @@ export class PlaylistEditorComponent implements OnInit {
       .subscribe({
         next: (detail) => {
           this.applyMembershipDetail(detail);
-          this.showSuccess('Track order saved.');
+          this.showSuccess($localize`Track order saved.`);
         },
         error: (error) => {
           if (this.selected?.id === playlistId) {
             this.applyTracks(previous);
           }
-          this.actionError = `${this.errorMessage(error)} The previous order was restored.`;
+          this.actionError = $localize`${this.errorMessage(error)} The previous order was restored.`;
         },
       });
   }
@@ -350,7 +368,7 @@ export class PlaylistEditorComponent implements OnInit {
   }
 
   private confirmDiscard(): boolean {
-    return !this.metadataForm.dirty || window.confirm('Discard unsaved playlist changes?');
+    return !this.metadataForm.dirty || window.confirm($localize`Discard unsaved playlist changes?`);
   }
 
   private showSuccess(message: string): void {
@@ -364,8 +382,8 @@ export class PlaylistEditorComponent implements OnInit {
 
   private errorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
-      return error.error?.message || error.message || 'The request could not be completed.';
+      return error.error?.message || $localize`The request could not be completed.`;
     }
-    return 'The request could not be completed.';
+    return $localize`The request could not be completed.`;
   }
 }

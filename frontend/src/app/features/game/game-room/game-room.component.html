@@ -5,59 +5,69 @@
         <section class="bt-card centered-card" aria-live="polite">
           <span class="setup-spinner" aria-hidden="true"></span>
           <p class="eyebrow">
-            {{ session.host === undefined ? 'Solo blindtest' : 'Multiplayer blindtest' }}
+            <ng-container i18n>{multiplayer, select,
+              true {Multiplayer blindtest}
+              other {Solo blindtest}
+            }</ng-container>
           </p>
-          <h1>Setting up your game…</h1>
+          <h1 i18n>Setting up your game…</h1>
           <p class="playlist">{{ session.playlistName }}</p>
-          <p class="rules">
+          <p i18n class="rules">
             {{ session.trackCount }} tracks · {{ session.maxRoundSeconds }}s per track
           </p>
           <p class="hint">
             @switch (socketStatus) {
               @case ('connected') {
                 @if (session.host === false) {
-                  Connected. Waiting for the host to start…
+                  <ng-container i18n>Connected. Waiting for the host to start…</ng-container>
                 } @else {
-                  Connected. Starting the first round…
+                  <ng-container i18n>Connected. Starting the first round…</ng-container>
                 }
               }
               @case ('reconnecting') {
-                Connection lost — reconnecting…
+                <ng-container i18n>Connection lost — reconnecting…</ng-container>
               }
               @default {
-                Connecting you to the live game…
+                <ng-container i18n>Connecting you to the live game…</ng-container>
               }
             }
           </p>
-          <a class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+          <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
         </section>
       }
 
       @case ('error') {
         <section class="bt-card centered-card" role="alert">
           <p class="eyebrow">
-            {{ session.host === undefined ? 'Solo blindtest' : 'Multiplayer blindtest' }}
+            <ng-container i18n>{multiplayer, select,
+              true {Multiplayer blindtest}
+              other {Solo blindtest}
+            }</ng-container>
           </p>
-          <h1>Something went wrong</h1>
-          <p class="muted">{{ gameError || 'The game could not continue.' }}</p>
-          <a class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+          <h1 i18n>Something went wrong</h1>
+          @if (gameError) {
+            <p class="muted">{{ gameError }}</p>
+          } @else {
+            <p class="muted" i18n>The game could not continue.</p>
+          }
+          <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
         </section>
       }
 
       @case ('finished') {
         <section class="bt-card centered-card" role="status" aria-live="polite">
-          <span class="bt-chip bt-chip-accent">Game finished</span>
-          <h1>That's a wrap.</h1>
+          <span i18n class="bt-chip bt-chip-accent">Game finished</span>
+          <h1 i18n>That's a wrap.</h1>
           <p class="final-score mono">{{ totalScore }}</p>
-          <p class="score-label">total points</p>
+          <p i18n class="score-label">total points</p>
           @if (finished && multiplayer && finished.standings.length > 0) {
-            <table class="standings" aria-label="Final standings">
+            <table class="standings" i18n-aria-label aria-label="Final standings">
               <thead>
                 <tr>
                   <th scope="col">#</th>
-                  <th scope="col">Player</th>
-                  <th scope="col">Found</th>
-                  <th scope="col" class="numeric">Score</th>
+                  <th i18n scope="col">Player</th>
+                  <th i18n scope="col">Found</th>
+                  <th i18n scope="col" class="numeric">Score</th>
                 </tr>
               </thead>
               <tbody>
@@ -72,16 +82,22 @@
               </tbody>
             </table>
           } @else if (finished) {
-            <p class="muted">
+            <p i18n class="muted">
               {{ finished.titlesFound }} found · {{ finished.skippedRounds }} skipped ·
               {{ finished.timedOutRounds }} timed out
             </p>
           }
           <div class="finished-actions">
-            <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
+            <button
+              i18n
+              class="bt-btn bt-btn-primary bt-btn-lg"
+              type="button"
+              (click)="playAgain()"
+            >
               Play again
             </button>
             <a
+              i18n
               class="bt-btn bt-btn-ghost bt-btn-lg"
               [routerLink]="['/end-screen', session.sessionId]"
             >
@@ -95,24 +111,25 @@
         <div class="play-layout" [class.with-scoreboard]="multiplayer">
           <div class="play-area">
             <header class="round-strip">
-              <span class="track-position">
+              <span i18n class="track-position">
                 Track <strong>{{ roundNumber }}</strong> of {{ totalRounds }}
               </span>
               <span class="round-state">
                 <span class="bt-chip bt-chip-accent">{{ stateLabel }}</span>
                 @if (phase === 'playing') {
-                  <span class="mono timer" aria-hidden="true">{{ secondsLeft }}s left</span>
+                  <span i18n class="mono timer" aria-hidden="true">{{ secondsLeft }}s left</span>
                 }
               </span>
             </header>
 
             @if (socketStatus === 'reconnecting') {
-              <p class="notice" role="status">Connection lost — reconnecting…</p>
+              <p i18n class="notice" role="status">Connection lost — reconnecting…</p>
             }
             @if (gameError) {
               <p class="notice error" role="alert">
                 <span>{{ gameError }}</span>
                 <button
+                  i18n
                   class="bt-btn bt-btn-sm bt-btn-ghost"
                   type="button"
                   (click)="dismissError()"
@@ -136,32 +153,36 @@
               </div>
               <div class="media-body">
                 @if (phase === 'revealed' && reveal) {
-                  <p class="eyebrow">Now revealed</p>
+                  <p i18n class="eyebrow">Now revealed</p>
                   <h1 class="revealed-title">{{ reveal.title }}</h1>
                   <dl class="reveal-metadata">
                     @if (reveal.artist) {
                       <div>
-                        <dt>Artist</dt>
+                        <dt i18n>Artist</dt>
                         <dd>{{ reveal.artist }}</dd>
                       </div>
                     }
                     @if (reveal.composer) {
                       <div>
-                        <dt>Composer</dt>
+                        <dt i18n>Composer</dt>
                         <dd>{{ reveal.composer }}</dd>
                       </div>
                     }
                     @if (reveal.album) {
                       <div>
-                        <dt>Album</dt>
+                        <dt i18n>Album</dt>
                         <dd>{{ reveal.album }}</dd>
                       </div>
                     }
                   </dl>
                   @if (revealLinks(); as links) {
                     @if (links.length > 0) {
-                      <nav class="streaming-links" aria-label="Listen on streaming platforms">
-                        <span>Listen on</span>
+                      <nav
+                        class="streaming-links"
+                        i18n-aria-label
+                        aria-label="Listen on streaming platforms"
+                      >
+                        <span i18n>Listen on</span>
                         @for (link of links; track link.key) {
                           <a
                             class="streaming-link"
@@ -174,7 +195,7 @@
                             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                               <path [attr.d]="link.icon" />
                             </svg>
-                            <span class="sr-only">{{ link.label }} (opens in a new tab)</span>
+                            <span i18n class="sr-only">{{ link.label }} (opens in a new tab)</span>
                           </a>
                         }
                       </nav>
@@ -182,7 +203,10 @@
                   }
                 } @else {
                   <p class="eyebrow">
-                    {{ phase === 'preparing' ? 'Preparing next track' : 'Now playing' }}
+                    <ng-container i18n>{phase, select,
+                      preparing {Preparing next track}
+                      other {Now playing}
+                    }</ng-container>
                   </p>
                   <p class="masked-title" aria-hidden="true">— — — — —</p>
                   <div class="audio-row">
@@ -198,6 +222,7 @@
                   <div class="bt-progress"><div [style.width.%]="progressPct"></div></div>
                   @if (audioStatus === 'blocked') {
                     <button
+                      i18n
                       class="bt-btn bt-btn-primary bt-btn-sm"
                       type="button"
                       (click)="resumeAudio()"
@@ -206,7 +231,7 @@
                     </button>
                   }
                   @if (audioStatus === 'error') {
-                    <p class="audio-warn" role="status">
+                    <p i18n class="audio-warn" role="status">
                       Audio unavailable — you can still answer.
                     </p>
                   }
@@ -215,16 +240,22 @@
             </section>
 
             @if (phase === 'revealed') {
-              <section class="bt-card reveal-strip" aria-label="Round result">
+              <section class="bt-card reveal-strip" i18n-aria-label aria-label="Round result">
                 <strong>{{ outcomeLabel }}</strong>
                 <span>
                   @if (lastRoundPoints !== null) {
-                    +{{ lastRoundPoints }} points ·
+                    <ng-container i18n>+{{ lastRoundPoints }} points ·</ng-container>
                   }
                   @if (secondsLeft > 0) {
-                    {{ isLastRound ? 'Results' : 'Next track' }} in {{ secondsLeft }} seconds
+                    <ng-container i18n
+                      >{isLastRound, select, true {Results} other {Next track}} in
+                      {{ secondsLeft }} seconds</ng-container
+                    >
                   } @else {
-                    {{ isLastRound ? 'Waiting for results…' : 'Waiting for the next track…' }}
+                    <ng-container i18n>{isLastRound, select,
+                      true {Waiting for results…}
+                      other {Waiting for the next track…}
+                    }</ng-container>
                   }
                 </span>
                 @if (isOwner) {
@@ -234,17 +265,21 @@
                     [disabled]="!canAdvance"
                     (click)="advance()"
                   >
-                    {{
-                      advancing ? 'Waiting for server…' : isLastRound ? 'Finish now' : 'Next now'
-                    }}
+                    @if (advancing) {
+                      <ng-container i18n>Waiting for server…</ng-container>
+                    } @else if (isLastRound) {
+                      <ng-container i18n>Finish now</ng-container>
+                    } @else {
+                      <ng-container i18n>Next now</ng-container>
+                    }
                   </button>
                 } @else {
-                  <span class="muted">The host can skip ahead</span>
+                  <span i18n class="muted">The host can skip ahead</span>
                 }
               </section>
             } @else {
               <form class="bt-card answer-card" (ngSubmit)="submit()">
-                <label class="eyebrow" for="answer-input">Your answer</label>
+                <label i18n class="eyebrow" for="answer-input">Your answer</label>
                 <div class="answer-row">
                   <input
                     #answerInput
@@ -255,11 +290,14 @@
                     autocomplete="off"
                     [(ngModel)]="answer"
                     [disabled]="phase !== 'playing' || socketStatus === 'reconnecting'"
+                    i18n-aria-label
                     aria-label="Your answer"
                     aria-describedby="answer-feedback"
+                    i18n-placeholder
                     placeholder="Type the title…"
                   />
                   <button
+                    i18n
                     class="bt-btn bt-btn-primary bt-btn-lg"
                     type="submit"
                     [disabled]="!canSubmit || !answer.trim()"
@@ -269,11 +307,13 @@
                 </div>
                 <p id="answer-feedback" class="answer-feedback" role="status" aria-atomic="true">
                   @if (startsInSeconds > 0) {
-                    Get ready…
+                    <ng-container i18n>Get ready…</ng-container>
                   }
                   {{ feedback }}
                   @if (cooldownSeconds > 0) {
-                    Wait {{ cooldownSeconds }}s before submitting again.
+                    <ng-container i18n
+                      >Wait {{ cooldownSeconds }}s before submitting again.</ng-container
+                    >
                   }
                 </p>
                 @if (
@@ -281,11 +321,11 @@
                   discoveries.COMPOSER !== undefined ||
                   discoveries.ALBUM !== undefined
                 ) {
-                  <ul class="discoveries" aria-label="Your discoveries">
+                  <ul class="discoveries" i18n-aria-label aria-label="Your discoveries">
                     @for (type of secondaryTypes; track type) {
                       @if (discoveries[type] !== undefined) {
                         <li>
-                          {{ secondaryLabels[type] }} found
+                          <ng-container i18n>{{ secondaryLabels[type] }} found</ng-container>
                           @if (discoveries[type]) {
                             <span>: {{ discoveries[type] }}</span>
                           }
@@ -295,7 +335,7 @@
                   </ul>
                 }
                 <div class="answer-hint">
-                  <span>The server checks your answer — small typos are fine.</span>
+                  <span i18n>The server checks your answer — small typos are fine.</span>
                   <button
                     class="bt-btn bt-btn-ghost bt-btn-sm"
                     type="button"
@@ -303,11 +343,15 @@
                     [disabled]="!canSkip"
                   >
                     @if (!multiplayer) {
-                      Skip track
+                      <ng-container i18n>Skip track</ng-container>
                     } @else if (skipVoted) {
-                      Voted to skip · {{ skipVotes }}/{{ requiredSkipVotes }}
+                      <ng-container i18n
+                        >Voted to skip · {{ skipVotes }}/{{ requiredSkipVotes }}</ng-container
+                      >
                     } @else {
-                      Vote to skip · {{ skipVotes }}/{{ requiredSkipVotes }}
+                      <ng-container i18n
+                        >Vote to skip · {{ skipVotes }}/{{ requiredSkipVotes }}</ng-container
+                      >
                     }
                   </button>
                 </div>
@@ -315,7 +359,7 @@
             }
 
             <aside class="bt-card bt-card-tight score-card">
-              <span class="eyebrow">Score</span>
+              <span i18n class="eyebrow">Score</span>
               <span class="mono score">{{ totalScore }}</span>
               @if (lastRoundPoints) {
                 <span class="delta">+{{ lastRoundPoints }}</span>
