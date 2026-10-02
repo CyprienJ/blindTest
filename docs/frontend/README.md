@@ -54,7 +54,8 @@ into visible UI state. See [gameplay client](gameplay.md) for the detailed flow.
 Administrator imports combine live STOMP progress with durable HTTP polling.
 The shared excerpt editor renders backend-generated waveform peaks, selects the
 start and a 5–60 second window, and previews the window in a loop; the import
-review and the track editor both use it, and the track editor also sets difficulty.
+review and the track editor both use it. Both forms also set the difficulty and the
+six streaming links, validated against each platform's domain.
 The shared cover picker searches again 700 ms after the title, artist, or album
 changes, shows up to six suggestions with thumbnails fetched as authorized blobs,
 and offers upload, keep, and "no cover"; the choice is sent with the track update.

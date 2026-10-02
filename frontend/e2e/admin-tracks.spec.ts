@@ -234,6 +234,10 @@ test.describe('admin track catalogue', () => {
     await page.getByRole('radio', { name: '3 stars' }).click();
     await page.getByLabel('Window length').fill('20');
     await page.getByLabel('Excerpt start').fill('90');
+    await editor.getByLabel('Spotify').fill('https://evil.example/track');
+    await editor.getByLabel('Spotify').blur();
+    await expect(editor.getByText('Enter a Spotify link.')).toBeVisible();
+    await editor.getByLabel('Spotify').fill('https://open.spotify.com/track/midnight');
     await expect(editor.getByText('20-second game window')).toBeVisible();
     await page.getByRole('button', { name: 'Save metadata' }).click();
     await expect(page.getByText('Track metadata saved.')).toBeVisible();
@@ -245,6 +249,14 @@ test.describe('admin track catalogue', () => {
         excerptDurationSeconds: 20,
       }),
     );
+    expect(updateBody['streamingLinks']).toEqual({
+      deezer: null,
+      youtube: null,
+      spotify: 'https://open.spotify.com/track/midnight',
+      qobuz: null,
+      tidal: null,
+      soundcloud: null,
+    });
 
     await page.getByLabel('Alternative answer').fill('Midnight');
     await page.getByRole('button', { name: 'Add alias' }).click();

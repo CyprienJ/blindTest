@@ -15,7 +15,6 @@ import {
   FormGroup,
   FormBuilder,
   ReactiveFormsModule,
-  ValidatorFn,
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -44,13 +43,17 @@ import {
 import {
   AdminTrack,
   MediaPreview,
-  StreamingPlatform,
-  TrackStreamingLinks,
   TrackAnswerType,
   TrackUpdate,
   TrackWaveform,
 } from '../track-list/admin-track.model';
 import { AdminTrackService } from '../track-list/admin-track.service';
+import {
+  STREAMING_LINK_PLATFORMS,
+  streamingLinkControls,
+  streamingLinkFormValue,
+  streamingLinksUpdate,
+} from '../track-list/streaming-link-fields';
 import { AdminImportService } from './admin-import.service';
 import { ImportRealtimeService } from './import-realtime.service';
 import {
@@ -66,32 +69,6 @@ const ACTIVE_JOB_KEY = 'active_admin_import_job';
 const IMPORT_ALIASES_KEY = 'active_admin_import_aliases';
 /** Mirrors the server's default app.import.max-size-bytes so oversized files fail before upload. */
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-/** Mirrors TrackStreamingLinks on the server: an empty value or a URL on the platform domain. */
-const STREAMING_PLATFORMS: { key: StreamingPlatform; label: string; hosts: string }[] = [
-  { key: 'deezer', label: 'Deezer', hosts: 'deezer\\.com|deezer\\.page\\.link|dzr\\.page\\.link' },
-  { key: 'youtube', label: 'YouTube', hosts: 'youtube\\.com|youtu\\.be' },
-  { key: 'spotify', label: 'Spotify', hosts: 'spotify\\.com|spotify\\.link' },
-  { key: 'qobuz', label: 'Qobuz', hosts: 'qobuz\\.com' },
-  { key: 'tidal', label: 'Tidal', hosts: 'tidal\\.com' },
-  { key: 'soundcloud', label: 'SoundCloud', hosts: 'soundcloud\\.com|snd\\.sc' },
-];
-
-function streamingLinkValidator(hosts: string): ValidatorFn {
-  const pattern = new RegExp(`^https?://([a-z0-9-]+\\.)*(${hosts})(/\\S*)?$`, 'i');
-  return (control) => {
-    const value = String(control.value ?? '').trim();
-    return value === '' || (value.length <= 500 && pattern.test(value))
-      ? null
-      : { streamingLink: true };
-  };
-}
-
-function streamingLinkControls(): Record<StreamingPlatform, [string, ValidatorFn]> {
-  return Object.fromEntries(
-    STREAMING_PLATFORMS.map(({ key, hosts }) => [key, ['', streamingLinkValidator(hosts)]]),
-  ) as Record<StreamingPlatform, [string, ValidatorFn]>;
-}
-
 type AliasFormGroup = FormGroup<{
   type: FormControl<TrackAnswerType>;
   value: FormControl<string>;
@@ -120,7 +97,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly aliasTypes: TrackAnswerType[] = ['TITLE', 'ARTIST', 'COMPOSER', 'ALBUM'];
-  readonly streamingPlatforms = STREAMING_PLATFORMS;
+  readonly streamingPlatforms = STREAMING_LINK_PLATFORMS;
   private readonly aliasControls = this.formBuilder.array<AliasFormGroup>([]);
   readonly importForm = this.formBuilder.nonNullable.group({
     youtubeUrl: [
@@ -762,9 +739,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       excerptDurationSeconds: track.excerptDurationSeconds ?? 60,
       imageUrl: track.imageUrl ?? '',
       difficulty: track.difficulty,
-      streamingLinks: Object.fromEntries(
-        STREAMING_PLATFORMS.map(({ key }) => [key, track.streamingLinks?.[key] ?? '']),
-      ),
+      streamingLinks: streamingLinkFormValue(track),
     });
     this.importForm.enable();
     this.importForm.controls.youtubeUrl.disable();
@@ -792,9 +767,7 @@ export class TrackImportComponent implements OnInit, OnDestroy {
       excerptDurationSeconds: this.excerptWindow,
       imageUrl: this.optional(value.imageUrl),
       difficulty: value.difficulty ?? undefined,
-      streamingLinks: Object.fromEntries(
-        STREAMING_PLATFORMS.map(({ key }) => [key, this.optional(value.streamingLinks[key])]),
-      ) as TrackStreamingLinks,
+      streamingLinks: streamingLinksUpdate(value.streamingLinks),
       ...coverUpdate(this.coverSelection),
     };
   }

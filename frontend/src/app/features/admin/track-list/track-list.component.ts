@@ -14,6 +14,12 @@ import {
   TrackUpdate,
 } from './admin-track.model';
 import { AdminTrackService } from './admin-track.service';
+import {
+  STREAMING_LINK_PLATFORMS,
+  streamingLinkControls,
+  streamingLinkFormValue,
+  streamingLinksUpdate,
+} from './streaming-link-fields';
 import { DifficultyRatingComponent } from '../../../shared/difficulty-rating/difficulty-rating.component';
 import {
   CoverPickerComponent,
@@ -69,7 +75,9 @@ export class TrackListComponent implements OnInit {
     excerptDurationSeconds: [60, [Validators.required, Validators.min(5), Validators.max(60)]],
     imageUrl: [''],
     difficulty: this.formBuilder.control<number | null>(null),
+    streamingLinks: this.formBuilder.nonNullable.group(streamingLinkControls()),
   });
+  readonly streamingPlatforms = STREAMING_LINK_PLATFORMS;
   readonly aliasForm = this.formBuilder.nonNullable.group({
     type: ['TITLE' as TrackAnswerType, Validators.required],
     value: ['', [Validators.required, Validators.maxLength(255)]],
@@ -160,6 +168,7 @@ export class TrackListComponent implements OnInit {
       excerptDurationSeconds: track.excerptDurationSeconds ?? 60,
       imageUrl: track.imageUrl ?? '',
       difficulty: track.difficulty,
+      streamingLinks: streamingLinkFormValue(track),
     });
     this.loadEditMedia(track);
     this.aliases = [];
@@ -186,9 +195,10 @@ export class TrackListComponent implements OnInit {
       this.editForm.markAllAsTouched();
       return;
     }
-    const { difficulty, ...value } = this.editForm.getRawValue();
+    const { difficulty, streamingLinks, ...value } = this.editForm.getRawValue();
     const update: TrackUpdate = {
       ...value,
+      streamingLinks: streamingLinksUpdate(streamingLinks),
       difficulty: difficulty ?? undefined,
       album: value.album.trim() || null,
       composer: value.composer.trim() || null,

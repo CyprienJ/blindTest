@@ -237,6 +237,29 @@
             />
           </div>
         </div>
+        <fieldset class="streaming-links" formGroupName="streamingLinks">
+          <legend>Streaming links</legend>
+          <p class="muted">Shown to players when the track is revealed.</p>
+          <div class="form-grid">
+            @for (platform of streamingPlatforms; track platform.key) {
+              <label
+                >{{ platform.label }}
+                <input
+                  class="bt-input"
+                  type="url"
+                  [formControlName]="platform.key"
+                  placeholder="https://…"
+                />
+                @if (
+                  editForm.controls.streamingLinks.controls[platform.key].touched &&
+                  editForm.controls.streamingLinks.controls[platform.key].invalid
+                ) {
+                  <small class="form-error">Enter a {{ platform.label }} link.</small>
+                }
+              </label>
+            }
+          </div>
+        </fieldset>
         <div class="excerpt">
           <h3>Game excerpt</h3>
           <app-excerpt-editor
