@@ -16,16 +16,15 @@ describe('PublicHomeComponent', () => {
 
   afterEach(() => localStorage.clear());
 
-  it('offers registration and login to an anonymous visitor', () => {
+  it('offers sign-in and explains invitation-only access to an anonymous visitor', () => {
     fixture = TestBed.createComponent(PublicHomeComponent);
     fixture.detectChanges();
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('h1')?.textContent).toContain('Hear it.');
-    expect(element.querySelector('a[href="/auth/register"]')?.textContent).toContain(
-      'Create account',
-    );
+    expect(element.querySelector('a[href="/auth/register"]')).toBeNull();
     expect(element.querySelector('a[href="/auth/login"]')?.textContent).toContain('Sign in');
+    expect(element.textContent).toContain('invitation-only');
     expect(element.querySelector('a[href="/home"]')).toBeNull();
   });
 

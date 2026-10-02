@@ -39,6 +39,7 @@ tags:
   - name: Admin - Tracks
   - name: Admin - Media
   - name: Admin - Playlists
+  - name: Admin - Invitations
   - name: Admin - Users
 
 security:
@@ -95,6 +96,7 @@ components:
             - MALFORMED_REQUEST
             - INVALID_PARAMETER
             - INVALID_OR_EXPIRED_TOKEN
+            - INVITATION_INVALID
             - AUTHENTICATION_REQUIRED
             - INVALID_ACCESS_TOKEN
             - INVALID_CREDENTIALS
@@ -107,6 +109,7 @@ components:
             - EMAIL_TAKEN
             - USERNAME_TAKEN
             - CONFLICT
+            - INVITATION_ALREADY_ACCEPTED
             - ANSWER_ALIAS_DUPLICATE
             - TRACK_EXCERPT_INVALID
             - TRACK_METADATA_INCOMPLETE
@@ -160,20 +163,97 @@ components:
 
     RegisterRequest:
       type: object
-      required: [username, email, password, turnstileToken]
+      description: >-
+        Invitation-only registration. The account email comes from the invitation;
+        any email or role field in the body is ignored.
+      required: [username, inviteToken, password, turnstileToken]
       properties:
         username:
           type: string
           minLength: 3
-          maxLength: 30
-        email:
+          maxLength: 50
+        inviteToken:
           type: string
-          format: email
+          maxLength: 128
+          description: One-time token from the invitation link.
         password:
           type: string
           minLength: 8
+          maxLength: 128
         turnstileToken:
           type: string
+
+    RegisterResponse:
+      type: object
+      required: [id, username, email]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+
+    InvitationLookupRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          maxLength: 128
+
+    InvitationLookupResponse:
+      type: object
+      required: [email, expiresAt]
+      properties:
+        email:
+          type: string
+          format: email
+        expiresAt:
+          type: string
+          format: date-time
+
+    CreateInvitationRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+
+    Invitation:
+      type: object
+      description: Administrator view of an invitation. The link token is never returned.
+      required: [id, email, status, createdAt, expiresAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [PENDING, ACCEPTED, EXPIRED, REVOKED]
+        invitedBy:
+          type: string
+          nullable: true
+          description: Inviting administrator username; null for the operator bootstrap invitation.
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        acceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
 
     LoginRequest:
       type: object
@@ -1181,6 +1261,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/UUID'
+    InvitationId:
+      name: invitationId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
     JobId:
       name: jobId
       in: path
@@ -1210,10 +1296,36 @@ components:
         maximum: 100
 
 paths:
+  /auth/invitations/lookup:
+    post:
+      tags: [Auth]
+      summary: Read the invited address behind a registration link
+      description: POST keeps the token out of access logs.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationLookupRequest'
+      responses:
+        '200':
+          description: Usable invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationLookupResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /auth/register:
     post:
       tags: [Auth]
-      summary: Register
+      summary: Create an account from an invitation
+      description: >-
+        Consumes a single-use invitation (valid 48 hours) and creates a verified USER
+        account for the invited address. Returns INVITATION_INVALID when the
+        invitation is unknown, used, revoked, or expired.
       security: []
       requestBody:
         required: true
@@ -1224,6 +1336,14 @@ paths:
       responses:
         '201':
           description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
 
@@ -2117,6 +2237,92 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+
+  /admin/invitations:
+    get:
+      tags: [Admin - Invitations]
+      summary: List invitations, newest first
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Admin - Invitations]
+      summary: Invite an email address
+      description: >-
+        Revokes any open invitation for the address and emails a new single-use
+        registration link valid for 48 hours.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvitationRequest'
+      responses:
+        '201':
+          description: Invitation created and emailed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/invitations/{invitationId}:
+    delete:
+      tags: [Admin - Invitations]
+      summary: Revoke an invitation
+      parameters:
+        - $ref: '#/components/parameters/InvitationId'
+      responses:
+        '204':
+          description: Revoked, or already revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/invitations/{invitationId}/resend:
+    post:
+      tags: [Admin - Invitations]
+      summary: Email a fresh link for the invitation's address
+      description: Invalidates the previous link. Accepted invitations cannot be resent.
+      parameters:
+        - $ref: '#/components/parameters/InvitationId'
+      responses:
+        '201':
+          description: New invitation created and emailed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /admin/playlists:
     get:

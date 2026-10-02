@@ -2,20 +2,32 @@
 
 [Up: Operations](operations/README.md)
 
-The first administrator is an existing, verified account promoted by an operator.
-There is no bootstrap HTTP endpoint, default administrator, or password accepted
-by the provisioning command.
+Registration is invitation-only, and only administrators can send invitations.
+The first administrator is therefore created in two operator steps: a bootstrap
+invitation, then promotion of the account created from it. There is no bootstrap
+HTTP endpoint, default administrator, or password accepted by either command.
 
 ## Preconditions
 
-1. Deploy the backend version containing Flyway migration V12.
+1. Deploy the backend version containing Flyway migration V22.
 2. Start the production stack and confirm that PostgreSQL and the backend are
    healthy.
-3. Register the intended administrator through the normal public registration
-   flow.
-4. Complete email verification for that account.
-5. Confirm that the Compose project and environment file target the intended
+3. Confirm that the Compose project and environment file target the intended
    production database.
+
+## Bootstrap invitation
+
+While no administrator exists, run:
+
+```bash
+docker compose run --rm --no-deps backend invite-first-admin
+```
+
+Enter the future administrator's email at the prompt. The command prints a
+registration link to the terminal only; it does not email or log it. Open the link
+within 48 hours, choose a username and password, and the account is created
+verified. Running the command again replaces the previous link. It exits with `2`
+when an administrator already exists or the address already has an account.
 
 ## Promotion
 
@@ -54,8 +66,11 @@ already the sole administrator. Running it for another account is refused.
 
 ## Recovery
 
-- `account not found`: check the intended environment and registration, then run
-  the command again; do not pass the email as a command-line argument.
+- `account not found`: check the intended environment and that the account was
+  created from the bootstrap invitation, then run the command again; do not pass
+  the email as a command-line argument.
+- `invitation refused`: an administrator already exists, so ask them to invite
+  the person from the Users admin page instead.
 - `account email is not verified`: finish the existing verification flow, then
   retry.
 - `an administrator already exists`: stop. Use password reset to recover access

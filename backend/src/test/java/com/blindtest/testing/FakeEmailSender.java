@@ -1,6 +1,7 @@
 package com.blindtest.testing;
 
 import com.blindtest.service.port.EmailSender;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +27,15 @@ public class FakeEmailSender implements EmailSender {
     }
 
     @Override
+    public synchronized void sendInvitationEmail(
+            String toEmail,
+            String inviterUsername,
+            String invitationToken,
+            Duration validity) {
+        messages.add(new SentEmail(EmailType.INVITATION, toEmail, inviterUsername, invitationToken));
+    }
+
+    @Override
     public synchronized void sendWelcomeEmail(String toEmail, String username) {
         messages.add(new SentEmail(EmailType.WELCOME, toEmail, username, null));
     }
@@ -44,6 +54,7 @@ public class FakeEmailSender implements EmailSender {
     public enum EmailType {
         VERIFICATION,
         PASSWORD_RESET,
+        INVITATION,
         WELCOME
     }
 

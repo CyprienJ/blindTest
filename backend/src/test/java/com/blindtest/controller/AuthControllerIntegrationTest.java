@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.blindtest.model.entity.UserEntity;
+import com.blindtest.repository.InvitationRepository;
 import com.blindtest.repository.RefreshTokenRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.security.JwtTokenProvider;
@@ -61,6 +62,9 @@ class AuthControllerIntegrationTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
+    private InvitationRepository invitationRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -79,6 +83,7 @@ class AuthControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         refreshTokenRepository.deleteAll();
+        invitationRepository.deleteAll();
         userRepository.deleteAll();
         createUser("alice", ALICE_EMAIL, ALICE_PASSWORD, true);
         createUser("bob", "bob@example.com", "password123", false);
@@ -131,29 +136,18 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void registeringExistingEmailReturnsStableConflictCode() throws Exception {
+    void registeringWithoutInvitationIsRejected() throws Exception {
         when(turnstileVerifier.verify(any())).thenReturn(true);
 
         mockMvc.perform(post("/api/auth/register").
                         contentType(MediaType.APPLICATION_JSON).
-                        content("{\"username\":\"charlie\",\"email\":\"" + ALICE_EMAIL
-                                + "\",\"password\":\"password123\",\"turnstileToken\":\"valid\"}")).
-                andExpect(status().isConflict()).
-                andExpect(jsonPath("$.code").value("EMAIL_TAKEN")).
-                andExpect(jsonPath("$.message").value("Email address is already registered")).
-                andExpect(jsonPath("$.requestId").isNotEmpty());
-    }
+                        content("{\"username\":\"charlie\",\"email\":\"charlie@example.com\""
+                                + ",\"password\":\"password123\",\"turnstileToken\":\"valid\"}")).
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("VALIDATION_FAILED")).
+                andExpect(jsonPath("$.fieldErrors.inviteToken").isNotEmpty());
 
-    @Test
-    void registeringExistingEmailWithDifferentCaseReturnsConflict() throws Exception {
-        when(turnstileVerifier.verify(any())).thenReturn(true);
-
-        mockMvc.perform(post("/api/auth/register").
-                        contentType(MediaType.APPLICATION_JSON).
-                        content("{\"username\":\"charlie\",\"email\":\"" + ALICE_EMAIL.toUpperCase(Locale.ROOT)
-                                + "\",\"password\":\"password123\",\"turnstileToken\":\"valid\"}")).
-                andExpect(status().isConflict()).
-                andExpect(jsonPath("$.code").value("EMAIL_TAKEN"));
+        assertThat(userRepository.findByEmailIgnoreCase("charlie@example.com")).isEmpty();
     }
 
     @Test

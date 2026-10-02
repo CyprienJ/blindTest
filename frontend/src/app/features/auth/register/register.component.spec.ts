@@ -1,7 +1,7 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
-import { Subject } from 'rxjs';
-import { RegisterResponse } from '../../../core/models/user.model';
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
+import { of, Subject, throwError } from 'rxjs';
+import { LoginResponse, RegisterResponse } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { RegisterComponent } from './register.component';
 
@@ -25,6 +25,7 @@ describe('RegisterComponent', () => {
   let router: Router;
   let turnstileMock: TurnstileMock;
   let turnstileOptions: TurnstileOptions = {};
+  let inviteToken = '';
 
   beforeEach(async () => {
     turnstileOptions = {};
@@ -40,11 +41,30 @@ describe('RegisterComponent', () => {
       configurable: true,
       value: turnstileMock,
     });
-    authService = jasmine.createSpyObj<AuthService>('AuthService', ['register']);
+    authService = jasmine.createSpyObj<AuthService>('AuthService', [
+      'lookupInvitation',
+      'register',
+      'login',
+    ]);
+    authService.lookupInvitation.and.returnValue(
+      of({ email: 'musicfan@example.com', expiresAt: '2026-10-04T08:00:00Z' }),
+    );
+    inviteToken = 'invite-token';
 
     await TestBed.configureTestingModule({
       imports: [RegisterComponent],
-      providers: [{ provide: AuthService, useValue: authService }, provideRouter([])],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useFactory: () => ({
+            snapshot: {
+              queryParamMap: convertToParamMap(inviteToken ? { invite: inviteToken } : {}),
+            },
+          }),
+        },
+      ],
     }).compileComponents();
 
     router = TestBed.inject(Router);
@@ -55,16 +75,20 @@ describe('RegisterComponent', () => {
     delete (globalThis as { turnstile?: TurnstileMock }).turnstile;
   });
 
-  it('consumes a Turnstile token once and ignores a duplicate submission', () => {
+  it('shows the invited address and consumes a Turnstile token once', () => {
     const registration = new Subject<RegisterResponse>();
     authService.register.and.returnValue(registration.asObservable());
+    authService.login.and.returnValue(of({} as LoginResponse));
     const fixture = TestBed.createComponent(RegisterComponent);
     const component = fixture.componentInstance;
-    component.form.setValue({
-      username: 'musicfan',
-      email: 'musicfan@example.com',
-      password: 'StrongPassword!',
-    });
+    fixture.detectChanges();
+
+    expect(authService.lookupInvitation).toHaveBeenCalledOnceWith('invite-token');
+    const email = fixture.nativeElement.querySelector('#email') as HTMLInputElement;
+    expect(email.value).toBe('musicfan@example.com');
+    expect(email.readOnly).toBeTrue();
+
+    component.form.setValue({ username: 'musicfan', password: 'StrongPassword!' });
     component.turnstileToken = 'single-use-token';
 
     component.submit();
@@ -72,16 +96,53 @@ describe('RegisterComponent', () => {
 
     expect(authService.register).toHaveBeenCalledOnceWith(
       'musicfan',
-      'musicfan@example.com',
+      'invite-token',
       'StrongPassword!',
       'single-use-token',
     );
     expect(component.turnstileToken).toBe('');
     expect(component.loading).toBeTrue();
 
-    registration.error({ status: 500 });
+    registration.next({ id: 'id', username: 'musicfan', email: 'musicfan@example.com' });
 
+    expect(authService.login).toHaveBeenCalledOnceWith('musicfan@example.com', 'StrongPassword!');
+    expect(router.navigate).toHaveBeenCalledWith(['/home']);
+  });
+
+  it('switches to the unavailable state when registration reports an invalid invitation', () => {
+    authService.register.and.returnValue(
+      throwError(() => ({ status: 400, error: { code: 'INVITATION_INVALID' } })),
+    );
+    const fixture = TestBed.createComponent(RegisterComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.form.setValue({ username: 'musicfan', password: 'StrongPassword!' });
+    component.turnstileToken = 'token';
+
+    component.submit();
+
+    expect(component.invitationState).toBe('invalid');
     expect(component.loading).toBeFalse();
+  });
+
+  it('explains that registration is invitation-only without a usable invitation', () => {
+    authService.lookupInvitation.and.returnValue(throwError(() => ({ status: 400 })));
+    const fixture = TestBed.createComponent(RegisterComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('h1')?.textContent).toContain(
+      'Invitation unavailable',
+    );
+    expect(fixture.nativeElement.querySelector('form')).toBeNull();
+  });
+
+  it('does not look up anything when the link carries no invitation', () => {
+    inviteToken = '';
+    const fixture = TestBed.createComponent(RegisterComponent);
+    fixture.detectChanges();
+
+    expect(authService.lookupInvitation).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('h1')?.textContent).toContain('Invitation only');
   });
 
   it('handles expired and failed challenges without exposing Cloudflare error codes', fakeAsync(() => {

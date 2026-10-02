@@ -115,6 +115,28 @@ Acceptance:
 - trade-offs and future replacement paths are recorded;
 - architecture diagrams reference the ADRs.
 
+#### FND-07 — Make registration invitation-only
+
+Status: completed on 2026-10-02.
+
+Decision: [ADR-0017](../adr/0017-invitation-only-registration.md).
+
+Work:
+
+- administrators invite, list, resend, and revoke invitations by email;
+- registration requires a single-use invitation that expires after 48 hours;
+- invited accounts are created verified for the invited address;
+- delete every existing non-administrator account;
+- bootstrap the first administrator with an operator-issued invitation;
+- remove public sign-up entry points from the frontend.
+
+Acceptance:
+
+- no account can be created without a valid invitation;
+- an invitation cannot be reused, used after expiry, or used after revocation;
+- only administrators can issue invitations;
+- after migration, only administrator accounts remain.
+
 ### Lot exit criteria
 
 - known committed secret is rotated;

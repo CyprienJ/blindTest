@@ -1,6 +1,5 @@
 package com.blindtest.model.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -17,10 +16,10 @@ public class RegisterRequest {
     @Size(min = 3, max = 50)
     private String username;
 
+    /** One-time token from the invitation link; it also determines the account email. */
     @NotBlank
-    @Email
-    @Size(max = 255)
-    private String email;
+    @Size(max = 128)
+    private String inviteToken;
 
     @NotBlank
     @Size(min = 8, max = 128)

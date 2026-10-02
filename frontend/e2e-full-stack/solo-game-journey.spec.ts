@@ -18,34 +18,15 @@ import { APIRequestContext, expect, test } from '@playwright/test';
 // then plays the game as a regular player — the way a real player would use music an admin
 // already published, not an account that imported it themselves.
 
-interface CapturedEmail {
-  type: 'VERIFICATION' | 'PASSWORD_RESET' | 'WELCOME';
-  toEmail: string;
-  username: string;
-  token: string | null;
-}
-
-async function capturedEmail(
+async function issueInvitation(
   request: APIRequestContext,
   baseURL: string,
-  to: string,
-  type: CapturedEmail['type'],
-): Promise<CapturedEmail> {
-  let match: CapturedEmail | undefined;
-  await expect
-    .poll(
-      async () => {
-        const response = await request.get(`${baseURL}/api/e2e/emails`, { params: { to } });
-        expect(response.ok()).toBe(true);
-        const emails = (await response.json()) as CapturedEmail[];
-        const matching = emails.filter((email) => email.type === type);
-        match = matching[matching.length - 1];
-        return match !== undefined;
-      },
-      { message: `waiting for a captured ${type} email sent to ${to}`, timeout: 10_000 },
-    )
-    .toBe(true);
-  return match!;
+  email: string,
+): Promise<string> {
+  // Registration is invitation-only; the e2e backdoor issues one without an admin session.
+  const response = await request.post(`${baseURL}/api/e2e/invitations`, { params: { email } });
+  expect(response.ok()).toBe(true);
+  return ((await response.json()) as { token: string }).token;
 }
 
 const FIXTURE_TITLE = 'Deterministic e2e track title';
@@ -73,21 +54,19 @@ test('completes the solo game journey: build a playlist and play a full game', a
     expect(response.ok()).toBe(true);
   });
 
-  await test.step('register and verify the administrator account', async () => {
-    await page.goto('/auth/register');
+  await test.step('register the administrator account from an invitation', async () => {
+    const inviteToken = await issueInvitation(request, baseURL!, adminEmail);
+    await page.goto(`/auth/register?invite=${encodeURIComponent(inviteToken)}`);
+    await expect(page.getByLabel('Email')).toHaveValue(adminEmail);
     await page.getByLabel('Username').fill(adminUsername);
-    await page.getByLabel('Email').fill(adminEmail);
     await page.getByLabel('Password', { exact: true }).fill(password);
 
     await expect(page.getByRole('button', { name: 'Create account' })).toBeEnabled({
       timeout: 15_000,
     });
     await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page).toHaveURL(/\/auth\/verify-email\?.*mode=check-inbox/);
-
-    const captured = await capturedEmail(request, baseURL!, adminEmail, 'VERIFICATION');
-    await page.goto(`/verify-email?token=${encodeURIComponent(captured.token!)}`);
-    await expect(page.getByRole('heading', { name: 'Email verified!' })).toBeVisible();
+    // The invitation proved the address, so the account is verified and signed in at once.
+    await expect(page).toHaveURL(/\/home$/);
   });
 
   await test.step('promote to administrator', async () => {
@@ -160,26 +139,18 @@ test('completes the solo game journey: build a playlist and play a full game', a
     await expect(page).toHaveURL(/\/$/);
   });
 
-  await test.step('register and verify a regular player account', async () => {
-    await page.goto('/auth/register');
+  await test.step('register a regular player account from an invitation', async () => {
+    const inviteToken = await issueInvitation(request, baseURL!, playerEmail);
+    await page.goto(`/auth/register?invite=${encodeURIComponent(inviteToken)}`);
+    await expect(page.getByLabel('Email')).toHaveValue(playerEmail);
     await page.getByLabel('Username').fill(playerUsername);
-    await page.getByLabel('Email').fill(playerEmail);
     await page.getByLabel('Password', { exact: true }).fill(password);
 
     await expect(page.getByRole('button', { name: 'Create account' })).toBeEnabled({
       timeout: 15_000,
     });
     await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page).toHaveURL(/\/auth\/verify-email\?.*mode=check-inbox/);
-
-    const captured = await capturedEmail(request, baseURL!, playerEmail, 'VERIFICATION');
-    await page.goto(`/verify-email?token=${encodeURIComponent(captured.token!)}`);
-    await expect(page.getByRole('heading', { name: 'Email verified!' })).toBeVisible();
-
-    await page.goto('/auth/login');
-    await page.getByLabel('Email').fill(playerEmail);
-    await page.getByLabel('Password', { exact: true }).fill(password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    // The invitation proved the address, so the account is verified and signed in at once.
     await expect(page).toHaveURL(/\/home$/);
   });
 

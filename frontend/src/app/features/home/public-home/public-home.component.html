@@ -7,8 +7,7 @@
 
     @if ((authenticatedUser$ | async) === null) {
       <nav class="home-navigation" aria-label="Account">
-        <a class="text-link" routerLink="/auth/login">Sign in</a>
-        <a class="bt-btn bt-btn-primary" routerLink="/auth/register">Create account</a>
+        <a class="bt-btn bt-btn-primary" routerLink="/auth/login">Sign in</a>
       </nav>
     }
   </header>
@@ -32,14 +31,14 @@
         </div>
       } @else {
         <div class="hero-actions">
-          <a class="bt-btn bt-btn-primary bt-btn-lg" routerLink="/auth/register">
-            Start playing
+          <a class="bt-btn bt-btn-primary bt-btn-lg" routerLink="/auth/login">
+            Sign in to play
             <span aria-hidden="true">→</span>
           </a>
-          <a class="bt-btn bt-btn-ghost bt-btn-lg" routerLink="/auth/login"
-            >I already have an account</a
-          >
         </div>
+        <p class="invitation-note">
+          Blindtest is invitation-only. New players join from an emailed invitation.
+        </p>
       }
 
       <p class="availability">

@@ -3,6 +3,8 @@ package com.blindtest.controller;
 import com.blindtest.config.properties.ApplicationProperties;
 import com.blindtest.model.dto.AuthResult;
 import com.blindtest.model.dto.ForgotPasswordRequest;
+import com.blindtest.model.dto.InvitationLookupRequest;
+import com.blindtest.model.dto.InvitationLookupResponse;
 import com.blindtest.model.dto.LoginRequest;
 import com.blindtest.model.dto.LoginResponse;
 import com.blindtest.model.dto.RefreshResponse;
@@ -11,6 +13,8 @@ import com.blindtest.model.dto.RegisterResponse;
 import com.blindtest.model.dto.ResetPasswordRequest;
 import com.blindtest.model.dto.VerifyEmailRequest;
 import com.blindtest.service.AuthService;
+import com.blindtest.service.InvitationService;
+import com.blindtest.service.RegistrationService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,15 +37,21 @@ public class AuthController {
     private static final String COOKIE_PATH = "/api/auth";
 
     private final AuthService authService;
+    private final InvitationService invitationService;
+    private final RegistrationService registrationService;
     private final long refreshTokenTtlSeconds;
     private final boolean secureCookies;
 
     /** Constructs the controller with the required service and refresh-token TTL. */
     public AuthController(
             AuthService authService,
+            InvitationService invitationService,
+            RegistrationService registrationService,
             ApplicationProperties applicationProperties,
             @Value("${jwt.refresh-token.ttl-ms:604800000}") long refreshTokenTtlMs) {
         this.authService = authService;
+        this.invitationService = invitationService;
+        this.registrationService = registrationService;
         this.refreshTokenTtlSeconds = refreshTokenTtlMs / 1000;
         // Secure cookies require HTTPS. Production always serves over HTTPS
         // (ProductionConfigurationValidator enforces it), so this stays true there;
@@ -51,16 +61,26 @@ public class AuthController {
     }
 
     /**
-     * Registers a new user account.
+     * Returns the invited address behind a registration link so the form can display it.
+     * Uses POST so the token stays out of access logs. Returns 400 if the invitation is
+     * unknown, used, revoked, or expired.
+     */
+    @PostMapping("/invitations/lookup")
+    public InvitationLookupResponse lookupInvitation(@Valid @RequestBody InvitationLookupRequest request) {
+        return invitationService.lookup(request.token());
+    }
+
+    /**
+     * Creates an account from an invitation; registration is invitation-only.
      *
-     * <p>Validates the Cloudflare Turnstile token, checks for duplicates, hashes
-     * the password, and sends an email-verification link. Returns 403 on Turnstile
-     * failure and 409 on duplicate email or username.
+     * <p>Validates the Cloudflare Turnstile token, consumes the invitation, and creates an
+     * already verified account for the invited address. Returns 403 on Turnstile failure,
+     * 400 on an unusable invitation, and 409 on a duplicate email or username.
      */
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
-        return authService.register(request);
+        return registrationService.register(request);
     }
 
     /**

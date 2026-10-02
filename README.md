@@ -12,7 +12,8 @@ unfinished experiences and roadmap acceptance.
 
 ## How it works
 
-1. A player registers, verifies their email, and signs in.
+1. An administrator invites a player by email; the player opens the invitation
+   link, creates an account, and is signed in. Registration is invitation-only.
 2. An administrator imports a YouTube track, previews the audio, configures the
    excerpt and alternative answers, and publishes it into the catalogue.
 3. The administrator creates public playlists from published tracks.

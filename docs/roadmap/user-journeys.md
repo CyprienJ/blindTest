@@ -4,10 +4,12 @@
 
 ### Visitor and account
 
-1. A visitor reaches a public home page with clear login and registration actions.
-2. The visitor registers with username, email, password, and Turnstile.
-3. The user receives an email and verifies the account.
-4. The user logs in.
+1. A visitor reaches a public home page with a clear login action and learns that
+   access is invitation-only.
+2. An administrator invites the visitor by email.
+3. The visitor opens the invitation link within 48 hours and chooses a username
+   and password; Turnstile still applies. The invitation verifies the address.
+4. The user is signed in, and can log in again later.
 5. The user can recover a forgotten password.
 6. The authenticated user reaches a role-aware home page and can continue to game
    creation or joining.

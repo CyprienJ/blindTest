@@ -5,6 +5,7 @@ import { API_BASE } from '../config';
 import {
   LoginResponse,
   RefreshResponse,
+  InvitationLookupResponse,
   RegisterResponse,
   UserSummary,
 } from '../models/user.model';
@@ -45,15 +46,23 @@ export class AuthService {
       .pipe(tap((res) => this.storeSession(res.accessToken, res.user)));
   }
 
+  /** Returns the invited address behind a registration link, or errors when it is unusable. */
+  lookupInvitation(token: string): Observable<InvitationLookupResponse> {
+    return this.http.post<InvitationLookupResponse>(`${API_BASE}/auth/invitations/lookup`, {
+      token,
+    });
+  }
+
+  /** Creates an account from an invitation; the invitation decides the account email. */
   register(
     username: string,
-    email: string,
+    inviteToken: string,
     password: string,
     turnstileToken: string,
   ): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${API_BASE}/auth/register`, {
       username,
-      email,
+      inviteToken,
       password,
       turnstileToken,
     });

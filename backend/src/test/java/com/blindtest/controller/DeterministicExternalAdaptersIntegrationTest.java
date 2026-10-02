@@ -10,10 +10,12 @@ import com.blindtest.model.entity.ImportJobStatus;
 import com.blindtest.model.entity.ImportSource;
 import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.entity.UserRole;
+import com.blindtest.repository.InvitationRepository;
 import com.blindtest.repository.TrackImportJobRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.security.JwtTokenProvider;
+import com.blindtest.service.InvitationIssuer;
 import com.blindtest.testing.DeterministicTestAdaptersConfig;
 import com.blindtest.testing.FakeEmailSender;
 import com.blindtest.testing.FakeEmailSender.EmailType;
@@ -68,6 +70,12 @@ class DeterministicExternalAdaptersIntegrationTest {
     private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
+    private InvitationIssuer invitationIssuer;
+
+    @Autowired
+    private InvitationRepository invitationRepository;
+
+    @Autowired
     private FakeEmailSender emailSender;
 
     @Autowired
@@ -96,6 +104,7 @@ class DeterministicExternalAdaptersIntegrationTest {
     void setUp() {
         jobRepository.deleteAll();
         trackRepository.deleteAll();
+        invitationRepository.deleteAll();
         userRepository.deleteAll();
         emailSender.reset();
         turnstileVerifier.reset();
@@ -104,48 +113,48 @@ class DeterministicExternalAdaptersIntegrationTest {
     }
 
     @Test
-    void registrationUsesFakeTurnstileAndCapturesVerificationEmail() throws Exception {
+    void registrationUsesFakeTurnstileAndCreatesVerifiedAccountFromInvitation() throws Exception {
         turnstileVerifier.accept("accepted-test-token");
+        String inviteToken = invitationIssuer.issue("Listener@Example.com", null).token();
 
         mockMvc.perform(post("/api/auth/register").
                         contentType(MediaType.APPLICATION_JSON).
                         content("""
                                 {
                                   "username": "listener",
-                                  "email": "listener@example.com",
+                                  "inviteToken": "%s",
+                                  "email": "attacker@example.com",
                                   "password": "password123",
                                   "turnstileToken": "accepted-test-token",
                                   "role": "ADMIN"
                                 }
-                                """)).
+                                """.formatted(inviteToken))).
                 andExpect(status().isCreated()).
                 andExpect(jsonPath("$.username").value("listener")).
                 andExpect(jsonPath("$.email").value("listener@example.com"));
 
         UserEntity saved = userRepository.findByEmailIgnoreCase("listener@example.com").orElseThrow();
-        assertThat(saved.isEmailVerified()).isFalse();
+        assertThat(saved.isEmailVerified()).isTrue();
         assertThat(saved.getRole()).isEqualTo(UserRole.USER);
-        assertThat(emailSender.messages()).hasSize(1);
-        FakeEmailSender.SentEmail email = emailSender.messages().getFirst();
-        assertThat(email.type()).isEqualTo(EmailType.VERIFICATION);
-        assertThat(email.toEmail()).isEqualTo("listener@example.com");
-        assertThat(jwtTokenProvider.validateEmailVerificationToken(email.token())).isTrue();
-        assertThat(jwtTokenProvider.extractUserIdFromEmailVerificationToken(email.token())).
-                isEqualTo(saved.getId());
+        assertThat(userRepository.findByEmailIgnoreCase("attacker@example.com")).isEmpty();
+        assertThat(emailSender.messages()).extracting(FakeEmailSender.SentEmail::type).
+                containsExactly(EmailType.WELCOME);
     }
 
     @Test
     void registrationRejectsATokenNotAcceptedByFakeTurnstile() throws Exception {
+        String inviteToken = invitationIssuer.issue("bot@example.com", null).token();
+
         mockMvc.perform(post("/api/auth/register").
                         contentType(MediaType.APPLICATION_JSON).
                         content("""
                                 {
                                   "username": "bot",
-                                  "email": "bot@example.com",
+                                  "inviteToken": "%s",
                                   "password": "password123",
                                   "turnstileToken": "rejected-test-token"
                                 }
-                                """)).
+                                """.formatted(inviteToken))).
                 andExpect(status().isForbidden()).
                 andExpect(jsonPath("$.code").value("TURNSTILE_FAILED"));
 

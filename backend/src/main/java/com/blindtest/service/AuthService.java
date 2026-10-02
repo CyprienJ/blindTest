@@ -2,8 +2,6 @@ package com.blindtest.service;
 
 import com.blindtest.model.dto.AuthResult;
 import com.blindtest.model.dto.LoginRequest;
-import com.blindtest.model.dto.RegisterRequest;
-import com.blindtest.model.dto.RegisterResponse;
 import com.blindtest.model.dto.UserSummary;
 import com.blindtest.model.entity.RefreshTokenEntity;
 import com.blindtest.model.entity.UserEntity;
@@ -11,7 +9,6 @@ import com.blindtest.repository.RefreshTokenRepository;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.port.EmailSender;
-import com.blindtest.service.port.TurnstileVerifier;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -23,14 +20,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Business logic for user registration, email verification, and session authentication. */
+/** Business logic for email verification, password recovery, and session authentication. */
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final TurnstileVerifier turnstileVerifier;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailSender emailSender;
     private final Clock clock;
@@ -41,7 +37,6 @@ public class AuthService {
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
-            TurnstileVerifier turnstileVerifier,
             JwtTokenProvider jwtTokenProvider,
             EmailSender emailSender,
             Clock clock,
@@ -49,44 +44,10 @@ public class AuthService {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
-        this.turnstileVerifier = turnstileVerifier;
         this.jwtTokenProvider = jwtTokenProvider;
         this.emailSender = emailSender;
         this.clock = clock;
         this.refreshTokenTtlMs = refreshTokenTtlMs;
-    }
-
-    /**
-     * Registers a new user account.
-     *
-     * <p>Validates the Turnstile token, checks for duplicate email/username,
-     * hashes the password, persists the user, and sends a verification email.
-     *
-     * @throws ResponseStatusException 403 if Turnstile validation fails
-     * @throws ResponseStatusException 409 if email or username is already taken
-     */
-    @Transactional
-    public RegisterResponse register(RegisterRequest request) {
-        if (!turnstileVerifier.verify(request.getTurnstileToken())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "TURNSTILE_FAILED");
-        }
-        String email = normalizeEmail(request.getEmail());
-        if (userRepository.existsByEmailIgnoreCase(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "EMAIL_TAKEN");
-        }
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "USERNAME_TAKEN");
-        }
-        UserEntity user = new UserEntity();
-        user.setUsername(request.getUsername());
-        user.setEmail(email);
-        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        UserEntity saved = userRepository.save(user);
-
-        String verificationToken = jwtTokenProvider.generateEmailVerificationToken(saved.getId());
-        emailSender.sendVerificationEmail(saved.getEmail(), saved.getUsername(), verificationToken);
-
-        return new RegisterResponse(saved.getId(), saved.getUsername(), saved.getEmail());
     }
 
     /**

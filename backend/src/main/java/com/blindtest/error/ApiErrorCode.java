@@ -10,6 +10,7 @@ public enum ApiErrorCode {
     MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "Request body is malformed"),
     INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "Request parameter is invalid"),
     INVALID_OR_EXPIRED_TOKEN(HttpStatus.BAD_REQUEST, "Token is invalid or expired"),
+    INVITATION_INVALID(HttpStatus.BAD_REQUEST, "Invitation is invalid, expired, or already used"),
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "Authentication is required"),
     INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "Access token is invalid or expired"),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Invalid credentials"),
@@ -22,6 +23,7 @@ public enum ApiErrorCode {
     EMAIL_TAKEN(HttpStatus.CONFLICT, "Email address is already registered"),
     USERNAME_TAKEN(HttpStatus.CONFLICT, "Username is already registered"),
     CONFLICT(HttpStatus.CONFLICT, "Request conflicts with current state"),
+    INVITATION_ALREADY_ACCEPTED(HttpStatus.CONFLICT, "Invitation has already been accepted"),
     ANSWER_ALIAS_DUPLICATE(HttpStatus.CONFLICT, "Answer alias already exists"),
     TRACK_EXCERPT_INVALID(
             HttpStatus.CONFLICT, "Track excerpt window does not fit the playable audio"),

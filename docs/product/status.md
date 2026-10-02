@@ -11,7 +11,7 @@ configuration; full-stack browser acceptance remains separate.
 
 | Area | Backend | Browser |
 |---|---|---|
-| Accounts | Registration, verification, login, refresh, logout, password recovery | Corresponding forms, Turnstile, session recovery, guards |
+| Accounts | Invitation-only registration, administrator invitations, login, refresh, logout, password recovery | Invitation registration form, Turnstile, administrator invitations page, session recovery, guards |
 | Home and navigation | Account role information | Public home, authenticated home, shared application shell |
 | Catalogue | Public tracks/playlists; administrator track, alias, and playlist management; cover suggestions, uploads, and storage | Track review, import workflow, cover picker, playlist editor |
 | Imports and media | Bounded audio-file uploads and best-effort YouTube imports, waveform generation, private MinIO, signed URLs, deletion outbox | Import progress/polling, waveform excerpt selection, administrator preview |
@@ -27,11 +27,15 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 
 - Recovery uses the active session retained in browser `sessionStorage`; an
   unknown session ID sends the user back to configuration.
-- Lobby joining/room, profile/history browsing, friends/requests, admin user
-  management, and several extracted gameplay widgets remain scaffolds.
+- Lobby joining/room, profile/history browsing, friends/requests, and several
+  extracted gameplay widgets remain scaffolds. The administrator Users page manages
+  invitations only; it does not list or edit existing accounts.
 - Backend multiplayer joining, guest tokens, social APIs, profile management,
   general history browsing, and administrator user management are absent.
 - Restarting the backend loses active games; completed history is durable.
+- Administrator invitations are delivered only by email, and Resend failures are
+  only logged. The admin page cannot show or copy an invitation link, so an
+  invitation is lost if email delivery fails; resend it once delivery works.
 - Track difficulty is set in the import review and track editor and filters
   solo game setup; completed history records the filter and each round's
   difficulty but no screen displays it yet. Streaming links and the stored cover

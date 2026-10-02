@@ -53,7 +53,6 @@ test.describe('keyboard and visible focus', () => {
       'Show password',
       'Sign in',
       'Forgot your password?',
-      'Sign up',
     ];
     const visited = new Set<string>();
 
@@ -76,7 +75,7 @@ test.describe('keyboard and visible focus', () => {
   }) => {
     await page.goto('/');
 
-    const expectedControls = ['Sign in', 'Create account', 'Start playing'];
+    const expectedControls = ['Sign in', 'Sign in to play'];
     const visited = new Set<string>();
 
     for (let step = 0; step < 10; step++) {

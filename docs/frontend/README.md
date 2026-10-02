@@ -31,12 +31,12 @@ clicks while pending and clears local state even when the logout request fails.
 
 | Area | Current implementation |
 |---|---|
-| Public/auth | Home, login, registration/Turnstile, verification, password recovery/reset |
+| Public/auth | Home, login, invitation-only registration/Turnstile, verification, password recovery/reset |
 | Authenticated home | Player actions and role-aware administration navigation |
 | `/lobby/create` | Public playlist selection, ordered preview, limits, REST session creation |
 | `/game/:sessionId` | Game state, answer/skip controls, score, audio, reconnect and basic finish view |
 | `/end-screen/:sessionId` | Refresh-safe durable summary: score, per-round outcomes, replay action |
-| Administration | Track catalogue, import/review/excerpt workflow, playlist CRUD and ordering |
+| Administration | Track catalogue, import/review/excerpt workflow, playlist CRUD and ordering, invitations |
 | Other feature routes | Several remain placeholders; see [current status](../product/status.md) |
 
 ## State and service boundaries

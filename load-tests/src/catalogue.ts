@@ -6,7 +6,7 @@ import {
   login,
   provisionAdmin,
   publishTrack,
-  registerAndVerify,
+  registerFromInvitation,
   startImport,
   type AccountCredentials,
 } from "./api-client.js";
@@ -28,7 +28,7 @@ export interface Catalogue {
 /** Provisions one admin and seeds one playlist of published tracks, network-free (e2e fakes). */
 export async function seedCatalogue(trackCount: number): Promise<Catalogue> {
   const admin = generateAccount("load-admin-");
-  await registerAndVerify(admin);
+  await registerFromInvitation(admin);
   await provisionAdmin(admin);
   const { accessToken: adminToken } = await login(admin);
 
@@ -55,7 +55,7 @@ export async function seedPlayers(count: number): Promise<AccountCredentials[]> 
   // lookup then reads back by address, and this only runs once during bootstrap — not on
   // the scenario hot path the concurrency measurements care about.
   for (const account of accounts) {
-    await registerAndVerify(account);
+    await registerFromInvitation(account);
   }
   return accounts;
 }

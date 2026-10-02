@@ -7,14 +7,12 @@ test.describe('public home', () => {
 
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('heading', { name: /Hear it\. Name it\./ })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute(
       'href',
       '/auth/login',
     );
-    await expect(page.getByRole('link', { name: 'Create account' })).toHaveAttribute(
-      'href',
-      '/auth/register',
-    );
+    await expect(page.getByRole('link', { name: 'Create account' })).toHaveCount(0);
+    await expect(page.getByText('Blindtest is invitation-only.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Trust your ears.' })).toBeVisible();
   });
 

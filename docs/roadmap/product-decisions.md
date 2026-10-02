@@ -6,7 +6,9 @@
 
 The first release must provide:
 
-- account registration with verified email;
+- invitation-only account registration: administrators invite by email, and the
+  invited address is verified by the single-use link
+  ([ADR-0017](../adr/0017-invitation-only-registration.md));
 - login, logout, token refresh, and password recovery;
 - an administrator-only global music catalogue;
 - administrator-only imports from uploaded audio files, with YouTube imports as

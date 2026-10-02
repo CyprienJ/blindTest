@@ -5,6 +5,7 @@ import com.blindtest.config.properties.ResendProperties;
 import com.blindtest.service.port.EmailSender;
 import com.resend.Resend;
 import com.resend.services.emails.model.CreateEmailOptions;
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -45,6 +46,17 @@ public class EmailService implements EmailSender {
         String link = appBaseUrl + "/reset-password?token=" + resetToken;
         String html = buildPasswordResetEmailHtml(username, link);
         send(FROM_HELLO, toEmail, "Reset your Blindtest password", html);
+    }
+
+    /**
+     * Sends an account invitation. The link embeds a one-time token valid for {@code validity}.
+     */
+    @Override
+    public void sendInvitationEmail(
+            String toEmail, String inviterUsername, String invitationToken, Duration validity) {
+        String link = appBaseUrl + "/auth/register?invite=" + invitationToken;
+        String html = buildInvitationEmailHtml(inviterUsername, link, validity.toHours());
+        send(FROM_HELLO, toEmail, inviterUsername + " invited you to Blindtest", html);
     }
 
     /**
@@ -128,6 +140,62 @@ public class EmailService implements EmailSender {
             + "text-decoration:none\">Help</a></div>"
             + "<div>Blindtest &middot; A real-time music game &middot; "
             + "You're getting this because you have an account.</div>"
+            + "<div style=\"margin-top:4px\">&copy; 2026 Blindtest</div>"
+            + "</div></td></tr>"
+            + "</table></td></tr></table></body></html>";
+    }
+
+    private String buildInvitationEmailHtml(String inviterUsername, String link, long validHours) {
+        return "<!DOCTYPE html>"
+            + "<html lang=\"en\"><head><meta charset=\"UTF-8\">"
+            + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            + "<title>You're invited to Blindtest</title></head>"
+            + "<body style=\"margin:0;padding:0;background:#f5f1ea;"
+            + "font-family:'Manrope',-apple-system,system-ui,sans-serif;color:#1a1814\">"
+            + "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
+            + "<tr><td align=\"center\" style=\"padding:40px 16px\">"
+            + "<table width=\"100%\" style=\"max-width:560px;border-radius:14px;overflow:hidden;"
+            + "border:1px solid #e9e3d8;box-shadow:0 18px 40px -22px rgba(0,0,0,.18)\">"
+            // header
+            + "<tr><td style=\"background:#22201c;padding:22px 28px\">"
+            + "<table width=\"100%\"><tr>"
+            + "<td><table><tr><td style=\"vertical-align:middle\">"
+            + "<div style=\"width:26px;height:26px;background:#c9f062;border-radius:7px;"
+            + "display:inline-block;vertical-align:middle;margin-right:10px\"></div>"
+            + "<span style=\"color:#fff;font-weight:700;font-size:16px;"
+            + "vertical-align:middle\">Blindtest</span></td></tr></table></td>"
+            + "<td align=\"right\"><span style=\"font-size:10.5px;font-weight:700;"
+            + "letter-spacing:.08em;padding:4px 8px;border-radius:4px;"
+            + "background:#c9f062;color:#1f2a08;text-transform:uppercase\">INVITE</span></td>"
+            + "</tr></table></td></tr>"
+            // body
+            + "<tr><td style=\"background:#fff;padding:32px 28px 28px\">"
+            + "<h1 style=\"font-size:24px;font-weight:700;letter-spacing:-.015em;"
+            + "margin:0 0 14px;line-height:1.2\">"
+            + escapeHtml(inviterUsername) + " invited you to Blindtest</h1>"
+            + "<p style=\"font-size:14.5px;line-height:1.65;color:#1a1814;margin:0 0 16px\">"
+            + "Blindtest is a real-time music game, open by invitation only. "
+            + "Choose a username and a password to create your account. "
+            + "The link below works once, for " + validHours + " hours.</p>"
+            + "<div style=\"margin:24px 0 12px\">"
+            + "<a href=\"" + link + "\" style=\"display:inline-block;background:#c9f062;"
+            + "color:#1f2a08;border:1.5px solid #c9f062;padding:13px 22px;border-radius:8px;"
+            + "font-size:14px;font-weight:600;text-decoration:none\">Create my account &rarr;</a>"
+            + "</div>"
+            + "<p style=\"font-size:14.5px;line-height:1.65;color:#4a4640;margin:0 0 16px\">"
+            + "Or copy and paste this link into your browser:</p>"
+            + "<div style=\"padding:12px 14px;background:#faf7f1;border:1px solid #e9e3d8;"
+            + "border-radius:8px;font-family:'JetBrains Mono',ui-monospace,monospace;"
+            + "font-size:11.5px;color:#4a4640;word-break:break-all\">"
+            + escapeHtml(link) + "</div>"
+            + "<div style=\"font-size:12px;color:#86807a;line-height:1.6;margin-top:18px;"
+            + "padding-top:18px;border-top:1px dashed #e9e3d8\">"
+            + "Not expecting this? You can ignore this email — no account will be created.</div>"
+            + "</td></tr>"
+            // footer
+            + "<tr><td style=\"background:#fff;padding:0 28px 28px\">"
+            + "<div style=\"text-align:center;font-size:11.5px;color:#86807a;line-height:1.7\">"
+            + "<div>Blindtest &middot; A real-time music game</div>"
             + "<div style=\"margin-top:4px\">&copy; 2026 Blindtest</div>"
             + "</div></td></tr>"
             + "</table></td></tr></table></body></html>";

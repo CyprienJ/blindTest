@@ -16,6 +16,7 @@ import com.blindtest.model.entity.UserRole;
 import com.blindtest.service.CatalogueService;
 import com.blindtest.service.FirstAdminProvisioningResult;
 import com.blindtest.service.FirstAdminProvisioningService;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -53,6 +54,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class PostgresqlSchemaIntegrationTest {
 
     private static final String LEGACY_SCHEMA = "media03_existing_schema";
+    private static final String PRE_INVITATION_SCHEMA = "public_registration_schema";
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES =
@@ -94,7 +96,7 @@ class PostgresqlSchemaIntegrationTest {
                 Integer.class);
 
         assertThat(installedRanks).containsExactly(
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22);
     }
 
     @Test
@@ -135,7 +137,7 @@ class PostgresqlSchemaIntegrationTest {
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
                 """, Integer.class)).containsExactly(
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22);
     }
 
     @Test
@@ -266,6 +268,58 @@ class PostgresqlSchemaIntegrationTest {
         } finally {
             jdbcTemplate.update("DELETE FROM game_histories WHERE id = ?", historyId);
         }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void invitationOnlyMigrationDeletesEveryNonAdministratorAccount() {
+        flywayForSchema(PRE_INVITATION_SCHEMA, MigrationVersion.fromVersion("21")).migrate();
+        UUID adminId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID unverifiedId = UUID.randomUUID();
+        String insertUser = """
+                INSERT INTO public_registration_schema.users
+                    (id, username, email, password_hash, email_verified, role)
+                VALUES (?, ?, ?, 'hash', ?, ?)
+                """;
+        jdbcTemplate.update(insertUser, adminId, "admin", "admin@example.com", true, "ADMIN");
+        jdbcTemplate.update(insertUser, userId, "player", "player@example.com", true, "USER");
+        jdbcTemplate.update(insertUser, unverifiedId, "pending", "pending@example.com", false, "USER");
+        jdbcTemplate.update("""
+                INSERT INTO public_registration_schema.refresh_tokens (user_id, token, expires_at)
+                VALUES (?, 'player-refresh', NOW() + INTERVAL '1 day')
+                """, userId);
+
+        flywayForSchema(PRE_INVITATION_SCHEMA, null).migrate();
+
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT id FROM public_registration_schema.users", UUID.class)).
+                containsExactly(adminId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM public_registration_schema.refresh_tokens", Integer.class)).
+                isZero();
+    }
+
+    @Test
+    void databaseAllowsOnlyOneOpenInvitationPerEmail() {
+        String insertInvitation = """
+                INSERT INTO invitations (email, token_hash, expires_at, revoked_at)
+                VALUES ('guest@example.com', ?, NOW() + INTERVAL '2 days', ?)
+                """;
+        jdbcTemplate.update(insertInvitation, "a".repeat(64), Timestamp.valueOf("2026-01-01 00:00:00"));
+        jdbcTemplate.update(insertInvitation, "b".repeat(64), null);
+
+        assertThatThrownBy(() -> jdbcTemplate.update(insertInvitation, "c".repeat(64), null)).
+                isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void databaseStoresInvitationEmailsLowercased() {
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO invitations (email, token_hash, expires_at)
+                VALUES ('Mixed@Example.com', ?, NOW())
+                """, "d".repeat(64))).
+                isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
@@ -635,10 +689,14 @@ class PostgresqlSchemaIntegrationTest {
     }
 
     private Flyway flywayForLegacySchema(MigrationVersion target) {
+        return flywayForSchema(LEGACY_SCHEMA, target);
+    }
+
+    private Flyway flywayForSchema(String schema, MigrationVersion target) {
         var configuration = Flyway.configure().
                 dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()).
-                defaultSchema(LEGACY_SCHEMA).
-                schemas(LEGACY_SCHEMA);
+                defaultSchema(schema).
+                schemas(schema);
         if (target != null) {
             configuration.target(target);
         }

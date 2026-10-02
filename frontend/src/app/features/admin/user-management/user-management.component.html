@@ -1,0 +1,120 @@
+<main class="invitations">
+  <div class="page-heading">
+    <h1>Invitations</h1>
+    <p>
+      Blindtest is invitation-only. Invite a player by email; each link works once and expires after
+      48 hours.
+    </p>
+  </div>
+
+  <form class="invite-form" [formGroup]="inviteForm" (ngSubmit)="invite()">
+    <label class="bt-label" for="invite-email">Email address</label>
+    <div class="invite-row">
+      <input
+        id="invite-email"
+        class="bt-input"
+        type="email"
+        formControlName="email"
+        placeholder="friend@example.com"
+        autocomplete="off"
+      />
+      <button class="bt-btn bt-btn-primary" type="submit" [disabled]="sending">
+        {{ sending ? 'Sending…' : 'Send invitation' }}
+      </button>
+    </div>
+    @if (emailControl.invalid && emailControl.touched) {
+      <span class="bt-error">Enter a valid email address</span>
+    }
+  </form>
+
+  @if (successMessage) {
+    <div class="notice notice-success" role="status">
+      <span>{{ successMessage }}</span>
+      <button type="button" aria-label="Dismiss notification" (click)="successMessage = ''">
+        ×
+      </button>
+    </div>
+  }
+  @if (actionError) {
+    <div class="notice notice-error" role="alert">
+      <span>{{ actionError }}</span>
+      <button type="button" aria-label="Dismiss error" (click)="actionError = ''">×</button>
+    </div>
+  }
+  @if (listError) {
+    <div class="notice notice-error" role="alert">
+      <span>{{ listError }}</span>
+      <button class="bt-btn bt-btn-sm bt-btn-ghost" type="button" (click)="refresh()">Retry</button>
+    </div>
+  }
+
+  <section class="invitation-card" aria-label="Sent invitations">
+    @if (loading && invitations.length === 0) {
+      <p class="state" role="status">Loading invitations…</p>
+    } @else if (!listError && invitations.length === 0) {
+      <p class="state">No invitations yet. Invite your first player above.</p>
+    } @else if (invitations.length > 0) {
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Invited by</th>
+              <th>Sent</th>
+              <th>Expires</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (invitation of invitations; track invitation.id) {
+              <tr>
+                <td>{{ invitation.email }}</td>
+                <td>
+                  <span [class]="'status-badge ' + invitation.status.toLowerCase()">
+                    {{ invitation.status.toLowerCase() }}
+                  </span>
+                </td>
+                <td>{{ invitation.invitedBy ?? 'Operator' }}</td>
+                <td>{{ invitation.createdAt | date: 'medium' }}</td>
+                <td>
+                  @if (invitation.status === 'ACCEPTED') {
+                    Accepted {{ invitation.acceptedAt | date: 'medium' }}
+                  } @else {
+                    {{ invitation.expiresAt | date: 'medium' }}
+                  }
+                </td>
+                <td>
+                  <div class="row-actions">
+                    @if (invitation.status !== 'ACCEPTED') {
+                      <button
+                        class="bt-btn bt-btn-sm bt-btn-ghost"
+                        type="button"
+                        [disabled]="busyId !== null"
+                        [attr.aria-label]="'Resend invitation to ' + invitation.email"
+                        (click)="resend(invitation)"
+                      >
+                        Resend
+                      </button>
+                    }
+                    @if (invitation.status === 'PENDING') {
+                      <button
+                        class="bt-btn bt-btn-sm bt-btn-ghost"
+                        type="button"
+                        [disabled]="busyId !== null"
+                        [attr.aria-label]="'Revoke invitation to ' + invitation.email"
+                        (click)="revoke(invitation)"
+                      >
+                        Revoke
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</main>

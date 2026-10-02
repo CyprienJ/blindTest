@@ -149,8 +149,9 @@ production or development Compose file sets.
 
 `frontend/e2e-full-stack/account-journey.spec.ts` (E2E-02) drives one browser
 session through the real account lifecycle against the real backend and
-PostgreSQL: registration, reading the captured verification email back from
-`/api/e2e/emails` and following its link, login, an authenticated
+PostgreSQL: an invitation issued through the e2e-only `POST /api/e2e/invitations`
+backdoor, invitation-only registration (which signs the player in and sends only
+a welcome email, checked through `/api/e2e/emails`), login, an authenticated
 `/api/auth/refresh` call against the real HttpOnly cookie, a password-reset
 round trip (capture the reset email, set a new password, log in with it), and
 logout — verified by confirming the refresh cookie no longer works afterward.

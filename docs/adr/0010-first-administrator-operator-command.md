@@ -1,11 +1,12 @@
 # ADR-0010: Provision the first administrator with an operator command
 
-- Status: Accepted
+- Status: Accepted; partially superseded by ADR-0017
 - Date: 2026-07-30
 - Deciders: Product owner and engineering
 - Related tickets: DG-04, FND-05
 - Supersedes: N/A
-- Superseded by: N/A
+- Superseded by: [ADR-0017](0017-invitation-only-registration.md) for how the
+  account to promote is created (registration is invitation-only)
 
 ## Context
 

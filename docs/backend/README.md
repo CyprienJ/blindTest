@@ -43,7 +43,8 @@ roadmap have not all replaced this layout.
 
 | Route family | Purpose |
 |---|---|
-| `/api/auth/**` | Register, verify, login, refresh, logout, recover/reset password |
+| `/api/auth/**` | Invitation lookup, invitation-only registration, verify, login, refresh, logout, recover/reset password |
+| `/api/admin/invitations/**` | Administrator invitations: create, list, resend, revoke |
 | `GET /api/tracks`, `GET /api/playlists`, `GET /api/playlists/{id}` | Public catalogue |
 | `POST /api/sessions` | Verified-account solo creation |
 | `GET /api/sessions/{sessionId}/summary` | Owner-only durable completed-game summary |

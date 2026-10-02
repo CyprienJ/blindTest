@@ -9,11 +9,11 @@ import { APIRequestContext, expect, test } from '@playwright/test';
 //
 // One continuous browser session carries state (the access token in localStorage,
 // the HttpOnly refresh cookie) across every step, the way a real user session
-// would, so the whole journey — registration, captured verification, login, access
-// refresh, password reset, logout — runs as a single test.
+// would, so the whole journey — invitation, registration, login, access refresh,
+// password reset, logout — runs as a single test.
 
 interface CapturedEmail {
-  type: 'VERIFICATION' | 'PASSWORD_RESET' | 'WELCOME';
+  type: 'VERIFICATION' | 'PASSWORD_RESET' | 'INVITATION' | 'WELCOME';
   toEmail: string;
   username: string;
   token: string | null;
@@ -42,7 +42,18 @@ async function capturedEmail(
   return match!;
 }
 
-test('completes the account journey: register, verify, log in, refresh, reset password, log out', async ({
+async function issueInvitation(
+  request: APIRequestContext,
+  baseURL: string,
+  email: string,
+): Promise<string> {
+  // Registration is invitation-only; the e2e backdoor issues one without an admin session.
+  const response = await request.post(`${baseURL}/api/e2e/invitations`, { params: { email } });
+  expect(response.ok()).toBe(true);
+  return ((await response.json()) as { token: string }).token;
+}
+
+test('completes the account journey: invited registration, log in, refresh, reset password, log out', async ({
   page,
   request,
   baseURL,
@@ -53,31 +64,30 @@ test('completes the account journey: register, verify, log in, refresh, reset pa
   const password = 'StrongPassword!1';
   const newPassword = 'EvenStrongerPassword!2';
 
-  await test.step('registration', async () => {
-    await page.goto('/auth/register');
+  await test.step('registration from an invitation', async () => {
+    const inviteToken = await issueInvitation(request, baseURL!, email);
+    await page.goto(`/auth/register?invite=${encodeURIComponent(inviteToken)}`);
+    await expect(page.getByLabel('Email')).toHaveValue(email);
     await page.getByLabel('Username').fill(username);
-    await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
 
-    // The real Cloudflare widget (dummy test sitekey) solves itself without interaction.
     await expect(page.getByRole('button', { name: 'Create account' })).toBeEnabled({
       timeout: 15_000,
     });
     await page.getByRole('button', { name: 'Create account' }).click();
-
-    await expect(page).toHaveURL(/\/auth\/verify-email\?.*mode=check-inbox/);
-    await expect(page.getByRole('heading', { name: 'Check your inbox' })).toBeVisible();
+    // The invitation proved the address, so the account is verified and signed in at once.
+    await expect(page).toHaveURL(/\/home$/);
   });
 
-  let verificationToken = '';
-  await test.step('captured verification', async () => {
-    const captured = await capturedEmail(request, baseURL!, email, 'VERIFICATION');
-    expect(captured.username).toBe(username);
-    expect(captured.token).toBeTruthy();
-    verificationToken = captured.token!;
+  await test.step('welcome email instead of verification', async () => {
+    const welcome = await capturedEmail(request, baseURL!, email, 'WELCOME');
+    expect(welcome.username).toBe(username);
+    const response = await request.get(`${baseURL}/api/e2e/emails`, { params: { to: email } });
+    const emails = (await response.json()) as CapturedEmail[];
+    expect(emails.some((captured) => captured.type === 'VERIFICATION')).toBe(false);
 
-    await page.goto(`/verify-email?token=${encodeURIComponent(verificationToken)}`);
-    await expect(page.getByRole('heading', { name: 'Email verified!' })).toBeVisible();
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL(/\/$/);
   });
 
   await test.step('login', async () => {

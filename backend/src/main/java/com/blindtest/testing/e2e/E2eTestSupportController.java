@@ -5,9 +5,11 @@ import com.blindtest.model.entity.UserRole;
 import com.blindtest.repository.UserRepository;
 import com.blindtest.service.FirstAdminProvisioningResult;
 import com.blindtest.service.FirstAdminProvisioningService;
+import com.blindtest.service.InvitationIssuer;
 import com.blindtest.store.SessionStore;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,7 @@ public class E2eTestSupportController {
     private final FakeEmailSender fakeEmailSender;
     private final FirstAdminProvisioningService firstAdminProvisioningService;
     private final UserRepository userRepository;
+    private final InvitationIssuer invitationIssuer;
     private final SessionStore sessionStore;
 
     /** Returns every captured email sent to {@code to}, oldest first. */
@@ -46,6 +49,15 @@ public class E2eTestSupportController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resetEmails() {
         fakeEmailSender.reset();
+    }
+
+    /**
+     * Issues an invitation for {@code email} without an administrator session and returns its
+     * one-time token, so specs can reach the invitation-only registration form directly.
+     */
+    @PostMapping("/api/e2e/invitations")
+    public Map<String, String> issueInvitation(@RequestParam String email) {
+        return Map.of("token", invitationIssuer.issue(email, null).token());
     }
 
     /**

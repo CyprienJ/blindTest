@@ -33,37 +33,18 @@ import {
 // real socket at a chosen moment, which is the one thing needed to make a network blip
 // deterministic instead of dependent on Chromium/heartbeat timing.
 
-interface CapturedEmail {
-  type: 'VERIFICATION' | 'PASSWORD_RESET' | 'WELCOME';
-  toEmail: string;
-  username: string;
-  token: string | null;
-}
-
-async function capturedEmail(
+async function issueInvitation(
   request: APIRequestContext,
   baseURL: string,
-  to: string,
-  type: CapturedEmail['type'],
-): Promise<CapturedEmail> {
-  let match: CapturedEmail | undefined;
-  await expect
-    .poll(
-      async () => {
-        const response = await request.get(`${baseURL}/api/e2e/emails`, { params: { to } });
-        expect(response.ok()).toBe(true);
-        const emails = (await response.json()) as CapturedEmail[];
-        const matching = emails.filter((email) => email.type === type);
-        match = matching[matching.length - 1];
-        return match !== undefined;
-      },
-      { message: `waiting for a captured ${type} email sent to ${to}`, timeout: 10_000 },
-    )
-    .toBe(true);
-  return match!;
+  email: string,
+): Promise<string> {
+  // Registration is invitation-only; the e2e backdoor issues one without an admin session.
+  const response = await request.post(`${baseURL}/api/e2e/invitations`, { params: { email } });
+  expect(response.ok()).toBe(true);
+  return ((await response.json()) as { token: string }).token;
 }
 
-async function registerAndVerify(
+async function registerFromInvitation(
   page: Page,
   request: APIRequestContext,
   baseURL: string,
@@ -71,20 +52,18 @@ async function registerAndVerify(
   email: string,
   password: string,
 ): Promise<void> {
-  await page.goto('/auth/register');
+  const inviteToken = await issueInvitation(request, baseURL, email);
+  await page.goto(`/auth/register?invite=${encodeURIComponent(inviteToken)}`);
+  await expect(page.getByLabel('Email')).toHaveValue(email);
   await page.getByLabel('Username').fill(username);
-  await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
 
   await expect(page.getByRole('button', { name: 'Create account' })).toBeEnabled({
     timeout: 15_000,
   });
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page).toHaveURL(/\/auth\/verify-email\?.*mode=check-inbox/);
-
-  const captured = await capturedEmail(request, baseURL, email, 'VERIFICATION');
-  await page.goto(`/verify-email?token=${encodeURIComponent(captured.token!)}`);
-  await expect(page.getByRole('heading', { name: 'Email verified!' })).toBeVisible();
+  // The invitation proved the address, so the account is verified and signed in at once.
+  await expect(page).toHaveURL(/\/home$/);
 }
 
 async function login(page: Page, email: string, password: string): Promise<void> {
@@ -111,7 +90,7 @@ async function buildFixturePlaylist(
   const playlistName = `Failure-injection playlist ${stamp}`;
 
   expect((await request.delete(`${baseURL}/api/e2e/admin-provisioning`)).ok()).toBe(true);
-  await registerAndVerify(page, request, baseURL, adminUsername, adminEmail, password);
+  await registerFromInvitation(page, request, baseURL, adminUsername, adminEmail, password);
   const promoted = await request.post(`${baseURL}/api/e2e/admin-provisioning`, {
     params: { email: adminEmail },
   });
@@ -197,7 +176,7 @@ test('a mid-game network blip recovers and a backend restart is surfaced cleanly
   const playerEmail = `${playerUsername}@example.test`;
   const password = 'StrongPassword!1';
 
-  await registerAndVerify(page, request, baseURL!, playerUsername, playerEmail, password);
+  await registerFromInvitation(page, request, baseURL!, playerUsername, playerEmail, password);
   await login(page, playerEmail, password);
 
   let sessionId = '';
@@ -292,7 +271,7 @@ test('an import process failure surfaces a clean error and the admin can recover
   const password = 'StrongPassword!1';
 
   expect((await request.delete(`${baseURL}/api/e2e/admin-provisioning`)).ok()).toBe(true);
-  await registerAndVerify(page, request, baseURL!, username, email, password);
+  await registerFromInvitation(page, request, baseURL!, username, email, password);
   const promoted = await request.post(`${baseURL}/api/e2e/admin-provisioning`, {
     params: { email },
   });

@@ -103,13 +103,7 @@ import { AuthService } from '../../../core/services/auth.service';
         </div>
 
         <p style="text-align: center; margin-top: 20px; font-size: 13.5px; color: var(--fg-2);">
-          No account?
-          <a
-            routerLink="/auth/register"
-            style="color: var(--accent); text-decoration: none; font-weight: 600;"
-          >
-            Sign up
-          </a>
+          No account? Blindtest is invitation-only; ask an administrator for an invitation.
         </p>
       </div>
     </div>

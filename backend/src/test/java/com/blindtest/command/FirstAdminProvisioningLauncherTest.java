@@ -14,15 +14,7 @@ class FirstAdminProvisioningLauncherTest {
 
     @Test
     void startsMinimalNonWebContextAndRunsCommand() {
-        Map<String, String> properties = new LinkedHashMap<>();
-        properties.put("spring.datasource.url",
-                "jdbc:h2:mem:firstadminlauncher;DB_CLOSE_DELAY=-1");
-        properties.put("spring.datasource.driver-class-name", "org.h2.Driver");
-        properties.put("spring.datasource.username", "sa");
-        properties.put("spring.datasource.password", "");
-        properties.put("spring.jpa.hibernate.ddl-auto", "create-drop");
-        properties.put("spring.flyway.enabled", "false");
-        Map<String, String> previous = setSystemProperties(properties);
+        Map<String, String> previous = setSystemProperties(databaseProperties());
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try {
             int exitCode = FirstAdminProvisioningLauncher.launch(
@@ -37,6 +29,37 @@ class FirstAdminProvisioningLauncherTest {
         } finally {
             restoreSystemProperties(previous);
         }
+    }
+
+    @Test
+    void startsMinimalNonWebContextAndIssuesBootstrapInvitation() {
+        Map<String, String> previous = setSystemProperties(databaseProperties());
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try {
+            int exitCode = FirstAdminProvisioningLauncher.launchInvitation(
+                    new ByteArrayInputStream(
+                            "future-admin@example.com\n".getBytes(StandardCharsets.UTF_8)),
+                    new PrintStream(bytes, true, StandardCharsets.UTF_8));
+
+            assertThat(exitCode).isEqualTo(FirstAdminInvitationCommand.EXIT_SUCCESS);
+            assertThat(bytes.toString(StandardCharsets.UTF_8)).
+                    contains("Invitation issued.").
+                    contains("/auth/register?invite=");
+        } finally {
+            restoreSystemProperties(previous);
+        }
+    }
+
+    private Map<String, String> databaseProperties() {
+        Map<String, String> properties = new LinkedHashMap<>();
+        properties.put("spring.datasource.url",
+                "jdbc:h2:mem:firstadminlauncher;DB_CLOSE_DELAY=-1");
+        properties.put("spring.datasource.driver-class-name", "org.h2.Driver");
+        properties.put("spring.datasource.username", "sa");
+        properties.put("spring.datasource.password", "");
+        properties.put("spring.jpa.hibernate.ddl-auto", "create-drop");
+        properties.put("spring.flyway.enabled", "false");
+        return properties;
     }
 
     private Map<String, String> setSystemProperties(Map<String, String> properties) {

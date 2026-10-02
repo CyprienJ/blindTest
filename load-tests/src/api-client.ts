@@ -60,46 +60,22 @@ export function generateAccount(prefix: string): AccountCredentials {
   };
 }
 
-interface CapturedEmail {
-  type: "VERIFICATION" | "PASSWORD_RESET" | "WELCOME";
-  toEmail: string;
-  username: string;
-  token: string | null;
-}
-
-/** Registers, reads the captured verification email back, and verifies — no real mailbox. */
-export async function registerAndVerify(account: AccountCredentials): Promise<void> {
+/**
+ * Registers through the invitation-only flow: the e2e backdoor issues an invitation, and the
+ * resulting account is already verified, so no mailbox round trip is needed.
+ */
+export async function registerFromInvitation(account: AccountCredentials): Promise<void> {
+  const invitation = await request<{ token: string }>("POST", "/api/e2e/invitations", {
+    query: { email: account.email },
+  });
   await request("POST", "/api/auth/register", {
     body: {
       username: account.username,
-      email: account.email,
+      inviteToken: invitation.token,
       password: account.password,
       turnstileToken: DUMMY_TURNSTILE_TOKEN,
     },
   });
-  const emails = await pollForEmail(account.email, "VERIFICATION");
-  await request("POST", "/api/auth/verify-email", { body: { token: emails.token } });
-}
-
-async function pollForEmail(
-  toEmail: string,
-  type: CapturedEmail["type"],
-  timeoutMs = 10_000,
-): Promise<CapturedEmail> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const emails = await request<CapturedEmail[]>("GET", "/api/e2e/emails", {
-      query: { to: toEmail },
-    });
-    const match = emails.find((email) => email.type === type);
-    if (match) {
-      return match;
-    }
-    if (Date.now() > deadline) {
-      throw new Error(`Timed out waiting for a ${type} email to ${toEmail}`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 200));
-  }
 }
 
 export interface Session {

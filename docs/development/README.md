@@ -63,10 +63,13 @@ docker compose down
 Flyway migrations run automatically when the backend starts. Migration files are
 under `backend/src/main/resources/db/migration/`.
 
-After registering and verifying the first administrator account, follow the
+Registration is invitation-only. To create the first administrator, follow the
 operator procedure in
-[`docs/admin-provisioning.md`](../admin-provisioning.md). It uses a one-shot
-backend command and does not require a manual role update in PostgreSQL.
+[`docs/admin-provisioning.md`](../admin-provisioning.md): one command prints an
+invitation link, and a second promotes the account created from it. Neither
+requires a manual role update in PostgreSQL. Invitations sent from the Users
+admin page are delivered by email only when `RESEND_API_KEY` is a real key; the
+development placeholder key makes sending fail, and the failure is only logged.
 
 The backend image pins and smoke-tests `yt-dlp` and FFmpeg. Imports default to a
 10-minute wall-clock limit, a 25 MiB temporary-file limit, one FFmpeg worker

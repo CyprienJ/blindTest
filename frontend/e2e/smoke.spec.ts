@@ -5,5 +5,5 @@ test('renders the public home page', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: /Hear it\. Name it\./ })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Start playing' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Sign in to play' })).toBeVisible();
 });

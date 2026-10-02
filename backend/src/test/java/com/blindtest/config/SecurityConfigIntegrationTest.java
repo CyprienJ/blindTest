@@ -18,7 +18,9 @@ import com.blindtest.service.AuthService;
 import com.blindtest.service.CatalogueService;
 import com.blindtest.service.GameHistorySummaryService;
 import com.blindtest.service.ImportJobService;
+import com.blindtest.service.InvitationService;
 import com.blindtest.service.MediaReconciliationService;
+import com.blindtest.service.RegistrationService;
 import com.blindtest.service.CoverSuggestionService;
 import com.blindtest.service.SessionGameplayService;
 import com.blindtest.service.TrackCoverService;
@@ -73,6 +75,12 @@ class SecurityConfigIntegrationTest {
     private AuthService authService;
 
     @MockBean
+    private InvitationService invitationService;
+
+    @MockBean
+    private RegistrationService registrationService;
+
+    @MockBean
     private CatalogueService catalogueService;
 
     @MockBean
@@ -109,6 +117,7 @@ class SecurityConfigIntegrationTest {
         // (missing/invalid body). Neither should return 401 (security-blocked).
         mockMvc.perform(post("/api/auth/login")).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/register")).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/auth/invitations/lookup")).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/verify-email")).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/forgot-password")).andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/reset-password")).andExpect(status().isBadRequest());
