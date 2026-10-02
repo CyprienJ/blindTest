@@ -192,7 +192,8 @@ Acceptance:
 
 #### CAT-11 — Import tracks from uploaded audio files
 
-Status: in progress (added 2026-09-29).
+Status: implemented and validated (added 2026-09-29). Awaiting one product-owner
+check: a production upload on the VPS (see [Next Ticket](../plan.md#next-ticket)).
 
 Context: the production server's IP is flagged by YouTube as automated traffic, so
 server-side `yt-dlp` imports fail even with cookies. Uploading a local audio file is

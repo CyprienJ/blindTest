@@ -30,6 +30,7 @@ const summary: GameSummary = {
       startedAt: '2026-09-02T12:00:00.000Z',
       revealedAt: '2026-09-02T12:00:04.500Z',
       completedAt: '2026-09-02T12:00:08.000Z',
+      titleFound: true,
     },
     {
       roundIndex: 1,
@@ -42,8 +43,12 @@ const summary: GameSummary = {
       startedAt: '2026-09-02T12:00:30.000Z',
       revealedAt: '2026-09-02T12:00:33.000Z',
       completedAt: '2026-09-02T12:00:36.000Z',
+      titleFound: false,
     },
   ],
+  gameMode: 'SOLO',
+  participantId: '66666666-6666-4666-8666-666666666666',
+  standings: [],
 };
 
 class FakeGameSessionService {

@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 final class FinishedSessionFixture {
@@ -47,8 +48,10 @@ final class FinishedSessionFixture {
                 new RequestedGameConfiguration(PLAYLIST_ID, 5, 30, Map.of(), List.of(3, 2), true),
                 new PlaylistEligibilitySnapshot(PLAYLIST_ID, 5, Map.of(
                         2, 2, 3, 2, PlaylistEligibilitySnapshot.UNRATED, 1)));
+        GameParticipantId participant = new GameParticipantId(PARTICIPANT_ID);
+        Set<GameParticipantId> active = Set.of(participant);
         GameStateSnapshot game = GameStateSnapshot.created(
-                configuration, new GameTrackSelection(tracks()));
+                configuration, new GameTrackSelection(tracks()), List.of(participant));
         GameStateMachine machine = new GameStateMachine(
                 new RoundStateMachine(new TitleScoreCalculator()));
         game = machine.start(game);
@@ -59,14 +62,18 @@ final class FinishedSessionFixture {
                     startsAt.plusSeconds(30), Duration.ofSeconds(30));
             game = machine.startRound(game, window);
             if (index == 0) {
-                game = machine.resolveTitle(
-                        game, AnswerMatchResult.matched(GameAnswerType.TITLE), startsAt);
+                game = machine.awardTitle(
+                        game,
+                        participant,
+                        AnswerMatchResult.matched(GameAnswerType.TITLE),
+                        startsAt,
+                        active);
                 completedAt = startsAt.plusSeconds(4);
             } else if (index == 1) {
                 game = machine.timeoutRound(game, window.deadline());
                 completedAt = window.deadline().plusSeconds(4);
             } else {
-                game = machine.skipRound(game, startsAt.plusSeconds(2));
+                game = machine.voteSkip(game, participant, startsAt.plusSeconds(2), active);
                 completedAt = startsAt.plusSeconds(6);
             }
             game = machine.completeRound(game, completedAt).game();
@@ -84,7 +91,7 @@ final class FinishedSessionFixture {
                 17,
                 START.minusSeconds(10),
                 completedAt,
-                completedAt.plus(Duration.ofHours(1)));
+                completedAt.plus(Duration.ofHours(1)), 0);
     }
 
     private static List<GameTrackSnapshot> tracks() {

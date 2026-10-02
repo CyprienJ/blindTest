@@ -489,9 +489,9 @@ class SessionGameplayServiceTest {
         GameConfiguration configuration = new GameConfigurationValidator().validate(
                 new RequestedGameConfiguration(playlistId, 5, 30, Map.of()),
                 new PlaylistEligibilitySnapshot(playlistId, 5));
-        GameStateSnapshot game = GameStateSnapshot.created(
-                configuration, new GameTrackSelection(tracks()));
         GameParticipantId participantId = new GameParticipantId(PARTICIPANT_ID);
+        GameStateSnapshot game = GameStateSnapshot.created(
+                configuration, new GameTrackSelection(tracks()), List.of(participantId));
         return new ActiveSessionSnapshot(
                 new SessionId(SESSION_ID),
                 participantId,
@@ -504,7 +504,7 @@ class SessionGameplayServiceTest {
                 0,
                 NOW,
                 NOW,
-                NOW.plus(Duration.ofHours(1)));
+                NOW.plus(Duration.ofHours(1)), 0);
     }
 
     private List<GameTrackSnapshot> tracks() {

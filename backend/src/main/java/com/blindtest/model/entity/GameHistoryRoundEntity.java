@@ -1,6 +1,7 @@
 package com.blindtest.model.entity;
 
 import com.blindtest.model.game.RoundOutcome;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,8 +12,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -91,4 +95,15 @@ public class GameHistoryRoundEntity {
 
     @Column(name = "completed_at", nullable = false)
     private Instant completedAt;
+
+    /** Per-participant results; empty for solo rounds, whose points are the owner's. */
+    @OneToMany(mappedBy = "round", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Setter(AccessLevel.NONE)
+    private List<GameHistoryRoundResultEntity> results = new ArrayList<>();
+
+    /** Adds one participant result while maintaining the bidirectional JPA association. */
+    public void addResult(GameHistoryRoundResultEntity result) {
+        result.setRound(this);
+        results.add(result);
+    }
 }

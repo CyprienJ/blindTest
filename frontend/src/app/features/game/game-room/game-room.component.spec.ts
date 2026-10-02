@@ -271,6 +271,7 @@ describe('GameRoomComponent', () => {
         roundPoints: 120,
         totalScore: 120,
         transitionAt: new Date(NOW + 4_000).toISOString(),
+        scores: [],
       },
     });
     fixture.changeDetectorRef.detectChanges();
@@ -326,6 +327,7 @@ describe('GameRoomComponent', () => {
         roundPoints: 0,
         totalScore: 0,
         transitionAt: new Date(NOW + 4_000).toISOString(),
+        scores: [],
       },
     });
     await fixture.whenStable();
@@ -374,6 +376,10 @@ describe('GameRoomComponent', () => {
           coverUrl: null,
           advanceAt: new Date(NOW + 1500).toISOString(),
           roundPoints: outcome === 'TITLE_FOUND' ? 100 : 0,
+          titleFound: outcome === 'TITLE_FOUND',
+          skipVoted: false,
+          skipVotes: 0,
+          requiredSkipVotes: 1,
         },
       });
       fixture.changeDetectorRef.detectChanges();
@@ -419,6 +425,7 @@ describe('GameRoomComponent', () => {
           titlesFound: 4,
           skippedRounds: 4,
           timedOutRounds: 4,
+          standings: [],
         },
       });
       fixture.changeDetectorRef.detectChanges();
@@ -441,6 +448,7 @@ describe('GameRoomComponent', () => {
         titlesFound: 8,
         skippedRounds: 2,
         timedOutRounds: 2,
+        standings: [],
       },
     });
     fixture.changeDetectorRef.detectChanges();
@@ -480,9 +488,14 @@ describe('GameRoomComponent', () => {
         coverUrl: null,
         advanceAt: null,
         roundPoints: 0,
+        titleFound: false,
+        skipVoted: false,
+        skipVotes: 0,
+        requiredSkipVotes: 1,
       },
       discoveredAnswerTypes: [],
       expiresAt: active.expiresAt,
+      scores: [],
     });
     fixture.changeDetectorRef.detectChanges();
 
@@ -522,6 +535,104 @@ describe('GameRoomComponent', () => {
     expect(text(fixture)).toContain('This game session is no longer available.');
   });
 
+  describe('multiplayer', () => {
+    const ME = active.participantId;
+    const FRIEND = '77777777-7777-4777-8777-777777777777';
+    const guest: ActiveSoloSession = { ...active, host: false, hostParticipantId: FRIEND };
+
+    function scores(mine: [number, number], friend: [number, number]) {
+      return [
+        {
+          participantId: FRIEND,
+          displayName: 'Léa',
+          roundPoints: friend[0],
+          totalScore: friend[1],
+        },
+        { participantId: ME, displayName: 'Me', roundPoints: mine[0], totalScore: mine[1] },
+      ];
+    }
+
+    it('waits for the host instead of starting a CREATED game', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(guest));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+
+      socket.status$.next('connected');
+      socket.snapshots$.next(snapshot('CREATED'));
+      fixture.changeDetectorRef.detectChanges();
+
+      expect(socket.startGame).not.toHaveBeenCalled();
+      expect(text(fixture)).toContain('Waiting for the host to start');
+    });
+
+    it("updates the scoreboard live, counts skip votes, and reveals this player's points", async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(guest));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+      const component = fixture.componentInstance;
+      socket.status$.next('connected');
+      socket.snapshots$.next({ ...snapshot('PLAYING'), scores: scores([0, 0], [0, 400]) });
+      socket.publicEvents$.next(roundStarted(1));
+
+      socket.publicEvents$.next({
+        metadata: meta(3),
+        type: 'SCORE_UPDATED',
+        payload: { participantId: FRIEND, roundPoints: 900, totalScore: 1300 },
+      });
+      fixture.changeDetectorRef.detectChanges();
+      // Another player's find never changes this player's score.
+      expect(component.totalScore).toBe(0);
+      expect(component.found.has(FRIEND)).toBeTrue();
+      expect(text(fixture)).toContain('Scoreboard');
+      expect(text(fixture)).toContain('1300 pts');
+
+      component.skip();
+      socket.publicEvents$.next({
+        metadata: meta(4),
+        type: 'SKIP_VOTE_UPDATED',
+        payload: { votes: 1, requiredVotes: 2 },
+      });
+      fixture.changeDetectorRef.detectChanges();
+      expect(text(fixture)).toContain('Voted to skip · 1/2');
+      expect(component.canSkip).toBeFalse();
+
+      socket.publicEvents$.next({
+        metadata: meta(5),
+        type: 'SCORE_UPDATED',
+        payload: { participantId: ME, roundPoints: 500, totalScore: 500 },
+      });
+      fixture.changeDetectorRef.detectChanges();
+      expect(text(fixture)).toContain('You found the title! +500 points');
+
+      socket.publicEvents$.next({
+        metadata: meta(6),
+        type: 'ROUND_REVEALED',
+        payload: {
+          roundIndex: 1,
+          totalRounds: 12,
+          outcome: 'TITLE_FOUND',
+          title: 'Africa',
+          artist: 'Toto',
+          composer: null,
+          album: null,
+          streamingLinks: {},
+          coverUrl: null,
+          roundPoints: 1400,
+          totalScore: 1800,
+          transitionAt: new Date(NOW + 4_000).toISOString(),
+          scores: scores([500, 500], [900, 1300]),
+        },
+      });
+      fixture.changeDetectorRef.detectChanges();
+      expect(component.totalScore).toBe(500);
+      expect(component.lastRoundPoints).toBe(500);
+      expect(text(fixture)).toContain('Everyone found the title');
+      // Only the host may advance early.
+      expect(text(fixture)).toContain('The host can skip ahead');
+      expect(component.canAdvance).toBeFalse();
+    });
+  });
+
   it('tears down the socket and audio on destroy', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);
@@ -540,5 +651,6 @@ function snapshot(gameStatus: CurrentSnapshotPayload['gameStatus']): CurrentSnap
     currentRound: null,
     discoveredAnswerTypes: [],
     expiresAt: active.expiresAt,
+    scores: [],
   };
 }

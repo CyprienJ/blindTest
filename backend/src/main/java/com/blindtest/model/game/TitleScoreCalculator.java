@@ -16,18 +16,23 @@ public final class TitleScoreCalculator {
     private static final BigInteger TWO = BigInteger.valueOf(2);
     private static final BigInteger MAXIMUM_POINTS = BigInteger.valueOf(MAXIMUM_TITLE_POINTS);
 
-    /** Scores a typed answer accepted at the server timestamp and updates idempotency state. */
+    /**
+     * Scores one participant's typed answer accepted at the server timestamp and updates the
+     * per-participant idempotency state.
+     */
     public RoundScoreResult scoreAnswer(
             AnswerMatchResult match,
             Instant acceptedAt,
             RoundScoringWindow window,
+            GameParticipantId participantId,
             RoundScoreState state) {
         Objects.requireNonNull(match, "match is required");
         Objects.requireNonNull(acceptedAt, "acceptedAt is required");
         Objects.requireNonNull(window, "window is required");
+        Objects.requireNonNull(participantId, "participantId is required");
         Objects.requireNonNull(state, "state is required");
 
-        if (state.titleAwarded()
+        if (state.titleAwarded(participantId)
                 || match.matchedType().filter(type -> type == GameAnswerType.TITLE).isEmpty()
                 || !acceptedAt.isBefore(window.deadline())) {
             return RoundScoreResult.noAward(state);
@@ -39,7 +44,7 @@ public final class TitleScoreCalculator {
         int roundedLinearScore = roundHalfUp(
                 MAXIMUM_POINTS.multiply(clampedRemaining), durationNanos);
         int awardedPoints = Math.max(MINIMUM_TITLE_POINTS, roundedLinearScore);
-        return RoundScoreResult.titleAward(awardedPoints);
+        return RoundScoreResult.titleAward(state, participantId, awardedPoints);
     }
 
     /** A skip never awards points or changes an existing title award. */

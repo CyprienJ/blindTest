@@ -29,6 +29,12 @@ add resilience, guests, and multiplayer hardening.
 
 #### MP-01 — Generalize the game domain to several participants
 
+Status: completed on 2026-10-02. `GameStateSnapshot` lists its participants,
+`RoundScoreState` keeps per-participant awards and skip votes, `GameStateMachine`
+exposes `awardTitle`, `voteSkip`, and `reevaluateRound`, and `GameSummary` carries
+ranked `ParticipantStanding`s; see `MultiplayerGameDomainTest`. Round `points` in
+summaries and history still add up every participant until MP-04.
+
 Work:
 
 - per-participant title award, score, and skip vote in round state, replacing
@@ -48,15 +54,21 @@ Acceptance:
 
 #### MP-02 — Add lobbies with join codes
 
+Status: completed on 2026-10-02. Lobbies are a separate in-memory aggregate
+(`LobbySnapshot`, `LobbyStore`) promoted to a `CREATED` game session at start, rather
+than a new `GameStatus`. Lobby actions are REST rather than STOMP commands so that
+failures carry stable HTTP error codes; STOMP only broadcasts. Covered by
+`LobbyControllerIntegrationTest`, `LobbySnapshotTest`, and `InMemoryLobbyStoreTest`.
+
 Work:
 
-- a lobby phase ahead of `GameStatus.CREATED`, either a new `LOBBY` value or a
-  separate lobby aggregate promoted to a game at start (decide in the ticket);
 - `POST /api/lobbies` (registered user, solo configuration limits) returning the
   session ID and 6-character code; tracks are snapshotted at start, not creation;
-- `POST /api/lobbies/{code}/join` for registered users; `DELETE` to leave;
-- STOMP commands `READY`, `UNREADY`, `KICK` (host), `START` (host) and a public
-  `LOBBY_UPDATED` event with participants, host, and ready flags;
+- `GET /api/lobbies/{code}` for members; `POST /api/lobbies/{code}/participants` to
+  join; `DELETE .../participants/me` to leave; `PUT .../participants/me/ready`;
+  host-only `DELETE .../participants/{participantId}` and `POST .../start`;
+- public `LOBBY_UPDATED` (participants, host, ready flags, `canStart`) and
+  `LOBBY_STARTED` events on the session topic, which lobby members may subscribe to;
 - 10-participant cap, unique accounts, code invalidation at start or after the
   30-minute lobby inactivity TTL;
 - OpenAPI and [WebSocket protocol](../websocket-protocol.md) updates.
@@ -69,6 +81,11 @@ Acceptance:
 - code lookup failures do not distinguish expired and unknown codes.
 
 #### MP-03 — Play multiplayer rounds over STOMP
+
+Status: completed on 2026-10-02. Every participant may vote to skip; a multiplayer
+command is fresh from the version that started its round (`roundStartedVersion`),
+and the per-session command budget scales with participant count. Covered by
+`MultiplayerGameBackendFlowIntegrationTest`.
 
 Work:
 
@@ -88,6 +105,12 @@ Acceptance:
 
 #### MP-04 — Persist multiplayer history and summaries
 
+Status: completed on 2026-10-02. Migration V23 relaxes game and round totals to
+combined scores and adds `game_history_round_results`, written only for
+multiplayer games. The summary is per caller (`totalScore`, `titlesFound`, round
+`points`, `titleFound`) and adds `gameMode`, `participantId`, and `standings`.
+Covered by `MultiplayerGameBackendFlowIntegrationTest` and the solo flow test.
+
 Work:
 
 - persist every participant with final score and shared rank, instead of only the
@@ -104,6 +127,10 @@ Acceptance:
 - solo history rows keep their current shape.
 
 #### MP-05 — Build the create, join, and lobby screens
+
+Status: completed on 2026-10-02. `LobbyResponse` also returns the playlist name,
+track count, and timer for the rules card. Covered by the lobby and join unit
+specs, `e2e/lobby.spec.ts`, and `e2e-full-stack/multiplayer-lobby-journey.spec.ts`.
 
 Work:
 
@@ -122,6 +149,13 @@ Acceptance:
   contexts.
 
 #### MP-06 — Show multiplayer state in the game room and end screen
+
+Status: completed on 2026-10-02. The `scoreboard` widget carries the live
+per-player state; `player-list` stays an unused scaffold because the scoreboard
+already shows who found each title. Clients disable answers and skip votes until
+the round's `startsAt`. Covered by the game-room multiplayer unit specs and
+`e2e-full-stack/multiplayer-lobby-journey.spec.ts`, which plays two browsers
+through five rounds to the ranked end screen.
 
 Work:
 

@@ -37,13 +37,13 @@ public class SessionController {
                 body(response);
     }
 
-    /** Returns the refresh-safe durable summary to the authenticated game owner. */
+    /** Returns the refresh-safe durable summary to a registered participant of the game. */
     @GetMapping("/{sessionId}/summary")
     public ResponseEntity<CurrentGameSummaryResponse> getSummary(
             @AuthenticationPrincipal UUID accountId,
             @PathVariable UUID sessionId) {
         CurrentGameSummaryResponse response =
-                gameHistorySummaryService.getOwnedSummary(sessionId, accountId);
+                gameHistorySummaryService.getParticipantSummary(sessionId, accountId);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
     }
 }

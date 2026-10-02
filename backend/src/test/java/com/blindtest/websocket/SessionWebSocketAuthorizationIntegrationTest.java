@@ -314,7 +314,7 @@ class SessionWebSocketAuthorizationIntegrationTest {
                 new RequestedGameConfiguration(playlistId, 5, 30, Map.of()),
                 new PlaylistEligibilitySnapshot(playlistId, 5));
         GameStateSnapshot state = GameStateSnapshot.created(
-                configuration, new GameTrackSelection(tracks()));
+                configuration, new GameTrackSelection(tracks()), List.of(participantId));
         ActiveSessionSnapshot session = new ActiveSessionSnapshot(
                 new SessionId(sessionId),
                 participantId,
@@ -327,7 +327,7 @@ class SessionWebSocketAuthorizationIntegrationTest {
                 0,
                 clock.instant(),
                 clock.instant(),
-                clock.instant().plus(Duration.ofMinutes(30)));
+                clock.instant().plus(Duration.ofMinutes(30)), 0);
         assertThat(sessionStore.create(session, clock.instant())).
                 isEqualTo(SessionCreateOutcome.CREATED);
         return session;

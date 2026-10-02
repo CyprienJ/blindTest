@@ -2,10 +2,12 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
+import { CreateSoloSessionRequest } from '../../../core/models/game-session.model';
 import { GameSessionService } from '../../../core/services/game-session.service';
+import { LobbyService } from '../../../core/services/lobby.service';
 import { PublicPlaylist, PublicPlaylistDetail } from './catalogue.model';
 import { CatalogueService } from './catalogue.service';
 import {
@@ -26,13 +28,18 @@ import {
 export class CreateSessionComponent implements OnInit {
   private readonly catalogue = inject(CatalogueService);
   private readonly gameSessions = inject(GameSessionService);
+  private readonly lobbies = inject(LobbyService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
   readonly auth = inject(AuthService);
   readonly limits = GAME_CONFIGURATION_LIMITS;
   readonly difficultyLevels = DIFFICULTY_LEVELS;
   readonly selectedLevels = new Set<number>(DIFFICULTY_LEVELS);
   includeUnrated = true;
+  /** Solo plays at once; multiplayer opens a lobby that friends join by code. */
+  mode: 'solo' | 'multiplayer' =
+    this.route.snapshot.queryParamMap.get('mode') === 'multiplayer' ? 'multiplayer' : 'solo';
 
   readonly form = this.formBuilder.nonNullable.group({
     playlistId: ['', Validators.required],
@@ -185,6 +192,11 @@ export class CreateSessionComponent implements OnInit {
     return parts.join(' · ') || 'None';
   }
 
+  setMode(mode: 'solo' | 'multiplayer'): void {
+    this.mode = mode;
+    this.submitError = '';
+  }
+
   createSession(): void {
     if (this.form.invalid || !this.selected || this.difficultyError()) {
       this.form.markAllAsTouched();
@@ -192,17 +204,28 @@ export class CreateSessionComponent implements OnInit {
     }
     const { playlistId, trackCount, maxRoundSeconds } = this.form.getRawValue();
     const playlistName = this.selected.name;
+    const request: CreateSoloSessionRequest = {
+      playlistId,
+      trackCount,
+      maxRoundSeconds,
+      extensions: {},
+      difficultyLevels: [...this.selectedLevels].sort((a, b) => a - b),
+      includeUnrated: this.includeUnrated,
+    };
     this.submitting = true;
     this.submitError = '';
+    if (this.mode === 'multiplayer') {
+      this.lobbies
+        .create(request)
+        .pipe(finalize(() => (this.submitting = false)))
+        .subscribe({
+          next: (lobby) => void this.router.navigate(['/lobby', lobby.code]),
+          error: (error) => this.handleCreateError(error, trackCount),
+        });
+      return;
+    }
     this.gameSessions
-      .createSolo({
-        playlistId,
-        trackCount,
-        maxRoundSeconds,
-        extensions: {},
-        difficultyLevels: [...this.selectedLevels].sort((a, b) => a - b),
-        includeUnrated: this.includeUnrated,
-      })
+      .createSolo(request)
       .pipe(finalize(() => (this.submitting = false)))
       .subscribe({
         next: (session) => {

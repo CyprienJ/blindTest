@@ -1,5 +1,8 @@
 package com.blindtest.model.game;
 
+import static com.blindtest.model.game.GameTestParticipants.SOLO;
+import static com.blindtest.model.game.GameTestParticipants.SOLO_ACTIVE;
+import static com.blindtest.model.game.GameTestParticipants.SOLO_LIST;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Clock;
@@ -36,7 +39,7 @@ class SoloGameDomainScenarioTest {
         AnswerMatcher matcher = new AnswerMatcher();
         SecondaryDiscoveryTracker discoveryTracker = new SecondaryDiscoveryTracker();
         GameStateSnapshot game = gameMachine.start(
-                GameStateSnapshot.created(configuration, selection));
+                GameStateSnapshot.created(configuration, selection, SOLO_LIST));
 
         for (int roundIndex = 0; roundIndex < 5; roundIndex++) {
             Instant startsAt = clock.instant();
@@ -53,24 +56,30 @@ class SoloGameDomainScenarioTest {
                 assertThat(artist.outcome()).isEqualTo(SecondaryDiscoveryOutcome.DISCOVERED);
                 assertThat(artist.state().projectFor(PLAYER).discoveredTypes()).
                         containsExactly(GameAnswerType.ARTIST);
-                game = gameMachine.resolveTitle(
+                game = gameMachine.awardTitle(
                         game,
+                        SOLO,
                         matcher.match(track.answers().title(), track.answers()),
-                        startsAt.plusSeconds(15));
+                        startsAt.plusSeconds(15),
+                        SOLO_ACTIVE);
             } else if (roundIndex == 1) {
-                game = gameMachine.skipRound(game, startsAt.plusSeconds(5));
+                game = gameMachine.voteSkip(game, SOLO, startsAt.plusSeconds(5), SOLO_ACTIVE);
             } else if (roundIndex == 2) {
                 game = gameMachine.timeoutRound(game, scoringWindow.deadline());
             } else if (roundIndex == 3) {
-                game = gameMachine.resolveTitle(
+                game = gameMachine.awardTitle(
                         game,
+                        SOLO,
                         matcher.match(track.answers().title(), track.answers()),
-                        startsAt.plusSeconds(29));
+                        startsAt.plusSeconds(29),
+                        SOLO_ACTIVE);
             } else {
-                game = gameMachine.resolveTitle(
+                game = gameMachine.awardTitle(
                         game,
+                        SOLO,
                         matcher.match(track.answers().title(), track.answers()),
-                        startsAt);
+                        startsAt,
+                        SOLO_ACTIVE);
             }
 
             RoundCompletionTransition completion = gameMachine.completeRound(

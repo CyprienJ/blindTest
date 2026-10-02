@@ -232,7 +232,11 @@ export class GameSocketService implements OnDestroy {
 
   private emitPublic(body: string): void {
     const event = JSON.parse(body) as PublicSessionEvent;
-    this.sessionVersion = Math.max(this.sessionVersion, event.metadata.sessionVersion);
+    // Lobby events carry lobby versions; the game session that replaces it restarts at its own.
+    this.sessionVersion =
+      event.type === 'LOBBY_STARTED'
+        ? event.metadata.sessionVersion
+        : Math.max(this.sessionVersion, event.metadata.sessionVersion);
     this.publicSubject.next(event);
   }
 

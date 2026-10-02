@@ -8,6 +8,10 @@ public enum GameTransitionError {
             "GAME_ROUND_ILLEGAL_TRANSITION", "The round transition is not allowed"),
     TITLE_MATCH_REQUIRED(
             "GAME_TITLE_MATCH_REQUIRED", "A correct title match is required"),
+    TITLE_ALREADY_FOUND(
+            "GAME_TITLE_ALREADY_FOUND", "The participant already found this title"),
+    UNKNOWN_PARTICIPANT(
+            "GAME_UNKNOWN_PARTICIPANT", "The participant is not part of this game"),
     ROUND_DEADLINE_NOT_REACHED(
             "GAME_ROUND_DEADLINE_NOT_REACHED", "The round deadline has not been reached"),
     ROUND_TIME_INVALID(

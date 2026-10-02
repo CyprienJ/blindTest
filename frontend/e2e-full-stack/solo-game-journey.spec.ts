@@ -103,6 +103,8 @@ test('completes the solo game journey: build a playlist and play a full game', a
       });
       await expect(page.getByLabel('Title *')).toHaveValue(FIXTURE_TITLE);
 
+      // Difficulty is required before the selection can be validated.
+      await page.getByRole('radio', { name: '3 stars' }).click();
       await page.getByRole('button', { name: '✓ Validate selection' }).click();
       await expect(page.getByRole('heading', { name: 'Preview the result' })).toBeVisible({
         timeout: 15_000,
@@ -173,7 +175,8 @@ test('completes the solo game journey: build a playlist and play a full game', a
     sessionId = ((await response.json()) as { sessionId: string }).sessionId;
 
     await expect(page).toHaveURL(new RegExp(`/game/${sessionId}$`));
-    await expect(page.getByRole('heading', { name: 'Setting up your game…' })).toBeVisible();
+    // The setup card can be replaced by the first round before it is observed.
+    await expect(page.getByLabel('Your answer')).toBeVisible({ timeout: 20_000 });
   });
 
   await test.step('answer every round correctly and finish the game', async () => {

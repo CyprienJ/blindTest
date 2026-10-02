@@ -26,7 +26,7 @@ class SessionSummaryOpenApiContractTest {
     }
 
     @Test
-    void documentsOwnerOnlyDurableSummaryAndSafeProjection() {
+    void documentsParticipantDurableSummaryAndSafeProjection() {
         Map<String, Object> get = map(map(paths().get("/sessions/{sessionId}/summary")).get("get"));
         Map<String, Object> responses = map(get.get("responses"));
         Map<String, Object> success = map(responses.get("200"));

@@ -10,29 +10,33 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 
 ## Next Ticket
 
-**[CAT-11 — Import tracks from uploaded audio files](roadmap/lot-3-catalogue.md#cat-11--import-tracks-from-uploaded-audio-files)**
+**[MP-07 — Handle disconnects, rejoin, and host departure](roadmap/lot-p2-multiplayer.md#mp-07--handle-disconnects-rejoin-and-host-departure)**
 
-Status: in progress. Inserted ahead of OPS-04 on 2026-09-29 because production
-YouTube imports are blocked by bot detection. On 2026-10-02 the product owner moved
-[MP-01 — Generalize the game domain to several participants](roadmap/lot-p2-multiplayer.md#mp-01--generalize-the-game-domain-to-several-participants)
-ahead of [OPS-04 — Manage production secrets](roadmap/lot-8-operations.md#ops-04--manage-production-secrets):
-it is the next ticket after CAT-11 (see the
-[execution sequence](roadmap/execution-sequence.md)).
+Status: ready. On 2026-10-02 the product owner moved
+[Lot P2 — Multiplayer and guests](roadmap/lot-p2-multiplayer.md) ahead of
+[OPS-04 — Manage production secrets](roadmap/lot-8-operations.md#ops-04--manage-production-secrets)
+(see the [execution sequence](roadmap/execution-sequence.md)).
+[MP-01](roadmap/lot-p2-multiplayer.md#mp-01--generalize-the-game-domain-to-several-participants),
+[MP-02](roadmap/lot-p2-multiplayer.md#mp-02--add-lobbies-with-join-codes),
+[MP-03](roadmap/lot-p2-multiplayer.md#mp-03--play-multiplayer-rounds-over-stomp),
+[MP-04](roadmap/lot-p2-multiplayer.md#mp-04--persist-multiplayer-history-and-summaries),
+[MP-05](roadmap/lot-p2-multiplayer.md#mp-05--build-the-create-join-and-lobby-screens), and
+[MP-06](roadmap/lot-p2-multiplayer.md#mp-06--show-multiplayer-state-in-the-game-room-and-end-screen)
+are complete: registered users can play multiplayer games end to end.
+
+[CAT-11 — Import tracks from uploaded audio files](roadmap/lot-3-catalogue.md#cat-11--import-tracks-from-uploaded-audio-files)
+awaits only one product-owner check: publish a track from a local audio file on the
+production VPS. Every automated check passes as of 2026-10-02. The 29 mocked
+Playwright failures recorded on 2026-09-29 no longer reproduce; only the known
+flaky focus test fails in full parallel runs. The full-stack "Validate selection"
+stall was in the specs, not in the product: difficulty became a required review
+field, and the admin catalogue, solo game, and failure-injection specs never chose
+one. They now pick a rating, and all eight full-stack specs pass.
 
 [FND-07 — Make registration invitation-only](roadmap/lot-0-foundation.md#fnd-07--make-registration-invitation-only)
 and [FND-08 — Let administrators manage accounts](roadmap/lot-0-foundation.md#fnd-08--let-administrators-manage-accounts)
 were completed on 2026-10-02 at the product owner's request without moving this
-pointer. While validating FND-07, the Docker full-stack run showed the admin catalogue,
-solo game, and mid-game failure-injection specs stalling at the import step's
-"Validate selection" button. Identical failures reproduce on unmodified `main`
-(`ac0554d`), so they belong to this CAT-11 follow-up rather than FND-07.
-
-Implementation, backend tests, lint, unit tests, and build pass (2026-09-29).
-Not yet done: the mocked Playwright suite has 29 failures that reproduce
-identically on unmodified `main` (views stop updating after mocked HTTP
-successes), so browser acceptance of the upload journey is blocked on that
-pre-existing issue; the Docker full-stack E2E run and a production upload on the
-VPS are still pending.
+pointer.
 
 Git history and source confirm UI-01 through UI-05 were implemented on 2026-09-02
 (`f8febc9`, `e9cac42`, `4548500`, `65ea8ec`, and `8228f4b`). UI-06 through UI-10

@@ -22,7 +22,8 @@ public record ActiveSessionSnapshot(
         long version,
         Instant createdAt,
         Instant updatedAt,
-        Instant expiresAt) {
+        Instant expiresAt,
+        long roundStartedVersion) {
 
     /** Defensively copies collections and enforces session/version/expiry invariants. */
     public ActiveSessionSnapshot {
@@ -45,11 +46,18 @@ public record ActiveSessionSnapshot(
                 participant -> participant.participantId().equals(ownerParticipantId))) {
             throw new IllegalArgumentException("owner must be an active participant");
         }
+        if (!participants.stream().map(SessionParticipant::participantId).toList().
+                equals(gameState.participants())) {
+            throw new IllegalArgumentException("participants must match game state");
+        }
         if (!configuration.equals(gameState.configuration())) {
             throw new IllegalArgumentException("configuration must match game state");
         }
         if (version < 0) {
             throw new IllegalArgumentException("version cannot be negative");
+        }
+        if (roundStartedVersion < 0 || roundStartedVersion > version) {
+            throw new IllegalArgumentException("roundStartedVersion must not exceed version");
         }
         if (updatedAt.isBefore(createdAt)) {
             throw new IllegalArgumentException("updatedAt cannot precede createdAt");
@@ -97,7 +105,23 @@ public record ActiveSessionSnapshot(
                 Math.addExact(version, 1),
                 createdAt,
                 nextUpdatedAt,
-                nextExpiresAt);
+                nextExpiresAt,
+                roundStartedVersion);
+    }
+
+    /** Returns whether more than one participant plays this session. */
+    public boolean isMultiplayer() {
+        return participants.size() > 1;
+    }
+
+    /**
+     * Marks this version as the start of the current round; multiplayer round commands sent
+     * from an earlier version belong to a previous round.
+     */
+    public ActiveSessionSnapshot markRoundStarted() {
+        return new ActiveSessionSnapshot(
+                sessionId, ownerParticipantId, participants, configuration, gameState,
+                discoveries, processedCommands, version, createdAt, updatedAt, expiresAt, version);
     }
 
     private static void requireUniqueParticipants(List<SessionParticipant> participants) {

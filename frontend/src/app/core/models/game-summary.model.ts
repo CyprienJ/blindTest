@@ -11,9 +11,22 @@ export interface GameSummaryRound {
   startedAt: string;
   revealedAt: string;
   completedAt: string;
+  /** Whether the reading participant found this title. */
+  titleFound: boolean;
 }
 
-/** Durable, refresh-safe owner projection returned by GET /sessions/{sessionId}/summary. */
+export interface GameSummaryStanding {
+  participantId: string;
+  displayName: string;
+  finalScore: number;
+  rank: number;
+  guest: boolean;
+}
+
+/**
+ * Durable, refresh-safe projection returned by GET /sessions/{sessionId}/summary to a
+ * participant. Scores, titles found, and round points are the reader's own.
+ */
 export interface GameSummary {
   sessionId: string;
   totalScore: number;
@@ -24,4 +37,7 @@ export interface GameSummary {
   startedAt: string;
   completedAt: string;
   rounds: GameSummaryRound[];
+  gameMode: 'SOLO' | 'MULTIPLAYER';
+  participantId: string;
+  standings: GameSummaryStanding[];
 }

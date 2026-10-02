@@ -3,9 +3,14 @@ package com.blindtest.config;
 import com.blindtest.infra.ProcessFactory;
 import com.blindtest.security.TokenGenerator;
 import com.blindtest.service.port.SessionIdentityGenerator;
+import com.blindtest.model.lobby.LobbyCode;
+import com.blindtest.service.port.LobbyCodeGenerator;
+import com.blindtest.store.InMemoryLobbyStore;
 import com.blindtest.store.InMemorySessionStore;
+import com.blindtest.store.LobbyStore;
 import com.blindtest.store.SessionStore;
 import java.time.Clock;
+import java.security.SecureRandom;
 import java.util.UUID;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,6 +49,25 @@ public class AppConfig {
     @Bean
     public SessionIdentityGenerator sessionIdentityGenerator() {
         return UUID::randomUUID;
+    }
+
+    /** Retains live multiplayer lobbies behind the replaceable store port. */
+    @Bean
+    public LobbyStore lobbyStore() {
+        return new InMemoryLobbyStore();
+    }
+
+    /** Draws join codes uniformly from the unambiguous lobby alphabet. */
+    @Bean
+    public LobbyCodeGenerator lobbyCodeGenerator() {
+        SecureRandom random = new SecureRandom();
+        return () -> {
+            StringBuilder code = new StringBuilder(LobbyCode.LENGTH);
+            for (int index = 0; index < LobbyCode.LENGTH; index++) {
+                code.append(LobbyCode.ALPHABET.charAt(random.nextInt(LobbyCode.ALPHABET.length())));
+            }
+            return new LobbyCode(code.toString());
+        };
     }
 
     /** Retains canonical active sessions behind the replaceable store port. */

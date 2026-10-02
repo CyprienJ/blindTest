@@ -56,15 +56,17 @@ public record RoundStateSnapshot(
             case PREPARING -> validatePreparing(
                     scoringWindow, playbackWindow, outcome, scoreState, revealedAt, completedAt);
             case PLAYING -> validatePlaying(
-                    scoringWindow, playbackWindow, outcome, scoreState, revealedAt, completedAt);
+                    scoringWindow, playbackWindow, outcome, revealedAt, completedAt);
             case REVEALED -> validateRevealed(
                     scoringWindow, playbackWindow, outcome, revealedAt, completedAt);
             case COMPLETED -> validateCompleted(
                     scoringWindow, playbackWindow, outcome, revealedAt, completedAt);
             default -> throw new IllegalStateException("Unknown round status");
         }
-        if (outcome.isPresent()
-                && (outcome.get() == RoundOutcome.TITLE_FOUND) != scoreState.titleAwarded()) {
+        // Several participants may find the title before a skip vote or timeout, so only a
+        // title-found reveal strictly requires an award.
+        if (outcome.filter(RoundOutcome.TITLE_FOUND::equals).isPresent()
+                && !scoreState.titleAwarded()) {
             throw new IllegalArgumentException("title outcome and points must agree");
         }
         if (completedAt.isPresent() && completedAt.get().isBefore(revealedAt.orElseThrow())) {
@@ -89,7 +91,7 @@ public record RoundStateSnapshot(
             Optional<Instant> revealedAt,
             Optional<Instant> completedAt) {
         require(scoringWindow.isEmpty() && playbackWindow.isEmpty()
-                && outcome.isEmpty() && !scoreState.titleAwarded());
+                && outcome.isEmpty() && scoreState.equals(RoundScoreState.unscored()));
         require(revealedAt.isEmpty() && completedAt.isEmpty());
     }
 
@@ -97,11 +99,9 @@ public record RoundStateSnapshot(
             Optional<RoundScoringWindow> scoringWindow,
             Optional<RoundPlaybackWindow> playbackWindow,
             Optional<RoundOutcome> outcome,
-            RoundScoreState scoreState,
             Optional<Instant> revealedAt,
             Optional<Instant> completedAt) {
-        require(scoringWindow.isPresent() && playbackWindow.isPresent()
-                && outcome.isEmpty() && !scoreState.titleAwarded());
+        require(scoringWindow.isPresent() && playbackWindow.isPresent() && outcome.isEmpty());
         require(revealedAt.isEmpty() && completedAt.isEmpty());
     }
 

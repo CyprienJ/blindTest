@@ -3,6 +3,7 @@ package com.blindtest.model.game;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /** Pure transition rules for one round; scheduling and transport remain external. */
 public final class RoundStateMachine {
@@ -33,14 +34,21 @@ public final class RoundStateMachine {
                 Optional.empty());
     }
 
-    /** Reveals an in-time title, or resolves timeout when the title arrives too late. */
-    public RoundStateSnapshot resolveTitle(
+    /**
+     * Awards one participant's in-time title, then reveals the round once every active
+     * participant has found it; a title arriving at or after the deadline resolves timeout.
+     */
+    public RoundStateSnapshot awardTitle(
             RoundStateSnapshot round,
+            GameParticipantId participantId,
             AnswerMatchResult match,
-            Instant acceptedAt) {
+            Instant acceptedAt,
+            Set<GameParticipantId> activeParticipants) {
         requireStatus(round, RoundStatus.PLAYING);
+        Objects.requireNonNull(participantId, "participantId is required");
         Objects.requireNonNull(match, "match is required");
         Objects.requireNonNull(acceptedAt, "acceptedAt is required");
+        Objects.requireNonNull(activeParticipants, "activeParticipants are required");
         if (match.matchedType().filter(type -> type == GameAnswerType.TITLE).isEmpty()) {
             throw failure(GameTransitionError.TITLE_MATCH_REQUIRED);
         }
@@ -53,26 +61,54 @@ public final class RoundStateMachine {
                     acceptedAt,
                     scoreCalculator.scoreTimeout(round.scoreState()).state());
         }
+        if (round.scoreState().titleAwarded(participantId)) {
+            throw failure(GameTransitionError.TITLE_ALREADY_FOUND);
+        }
         RoundScoreResult score = scoreCalculator.scoreAnswer(
-                match, acceptedAt, window, round.scoreState());
-        return reveal(
-                round, RoundOutcome.TITLE_FOUND, acceptedAt, score.state());
+                match, acceptedAt, window, participantId, round.scoreState());
+        return resolveIfComplete(withScoreState(round, score.state()), acceptedAt, activeParticipants);
     }
 
-    /** Reveals a playing round as skipped without changing its score. */
-    public RoundStateSnapshot skip(RoundStateSnapshot round, Instant skippedAt) {
+    /**
+     * Records one participant's skip vote and reveals the round as skipped once the active
+     * participants' votes reach {@link SkipVoteRule}; a vote at or after the deadline times out.
+     */
+    public RoundStateSnapshot voteSkip(
+            RoundStateSnapshot round,
+            GameParticipantId participantId,
+            Instant votedAt,
+            Set<GameParticipantId> activeParticipants) {
         requireStatus(round, RoundStatus.PLAYING);
-        Objects.requireNonNull(skippedAt, "skippedAt is required");
+        Objects.requireNonNull(participantId, "participantId is required");
+        Objects.requireNonNull(votedAt, "votedAt is required");
+        Objects.requireNonNull(activeParticipants, "activeParticipants are required");
         RoundScoringWindow window = round.scoringWindow().orElseThrow();
-        requireAtOrAfterStart(skippedAt, window);
-        RoundOutcome outcome = skippedAt.isBefore(window.deadline())
-                ? RoundOutcome.SKIPPED
-                : RoundOutcome.TIMEOUT;
-        return reveal(
-                round,
-                outcome,
-                skippedAt,
-                scoreCalculator.scoreSkip(round.scoreState()).state());
+        requireAtOrAfterStart(votedAt, window);
+        if (!votedAt.isBefore(window.deadline())) {
+            return reveal(
+                    round,
+                    RoundOutcome.TIMEOUT,
+                    votedAt,
+                    scoreCalculator.scoreTimeout(round.scoreState()).state());
+        }
+        RoundScoreState voted = scoreCalculator.scoreSkip(round.scoreState()).state().
+                withSkipVote(participantId);
+        return resolveIfComplete(withScoreState(round, voted), votedAt, activeParticipants);
+    }
+
+    /**
+     * Re-checks completion after the active participant set changed, without a command:
+     * reveals when every remaining participant found the title or the skip vote now passes.
+     */
+    public RoundStateSnapshot reevaluate(
+            RoundStateSnapshot round,
+            Instant evaluatedAt,
+            Set<GameParticipantId> activeParticipants) {
+        requireStatus(round, RoundStatus.PLAYING);
+        Objects.requireNonNull(evaluatedAt, "evaluatedAt is required");
+        Objects.requireNonNull(activeParticipants, "activeParticipants are required");
+        requireAtOrAfterStart(evaluatedAt, round.scoringWindow().orElseThrow());
+        return resolveIfComplete(round, evaluatedAt, activeParticipants);
     }
 
     /** Reveals a playing round as timed out only at or after its deadline. */
@@ -105,6 +141,33 @@ public final class RoundStateMachine {
                 round.scoreState(),
                 round.revealedAt(),
                 Optional.of(completedAt));
+    }
+
+    private RoundStateSnapshot resolveIfComplete(
+            RoundStateSnapshot round,
+            Instant at,
+            Set<GameParticipantId> activeParticipants) {
+        RoundScoreState state = round.scoreState();
+        if (!activeParticipants.isEmpty()
+                && activeParticipants.stream().allMatch(state::titleAwarded)) {
+            return reveal(round, RoundOutcome.TITLE_FOUND, at, state);
+        }
+        if (SkipVoteRule.passes(state, activeParticipants)) {
+            return reveal(round, RoundOutcome.SKIPPED, at, state);
+        }
+        return round;
+    }
+
+    private RoundStateSnapshot withScoreState(RoundStateSnapshot round, RoundScoreState state) {
+        return new RoundStateSnapshot(
+                round.track(),
+                round.status(),
+                round.scoringWindow(),
+                round.playbackWindow(),
+                round.outcome(),
+                state,
+                round.revealedAt(),
+                round.completedAt());
     }
 
     private RoundStateSnapshot reveal(

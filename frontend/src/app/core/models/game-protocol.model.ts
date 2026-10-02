@@ -83,9 +83,53 @@ export interface RoundRevealedPayload {
   streamingLinks: RevealStreamingLinks;
   /** Same-origin path of the track cover, when one is stored. */
   coverUrl: string | null;
+  /** Combined points of every participant; use `scores` for one player's result. */
   roundPoints: number;
   totalScore: number;
   transitionAt: string;
+  /** Every participant in join order. */
+  scores: ParticipantScore[];
+}
+
+/** One participant's round and running scores. */
+export interface ParticipantScore {
+  participantId: string;
+  displayName: string;
+  roundPoints: number;
+  totalScore: number;
+}
+
+/** One participant's final total, titles found, and shared rank, best first. */
+export interface ParticipantResult {
+  participantId: string;
+  displayName: string;
+  totalScore: number;
+  titlesFound: number;
+  rank: number;
+}
+
+export interface SkipVoteUpdatedPayload {
+  votes: number;
+  requiredVotes: number;
+}
+
+export interface LobbyMember {
+  participantId: string;
+  displayName: string;
+  ready: boolean;
+  host: boolean;
+  guest: boolean;
+}
+
+export interface LobbyUpdatedPayload {
+  code: string;
+  hostParticipantId: string;
+  participants: LobbyMember[];
+  canStart: boolean;
+}
+
+export interface LobbyStartedPayload {
+  totalRounds: number;
 }
 
 export interface ScoreUpdatedPayload {
@@ -100,6 +144,7 @@ export interface GameFinishedPayload {
   titlesFound: number;
   skippedRounds: number;
   timedOutRounds: number;
+  standings: ParticipantResult[];
 }
 
 export type PublicSessionEvent =
@@ -108,7 +153,10 @@ export type PublicSessionEvent =
   | PublicEvent<'ROUND_STARTED', RoundStartedPayload>
   | PublicEvent<'ROUND_REVEALED', RoundRevealedPayload>
   | PublicEvent<'SCORE_UPDATED', ScoreUpdatedPayload>
-  | PublicEvent<'GAME_FINISHED', GameFinishedPayload>;
+  | PublicEvent<'GAME_FINISHED', GameFinishedPayload>
+  | PublicEvent<'SKIP_VOTE_UPDATED', SkipVoteUpdatedPayload>
+  | PublicEvent<'LOBBY_UPDATED', LobbyUpdatedPayload>
+  | PublicEvent<'LOBBY_STARTED', LobbyStartedPayload>;
 
 interface PublicEvent<T extends string, P> {
   metadata: SessionEventMetadata;
@@ -145,7 +193,12 @@ export interface CurrentRoundProjection {
   streamingLinks: RevealStreamingLinks;
   coverUrl: string | null;
   advanceAt: string | null;
+  /** This player's points in the round. */
   roundPoints: number;
+  titleFound: boolean;
+  skipVoted: boolean;
+  skipVotes: number;
+  requiredSkipVotes: number;
 }
 
 export interface CurrentSnapshotPayload {
@@ -156,6 +209,7 @@ export interface CurrentSnapshotPayload {
   currentRound: CurrentRoundProjection | null;
   discoveredAnswerTypes: SecondaryAnswerType[];
   expiresAt: string;
+  scores: ParticipantScore[];
 }
 
 export interface GameErrorPayload {

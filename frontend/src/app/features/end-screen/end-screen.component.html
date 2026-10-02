@@ -25,6 +25,9 @@
             <h1>That's a wrap.</h1>
             <p class="muted">
               {{ summary.totalRounds }} tracks
+              @if (summary.gameMode === 'MULTIPLAYER') {
+                · {{ summary.standings.length }} players
+              }
               @if (durationLabel) {
                 · {{ durationLabel }}
               }
@@ -32,13 +35,47 @@
           </header>
 
           <section class="bt-card score-card" aria-label="Final score">
-            <p class="eyebrow">Total score</p>
+            <p class="eyebrow">
+              {{ summary.gameMode === 'MULTIPLAYER' ? 'Your score' : 'Total score' }}
+            </p>
             <p class="final-score mono">{{ summary.totalScore }}</p>
             <p class="muted">
               {{ summary.titlesFound }} found · {{ summary.skippedRounds }} skipped ·
               {{ summary.timedOutRounds }} timed out
             </p>
           </section>
+
+          @if (summary.gameMode === 'MULTIPLAYER' && summary.standings.length > 0) {
+            <section class="bt-card" aria-label="Final standings">
+              <h2 class="bt-h2 rounds-heading">Final standings</h2>
+              <table class="standings">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Player</th>
+                    <th scope="col" class="numeric">Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (standing of summary.standings; track standing.participantId) {
+                    <tr [class.me]="standing.participantId === summary.participantId">
+                      <td class="mono">{{ standing.rank }}</td>
+                      <td>
+                        {{ standing.displayName }}
+                        @if (standing.guest) {
+                          <span class="bt-chip guest-chip">guest</span>
+                        }
+                        @if (standing.participantId === summary.participantId) {
+                          <span class="muted">(you)</span>
+                        }
+                      </td>
+                      <td class="mono numeric">{{ standing.finalScore }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+          }
 
           <section class="bt-card" aria-label="Rounds played">
             <h2 class="bt-h2 rounds-heading">Rounds played</h2>
@@ -50,7 +87,10 @@
                     <strong>{{ round.title }}</strong>
                     <span class="round-artist">{{ round.artist }}</span>
                   </span>
-                  <span class="round-outcome" [class.is-found]="round.outcome === 'TITLE_FOUND'">
+                  <span
+                    class="round-outcome"
+                    [class.is-found]="round.titleFound ?? round.outcome === 'TITLE_FOUND'"
+                  >
                     {{ outcomeLabel(round.outcome) }}
                   </span>
                   <span class="round-response mono">{{ responseTimeLabel(round) }}</span>

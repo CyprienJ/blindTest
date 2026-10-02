@@ -96,6 +96,27 @@ class ActiveSessionSnapshotTest {
     }
 
     @Test
+    void rejectsParticipantsThatDifferFromTheGameState() {
+        ActiveSessionSnapshot valid = SessionTestFixtures.session();
+        SessionParticipant stranger = new SessionParticipant(
+                new GameParticipantId(UUID.fromString("20000000-0000-0000-0000-000000000099")),
+                Optional.empty(),
+                "Stranger");
+        List<SessionParticipant> extended = new ArrayList<>(valid.participants());
+        extended.add(stranger);
+
+        assertThatThrownBy(() -> SessionTestFixtures.copy(
+                        valid,
+                        valid.ownerParticipantId(),
+                        extended,
+                        valid.version(),
+                        valid.updatedAt(),
+                        valid.expiresAt())).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessage("participants must match game state");
+    }
+
+    @Test
     void expiryIsInclusiveAtTheAuthoritativeInstant() {
         ActiveSessionSnapshot session = SessionTestFixtures.session();
 

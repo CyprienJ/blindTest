@@ -2,10 +2,13 @@ package com.blindtest.websocket;
 
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionId;
+import com.blindtest.store.LobbyStore;
 import com.blindtest.store.SessionStore;
 import com.blindtest.websocket.protocol.SessionProtocol;
 import java.security.Principal;
 import java.time.Clock;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
@@ -17,7 +20,7 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.stereotype.Component;
 
-/** Authorizes gameplay commands and subscriptions against active session membership. */
+/** Authorizes gameplay commands and subscriptions against session or lobby membership. */
 @Component
 @RequiredArgsConstructor
 public class SessionDestinationAuthorizationInterceptor implements ChannelInterceptor {
@@ -25,6 +28,7 @@ public class SessionDestinationAuthorizationInterceptor implements ChannelInterc
     private static final String SESSION_PATH_MARKER = "/sessions";
 
     private final SessionStore sessionStore;
+    private final LobbyStore lobbyStore;
     private final Clock clock;
 
     @Override
@@ -41,17 +45,25 @@ public class SessionDestinationAuthorizationInterceptor implements ChannelInterc
 
         UUID sessionId = authorizedSessionId(accessor.getCommand(), destination);
         UUID accountId = authenticatedAccountId(accessor.getUser());
-        ActiveSessionSnapshot session = sessionStore.find(
-                new SessionId(sessionId), clock.instant()).orElseThrow(() ->
-                        denied("Session is unavailable or access is denied"));
-        boolean member = session.participants().stream().
-                anyMatch(participant -> participant.accountId().
-                        filter(accountId::equals).
-                        isPresent());
-        if (!member) {
+        if (!isSessionMember(new SessionId(sessionId), accountId)) {
             throw denied("Session is unavailable or access is denied");
         }
         return message;
+    }
+
+    /** Lobby members subscribe before the game session exists under the same ID. */
+    private boolean isSessionMember(SessionId sessionId, UUID accountId) {
+        Instant now = clock.instant();
+        Optional<ActiveSessionSnapshot> session = sessionStore.find(sessionId, now);
+        if (session.isPresent()) {
+            return session.get().participants().stream().
+                    anyMatch(participant -> participant.accountId().
+                            filter(accountId::equals).
+                            isPresent());
+        }
+        return lobbyStore.find(sessionId, now).
+                flatMap(lobby -> lobby.memberFor(accountId)).
+                isPresent();
     }
 
     private boolean isDestinationCommand(StompCommand command) {

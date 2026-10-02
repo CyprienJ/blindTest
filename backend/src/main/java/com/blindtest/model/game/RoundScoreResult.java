@@ -11,7 +11,7 @@ public record RoundScoreResult(int pointsAwarded, RoundScoreState state) {
         if (pointsAwarded < 0 || pointsAwarded > TitleScoreCalculator.MAXIMUM_TITLE_POINTS) {
             throw new IllegalArgumentException("pointsAwarded is outside the scoring range");
         }
-        if (pointsAwarded > 0 && state.totalPoints() != pointsAwarded) {
+        if (pointsAwarded > 0 && !state.titleAwarded()) {
             throw new IllegalArgumentException("a positive award must be retained in state");
         }
     }
@@ -30,7 +30,10 @@ public record RoundScoreResult(int pointsAwarded, RoundScoreState state) {
         return new RoundScoreResult(0, state);
     }
 
-    static RoundScoreResult titleAward(int points) {
-        return new RoundScoreResult(points, RoundScoreState.titleAwarded(points));
+    static RoundScoreResult titleAward(
+            RoundScoreState state,
+            GameParticipantId participantId,
+            int points) {
+        return new RoundScoreResult(points, state.withTitleAward(participantId, points));
     }
 }

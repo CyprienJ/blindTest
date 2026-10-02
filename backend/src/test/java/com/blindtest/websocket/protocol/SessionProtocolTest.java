@@ -214,7 +214,11 @@ class SessionProtocolTest {
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
-                0);
+                0,
+                false,
+                false,
+                0,
+                1);
         var snapshot = new PrivateSessionEventPayload.CurrentSnapshot(
                 GameStatus.PLAYING,
                 1,
@@ -222,7 +226,8 @@ class SessionProtocolTest {
                 900,
                 Optional.of(round),
                 List.of(GameAnswerType.ARTIST, GameAnswerType.ALBUM),
-                NOW.plusSeconds(600));
+                NOW.plusSeconds(600),
+                List.of());
 
         assertThat(snapshot.discoveredAnswerTypes()).
                 containsExactly(GameAnswerType.ARTIST, GameAnswerType.ALBUM);
@@ -233,7 +238,8 @@ class SessionProtocolTest {
                 900,
                 Optional.of(round),
                 List.of(GameAnswerType.TITLE),
-                NOW.plusSeconds(600))).
+                NOW.plusSeconds(600),
+                List.of())).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("secondary");
     }
@@ -251,7 +257,7 @@ class SessionProtocolTest {
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("deadline");
         assertThatThrownBy(() -> new PublicSessionEventPayload.GameFinished(
-                1000, 5, 2, 1, 1)).
+                1000, 5, 2, 1, 1, List.of())).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("inconsistent");
         assertThatThrownBy(() -> new PublicSessionEventPayload.RoundRevealed(
@@ -266,7 +272,8 @@ class SessionProtocolTest {
                 Optional.empty(),
                 800,
                 800,
-                NOW.plusSeconds(4))).
+                NOW.plusSeconds(4),
+                List.of())).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("composer");
         assertThatThrownBy(() -> new PublicSessionEventPayload.RoundRevealed(
@@ -281,7 +288,8 @@ class SessionProtocolTest {
                 Optional.of(" "),
                 800,
                 800,
-                NOW.plusSeconds(4))).
+                NOW.plusSeconds(4),
+                List.of())).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("coverUrl");
     }

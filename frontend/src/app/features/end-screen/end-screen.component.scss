@@ -188,3 +188,39 @@
     text-align: left;
   }
 }
+
+.standings {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.standings th,
+.standings td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.standings th {
+  color: var(--fg-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.standings .numeric {
+  text-align: right;
+}
+
+.standings tr.me td {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.guest-chip {
+  height: 18px;
+  margin-left: 6px;
+  font-size: 10px;
+}

@@ -4,7 +4,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/** Refresh-safe owner projection of one durably completed game. */
+/**
+ * Refresh-safe projection of one durably completed game from one participant's point of view:
+ * {@code totalScore}, {@code titlesFound}, and round points are the caller's own, while
+ * {@code skippedRounds} and {@code timedOutRounds} count round outcomes.
+ */
 public record CurrentGameSummaryResponse(
         UUID sessionId,
         int totalScore,
@@ -14,10 +18,14 @@ public record CurrentGameSummaryResponse(
         int timedOutRounds,
         Instant startedAt,
         Instant completedAt,
-        List<GameSummaryRoundResponse> rounds) {
+        List<GameSummaryRoundResponse> rounds,
+        String gameMode,
+        UUID participantId,
+        List<GameSummaryStandingResponse> standings) {
 
-    /** Defensively retains the authoritative round order. */
+    /** Defensively retains the authoritative round and ranking order. */
     public CurrentGameSummaryResponse {
         rounds = List.copyOf(rounds);
+        standings = List.copyOf(standings);
     }
 }

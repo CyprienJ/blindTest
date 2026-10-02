@@ -71,7 +71,7 @@ final class SessionTestFixtures {
                 version,
                 source.createdAt(),
                 updatedAt,
-                expiresAt);
+                expiresAt, 0);
     }
 
     static ActiveSessionSnapshot recreatedAt(
@@ -88,7 +88,7 @@ final class SessionTestFixtures {
                 0,
                 createdAt,
                 createdAt,
-                createdAt.plus(Duration.ofMinutes(30)));
+                createdAt.plus(Duration.ofMinutes(30)), 0);
     }
 
     private static ActiveSessionSnapshot session(
@@ -98,7 +98,9 @@ final class SessionTestFixtures {
                 new RequestedGameConfiguration(PLAYLIST_ID, 5, 30, Map.of()),
                 new PlaylistEligibilitySnapshot(PLAYLIST_ID, 5));
         GameStateSnapshot gameState = GameStateSnapshot.created(
-                configuration, new GameTrackSelection(tracks()));
+                configuration,
+                new GameTrackSelection(tracks()),
+                participants.stream().map(SessionParticipant::participantId).toList());
         return new ActiveSessionSnapshot(
                 new SessionId(UUID.fromString(
                         "10000000-0000-0000-0000-" + String.format("%012d", sessionSuffix))),
@@ -111,7 +113,7 @@ final class SessionTestFixtures {
                 0,
                 NOW,
                 NOW,
-                NOW.plus(Duration.ofMinutes(30)));
+                NOW.plus(Duration.ofMinutes(30)), 0);
     }
 
     private static List<GameTrackSnapshot> tracks() {

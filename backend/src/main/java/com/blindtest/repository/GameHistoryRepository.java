@@ -16,6 +16,18 @@ public interface GameHistoryRepository extends JpaRepository<GameHistoryEntity, 
     /** Supports idempotent completion persistence keyed by active session identity. */
     boolean existsBySessionId(UUID sessionId);
 
+    /** Finds a completed game only when the authenticated account took part in it. */
+    @Query("""
+            SELECT DISTINCT history
+            FROM GameHistoryEntity history
+            JOIN history.participants participant
+            WHERE history.sessionId = :sessionId
+              AND participant.user.id = :accountId
+            """)
+    Optional<GameHistoryEntity> findParticipatedBySessionIdAndAccountId(
+            @Param("sessionId") UUID sessionId,
+            @Param("accountId") UUID accountId);
+
     /** Finds a completed game only when the authenticated account is its snapshotted owner. */
     @Query("""
             SELECT DISTINCT history

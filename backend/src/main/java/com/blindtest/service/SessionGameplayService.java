@@ -5,6 +5,7 @@ import com.blindtest.model.game.AnswerMatchResult;
 import com.blindtest.model.game.AnswerMatcher;
 import com.blindtest.model.game.GameAnswerSnapshot;
 import com.blindtest.model.game.GameAnswerType;
+import com.blindtest.model.game.GameParticipantId;
 import com.blindtest.model.game.GameProgression;
 import com.blindtest.model.game.GameStateMachine;
 import com.blindtest.model.game.GameStateSnapshot;
@@ -19,6 +20,7 @@ import com.blindtest.model.game.RoundStatus;
 import com.blindtest.model.game.SecondaryDiscoveryOutcome;
 import com.blindtest.model.game.SecondaryDiscoveryResult;
 import com.blindtest.model.game.SecondaryDiscoveryTracker;
+import com.blindtest.model.game.SkipVoteRule;
 import com.blindtest.model.game.TitleScoreCalculator;
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionId;
@@ -49,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -57,6 +60,8 @@ import org.springframework.stereotype.Service;
 public class SessionGameplayService {
 
     static final Duration REVEAL_DURATION = Duration.ofSeconds(4);
+    /** Multiplayer rounds start slightly in the future so every client begins playback together. */
+    static final Duration MULTIPLAYER_ROUND_LEAD = Duration.ofMillis(1500);
     private static final int LOCK_STRIPES = 64;
 
     private final SessionStore sessionStore;
@@ -110,7 +115,8 @@ public class SessionGameplayService {
             if (participant == null) {
                 return false;
             }
-            var rateDecision = rateLimiter.checkSession(sessionId, expirationPolicy.instant());
+            var rateDecision = rateLimiter.checkSession(
+                    sessionId, expirationPolicy.instant(), session.participants().size());
             if (rateDecision.action()
                     == GameplayCommandRateLimiter.RateLimitAction.DROP_SILENTLY) {
                 return true;
@@ -143,7 +149,7 @@ public class SessionGameplayService {
             reject(session, participant, accountId, command, AnswerRejectionReason.DUPLICATE_COMMAND);
             return true;
         }
-        if (command.expectedSessionVersion() != session.version()) {
+        if (!isFresh(session, command)) {
             reject(
                     session,
                     participant,
@@ -277,16 +283,38 @@ public class SessionGameplayService {
             SessionCommand command,
             AnswerMatchResult match,
             Instant acceptedAt) {
+        if (currentRound(session).scoreState().titleAwarded(participant.participantId())) {
+            answerRejected(session, participant, accountId, command.commandId(),
+                    AnswerRejectionReason.ALREADY_FOUND);
+            return true;
+        }
         try {
-            GameStateSnapshot revealed = gameStateMachine.resolveTitle(
-                    session.gameState(), match, acceptedAt);
+            GameStateSnapshot awarded = gameStateMachine.awardTitle(
+                    session.gameState(),
+                    participant.participantId(),
+                    match,
+                    acceptedAt,
+                    activeParticipants(session));
             ActiveSessionSnapshot persisted = nextForCommand(
-                    session, revealed, command, acceptedAt);
+                    session, awarded, command, acceptedAt);
             if (!persist(session, persisted)) {
                 staleAfterConflict(session, participant, accountId, command);
                 return true;
             }
-            publishRevealAndSchedule(persisted);
+            if (persisted.isMultiplayer()) {
+                // Announces who found the title, never the answer itself.
+                publishPublic(
+                        persisted,
+                        PublicSessionEventType.SCORE_UPDATED,
+                        new PublicSessionEventPayload.ScoreUpdated(
+                                participant.participantId().value(),
+                                currentRound(persisted).scoreState().
+                                        pointsFor(participant.participantId()),
+                                persisted.gameState().totalScoreFor(participant.participantId())));
+            }
+            if (currentRound(persisted).status() == RoundStatus.REVEALED) {
+                publishRevealAndSchedule(persisted);
+            }
             return true;
         } catch (GameTransitionException exception) {
             invalidState(session, participant, accountId, command);
@@ -299,22 +327,32 @@ public class SessionGameplayService {
             SessionParticipant participant,
             UUID accountId,
             SessionCommand command) {
-        if (!isOwner(session, participant)) {
-            commandError(session, participant, accountId, command, "SESSION_OWNER_REQUIRED",
-                    "Only the session owner can skip the round.");
-            return true;
-        }
         try {
             Instant skippedAt = expirationPolicy.instant();
-            GameStateSnapshot revealed = gameStateMachine.skipRound(
-                    session.gameState(), skippedAt);
+            GameStateSnapshot voted = gameStateMachine.voteSkip(
+                    session.gameState(),
+                    participant.participantId(),
+                    skippedAt,
+                    activeParticipants(session));
             ActiveSessionSnapshot persisted = nextForCommand(
-                    session, revealed, command, skippedAt);
+                    session, voted, command, skippedAt);
             if (!persist(session, persisted)) {
                 staleAfterConflict(session, participant, accountId, command);
                 return true;
             }
-            publishRevealAndSchedule(persisted);
+            RoundStateSnapshot round = currentRound(persisted);
+            if (round.status() == RoundStatus.REVEALED) {
+                publishRevealAndSchedule(persisted);
+            } else {
+                Set<GameParticipantId> active = activeParticipants(persisted);
+                publishPublic(
+                        persisted,
+                        PublicSessionEventType.SKIP_VOTE_UPDATED,
+                        new PublicSessionEventPayload.SkipVoteUpdated(
+                                Math.toIntExact(active.stream().
+                                        filter(round.scoreState()::skipVoted).count()),
+                                SkipVoteRule.requiredVotes(active.size())));
+            }
             return true;
         } catch (GameTransitionException exception) {
             invalidState(session, participant, accountId, command);
@@ -359,7 +397,8 @@ public class SessionGameplayService {
         if (round == null || round.status() != RoundStatus.PREPARING) {
             return false;
         }
-        Instant startsAt = expirationPolicy.instant();
+        Instant now = expirationPolicy.instant();
+        Instant startsAt = session.isMultiplayer() ? now.plus(MULTIPLAYER_ROUND_LEAD) : now;
         Duration duration = Duration.ofSeconds(
                 session.configuration().maximumRoundDurationSeconds());
         RoundScoringWindow window = new RoundScoringWindow(startsAt.plus(duration), duration);
@@ -371,8 +410,9 @@ public class SessionGameplayService {
                 playing,
                 session.discoveries(),
                 session.processedCommands(),
-                startsAt,
-                expirationPolicy.expiresAt(playing.status(), startsAt));
+                now,
+                expirationPolicy.expiresAt(playing.status(), now)).
+                markRoundStarted();
         if (!persist(session, persisted)) {
             return false;
         }
@@ -444,7 +484,8 @@ public class SessionGameplayService {
                 session.gameState().currentRoundIndex(),
                 round.revealedAt().orElseThrow()));
         int totalScore = totalScore(session.gameState());
-        if (round.scoreState().titleAwarded()) {
+        // Multiplayer score changes were already announced as each participant found the title.
+        if (!session.isMultiplayer() && round.scoreState().titleAwarded()) {
             publishPublic(
                     session,
                     PublicSessionEventType.SCORE_UPDATED,
@@ -469,7 +510,8 @@ public class SessionGameplayService {
                         coverUrl(round),
                         round.scoreState().totalPoints(),
                         totalScore,
-                        advanceAt));
+                        advanceAt,
+                        participantScores(session)));
     }
 
     private boolean onAdvance(SessionId sessionId, int roundIndex, Instant revealedAt) {
@@ -520,7 +562,15 @@ public class SessionGameplayService {
                             summary.totalRounds(),
                             summary.titlesFound(),
                             summary.skippedRounds(),
-                            summary.timedOutRounds()));
+                            summary.timedOutRounds(),
+                            summary.standings().stream().
+                                    map(standing -> new PublicSessionEventPayload.ParticipantResult(
+                                            standing.participantId().value(),
+                                            displayName(session, standing.participantId()),
+                                            standing.totalScore(),
+                                            standing.titlesFound(),
+                                            standing.rank())).
+                                    toList()));
             scheduler.cancelSessionTasks(session.sessionId());
             rateLimiter.forget(session.sessionId());
             historyCompletionService.complete(session);
@@ -542,7 +592,8 @@ public class SessionGameplayService {
             UUID commandId) {
         GameStateSnapshot game = session.gameState();
         Optional<PrivateSessionEventPayload.CurrentRound> current = game.currentRound().
-                map(round -> currentRoundPayload(game.currentRoundIndex(), round));
+                map(round -> currentRoundPayload(
+                        session, participant, game.currentRoundIndex(), round));
         List<GameAnswerType> discoveries = session.discoveries().
                 projectFor(participant.participantId()).
                 discoveredTypes().stream().
@@ -558,15 +609,20 @@ public class SessionGameplayService {
                         game.status(),
                         game.currentRoundIndex(),
                         totalRounds(game),
-                        totalScore(game),
+                        game.totalScoreFor(participant.participantId()),
                         current,
                         discoveries,
-                        session.expiresAt()));
+                        session.expiresAt(),
+                        participantScores(session)));
     }
 
     private PrivateSessionEventPayload.CurrentRound currentRoundPayload(
+            ActiveSessionSnapshot session,
+            SessionParticipant participant,
             int roundIndex,
             RoundStateSnapshot round) {
+        GameParticipantId recipient = participant.participantId();
+        Set<GameParticipantId> active = activeParticipants(session);
         Optional<Instant> startsAt = round.scoringWindow().map(RoundScoringWindow::startsAt);
         Optional<Instant> deadline = round.scoringWindow().map(RoundScoringWindow::deadline);
         boolean revealed = round.status() == RoundStatus.REVEALED;
@@ -596,7 +652,11 @@ public class SessionGameplayService {
                 revealed ? round.track().streamingLinks().links() : Map.of(),
                 revealed ? coverUrl(round) : Optional.empty(),
                 advanceAt,
-                round.scoreState().totalPoints());
+                round.scoreState().pointsFor(recipient),
+                round.scoreState().titleAwarded(recipient),
+                round.scoreState().skipVoted(recipient),
+                Math.toIntExact(active.stream().filter(round.scoreState()::skipVoted).count()),
+                SkipVoteRule.requiredVotes(active.size()));
     }
 
     private static Optional<String> coverUrl(RoundStateSnapshot round) {
@@ -773,6 +833,48 @@ public class SessionGameplayService {
     private RoundStateSnapshot playingRound(ActiveSessionSnapshot session) {
         RoundStateSnapshot round = currentRound(session);
         return round != null && round.status() == RoundStatus.PLAYING ? round : null;
+    }
+
+    /**
+     * Solo commands must name the current version. Multiplayer answers and skip votes only need
+     * to come from the current round, since other players' commands advance the version.
+     */
+    private boolean isFresh(ActiveSessionSnapshot session, SessionCommand command) {
+        long expected = command.expectedSessionVersion();
+        if (expected == session.version()) {
+            return true;
+        }
+        boolean roundCommand = command.type() == SessionCommandType.SUBMIT_ANSWER
+                || command.type() == SessionCommandType.SKIP_ROUND;
+        return session.isMultiplayer() && roundCommand
+                && expected >= session.roundStartedVersion() && expected < session.version();
+    }
+
+    private List<PublicSessionEventPayload.ParticipantScore> participantScores(
+            ActiveSessionSnapshot session) {
+        GameStateSnapshot game = session.gameState();
+        return session.participants().stream().
+                map(member -> new PublicSessionEventPayload.ParticipantScore(
+                        member.participantId().value(),
+                        member.displayName(),
+                        game.currentRound().
+                                map(round -> round.scoreState().pointsFor(member.participantId())).
+                                orElse(0),
+                        game.totalScoreFor(member.participantId()))).
+                toList();
+    }
+
+    private String displayName(ActiveSessionSnapshot session, GameParticipantId participantId) {
+        return session.participants().stream().
+                filter(member -> member.participantId().equals(participantId)).
+                map(SessionParticipant::displayName).
+                findFirst().
+                orElseThrow();
+    }
+
+    /** Every participant counts as connected until presence tracking exists (MP-07). */
+    private Set<GameParticipantId> activeParticipants(ActiveSessionSnapshot session) {
+        return Set.copyOf(session.gameState().participants());
     }
 
     private RoundStateSnapshot currentRound(ActiveSessionSnapshot session) {

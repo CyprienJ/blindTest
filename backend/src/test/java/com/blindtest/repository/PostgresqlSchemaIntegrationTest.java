@@ -96,7 +96,7 @@ class PostgresqlSchemaIntegrationTest {
                 Integer.class);
 
         assertThat(installedRanks).containsExactly(
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22);
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
     }
 
     @Test
@@ -137,7 +137,7 @@ class PostgresqlSchemaIntegrationTest {
                 SELECT installed_rank FROM media03_existing_schema.flyway_schema_history
                 WHERE success AND version IS NOT NULL ORDER BY installed_rank
                 """, Integer.class)).containsExactly(
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22);
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
     }
 
     @Test
@@ -259,7 +259,7 @@ class PostgresqlSchemaIntegrationTest {
                         game_history_id, round_index, title_snapshot, artist_snapshot,
                         answer_snapshot_version, excerpt_start_seconds, outcome, points,
                         scoring_rule_version, started_at, deadline, revealed_at, completed_at
-                    ) VALUES (?, 0, 'Title', 'Artist', 'answers-v1', 0, 'TIMEOUT', 100,
+                    ) VALUES (?, 0, 'Title', 'Artist', 'answers-v1', 0, 'TITLE_FOUND', 50,
                         'title-linear-v1', ?, ?, ?, ?)
                     """, historyId, completedAt.minusSeconds(30), completedAt,
                     completedAt, completedAt)).

@@ -93,6 +93,8 @@ test('completes the admin catalogue journey: import, publish, and build a playli
   });
 
   await test.step('validate the selection and publish', async () => {
+    // Difficulty is required before the selection can be validated.
+    await page.getByRole('radio', { name: '3 stars' }).click();
     await page.getByRole('button', { name: '✓ Validate selection' }).click();
     await expect(page.getByRole('heading', { name: 'Preview the result' })).toBeVisible({
       timeout: 15_000,

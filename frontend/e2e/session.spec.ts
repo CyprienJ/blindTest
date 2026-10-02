@@ -11,7 +11,7 @@ test.describe('authentication session', () => {
     await page.goto('/lobby');
 
     await expect(page).toHaveURL(/\/lobby\/join$/);
-    await expect(page.getByText('JoinSession works')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Join a session' })).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => localStorage.getItem('access_token')))
       .toBe('refreshed-access-token');

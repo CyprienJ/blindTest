@@ -2,11 +2,35 @@
   <main class="session-page">
     <div class="page-heading">
       <div>
-        <span class="eyebrow">Solo blindtest</span>
+        <span class="eyebrow">{{
+          mode === 'solo' ? 'Solo blindtest' : 'Multiplayer blindtest'
+        }}</span>
         <h1>Configure a new game</h1>
         <p>Choose a public playlist, the number of rounds and the maximum answer time.</p>
       </div>
-      <a class="bt-btn bt-btn-ghost" routerLink="/lobby/join">Join instead</a>
+      <div class="heading-actions">
+        <div class="mode-switch" role="radiogroup" aria-label="Game mode">
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="mode === 'solo'"
+            [class.selected]="mode === 'solo'"
+            (click)="setMode('solo')"
+          >
+            Solo
+          </button>
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="mode === 'multiplayer'"
+            [class.selected]="mode === 'multiplayer'"
+            (click)="setMode('multiplayer')"
+          >
+            With friends
+          </button>
+        </div>
+        <a class="bt-btn bt-btn-ghost" routerLink="/lobby/join">Join instead</a>
+      </div>
     </div>
 
     @if (errorMessage) {
@@ -222,7 +246,13 @@
           </div>
           <div>
             <dt>Mode</dt>
-            <dd>Solo · title answer</dd>
+            <dd>
+              {{
+                mode === 'solo'
+                  ? 'Solo · title answer'
+                  : 'Up to 10 players · everyone who finds scores'
+              }}
+            </dd>
           </div>
         </dl>
 
@@ -238,7 +268,11 @@
           "
           (click)="createSession()"
         >
-          {{ submitting ? 'Creating game…' : 'Create session →' }}
+          @if (mode === 'solo') {
+            {{ submitting ? 'Creating game…' : 'Create session →' }}
+          } @else {
+            {{ submitting ? 'Opening lobby…' : 'Open lobby →' }}
+          }
         </button>
       </aside>
     </div>

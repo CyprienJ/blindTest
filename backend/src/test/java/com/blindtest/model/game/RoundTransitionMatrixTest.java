@@ -1,5 +1,7 @@
 package com.blindtest.model.game;
 
+import static com.blindtest.model.game.GameTestParticipants.SOLO;
+import static com.blindtest.model.game.GameTestParticipants.SOLO_ACTIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -48,7 +50,7 @@ class RoundTransitionMatrixTest {
         if (status == RoundStatus.PLAYING) {
             return playing;
         }
-        RoundStateSnapshot revealed = machine.skip(playing, ROUND_START.plusSeconds(1));
+        RoundStateSnapshot revealed = machine.voteSkip(playing, SOLO, ROUND_START.plusSeconds(1), SOLO_ACTIVE);
         if (status == RoundStatus.REVEALED) {
             return revealed;
         }
@@ -71,16 +73,18 @@ class RoundTransitionMatrixTest {
         TITLE(RoundStatus.PLAYING, RoundStatus.REVEALED) {
             @Override
             RoundStateSnapshot apply(RoundStateMachine machine, RoundStateSnapshot source) {
-                return machine.resolveTitle(
+                return machine.awardTitle(
                         source,
+                        SOLO,
                         AnswerMatchResult.matched(GameAnswerType.TITLE),
-                        ROUND_START.plusSeconds(1));
+                        ROUND_START.plusSeconds(1),
+                        SOLO_ACTIVE);
             }
         },
         SKIP(RoundStatus.PLAYING, RoundStatus.REVEALED) {
             @Override
             RoundStateSnapshot apply(RoundStateMachine machine, RoundStateSnapshot source) {
-                return machine.skip(source, ROUND_START.plusSeconds(1));
+                return machine.voteSkip(source, SOLO, ROUND_START.plusSeconds(1), SOLO_ACTIVE);
             }
         },
         TIMEOUT(RoundStatus.PLAYING, RoundStatus.REVEALED) {

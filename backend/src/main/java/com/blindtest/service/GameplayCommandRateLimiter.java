@@ -26,12 +26,23 @@ public class GameplayCommandRateLimiter {
         this.metrics = metrics;
     }
 
-    /** Applies the bounded per-session command budget before any command-specific work. */
+    /** Applies the bounded one-player session command budget. */
     public RateLimitDecision checkSession(SessionId sessionId, Instant now) {
+        return checkSession(sessionId, now, 1);
+    }
+
+    /**
+     * Applies the per-session command budget, scaled by participant count so one player's
+     * share stays constant, before any command-specific work.
+     */
+    public RateLimitDecision checkSession(SessionId sessionId, Instant now, int participants) {
         Objects.requireNonNull(sessionId, "sessionId is required");
         Objects.requireNonNull(now, "now is required");
+        if (participants < 1) {
+            throw new IllegalArgumentException("participants must be positive");
+        }
         return sessions.computeIfAbsent(sessionId, ignored -> new SessionRateState()).
-                checkSession(now, metrics);
+                checkSession(now, MAXIMUM_COMMANDS_PER_SESSION_WINDOW * participants, metrics);
     }
 
     /** Applies the short cooldown before answer normalization and matching. */
@@ -101,6 +112,7 @@ public class GameplayCommandRateLimiter {
 
         synchronized RateLimitDecision checkSession(
                 Instant now,
+                int maximumCommands,
                 GameplayRateLimitMetrics metrics) {
             if (commandWindowStartedAt == null
                     || now.isBefore(commandWindowStartedAt)
@@ -110,7 +122,7 @@ public class GameplayCommandRateLimiter {
                 sessionFeedbackSent = false;
             }
             commandsInWindow++;
-            if (commandsInWindow <= MAXIMUM_COMMANDS_PER_SESSION_WINDOW) {
+            if (commandsInWindow <= maximumCommands) {
                 return RateLimitDecision.allow();
             }
             metrics.recordSessionCommandRejected();

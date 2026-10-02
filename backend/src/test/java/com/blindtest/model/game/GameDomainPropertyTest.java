@@ -1,5 +1,6 @@
 package com.blindtest.model.game;
 
+import static com.blindtest.model.game.GameTestParticipants.SOLO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
@@ -33,6 +34,7 @@ class GameDomainPropertyTest {
                         AnswerMatchResult.matched(GameAnswerType.TITLE),
                         window.startsAt().plusMillis(elapsedMillis),
                         window,
+                        SOLO,
                         RoundScoreState.unscored()).pointsAwarded();
                 assertThat(score).isBetween(
                         TitleScoreCalculator.MINIMUM_TITLE_POINTS,
@@ -44,6 +46,7 @@ class GameDomainPropertyTest {
                             AnswerMatchResult.matched(GameAnswerType.TITLE),
                             DEADLINE,
                             window,
+                            SOLO,
                             RoundScoreState.unscored()).pointsAwarded()).
                     isZero();
         }

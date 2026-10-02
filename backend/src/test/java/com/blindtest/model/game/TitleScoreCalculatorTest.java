@@ -1,5 +1,6 @@
 package com.blindtest.model.game;
 
+import static com.blindtest.model.game.GameTestParticipants.SOLO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -29,7 +30,7 @@ class TitleScoreCalculatorTest {
             Instant acceptedAt,
             int expectedPoints) {
         RoundScoreResult result = calculator.scoreAnswer(
-                TITLE_MATCH, acceptedAt, WINDOW, RoundScoreState.unscored());
+                TITLE_MATCH, acceptedAt, WINDOW, SOLO, RoundScoreState.unscored());
 
         assertThat(result.pointsAwarded()).as(scenario).isEqualTo(expectedPoints);
         assertThat(result.state().totalPoints()).isEqualTo(expectedPoints);
@@ -42,6 +43,7 @@ class TitleScoreCalculatorTest {
                 TITLE_MATCH,
                 WINDOW.startsAt().minusSeconds(30),
                 WINDOW,
+                SOLO,
                 RoundScoreState.unscored());
 
         assertThat(result.pointsAwarded()).isEqualTo(1000);
@@ -56,6 +58,7 @@ class TitleScoreCalculatorTest {
                 TITLE_MATCH,
                 DEADLINE.minusNanos(1001),
                 nanosecondWindow,
+                SOLO,
                 RoundScoreState.unscored());
 
         assertThat(result.pointsAwarded()).isEqualTo(501);
@@ -67,6 +70,7 @@ class TitleScoreCalculatorTest {
                 TITLE_MATCH,
                 DEADLINE.minusNanos(1),
                 WINDOW,
+                SOLO,
                 RoundScoreState.unscored());
 
         assertThat(result.pointsAwarded()).isEqualTo(100);
@@ -77,9 +81,9 @@ class TitleScoreCalculatorTest {
         RoundScoreState initial = RoundScoreState.unscored();
 
         RoundScoreResult atDeadline =
-                calculator.scoreAnswer(TITLE_MATCH, DEADLINE, WINDOW, initial);
+                calculator.scoreAnswer(TITLE_MATCH, DEADLINE, WINDOW, SOLO, initial);
         RoundScoreResult afterDeadline =
-                calculator.scoreAnswer(TITLE_MATCH, DEADLINE.plusNanos(1), WINDOW, initial);
+                calculator.scoreAnswer(TITLE_MATCH, DEADLINE.plusNanos(1), WINDOW, SOLO, initial);
 
         assertThat(atDeadline).isEqualTo(new RoundScoreResult(0, initial));
         assertThat(afterDeadline).isEqualTo(new RoundScoreResult(0, initial));
@@ -94,6 +98,7 @@ class TitleScoreCalculatorTest {
                     AnswerMatchResult.matched(secondary),
                     WINDOW.startsAt(),
                     WINDOW,
+                    SOLO,
                     RoundScoreState.unscored());
             assertThat(result.pointsAwarded()).as(secondary.name()).isZero();
             assertThat(result.state().titleAwarded()).isFalse();
@@ -103,6 +108,7 @@ class TitleScoreCalculatorTest {
                 AnswerMatchResult.noMatch(),
                 WINDOW.startsAt(),
                 WINDOW,
+                SOLO,
                 RoundScoreState.unscored());
         assertThat(rejected.pointsAwarded()).isZero();
     }
@@ -113,12 +119,14 @@ class TitleScoreCalculatorTest {
                 TITLE_MATCH,
                 WINDOW.startsAt().plusSeconds(15),
                 WINDOW,
+                SOLO,
                 RoundScoreState.unscored());
 
         RoundScoreResult duplicate = calculator.scoreAnswer(
                 TITLE_MATCH,
                 WINDOW.startsAt().plusSeconds(20),
                 WINDOW,
+                SOLO,
                 first.state());
 
         assertThat(first.pointsAwarded()).isEqualTo(750);
@@ -129,7 +137,7 @@ class TitleScoreCalculatorTest {
 
     @Test
     void skipAndTimeoutAlwaysAwardZeroAndPreserveExistingState() {
-        RoundScoreState awarded = RoundScoreState.titleAwarded(640);
+        RoundScoreState awarded = RoundScoreState.unscored().withTitleAward(SOLO, 640);
 
         RoundScoreResult skip = calculator.scoreSkip(awarded);
         RoundScoreResult timeout = calculator.scoreTimeout(awarded);
@@ -149,6 +157,7 @@ class TitleScoreCalculatorTest {
                 TITLE_MATCH,
                 DEADLINE.minus(thousandYears.dividedBy(2)),
                 longWindow,
+                SOLO,
                 RoundScoreState.unscored());
 
         assertThatThrownBy(thousandYears::toNanos).isInstanceOf(ArithmeticException.class);
@@ -158,7 +167,7 @@ class TitleScoreCalculatorTest {
     @Test
     void stateAndResultsExposeTheStableScoringRuleVersion() {
         RoundScoreResult result = calculator.scoreAnswer(
-                TITLE_MATCH, WINDOW.startsAt(), WINDOW, RoundScoreState.unscored());
+                TITLE_MATCH, WINDOW.startsAt(), WINDOW, SOLO, RoundScoreState.unscored());
 
         assertThat(TitleScoreCalculator.SCORING_RULE_VERSION).isEqualTo("title-linear-v1");
         assertThat(result.scoringRuleVersion()).isEqualTo("title-linear-v1");
@@ -170,7 +179,7 @@ class TitleScoreCalculatorTest {
         assertThatThrownBy(() -> new RoundScoringWindow(DEADLINE, Duration.ZERO)).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessage("configuredDuration must be positive");
-        assertThatThrownBy(() -> RoundScoreState.titleAwarded(99)).
+        assertThatThrownBy(() -> RoundScoreState.unscored().withTitleAward(SOLO, 99)).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessage("awardedTitlePoints is outside the scoring range");
         assertThatThrownBy(() -> new RoundScoreResult(100, RoundScoreState.unscored())).
@@ -181,11 +190,11 @@ class TitleScoreCalculatorTest {
     @Test
     void rejectsMissingScoringInputs() {
         assertThatThrownBy(() -> calculator.scoreAnswer(
-                        null, WINDOW.startsAt(), WINDOW, RoundScoreState.unscored())).
+                        null, WINDOW.startsAt(), WINDOW, SOLO, RoundScoreState.unscored())).
                 isInstanceOf(NullPointerException.class).
                 hasMessage("match is required");
         assertThatThrownBy(() -> calculator.scoreAnswer(
-                        TITLE_MATCH, null, WINDOW, RoundScoreState.unscored())).
+                        TITLE_MATCH, null, WINDOW, SOLO, RoundScoreState.unscored())).
                 isInstanceOf(NullPointerException.class).
                 hasMessage("acceptedAt is required");
         assertThatThrownBy(() -> calculator.scoreSkip(null)).

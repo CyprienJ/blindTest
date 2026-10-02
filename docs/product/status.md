@@ -17,7 +17,7 @@ configuration; full-stack browser acceptance remains separate.
 | Imports and media | Bounded audio-file uploads and best-effort YouTube imports, waveform generation, private MinIO, signed URLs, deletion outbox | Import progress/polling, waveform excerpt selection, administrator preview |
 | Solo configuration | Validated creation, randomized immutable track snapshots | Playlist/count/duration controls, REST creation, navigation to game |
 | Solo gameplay | STOMP authorization, state machines, matching, scores, timers, recovery | Game room, answer/skip actions, STOMP client, round audio, basic finish state |
-| Completed games | Durable snapshots and owner summary endpoint | Refresh-safe end-screen route rendering the durable summary |
+| Completed games | Durable snapshots of every participant and a per-participant summary endpoint | Refresh-safe end-screen route rendering the durable summary |
 
 Source entry points: [backend controllers](../../backend/src/main/java/com/blindtest/controller),
 [frontend routes](../../frontend/src/app/app.routes.ts), and
@@ -27,13 +27,21 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
 
 - Recovery uses the active session retained in browser `sessionStorage`; an
   unknown session ID sends the user back to configuration.
-- Lobby joining/room, profile/history browsing, friends/requests, and several
-  extracted gameplay widgets remain scaffolds.
+- Profile/history browsing and friends/requests remain scaffolds, as does the
+  unused `player-list` widget (the multiplayer scoreboard shows who found each title).
 - A deleted or demoted account keeps its current access token for up to 15
   minutes; account changes are not audited. See
   [ADR-0018](../adr/0018-administrator-account-management.md).
-- Backend multiplayer joining, guest tokens, social APIs, profile management, and
-  general history browsing are absent.
+- The game domain supports up to ten participants with per-participant scores,
+  skip votes, and ranked standings (MP-01), and the backend opens lobbies that
+  registered users join by code and the host starts (MP-02), and plays their rounds
+  over STOMP with per-player scores and skip votes (MP-03), and stores every
+  player's result in history (MP-04). The browser creates, joins, and runs lobbies
+  (MP-05) and plays them with a live scoreboard and ranked end screen (MP-06), and every member counts as connected until presence
+  tracking (MP-07). Guest tokens, social APIs, profile management, and general
+  history browsing are absent.
+- A member who leaves or is kicked from a lobby keeps any existing STOMP
+  subscription to its public topic until they disconnect.
 - Restarting the backend loses active games; completed history is durable.
 - Administrator invitations are delivered only by email, and Resend failures are
   only logged. The admin page cannot show or copy an invitation link, so an

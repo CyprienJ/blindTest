@@ -39,7 +39,7 @@ and three beyond 20. Read the matcher for tier ordering and token-boundary detai
 
 ## Round outcomes
 
-- A correct title ends the round and awards points once.
+- A correct title ends the solo round and awards points once.
 - Artist, composer, and album matches are private discoveries. They award no
   points, do not end the round, and are acknowledged only once per field/player.
 - Wrong guesses do not deduct points.
@@ -61,6 +61,19 @@ Remaining time is clamped to the configured duration. Timing is authoritative
 server time, and calculation uses exact integer arithmetic. At or after the
 deadline a title submission earns zero. A repeated title award cannot add points.
 For example, a title accepted halfway through a 30-second round earns 500 points.
+
+## Several participants
+
+The backend applies the multiplayer rules of
+[ADR-0019](../adr/0019-multiplayer-session-rules.md) to games started from a lobby;
+the browser screens are still in progress ([Lot P2](../roadmap/lot-p2-multiplayer.md)). Every
+participant who finds the title scores on the curve above, at most once per round. A
+round is revealed when every connected participant found the title, when skip votes
+reach 60% of connected participants rounded up, or at the deadline. Final standings
+rank by total score, and equal scores share a rank (1, 1, 3). A solo game is the
+one-participant case, so its single skip vote reveals the round at once.
+Multiplayer rounds begin 1.5 seconds after the server starts them so every
+player's audio starts together, and only the host can advance a reveal early.
 
 ## Audio excerpts
 

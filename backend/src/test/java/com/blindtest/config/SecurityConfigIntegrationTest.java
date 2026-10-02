@@ -25,6 +25,7 @@ import com.blindtest.service.RegistrationService;
 import com.blindtest.service.CoverSuggestionService;
 import com.blindtest.service.SessionGameplayService;
 import com.blindtest.service.TrackCoverService;
+import com.blindtest.service.LobbyService;
 import com.blindtest.service.SoloSessionService;
 import com.blindtest.service.TrackAnswerAliasService;
 import java.util.UUID;
@@ -97,6 +98,9 @@ class SecurityConfigIntegrationTest {
     private SoloSessionService soloSessionService;
 
     @MockBean
+    private LobbyService lobbyService;
+
+    @MockBean
     private GameHistorySummaryService gameHistorySummaryService;
 
     @MockBean
@@ -113,6 +117,17 @@ class SecurityConfigIntegrationTest {
         mockMvc.perform(get("/api/sessions/{sessionId}/summary", UUID.randomUUID())).
                 andExpect(status().isUnauthorized()).
                 andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    void lobbyRoutesRequireAuthentication() throws Exception {
+        mockMvc.perform(post("/api/lobbies")).
+                andExpect(status().isUnauthorized()).
+                andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+        mockMvc.perform(get("/api/lobbies/ABCDEF")).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/lobbies/ABCDEF/participants")).
+                andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/lobbies/ABCDEF/start")).andExpect(status().isUnauthorized());
     }
 
     @Test

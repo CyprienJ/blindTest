@@ -17,7 +17,7 @@ Completed, in this order:
 
 Remaining, re-sequenced on 2026-10-02:
 
-11. CAT-11 (in progress);
+11. CAT-11 (validated; awaiting a production upload by the product owner);
 12. [Lot P2 — Multiplayer and guests](lot-p2-multiplayer.md), MP-01 through MP-10;
 13. TEST-06, then OPS-04 through OPS-09 (Lot 8);
 14. Lot 9 without REL-01: REL-02 acceptance, REL-04 recovery rehearsal into an

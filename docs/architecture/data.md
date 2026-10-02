@@ -50,8 +50,12 @@ difficulty levels and unrated-track inclusion; rounds record the track difficult
 excerpt offset, and window length. Duplicate completion is idempotent;
 transient failures are retried before active state is released.
 
-The owner summary endpoint returns ordered round and score data without raw
-guesses, aliases, media object identifiers, or provider URLs. General history
+Every participant is stored with a final score and shared rank, the host as
+owner. Multiplayer games (`game_mode = MULTIPLAYER`) also store one
+`game_history_round_results` row per participant and round; solo rounds keep their
+single `points` value (V23). The summary endpoint returns each registered
+participant's own view, with ranked standings, without raw guesses, aliases, media
+object identifiers, or provider URLs. General history
 browsing is deferred. See [session internals](../backend/sessions.md).
 
 ## Schema changes and verification

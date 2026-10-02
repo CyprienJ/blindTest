@@ -33,9 +33,11 @@ clicks while pending and clears local state even when the logout request fails.
 |---|---|
 | Public/auth | Home, login, invitation-only registration/Turnstile, verification, password recovery/reset |
 | Authenticated home | Player actions and role-aware administration navigation |
-| `/lobby/create` | Public playlist selection, ordered preview, limits, REST session creation |
-| `/game/:sessionId` | Game state, answer/skip controls, score, audio, reconnect and basic finish view |
-| `/end-screen/:sessionId` | Refresh-safe durable summary: score, per-round outcomes, replay action |
+| `/lobby/create` | Solo or "With friends" mode, public playlist selection, ordered preview, limits, REST session or lobby creation |
+| `/lobby/join` | Six-cell join code (paste, `?code=` prefill, alphabet filtering) and join errors |
+| `/lobby/:code` | Live lobby: code copy, players with host/ready markers, ready toggle, host kick and start, leave |
+| `/game/:sessionId` | Game state, answer/skip controls, score, audio, reconnect and finish view; in multiplayer a live scoreboard, skip-vote progress, host-only early advance, and final standings |
+| `/end-screen/:sessionId` | Refresh-safe durable summary: the reader's score, per-round outcomes, multiplayer standings, replay action |
 | Administration | Track catalogue (sortable by category or date added, streaming-link column), import/review/excerpt workflow, playlist CRUD and ordering, Users page (sortable accounts with edit/delete, invitations) |
 | Other feature routes | Several remain placeholders; see [current status](../product/status.md) |
 
@@ -45,6 +47,9 @@ clicks while pending and clears local state even when the logout request fails.
 interceptor attaches authorization and participates in refresh recovery. Guards
 protect navigation but cannot replace backend authorization.
 
+`LobbyService` calls the `/api/lobbies` endpoints; the lobby room reuses
+`GameSocketService` on the lobby's session ID for `LOBBY_UPDATED` and
+`LOBBY_STARTED`, then disconnects so the game room reconnects at version 0.
 `GameSessionService` calls the session REST endpoint and keeps the current session
 in memory and `sessionStorage`. `GameSocketService` handles STOMP connection,
 commands, event streams, and snapshot recovery. `AudioPlaybackService` owns the

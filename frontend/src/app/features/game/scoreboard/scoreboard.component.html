@@ -1,0 +1,38 @@
+<section class="scoreboard" aria-labelledby="scoreboard-title">
+  <header>
+    <h2 id="scoreboard-title" class="bt-h2">Scoreboard</h2>
+    <span class="bt-chip live">LIVE</span>
+  </header>
+  <ol class="rows">
+    @for (player of ranked; track player.participantId) {
+      <li
+        class="row"
+        [class.found]="found.has(player.participantId)"
+        [class.me]="player.participantId === meId"
+      >
+        <span class="rank" aria-label="Rank">{{ player.rank }}</span>
+        <span class="avatar" aria-hidden="true">{{ initials(player.displayName) }}</span>
+        <span class="who">
+          <span class="name">
+            {{ player.displayName }}
+            @if (player.participantId === hostId) {
+              <span class="host" aria-label="host">★</span>
+            }
+            @if (player.participantId === meId) {
+              <span class="you">(you)</span>
+            }
+          </span>
+          <span class="mono points">
+            {{ player.totalScore }} pts
+            @if (player.roundPoints > 0) {
+              <span class="delta">+{{ player.roundPoints }}</span>
+            }
+          </span>
+        </span>
+        @if (found.has(player.participantId)) {
+          <span class="check" aria-label="found the title">✓</span>
+        }
+      </li>
+    }
+  </ol>
+</section>

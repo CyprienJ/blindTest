@@ -1,0 +1,158 @@
+<div class="lobby-screen">
+  <main class="lobby-page">
+    @switch (state) {
+      @case ('loading') {
+        <section class="bt-card centered-card" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <p>Opening the lobby…</p>
+        </section>
+      }
+      @case ('unavailable') {
+        <section class="bt-card centered-card">
+          <h1>Lobby unavailable</h1>
+          <p role="alert">{{ errorMessage }}</p>
+          <div class="actions">
+            <a class="bt-btn bt-btn-primary" routerLink="/lobby/join">Join another lobby</a>
+            <a class="bt-btn bt-btn-ghost" routerLink="/home">Back home</a>
+          </div>
+        </section>
+      }
+      @case ('removed') {
+        <section class="bt-card centered-card">
+          <h1>You left this lobby</h1>
+          <p role="alert">The host removed you from the lobby.</p>
+          <div class="actions">
+            <a class="bt-btn bt-btn-primary" routerLink="/lobby/join">Join another lobby</a>
+            <a class="bt-btn bt-btn-ghost" routerLink="/home">Back home</a>
+          </div>
+        </section>
+      }
+      @case ('open') {
+        @if (lobby; as lobby) {
+          <div class="lobby-heading">
+            <div>
+              <div class="eyebrow">Session code</div>
+              <div class="code-row">
+                <span class="mono code" aria-label="Session code">{{ lobby.code }}</span>
+                <button class="bt-btn bt-btn-ghost bt-btn-sm" type="button" (click)="copyCode()">
+                  {{ copied ? '✓ Copied' : 'Copy invite' }}
+                </button>
+              </div>
+              <p class="hint">Share the code — friends join from “Join a session”.</p>
+            </div>
+            <div class="chips">
+              <span class="bt-chip bt-chip-accent">● Lobby open</span>
+              <span class="bt-chip"
+                >{{ lobby.participants.length }} / {{ lobby.maxParticipants }} players</span
+              >
+            </div>
+          </div>
+
+          @if (errorMessage) {
+            <p class="notice error" role="alert">{{ errorMessage }}</p>
+          }
+
+          <section class="bt-card" aria-labelledby="players-title">
+            <div class="card-heading">
+              <h2 id="players-title" class="bt-h2">Players in lobby</h2>
+              <span class="muted">{{ readyCount }}/{{ lobby.participants.length }} ready</span>
+            </div>
+            <ul class="players" aria-live="polite">
+              @for (participant of lobby.participants; track participant.participantId) {
+                <li class="player">
+                  <span class="avatar" aria-hidden="true">{{
+                    initials(participant.displayName)
+                  }}</span>
+                  <div class="player-text">
+                    <div class="player-name">
+                      <span>{{ participant.displayName }}</span>
+                      @if (participant.host) {
+                        <span class="bt-chip bt-chip-accent host-chip">HOST</span>
+                      }
+                      @if (participant.participantId === lobby.participantId) {
+                        <span class="you">(you)</span>
+                      }
+                    </div>
+                    <div class="player-status">
+                      {{ participant.guest ? 'Guest' : 'Registered' }} ·
+                      {{ participant.host ? 'Host' : participant.ready ? 'Ready' : 'Not ready' }}
+                    </div>
+                  </div>
+                  @if (isHost && !participant.host) {
+                    <button
+                      class="bt-btn bt-btn-ghost bt-btn-sm"
+                      type="button"
+                      [disabled]="busy"
+                      [attr.aria-label]="'Remove ' + participant.displayName"
+                      (click)="kick(participant)"
+                    >
+                      Remove
+                    </button>
+                  } @else if (participant.ready || participant.host) {
+                    <span class="ready-mark" aria-hidden="true">✓</span>
+                  } @else {
+                    <span class="waiting-mark" aria-hidden="true"></span>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+
+          <section class="bt-card" aria-labelledby="rules-title">
+            <h2 id="rules-title" class="bt-h2">Game rules</h2>
+            <dl class="rules">
+              <div>
+                <dt>Scoring</dt>
+                <dd>Everyone who finds</dd>
+              </div>
+              <div>
+                <dt>Tracks</dt>
+                <dd>{{ lobby.trackCount }}</dd>
+              </div>
+              <div>
+                <dt>Timer</dt>
+                <dd>{{ lobby.maxRoundSeconds }}s</dd>
+              </div>
+              <div>
+                <dt>Source</dt>
+                <dd>{{ lobby.playlistName }}</dd>
+              </div>
+            </dl>
+            <div class="actions">
+              @if (isHost) {
+                <button
+                  class="bt-btn bt-btn-primary bt-btn-lg start"
+                  type="button"
+                  [disabled]="!lobby.canStart || busy"
+                  (click)="start()"
+                >
+                  ▶ Start game
+                </button>
+              } @else {
+                <button
+                  class="bt-btn bt-btn-lg start"
+                  [class.bt-btn-primary]="!me?.ready"
+                  [class.bt-btn-ghost]="me?.ready"
+                  type="button"
+                  [disabled]="busy"
+                  [attr.aria-pressed]="!!me?.ready"
+                  (click)="toggleReady()"
+                >
+                  {{ me?.ready ? 'Not ready' : "I'm ready" }}
+                </button>
+              }
+              <button class="bt-btn bt-btn-ghost" type="button" [disabled]="busy" (click)="leave()">
+                Leave lobby
+              </button>
+            </div>
+            @if (isHost && startHint) {
+              <p class="muted start-hint">{{ startHint }}</p>
+            } @else if (!isHost) {
+              <p class="muted start-hint">The host starts the game once everyone is ready.</p>
+            }
+          </section>
+        }
+      }
+    }
+  </main>
+</div>

@@ -6,7 +6,7 @@ info:
 
     ## Authentication
     Protected endpoints require a Bearer JWT in the `Authorization` header.
-    Guests receive a `sessionToken` from `/sessions/{code}/join` which acts as a temporary JWT.
+    Guests will receive a session-scoped token from `/lobbies/{code}/guests` (planned, MP-08).
 
     ## Roles
     - `USER`: registered player
@@ -33,6 +33,7 @@ tags:
   - name: Users
   - name: Friends
   - name: Sessions
+  - name: Lobbies
   - name: History
   - name: Tracks
   - name: Playlists
@@ -72,9 +73,12 @@ components:
 
     SessionCode:
       type: string
+      description: |
+        Lobby join code from an alphabet without 0, O, 1, or I. Input is accepted
+        case-insensitively; responses use upper case.
       minLength: 6
       maxLength: 6
-      pattern: "^[A-Z0-9]{6}$"
+      pattern: "^[ABCDEFGHJKLMNPQRSTUVWXYZ2-9a-hj-km-np-z]{6}$"
       example: "XK9F2A"
 
     Error:
@@ -137,6 +141,11 @@ components:
             - GAME_PLAYLIST_INSUFFICIENT_TRACKS
             - GAME_DIFFICULTY_INVALID
             - GAME_DIFFICULTY_INSUFFICIENT_TRACKS
+            - LOBBY_NOT_FOUND
+            - LOBBY_FULL
+            - LOBBY_HOST_REQUIRED
+            - LOBBY_NOT_READY
+            - LOBBY_PARTICIPANT_NOT_FOUND
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
         message:
@@ -573,7 +582,7 @@ components:
       type: object
       required:
         [roundIndex, outcome, points, title, artist, composer, album,
-         startedAt, revealedAt, completedAt]
+         startedAt, revealedAt, completedAt, titleFound]
       properties:
         roundIndex:
           type: integer
@@ -585,6 +594,10 @@ components:
           type: integer
           minimum: 0
           maximum: 1000
+          description: The caller's points for this round.
+        titleFound:
+          type: boolean
+          description: Whether the caller found the title this round.
         title:
           type: string
           description: Canonical title snapshotted when the game was created.
@@ -613,13 +626,29 @@ components:
       type: object
       required:
         [sessionId, totalScore, totalRounds, titlesFound, skippedRounds,
-         timedOutRounds, startedAt, completedAt, rounds]
+         timedOutRounds, startedAt, completedAt, rounds, gameMode, participantId,
+         standings]
       description: |
-        Owner-only durable end-of-game projection. It contains no provider URL,
-        private object key, checksum, raw guess, or internal answer alias data.
+        Durable end-of-game projection for one registered participant.
+        `totalScore`, `titlesFound`, and round points are the caller's own;
+        `skippedRounds` and `timedOutRounds` count round outcomes. It contains no
+        provider URL, private object key, checksum, raw guess, or internal answer
+        alias data.
       properties:
         sessionId:
           $ref: '#/components/schemas/UUID'
+        gameMode:
+          type: string
+          enum: [SOLO, MULTIPLAYER]
+        participantId:
+          description: The caller's participant identity in this game.
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+        standings:
+          type: array
+          description: Every participant, best first; equal scores share a rank.
+          items:
+            $ref: '#/components/schemas/GameSummaryStanding'
         totalScore:
           type: integer
           minimum: 0
@@ -646,23 +675,102 @@ components:
           items:
             $ref: '#/components/schemas/GameSummaryRound'
 
-    JoinSessionRequest:
+    GameSummaryStanding:
       type: object
+      required: [participantId, displayName, finalScore, rank, guest]
       properties:
-        guestName:
+        participantId:
+          $ref: '#/components/schemas/UUID'
+        displayName:
+          type: string
+        finalScore:
+          type: integer
+          minimum: 0
+        rank:
+          type: integer
+          minimum: 1
+        guest:
+          type: boolean
+
+    LobbyParticipant:
+      type: object
+      required: [participantId, displayName, ready, host, guest]
+      properties:
+        participantId:
+          $ref: '#/components/schemas/UUID'
+        displayName:
+          type: string
+        ready:
+          type: boolean
+          description: Only non-host readiness gates the start.
+        host:
+          type: boolean
+        guest:
+          type: boolean
+          description: Always false until guest joins exist (MP-08).
+
+    Lobby:
+      type: object
+      required: [sessionId, code, participantId, hostParticipantId, participants,
+        canStart, maxParticipants, version, expiresAt, connection, playlistName,
+        trackCount, maxRoundSeconds]
+      properties:
+        sessionId:
+          $ref: '#/components/schemas/UUID'
+        code:
+          $ref: '#/components/schemas/SessionCode'
+        participantId:
+          description: The caller's own participant identity.
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+        hostParticipantId:
+          $ref: '#/components/schemas/UUID'
+        participants:
+          type: array
+          description: Members in join order.
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/LobbyParticipant'
+        canStart:
+          type: boolean
+          description: At least two members are present and every non-host member is ready.
+        maxParticipants:
+          type: integer
+          example: 10
+        version:
+          type: integer
+          format: int64
+        expiresAt:
+          type: string
+          format: date-time
+          description: Sliding inactivity expiry; any membership change extends it.
+        connection:
+          $ref: '#/components/schemas/SessionConnectionInstructions'
+        playlistName:
+          type: string
+        trackCount:
+          type: integer
+        maxRoundSeconds:
+          type: integer
+
+    LobbyReadyRequest:
+      type: object
+      required: [ready]
+      properties:
+        ready:
+          type: boolean
+
+    JoinAsGuestRequest:
+      type: object
+      description: Planned for MP-08; not implemented.
+      required: [nickname, turnstileToken]
+      properties:
+        nickname:
           type: string
           minLength: 2
-          maxLength: 30
-
-    JoinSessionResponse:
-      type: object
-      properties:
-        sessionToken:
+          maxLength: 20
+        turnstileToken:
           type: string
-        userId:
-          type: string
-        sessionCode:
-          $ref: '#/components/schemas/SessionCode'
 
     Track:
       type: object
@@ -1579,11 +1687,11 @@ paths:
   /sessions/{sessionId}/summary:
     get:
       tags: [Sessions, History]
-      summary: Read the completed solo-game summary
+      summary: Read a completed game summary
       description: |
-        Returns the ordered durable result snapshot to the authenticated account
-        that owned the session. Missing sessions and sessions owned by another
-        account both return 404. Responses use `Cache-Control: no-store` and never
+        Returns the ordered durable result snapshot, from the caller's point of
+        view, to a registered account that played the game. Missing games and
+        games the account did not play both return 404. Responses use `Cache-Control: no-store` and never
         expose provider URLs, private object keys, checksums, raw guesses, or
         internal answer aliases.
       parameters:
@@ -1610,25 +1718,205 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /sessions/{code}/join:
+  /lobbies:
     post:
-      tags: [Sessions]
-      summary: Join session
+      tags: [Lobbies]
+      summary: Open a multiplayer lobby
+      description: |
+        Requires a verified account, which becomes the host. The configuration is
+        validated against the current catalogue with the solo limits; tracks are
+        selected only when the host starts. Members subscribe to the session's
+        public topic for `LOBBY_UPDATED` and `LOBBY_STARTED` events.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Lobby opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lobby'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /lobbies/{code}:
+    get:
+      tags: [Lobbies]
+      summary: Read a lobby as one of its members
+      description: |
+        Unknown, malformed, expired, started, and foreign lobbies all return
+        `LOBBY_NOT_FOUND`. Responses use `Cache-Control: no-store`.
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+      responses:
+        '200':
+          description: Current lobby
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lobby'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /lobbies/{code}/participants:
+    post:
+      tags: [Lobbies]
+      summary: Join a lobby with its code
+      description: |
+        Requires a verified account. Joining again returns the current lobby.
+        Fails with `LOBBY_FULL` at ten members and `LOBBY_NOT_FOUND` for any code
+        that is not an open lobby.
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+      responses:
+        '200':
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lobby'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /lobbies/{code}/participants/me:
+    delete:
+      tags: [Lobbies]
+      summary: Leave a lobby
+      description: |
+        When the host leaves, the earliest remaining registered member becomes
+        host. The last member leaving closes the lobby and frees its code.
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+      responses:
+        '204':
+          description: Left
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /lobbies/{code}/participants/me/ready:
+    put:
+      tags: [Lobbies]
+      summary: Set the caller's ready flag
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LobbyReadyRequest'
+      responses:
+        '200':
+          description: Updated lobby
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lobby'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /lobbies/{code}/participants/{participantId}:
+    delete:
+      tags: [Lobbies]
+      summary: Remove another member (host only)
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+        - name: participantId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: '`LOBBY_HOST_REQUIRED`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: '`LOBBY_NOT_FOUND` or `LOBBY_PARTICIPANT_NOT_FOUND`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /lobbies/{code}/start:
+    post:
+      tags: [Lobbies]
+      summary: Start the game (host only)
+      description: |
+        Requires at least two members and every non-host member ready
+        (`LOBBY_NOT_READY` otherwise). Tracks are selected now; configuration
+        errors use the session-creation codes. The lobby closes, members receive
+        `LOBBY_STARTED`, and the game session keeps the lobby's `sessionId` in the
+        `CREATED` state until the host sends `START_GAME` over STOMP.
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+      responses:
+        '200':
+          description: Game session created for the host
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoloSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: '`LOBBY_HOST_REQUIRED`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /lobbies/{code}/guests:
+    post:
+      tags: [Lobbies]
+      summary: Join as a guest (planned, MP-08)
+      description: Not implemented; see ADR-0020.
       security: []
       parameters:
         - $ref: '#/components/parameters/SessionCode'
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/JoinSessionRequest'
+              $ref: '#/components/schemas/JoinAsGuestRequest'
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JoinSessionResponse'
+        '501':
+          description: Not implemented yet
 
   /tracks:
     get:

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /** Pure aggregate transitions for ordered rounds and terminal game states. */
 public final class GameStateMachine {
@@ -40,22 +41,46 @@ public final class GameStateMachine {
         return withCurrentRound(game, started);
     }
 
-    /** Resolves the active round from a correct title match. */
-    public GameStateSnapshot resolveTitle(
+    /** Awards one participant's correct title and reveals once every active one found it. */
+    public GameStateSnapshot awardTitle(
             GameStateSnapshot game,
+            GameParticipantId participantId,
             AnswerMatchResult match,
-            Instant acceptedAt) {
+            Instant acceptedAt,
+            Set<GameParticipantId> activeParticipants) {
         requireStatus(game, GameStatus.PLAYING);
-        RoundStateSnapshot revealed =
-                roundStateMachine.resolveTitle(currentRound(game), match, acceptedAt);
-        return withCurrentRound(game, revealed);
+        requireParticipants(game, participantId, activeParticipants);
+        RoundStateSnapshot round = roundStateMachine.awardTitle(
+                currentRound(game), participantId, match, acceptedAt, activeParticipants);
+        return withCurrentRound(game, round);
     }
 
-    /** Resolves the active round as skipped. */
-    public GameStateSnapshot skipRound(GameStateSnapshot game, Instant skippedAt) {
+    /** Records one participant's skip vote and reveals once the vote passes. */
+    public GameStateSnapshot voteSkip(
+            GameStateSnapshot game,
+            GameParticipantId participantId,
+            Instant votedAt,
+            Set<GameParticipantId> activeParticipants) {
         requireStatus(game, GameStatus.PLAYING);
-        RoundStateSnapshot revealed = roundStateMachine.skip(currentRound(game), skippedAt);
-        return withCurrentRound(game, revealed);
+        requireParticipants(game, participantId, activeParticipants);
+        RoundStateSnapshot round = roundStateMachine.voteSkip(
+                currentRound(game), participantId, votedAt, activeParticipants);
+        return withCurrentRound(game, round);
+    }
+
+    /** Re-checks the playing round after the active participant set changed. */
+    public GameStateSnapshot reevaluateRound(
+            GameStateSnapshot game,
+            Instant evaluatedAt,
+            Set<GameParticipantId> activeParticipants) {
+        requireStatus(game, GameStatus.PLAYING);
+        Objects.requireNonNull(activeParticipants, "activeParticipants are required");
+        if (!game.participants().containsAll(activeParticipants)) {
+            throw failure(GameTransitionError.UNKNOWN_PARTICIPANT);
+        }
+        RoundStateSnapshot round = roundStateMachine.reevaluate(
+                currentRound(game), evaluatedAt, activeParticipants);
+        return withCurrentRound(game, round);
     }
 
     /** Resolves the active round as timed out. */
@@ -78,7 +103,7 @@ public final class GameStateMachine {
         completedRounds.add(completed);
 
         if (completedRounds.size() == game.trackSelection().tracks().size()) {
-            GameSummary summary = GameSummary.from(completedRounds);
+            GameSummary summary = GameSummary.from(game.participants(), completedRounds);
             GameStateSnapshot finished = copy(
                     game,
                     GameStatus.FINISHED,
@@ -140,6 +165,7 @@ public final class GameStateMachine {
         return new GameStateSnapshot(
                 game.configuration(),
                 game.trackSelection(),
+                game.participants(),
                 status,
                 currentRoundIndex,
                 currentRound,
@@ -150,6 +176,18 @@ public final class GameStateMachine {
     private RoundStateSnapshot currentRound(GameStateSnapshot game) {
         return game.currentRound().orElseThrow(
                 () -> failure(GameTransitionError.ILLEGAL_GAME_TRANSITION));
+    }
+
+    private void requireParticipants(
+            GameStateSnapshot game,
+            GameParticipantId participantId,
+            Set<GameParticipantId> activeParticipants) {
+        Objects.requireNonNull(participantId, "participantId is required");
+        Objects.requireNonNull(activeParticipants, "activeParticipants are required");
+        if (!game.hasParticipant(participantId)
+                || !game.participants().containsAll(activeParticipants)) {
+            throw failure(GameTransitionError.UNKNOWN_PARTICIPANT);
+        }
     }
 
     private void requireStatus(GameStateSnapshot game, GameStatus expected) {

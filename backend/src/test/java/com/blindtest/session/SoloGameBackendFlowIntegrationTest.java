@@ -696,7 +696,7 @@ class SoloGameBackendFlowIntegrationTest {
         }
     }
 
-    private record RecordedTask(Instant executeAt, Runnable task) {
+    record RecordedTask(Instant executeAt, Runnable task) {
     }
 
     static final class RecordingSessionScheduler implements SessionTaskScheduler {

@@ -1,5 +1,8 @@
 package com.blindtest.model.game;
 
+import static com.blindtest.model.game.GameTestParticipants.SOLO;
+import static com.blindtest.model.game.GameTestParticipants.SOLO_ACTIVE;
+import static com.blindtest.model.game.GameTestParticipants.SOLO_LIST;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -25,8 +28,8 @@ class GameStateMachineTest {
         GameStateSnapshot game = machine.start(createdGame(3));
 
         game = machine.startRound(game, window(START));
-        game = machine.resolveTitle(
-                game, AnswerMatchResult.matched(GameAnswerType.TITLE), START);
+        game = machine.awardTitle(
+                game, SOLO, AnswerMatchResult.matched(GameAnswerType.TITLE), START, SOLO_ACTIVE);
         RoundCompletionTransition first = machine.completeRound(game, START.plusSeconds(1));
 
         assertThat(first.progression()).isEqualTo(GameProgression.NEXT_ROUND_PREPARED);
@@ -49,7 +52,7 @@ class GameStateMachineTest {
                 machine.completeRound(game, START.plusSeconds(131));
 
         game = machine.startRound(second.game(), window(START.plusSeconds(140)));
-        game = machine.skipRound(game, START.plusSeconds(150));
+        game = machine.voteSkip(game, SOLO, START.plusSeconds(150), SOLO_ACTIVE);
         RoundCompletionTransition last =
                 machine.completeRound(game, START.plusSeconds(151));
 
@@ -76,7 +79,7 @@ class GameStateMachineTest {
     void lastRoundProducesOneCompletionAndTerminalStateRejectsReplay() {
         GameStateSnapshot game = machine.start(createdGame(1));
         game = machine.startRound(game, window(START));
-        game = machine.skipRound(game, START.plusSeconds(1));
+        game = machine.voteSkip(game, SOLO, START.plusSeconds(1), SOLO_ACTIVE);
 
         RoundCompletionTransition completion =
                 machine.completeRound(game, START.plusSeconds(2));
@@ -113,7 +116,7 @@ class GameStateMachineTest {
     void activeGameSnapshotsRemainImmutableAcrossProgression() {
         GameStateSnapshot started = machine.start(createdGame(2));
         GameStateSnapshot playing = machine.startRound(started, window(START));
-        GameStateSnapshot revealed = machine.skipRound(playing, START.plusSeconds(1));
+        GameStateSnapshot revealed = machine.voteSkip(playing, SOLO, START.plusSeconds(1), SOLO_ACTIVE);
         RoundCompletionTransition progressed =
                 machine.completeRound(revealed, START.plusSeconds(2));
 
@@ -156,7 +159,7 @@ class GameStateMachineTest {
         GameConfiguration configuration = new GameConfiguration(PLAYLIST_ID, 2, 60);
         GameTrackSelection oneTrack = selection(1);
 
-        assertThatThrownBy(() -> GameStateSnapshot.created(configuration, oneTrack)).
+        assertThatThrownBy(() -> GameStateSnapshot.created(configuration, oneTrack, SOLO_LIST)).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessage("track selection must match configured count");
 
@@ -168,10 +171,12 @@ class GameStateMachineTest {
                 0,
                 TitleScoreCalculator.SCORING_RULE_VERSION);
         GameSummary invalidSummary = new GameSummary(
-                0, 1, 0, 0, 1, List.of(differentRound));
+                0, 1, 0, 0, 1, List.of(differentRound),
+                List.of(new ParticipantStanding(SOLO, 0, 0, 1)));
         assertThatThrownBy(() -> new GameStateSnapshot(
                         finished.configuration(),
                         finished.trackSelection(),
+                        finished.participants(),
                         GameStatus.FINISHED,
                         1,
                         Optional.empty(),
@@ -184,14 +189,14 @@ class GameStateMachineTest {
     private GameStateSnapshot finishSingleSkippedGame() {
         GameStateSnapshot game = machine.start(createdGame(1));
         game = machine.startRound(game, window(START));
-        game = machine.skipRound(game, START.plusSeconds(1));
+        game = machine.voteSkip(game, SOLO, START.plusSeconds(1), SOLO_ACTIVE);
         return machine.completeRound(game, START.plusSeconds(2)).game();
     }
 
     private GameStateSnapshot createdGame(int trackCount) {
         GameConfiguration configuration =
                 new GameConfiguration(PLAYLIST_ID, trackCount, 60);
-        return GameStateSnapshot.created(configuration, selection(trackCount));
+        return GameStateSnapshot.created(configuration, selection(trackCount), SOLO_LIST);
     }
 
     private GameTrackSelection selection(int trackCount) {

@@ -10,6 +10,11 @@ track count, maximum round seconds, and an empty extensions object to
 On success, the browser stores the active session and navigates to
 `/game/{sessionId}`. Error states map backend failures into actionable messages.
 
+In "With friends" mode the same request opens a lobby (`POST /api/lobbies`) and
+the browser goes to `/lobby/{code}`. When the lobby starts, every member stores the
+active session with a `host` flag and opens `/game/{sessionId}`; only the host's
+room sends `START_GAME`, while the others wait for the first round.
+
 `GameSessionService` retains the session in memory and `sessionStorage` so a reload
 can reconnect. It tracks one current browser session even though the backend
 allows an account to create multiple sessions. Opening an ID that is not locally
@@ -109,6 +114,16 @@ it directly reproduces the same result. A 404 (unowned or unknown session) and
 other failures render distinct messages with a way back to configuration. The
 game room's own in-session finish view is unchanged and links to this page as
 "View summary".
+
+## Multiplayer room
+
+A session stored with a `host` flag is multiplayer. The room keeps every
+participant's score from `CURRENT_SNAPSHOT.scores`, `SCORE_UPDATED`, and
+`ROUND_REVEALED.scores`, and reads its own score from its entry rather than the
+combined totals. `SCORE_UPDATED` marks who found the title in the
+[scoreboard](../../frontend/src/app/features/game/scoreboard/scoreboard.component.ts);
+the skip button becomes a vote showing `SKIP_VOTE_UPDATED` progress, and only the
+host sees "Next now". The finish view and the end screen list the ranked standings.
 
 ## Current limits
 

@@ -56,7 +56,8 @@ public sealed interface PrivateSessionEventPayload permits
             int totalScore,
             Optional<CurrentRound> currentRound,
             List<GameAnswerType> discoveredAnswerTypes,
-            Instant expiresAt) implements PrivateSessionEventPayload {
+            Instant expiresAt,
+            List<PublicSessionEventPayload.ParticipantScore> scores) implements PrivateSessionEventPayload {
 
         /** Defensively copies and validates the reconnect projection. */
         public CurrentSnapshot {
@@ -74,6 +75,7 @@ public sealed interface PrivateSessionEventPayload permits
                 throw new IllegalArgumentException("discoveries may contain only secondary types");
             }
             SessionProtocol.requireInstant(expiresAt, "expiresAt");
+            scores = List.copyOf(scores);
         }
     }
 
@@ -94,7 +96,11 @@ public sealed interface PrivateSessionEventPayload permits
             Map<String, String> streamingLinks,
             Optional<String> coverUrl,
             Optional<Instant> advanceAt,
-            int roundPoints) {
+            int roundPoints,
+            boolean titleFound,
+            boolean skipVoted,
+            int skipVotes,
+            int requiredSkipVotes) {
 
         /** Defensively validates optional values without exposing object-storage keys. */
         public CurrentRound {
@@ -124,6 +130,8 @@ public sealed interface PrivateSessionEventPayload permits
                 }
             });
             SessionProtocol.requireNonNegative(roundPoints, "roundPoints");
+            SessionProtocol.requireNonNegative(skipVotes, "skipVotes");
+            SessionProtocol.requirePositive(requiredSkipVotes, "requiredSkipVotes");
         }
     }
 

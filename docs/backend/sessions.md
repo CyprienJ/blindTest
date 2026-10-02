@@ -5,14 +5,22 @@
 ## Creation
 
 `POST /api/sessions` requires a verified authenticated account. `SoloSessionService`
-validates configuration, loads eligible published private-media tracks and aliases,
+delegates to `GameSetupService`, which validates configuration, loads eligible
+published private-media tracks and aliases,
 counts them per difficulty for the requested `DifficultyFilter`, randomly selects
 matching tracks and their order, and creates immutable snapshots. The owner receives
 an opaque participant identity; the initial session version is zero.
 
 The response includes session identity, expiry, and STOMP connection destinations.
-Accounts can create multiple independent solo sessions. Lookup/join and guest
-flows are not delivered.
+Accounts can create multiple independent solo sessions.
+
+Multiplayer games start from a lobby (`LobbyService`, `InMemoryLobbyStore`). A lobby
+holds the requested configuration, a unique six-character code, up to ten members
+with ready flags, and the host; it slides on the session inactivity TTL and a
+scheduled sweep frees expired codes. Start re-runs `GameSetupService`, creates a
+`CREATED` session under the lobby's ID with every member as a participant and the
+host as owner, removes the lobby, and publishes `LOBBY_STARTED`. Guest flows are
+not delivered.
 
 ## Active state and commands
 
@@ -55,8 +63,10 @@ session UUID. Concurrent duplicate inserts are confirmed after rollback. Transie
 database failures use deduplicated bounded-backoff retries; active state remains
 until durable completion succeeds.
 
-`GET /api/sessions/{sessionId}/summary` returns the authenticated owner's immutable,
-ordered summary with non-cacheable responses. It excludes raw guesses, aliases,
+`GET /api/sessions/{sessionId}/summary` returns an immutable, ordered summary to any
+registered participant, from their own point of view (their score, titles, and
+round points) with ranked standings; non-participants get the same 404 as an
+unknown game. Responses are non-cacheable. It excludes raw guesses, aliases,
 provider URLs, and private media identifiers. Catalogue changes do not alter past
 results. See [data and persistence](../architecture/data.md).
 

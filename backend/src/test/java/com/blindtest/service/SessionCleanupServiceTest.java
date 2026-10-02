@@ -68,7 +68,7 @@ class SessionCleanupServiceTest {
                 source.sessionId(), source.ownerParticipantId(), source.participants(),
                 source.configuration(), source.gameState(), source.discoveries(),
                 source.processedCommands(), source.version(), source.createdAt(),
-                source.updatedAt(), NOW);
+                source.updatedAt(), NOW, 0);
         assertThat(store.create(expired, source.createdAt())).
                 isEqualTo(SessionCreateOutcome.CREATED);
 
@@ -107,10 +107,12 @@ class SessionCleanupServiceTest {
         ActiveSessionSnapshot source = FinishedSessionFixture.finished();
         Instant createdAt = NOW.minus(Duration.ofMinutes(30));
         GameStateSnapshot created = GameStateSnapshot.created(
-                source.configuration(), source.gameState().trackSelection());
+                source.configuration(),
+                source.gameState().trackSelection(),
+                source.gameState().participants());
         return new ActiveSessionSnapshot(
                 source.sessionId(), source.ownerParticipantId(), source.participants(),
                 source.configuration(), created, SecondaryDiscoveryState.empty(),
-                ProcessedCommandLedger.empty(), 0, createdAt, createdAt, expiresAt);
+                ProcessedCommandLedger.empty(), 0, createdAt, createdAt, expiresAt, 0);
     }
 }

@@ -21,6 +21,7 @@ import {
   CurrentSnapshotPayload,
   CurrentRoundProjection,
   GameFinishedPayload,
+  ParticipantScore,
   PrivateSessionEvent,
   PublicSessionEvent,
   RoundOutcome,
@@ -33,6 +34,7 @@ import {
 } from '../../../core/services/audio-playback.service';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { GameSocketService, GameSocketStatus } from '../../../core/services/game-socket.service';
+import { ScoreboardComponent } from '../scoreboard/scoreboard.component';
 import { STREAMING_PLATFORMS } from './streaming-platforms';
 
 type GamePhase =
@@ -50,7 +52,7 @@ const COMMAND_GUARD_MS = 400;
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-game-room',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ScoreboardComponent],
   templateUrl: './game-room.component.html',
   styleUrl: './game-room.component.scss',
 })
@@ -72,6 +74,10 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   roundNumber = 0;
   totalRounds = 0;
   secondsLeft = 0;
+  // Sampled in tick(): a clock-reading getter changes between dev-mode checks (NG0100).
+  progressPct = 0;
+  /** Seconds until the playing round's authoritative start; sampled in tick(). */
+  startsInSeconds = 0;
   totalScore = 0;
   lastRoundPoints: number | null = null;
   outcome: RoundOutcome | null = null;
@@ -83,12 +89,35 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   advancing = false;
   private advanceAtMs: number | null = null;
 
+  /* Multiplayer state (MP-06); solo sessions leave these empty. */
+  scores: ParticipantScore[] = [];
+  /** Participants who found the current round's title. */
+  found = new Set<string>();
+  skipVotes = 0;
+  requiredSkipVotes = 1;
+  skipVoted = false;
+  titleFound = false;
+
+  get multiplayer(): boolean {
+    return this.session?.host !== undefined;
+  }
+
+  /** Solo players own their session; in multiplayer only the lobby host does. */
+  get isOwner(): boolean {
+    return this.session?.host !== false;
+  }
+
   get isLastRound(): boolean {
     return this.roundNumber === this.totalRounds;
   }
 
   get canAdvance(): boolean {
-    return this.phase === 'revealed' && this.socketStatus === 'connected' && !this.advancing;
+    return (
+      this.isOwner &&
+      this.phase === 'revealed' &&
+      this.socketStatus === 'connected' &&
+      !this.advancing
+    );
   }
 
   advance(): void {
@@ -207,23 +236,19 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       this.phase === 'playing' &&
       this.socketStatus === 'connected' &&
       !this.sending &&
+      this.startsInSeconds === 0 &&
       Date.now() >= this.retryAtMs
     );
   }
 
   get canSkip(): boolean {
-    return this.phase === 'playing' && this.socketStatus !== 'reconnecting' && !this.skipping;
-  }
-
-  get progressPct(): number {
-    if (this.roundStartMs === null || this.deadlineMs === null) {
-      return 0;
-    }
-    const total = this.deadlineMs - this.roundStartMs;
-    if (total <= 0) {
-      return 100;
-    }
-    return Math.min(100, Math.max(0, ((Date.now() - this.roundStartMs) / total) * 100));
+    return (
+      this.phase === 'playing' &&
+      this.socketStatus !== 'reconnecting' &&
+      !this.skipping &&
+      !this.skipVoted &&
+      this.startsInSeconds === 0
+    );
   }
 
   get stateLabel(): string {
@@ -236,7 +261,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   get outcomeLabel(): string {
     switch (this.outcome) {
       case 'TITLE_FOUND':
-        return 'You found the title';
+        return this.multiplayer ? 'Everyone found the title' : 'You found the title';
       case 'SKIPPED':
         return 'Round skipped';
       case 'TIMEOUT':
@@ -264,6 +289,9 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       return;
     }
     this.skipping = true;
+    if (this.multiplayer) {
+      this.skipVoted = true;
+    }
     this.gameSocket.skipRound();
     window.setTimeout(() => (this.skipping = false), COMMAND_GUARD_MS);
   }
@@ -281,6 +309,11 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   }
 
   private tick(): void {
+    // Multiplayer rounds start shortly after ROUND_STARTED; earlier commands would be rejected.
+    this.startsInSeconds =
+      this.phase === 'playing' && this.roundStartMs !== null
+        ? Math.max(0, Math.ceil((this.roundStartMs - Date.now()) / 1000))
+        : 0;
     this.cooldownSeconds = Math.max(0, Math.ceil((this.retryAtMs - Date.now()) / 1000));
     this.secondsLeft =
       this.phase === 'revealed'
@@ -288,6 +321,18 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         : this.deadlineMs === null
           ? 0
           : Math.max(0, Math.ceil((this.deadlineMs - Date.now()) / 1000));
+    this.progressPct = this.computeProgressPct();
+  }
+
+  private computeProgressPct(): number {
+    if (this.roundStartMs === null || this.deadlineMs === null) {
+      return 0;
+    }
+    const total = this.deadlineMs - this.roundStartMs;
+    if (total <= 0) {
+      return 100;
+    }
+    return Math.min(100, Math.max(0, ((Date.now() - this.roundStartMs) / total) * 100));
   }
 
   private applySnapshot(snapshot: CurrentSnapshotPayload): void {
@@ -295,16 +340,25 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.clearReveal();
     this.deadlineMs = null;
     this.roundStartMs = null;
+    this.progressPct = 0;
     this.audioPlayback.stop();
     this.totalRounds = snapshot.totalRounds;
     this.totalScore = snapshot.totalScore;
+    this.applyScores(snapshot.scores ?? []);
+    if (snapshot.currentRound) {
+      this.titleFound = snapshot.currentRound.titleFound ?? false;
+      this.skipVoted = snapshot.currentRound.skipVoted ?? false;
+      this.skipVotes = snapshot.currentRound.skipVotes ?? 0;
+      this.requiredSkipVotes = snapshot.currentRound.requiredSkipVotes ?? 1;
+    }
     this.roundNumber = snapshot.currentRoundIndex + 1;
 
     switch (snapshot.gameStatus) {
       case 'CREATED':
-        if (!this.startRequested) {
+        this.phase = 'starting';
+        // Only the owner starts; other multiplayer participants wait for ROUND_STARTED.
+        if (!this.startRequested && this.session?.host !== false) {
           this.startRequested = true;
-          this.phase = 'starting';
           this.gameSocket.startGame();
         }
         return;
@@ -361,36 +415,74 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.totalRounds = event.payload.totalRounds;
         this.deadlineMs = null;
         this.roundStartMs = null;
+        this.progressPct = 0;
         this.lastRoundPoints = null;
         this.outcome = null;
+        this.resetRoundVotes();
         return;
       case 'ROUND_STARTED':
         this.roundNumber = event.payload.roundIndex + 1;
         this.totalRounds = event.payload.totalRounds;
+        this.resetRoundVotes();
         this.enterRound(event.payload);
         this.announcement = `Round ${this.roundNumber} of ${this.totalRounds} started.`;
         return;
-      case 'ROUND_REVEALED':
+      case 'ROUND_REVEALED': {
         this.roundNumber = event.payload.roundIndex + 1;
         this.totalRounds = event.payload.totalRounds;
         this.totalScore = event.payload.totalScore;
+        this.applyScores(event.payload.scores ?? []);
+        const mine = this.myScore();
         this.enterReveal(
           event.payload,
           event.payload.outcome,
-          event.payload.roundPoints,
+          mine ? mine.roundPoints : event.payload.roundPoints,
           event.payload.transitionAt,
         );
         return;
-      case 'SCORE_UPDATED':
-        this.totalScore = event.payload.totalScore;
-        this.lastRoundPoints = event.payload.roundPoints;
+      }
+      case 'SCORE_UPDATED': {
+        const { participantId, roundPoints, totalScore } = event.payload;
+        if (!this.multiplayer) {
+          this.totalScore = totalScore;
+          this.lastRoundPoints = roundPoints;
+          return;
+        }
+        this.scores = this.scores.map((score) =>
+          score.participantId === participantId ? { ...score, roundPoints, totalScore } : score,
+        );
+        this.found = new Set(this.found).add(participantId);
+        const name =
+          this.scores.find((score) => score.participantId === participantId)?.displayName ??
+          'A player';
+        if (participantId === this.session?.participantId) {
+          this.titleFound = true;
+          this.totalScore = totalScore;
+          this.lastRoundPoints = roundPoints;
+          this.sending = false;
+          this.feedback = `You found the title! +${roundPoints} points. Waiting for the others…`;
+          this.announcement = this.feedback;
+        } else {
+          this.announcement = `${name} found the title.`;
+        }
+        return;
+      }
+      case 'SKIP_VOTE_UPDATED':
+        this.skipVotes = event.payload.votes;
+        this.requiredSkipVotes = event.payload.requiredVotes;
+        return;
+      case 'LOBBY_UPDATED':
+      case 'LOBBY_STARTED':
         return;
       case 'GAME_FINISHED':
         this.resetFeedback();
         this.clearReveal();
         this.phase = 'finished';
         this.finished = event.payload;
-        this.totalScore = event.payload.totalScore;
+        this.totalScore =
+          event.payload.standings?.find(
+            (standing) => standing.participantId === this.session?.participantId,
+          )?.totalScore ?? event.payload.totalScore;
         this.audioPlayback.stop();
         this.announcement = 'Game finished.';
         return;
@@ -412,7 +504,9 @@ export class GameRoomComponent implements OnInit, OnDestroy {
             this.feedback = 'Not a match. Keep trying!';
             break;
           case 'ALREADY_FOUND':
-            this.feedback = 'Already found. Keep guessing the title.';
+            this.feedback = this.titleFound
+              ? 'You already found this title.'
+              : 'Already found. Keep guessing the title.';
             break;
           case 'COOLDOWN': {
             const retryAt = Date.parse(event.payload.retryAt ?? '');
@@ -534,6 +628,35 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.answer = '';
     this.tick();
     this.announcement = `${this.outcomeLabel}. ${metadata.title ?? 'Round over'}. ${points} points.`;
+  }
+
+  /** This player's entry in a multiplayer score list. */
+  myScore(): ParticipantScore | undefined {
+    return this.scores.find((score) => score.participantId === this.session?.participantId);
+  }
+
+  private applyScores(scores: ParticipantScore[]): void {
+    if (scores.length === 0) {
+      return;
+    }
+    this.scores = scores;
+    this.found = new Set(
+      scores.filter((score) => score.roundPoints > 0).map((score) => score.participantId),
+    );
+    const mine = this.myScore();
+    if (this.multiplayer && mine) {
+      this.totalScore = mine.totalScore;
+    }
+  }
+
+  private resetRoundVotes(): void {
+    this.found = new Set();
+    this.scores = this.scores.map((score) => ({ ...score, roundPoints: 0 }));
+    this.skipVotes = 0;
+    // Until SKIP_VOTE_UPDATED arrives, assume every participant is connected (ADR-0019: 60%).
+    this.requiredSkipVotes = Math.max(1, Math.ceil(this.scores.length * 0.6));
+    this.skipVoted = false;
+    this.titleFound = false;
   }
 
   private resetFeedback(): void {

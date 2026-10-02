@@ -99,13 +99,15 @@ class GameHistoryPersistenceServiceTest {
                 finished.participants(),
                 finished.configuration(),
                 com.blindtest.model.game.GameStateSnapshot.created(
-                        finished.configuration(), finished.gameState().trackSelection()),
+                        finished.configuration(),
+                        finished.gameState().trackSelection(),
+                        finished.gameState().participants()),
                 finished.discoveries(),
                 finished.processedCommands(),
                 finished.version(),
                 finished.createdAt(),
                 finished.updatedAt(),
-                finished.expiresAt());
+                finished.expiresAt(), 0);
 
         assertThatThrownBy(() -> service.persist(unfinished)).
                 isInstanceOf(IllegalArgumentException.class).

@@ -1,5 +1,7 @@
 package com.blindtest.model.game;
 
+import static com.blindtest.model.game.GameTestParticipants.SOLO;
+import static com.blindtest.model.game.GameTestParticipants.SOLO_ACTIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -26,7 +28,7 @@ class RoundStateMachineTest {
 
         RoundStateSnapshot playing = machine.start(preparing, WINDOW);
         RoundStateSnapshot revealed =
-                machine.resolveTitle(playing, TITLE_MATCH, START.plusSeconds(15));
+                machine.awardTitle(playing, SOLO, TITLE_MATCH, START.plusSeconds(15), SOLO_ACTIVE);
         RoundStateSnapshot completed = machine.complete(revealed, START.plusSeconds(20));
 
         assertThat(preparing.status()).isEqualTo(RoundStatus.PREPARING);
@@ -45,9 +47,9 @@ class RoundStateMachineTest {
         RoundStateSnapshot playing = machine.start(RoundStateSnapshot.preparing(track(0)), WINDOW);
 
         RoundStateSnapshot atDeadline =
-                machine.resolveTitle(playing, TITLE_MATCH, WINDOW.deadline());
+                machine.awardTitle(playing, SOLO, TITLE_MATCH, WINDOW.deadline(), SOLO_ACTIVE);
         RoundStateSnapshot afterDeadline =
-                machine.resolveTitle(playing, TITLE_MATCH, WINDOW.deadline().plusNanos(1));
+                machine.awardTitle(playing, SOLO, TITLE_MATCH, WINDOW.deadline().plusNanos(1), SOLO_ACTIVE);
 
         assertThat(atDeadline.outcome()).contains(RoundOutcome.TIMEOUT);
         assertThat(atDeadline.scoreState().totalPoints()).isZero();
@@ -59,8 +61,8 @@ class RoundStateMachineTest {
     void skipAndAuthoritativeTimeoutProduceExplicitZeroPointOutcomes() {
         RoundStateSnapshot playing = machine.start(RoundStateSnapshot.preparing(track(0)), WINDOW);
 
-        RoundStateSnapshot skipped = machine.skip(playing, START.plusSeconds(10));
-        RoundStateSnapshot lateSkip = machine.skip(playing, WINDOW.deadline());
+        RoundStateSnapshot skipped = machine.voteSkip(playing, SOLO, START.plusSeconds(10), SOLO_ACTIVE);
+        RoundStateSnapshot lateSkip = machine.voteSkip(playing, SOLO, WINDOW.deadline(), SOLO_ACTIVE);
         RoundStateSnapshot timedOut = machine.timeout(playing, WINDOW.deadline());
 
         assertThat(skipped.outcome()).contains(RoundOutcome.SKIPPED);
@@ -76,14 +78,16 @@ class RoundStateMachineTest {
         RoundStateSnapshot playing = machine.start(RoundStateSnapshot.preparing(track(0)), WINDOW);
 
         assertFailure(
-                () -> machine.resolveTitle(
+                () -> machine.awardTitle(
                         playing,
+                        SOLO,
                         AnswerMatchResult.matched(GameAnswerType.ARTIST),
-                        START.plusSeconds(1)),
+                        START.plusSeconds(1),
+                        SOLO_ACTIVE),
                 GameTransitionError.TITLE_MATCH_REQUIRED);
         assertFailure(
-                () -> machine.resolveTitle(
-                        playing, AnswerMatchResult.noMatch(), START.plusSeconds(1)),
+                () -> machine.awardTitle(
+                        playing, SOLO, AnswerMatchResult.noMatch(), START.plusSeconds(1), SOLO_ACTIVE),
                 GameTransitionError.TITLE_MATCH_REQUIRED);
     }
 
@@ -95,10 +99,10 @@ class RoundStateMachineTest {
                 () -> machine.timeout(playing, WINDOW.deadline().minusNanos(1)),
                 GameTransitionError.ROUND_DEADLINE_NOT_REACHED);
         assertFailure(
-                () -> machine.resolveTitle(playing, TITLE_MATCH, START.minusNanos(1)),
+                () -> machine.awardTitle(playing, SOLO, TITLE_MATCH, START.minusNanos(1), SOLO_ACTIVE),
                 GameTransitionError.ROUND_TIME_INVALID);
         assertFailure(
-                () -> machine.skip(playing, START.minusNanos(1)),
+                () -> machine.voteSkip(playing, SOLO, START.minusNanos(1), SOLO_ACTIVE),
                 GameTransitionError.ROUND_TIME_INVALID);
     }
 
@@ -106,14 +110,14 @@ class RoundStateMachineTest {
     void invalidLifecycleTransitionsFailWithStableError() {
         RoundStateSnapshot preparing = RoundStateSnapshot.preparing(track(0));
         RoundStateSnapshot playing = machine.start(preparing, WINDOW);
-        RoundStateSnapshot revealed = machine.skip(playing, START.plusSeconds(1));
+        RoundStateSnapshot revealed = machine.voteSkip(playing, SOLO, START.plusSeconds(1), SOLO_ACTIVE);
         RoundStateSnapshot completed = machine.complete(revealed, START.plusSeconds(2));
 
         assertFailure(
                 () -> machine.start(playing, WINDOW),
                 GameTransitionError.ILLEGAL_ROUND_TRANSITION);
         assertFailure(
-                () -> machine.skip(preparing, START),
+                () -> machine.voteSkip(preparing, SOLO, START, SOLO_ACTIVE),
                 GameTransitionError.ILLEGAL_ROUND_TRANSITION);
         assertFailure(
                 () -> machine.complete(playing, START),

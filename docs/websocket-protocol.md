@@ -2,7 +2,8 @@
 
 [Up: Session internals](backend/sessions.md) · [Browser client](frontend/gameplay.md)
 
-Status: V1 contract defined by SESSION-03. Authentication, membership authorization,
+Status: V1 contract defined by SESSION-03 and extended additively for multiplayer
+rounds by MP-03. Authentication, membership authorization,
 and private user-queue routing are implemented by SESSION-04. SESSION-05 delivers
 the authoritative command orchestration, timers, versioning, and recovery snapshot.
 SESSION-06 adds participant-authorized signed playback URLs.
@@ -35,7 +36,8 @@ payloads.
 - `CONNECT` must carry a valid access JWT in the native `Authorization` header.
 - Every gameplay `SEND` and `SUBSCRIBE` resolves the canonical UUID destination
   against the active `SessionStore` and verifies that the authenticated account is
-  a participant.
+  a participant. While no game session exists yet, the open lobby with the same
+  ID is checked instead, so lobby members can subscribe before the game starts.
 - Only the exact destinations returned by `POST /api/sessions` are accepted.
   Malformed UUIDs, added path segments, cross-channel use, direct sends to topics or
   queues, and attempts to name another user's queue are rejected.
@@ -73,6 +75,11 @@ monotonically increasing `sessionVersion`, and authoritative `occurredAt` instan
 Clients ignore an event older than their rendered session version and replace
 local state from `CURRENT_SNAPSHOT` after reconnect.
 
+Solo commands must name the current session version. In a multiplayer session,
+other players' commands advance the version, so `SUBMIT_ANSWER` and `SKIP_ROUND`
+are accepted from any version at or after the one that started the current round;
+an older version belongs to a previous round and is rejected as stale.
+
 ## Commands
 
 ```json
@@ -87,9 +94,9 @@ local state from `CURRENT_SNAPSHOT` after reconnect.
 
 | Type | Additional data | Meaning |
 |---|---|---|
-| `START_GAME` | none | Owner requests the first round |
+| `START_GAME` | none | Owner (lobby host) requests the first round |
 | `SUBMIT_ANSWER` | non-blank `answer` | Participant submits one guess |
-| `SKIP_ROUND` | none | Owner requests the current round to be skipped |
+| `SKIP_ROUND` | none | Participant votes to skip; solo reveals at once, multiplayer at 60% of connected participants rounded up ([ADR-0019](adr/0019-multiplayer-session-rules.md)) |
 | `ADVANCE_ROUND` | none | Owner requests an idempotent early transition during the reveal window |
 | `REQUEST_SNAPSHOT` | none | Requests private recovery state from the expected version |
 
@@ -131,9 +138,24 @@ session topic:
 | `SESSION_READY` | game `state`, `totalRounds`, `expiresAt` |
 | `ROUND_PREPARING` | `roundIndex`, `totalRounds` |
 | `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset and window length, short-lived `playbackUrl` |
-| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, `streamingLinks` (available HTTP(S) links keyed by platform), optional `coverUrl` (same-origin `/api/covers/{coverId}` path), round and total points, `transitionAt` |
-| `SCORE_UPDATED` | `participantId`, round points, total score |
-| `GAME_FINISHED` | total score and title/skip/timeout aggregate counts |
+| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, `streamingLinks` (available HTTP(S) links keyed by platform), optional `coverUrl` (same-origin `/api/covers/{coverId}` path), round and total points of every participant combined, `transitionAt`, and `scores` (`participantId`, `displayName`, `roundPoints`, `totalScore` in join order) |
+| `SCORE_UPDATED` | `participantId`, round points, total score; in multiplayer it is sent as each participant finds the title and never names the answer |
+| `SKIP_VOTE_UPDATED` | multiplayer `votes` among connected participants and `requiredVotes` |
+| `GAME_FINISHED` | combined total score, title/skip/timeout aggregate counts, and ranked `standings` (`participantId`, `displayName`, `totalScore`, `titlesFound`, shared `rank`) |
+| `LOBBY_UPDATED` | lobby `code`, `hostParticipantId`, ordered `participants` (`participantId`, `displayName`, `ready`, `host`, `guest`), `canStart` |
+| `LOBBY_STARTED` | `totalRounds` of the game session created under the same `sessionId` |
+
+## Lobby events
+
+[Lobbies](swagger.yaml) are managed over REST (`/api/lobbies/...`, MP-02); their
+session ID is the future game's session ID. Members subscribe to the public topic
+after joining and should re-read `GET /api/lobbies/{code}` once subscribed, since
+updates sent between the join response and the subscription are not replayed.
+`LOBBY_UPDATED` metadata carries the lobby version as `sessionVersion`.
+`LOBBY_STARTED` carries the new game session's version (0). Clients then open the
+game room on the same session, and the host sends `START_GAME` as in solo play.
+A kicked or departed member's existing subscription is not revoked; it keeps
+receiving public events, which never contain answers before a reveal.
 
 The server never publishes an object-storage key as a separate browser credential.
 For each round start it signs the immutable media snapshot only after session
@@ -171,21 +193,26 @@ asynchronous `ERROR`.
 |---|---|
 | `SECONDARY_MATCH` | secondary `answerType`, display value, `alreadyFound` |
 | `ANSWER_REJECTED` | stable rejection `reason`, optional cooldown `retryAt` |
-| `CURRENT_SNAPSHOT` | game/round state, score, playback/reveal projection, only this player's secondary discoveries, expiry |
+| `CURRENT_SNAPSHOT` | game/round state, this player's score, every participant's `scores`, playback/reveal projection with this player's `roundPoints`, `titleFound`, `skipVoted`, and the round's `skipVotes`/`requiredSkipVotes`, only this player's secondary discoveries, expiry |
 | `ERROR` | stable `code`, safe `message`, `recoverable` |
 
 `ANSWER_REJECTED.reason` is one of `WRONG_ANSWER`, `ALREADY_FOUND`, `COOLDOWN`,
 `STALE_SESSION_VERSION`, `INVALID_ROUND_STATE`, or `DUPLICATE_COMMAND`.
 `retryAt` is present only for `COOLDOWN`.
 
-Title success is never a `SECONDARY_MATCH`: it ends the round and is represented by
-the shared reveal/score events. Artist, composer, and album discoveries remain in
+Title success is never a `SECONDARY_MATCH`: it is represented by the shared
+score/reveal events. In multiplayer the round continues until every connected
+participant found the title, the skip vote passes, or the deadline; a participant's
+repeated title is rejected with `ALREADY_FOUND`. Artist, composer, and album discoveries remain in
 the private queue and in only that participant's recovery snapshot.
 
 ## Authoritative timing and recovery
 
 - A round deadline is scheduled from the persisted `startsAt` and `deadline`; the
-  browser never decides that a round timed out.
+  browser never decides that a round timed out. Multiplayer rounds set `startsAt`
+  1.5 seconds after the server starts them so every client begins playback
+  together; scoring is measured from `startsAt`, and answers before it are rejected
+  as `INVALID_ROUND_STATE`.
 - Title, skip, and deadline commands race through one compare-and-set transition.
   The winning snapshot is persisted with its new session version before any event
   carrying that version is published.
@@ -207,8 +234,8 @@ discoveries.
   first faster attempt receives `ANSWER_REJECTED` with reason `COOLDOWN` and the
   authoritative `retryAt`; further attempts before that instant are silently
   dropped and never reach normalization, matching, scoring, or event publication.
-- Each session accepts at most 20 authenticated command frames in a fixed
-  one-second window. The first excess frame receives a private `ERROR` with code
+- Each session accepts at most 20 authenticated command frames per participant in
+  a fixed one-second window. The first excess frame receives a private `ERROR` with code
   `SESSION_RATE_LIMITED`; later excess frames in that window are silently dropped.
 - Rate rejection never changes the session version or score. Normal commands at
   the boundary are accepted, and rate state is isolated between sessions and

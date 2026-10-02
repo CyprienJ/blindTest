@@ -112,6 +112,8 @@ async function buildFixturePlaylist(
     await expect(page.getByRole('heading', { name: 'Choose the excerpt start' })).toBeVisible({
       timeout: 30_000,
     });
+    // Difficulty is required before the selection can be validated.
+    await page.getByRole('radio', { name: '3 stars' }).click();
     await page.getByRole('button', { name: '✓ Validate selection' }).click();
     await expect(page.getByRole('heading', { name: 'Preview the result' })).toBeVisible({
       timeout: 15_000,

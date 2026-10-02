@@ -62,6 +62,12 @@ public enum ApiErrorCode {
     GAME_DIFFICULTY_INSUFFICIENT_TRACKS(
             HttpStatus.CONFLICT,
             "The selected difficulty levels do not contain enough eligible tracks"),
+    LOBBY_NOT_FOUND(HttpStatus.NOT_FOUND, "This lobby code is invalid or no longer open"),
+    LOBBY_FULL(HttpStatus.CONFLICT, "This lobby is full"),
+    LOBBY_HOST_REQUIRED(HttpStatus.FORBIDDEN, "Only the lobby host can do this"),
+    LOBBY_NOT_READY(
+            HttpStatus.CONFLICT, "At least two players must be present and every guest player ready"),
+    LOBBY_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "This player is not in the lobby"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Media type is not supported"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 

@@ -6,6 +6,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,7 +19,89 @@ public sealed interface PublicSessionEventPayload permits
         PublicSessionEventPayload.RoundStarted,
         PublicSessionEventPayload.RoundRevealed,
         PublicSessionEventPayload.ScoreUpdated,
-        PublicSessionEventPayload.GameFinished {
+        PublicSessionEventPayload.GameFinished,
+        PublicSessionEventPayload.LobbyUpdated,
+        PublicSessionEventPayload.LobbyStarted,
+        PublicSessionEventPayload.SkipVoteUpdated {
+
+    /** One participant's round and running scores, in join order. */
+    record ParticipantScore(UUID participantId, String displayName, int roundPoints, int totalScore) {
+
+        /** Validates identity and non-negative scores. */
+        public ParticipantScore {
+            Objects.requireNonNull(participantId, "participantId is required");
+            SessionProtocol.requireText(displayName, "displayName");
+            SessionProtocol.requireNonNegative(roundPoints, "roundPoints");
+            SessionProtocol.requireNonNegative(totalScore, "totalScore");
+        }
+    }
+
+    /** One participant's final total, titles found, and shared rank, best first. */
+    record ParticipantResult(
+            UUID participantId,
+            String displayName,
+            int totalScore,
+            int titlesFound,
+            int rank) {
+
+        /** Validates identity, totals, and rank. */
+        public ParticipantResult {
+            Objects.requireNonNull(participantId, "participantId is required");
+            SessionProtocol.requireText(displayName, "displayName");
+            SessionProtocol.requireNonNegative(totalScore, "totalScore");
+            SessionProtocol.requireNonNegative(titlesFound, "titlesFound");
+            SessionProtocol.requirePositive(rank, "rank");
+        }
+    }
+
+    /** Multiplayer skip-vote progress among connected participants (ADR-0019). */
+    record SkipVoteUpdated(int votes, int requiredVotes) implements PublicSessionEventPayload {
+
+        /** Validates vote counts. */
+        public SkipVoteUpdated {
+            SessionProtocol.requireNonNegative(votes, "votes");
+            SessionProtocol.requirePositive(requiredVotes, "requiredVotes");
+        }
+    }
+
+    /** One lobby member as broadcast to every member; never carries an account ID. */
+    record LobbyMember(
+            UUID participantId,
+            String displayName,
+            boolean ready,
+            boolean host,
+            boolean guest) {
+
+        /** Validates the member projection. */
+        public LobbyMember {
+            Objects.requireNonNull(participantId, "participantId is required");
+            SessionProtocol.requireText(displayName, "displayName");
+        }
+    }
+
+    /** Current lobby membership, host, ready flags, and start eligibility. */
+    record LobbyUpdated(
+            String code,
+            UUID hostParticipantId,
+            List<LobbyMember> participants,
+            boolean canStart) implements PublicSessionEventPayload {
+
+        /** Copies the ordered member list. */
+        public LobbyUpdated {
+            SessionProtocol.requireText(code, "code");
+            Objects.requireNonNull(hostParticipantId, "hostParticipantId is required");
+            participants = List.copyOf(participants);
+        }
+    }
+
+    /** The host started the lobby; the game session now exists under the same ID. */
+    record LobbyStarted(int totalRounds) implements PublicSessionEventPayload {
+
+        /** Validates the started game size. */
+        public LobbyStarted {
+            SessionProtocol.requirePositive(totalRounds, "totalRounds");
+        }
+    }
 
     /** Safe initial session projection emitted after an authorized subscription. */
     record SessionReady(GameStatus state, int totalRounds, Instant expiresAt)
@@ -89,7 +172,8 @@ public sealed interface PublicSessionEventPayload permits
             Optional<String> coverUrl,
             int roundPoints,
             int totalScore,
-            Instant transitionAt) implements PublicSessionEventPayload {
+            Instant transitionAt,
+            List<ParticipantScore> scores) implements PublicSessionEventPayload {
 
         /** Validates reveal metadata and non-negative authoritative scores. */
         public RoundRevealed {
@@ -105,6 +189,7 @@ public sealed interface PublicSessionEventPayload permits
             SessionProtocol.requireNonNegative(roundPoints, "roundPoints");
             SessionProtocol.requireNonNegative(totalScore, "totalScore");
             SessionProtocol.requireInstant(transitionAt, "transitionAt");
+            scores = List.copyOf(scores);
         }
     }
 
@@ -126,7 +211,8 @@ public sealed interface PublicSessionEventPayload permits
             int totalRounds,
             int titlesFound,
             int skippedRounds,
-            int timedOutRounds) implements PublicSessionEventPayload {
+            int timedOutRounds,
+            List<ParticipantResult> standings) implements PublicSessionEventPayload {
 
         /** Validates aggregate outcome counts. */
         public GameFinished {
@@ -138,6 +224,7 @@ public sealed interface PublicSessionEventPayload permits
             if (titlesFound + skippedRounds + timedOutRounds != totalRounds) {
                 throw new IllegalArgumentException("game outcome totals are inconsistent");
             }
+            standings = List.copyOf(standings);
         }
     }
 

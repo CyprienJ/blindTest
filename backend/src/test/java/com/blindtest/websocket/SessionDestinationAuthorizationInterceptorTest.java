@@ -5,9 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.blindtest.model.game.GameParticipantId;
+import com.blindtest.model.game.RequestedGameConfiguration;
+import com.blindtest.model.lobby.LobbyCode;
+import com.blindtest.model.lobby.LobbyParticipant;
+import com.blindtest.model.lobby.LobbySnapshot;
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
+import com.blindtest.store.LobbyStore;
 import com.blindtest.store.SessionStore;
 import com.blindtest.websocket.protocol.SessionProtocol;
 import java.time.Clock;
@@ -34,13 +40,39 @@ class SessionDestinationAuthorizationInterceptorTest {
     private static final Instant NOW = Instant.parse("2026-08-04T14:00:00Z");
 
     private SessionStore sessionStore;
+    private LobbyStore lobbyStore;
     private SessionDestinationAuthorizationInterceptor interceptor;
 
     @BeforeEach
     void setUp() {
         sessionStore = mock(SessionStore.class);
+        lobbyStore = mock(LobbyStore.class);
         interceptor = new SessionDestinationAuthorizationInterceptor(
-                sessionStore, Clock.fixed(NOW, ZoneOffset.UTC));
+                sessionStore, lobbyStore, Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    @Test
+    void authorizesLobbyMembersBeforeTheGameSessionExists() {
+        UUID intruderId = UUID.randomUUID();
+        when(sessionStore.find(new SessionId(SESSION_ID), NOW)).thenReturn(Optional.empty());
+        LobbyParticipant host = new LobbyParticipant(
+                new GameParticipantId(UUID.randomUUID()), Optional.of(MEMBER_ID), "Host", false);
+        LobbySnapshot lobby = LobbySnapshot.open(
+                new SessionId(SESSION_ID),
+                new LobbyCode("ABCDEF"),
+                host,
+                new RequestedGameConfiguration(UUID.randomUUID(), 5, 30, java.util.Map.of()),
+                NOW,
+                NOW.plusSeconds(1800));
+        when(lobbyStore.find(new SessionId(SESSION_ID), NOW)).thenReturn(Optional.of(lobby));
+
+        Message<byte[]> subscription = destinationMessage(
+                StompCommand.SUBSCRIBE, SessionProtocol.publicEventDestination(SESSION_ID), MEMBER_ID);
+        assertThat(interceptor.preSend(subscription, null)).isSameAs(subscription);
+        assertDenied(destinationMessage(
+                StompCommand.SUBSCRIBE,
+                SessionProtocol.publicEventDestination(SESSION_ID),
+                intruderId), "Session is unavailable or access is denied");
     }
 
     @Test

@@ -3,11 +3,13 @@ package com.blindtest.service;
 import com.blindtest.model.entity.GameHistoryEntity;
 import com.blindtest.model.entity.GameHistoryParticipantEntity;
 import com.blindtest.model.entity.GameHistoryRoundEntity;
+import com.blindtest.model.entity.GameHistoryRoundResultEntity;
 import com.blindtest.model.entity.HistoryParticipantKind;
 import com.blindtest.model.game.DifficultyFilter;
 import com.blindtest.model.game.GameAnswerSnapshot;
 import com.blindtest.model.game.GameStatus;
 import com.blindtest.model.game.GameSummary;
+import com.blindtest.model.game.ParticipantStanding;
 import com.blindtest.model.game.RoundStateSnapshot;
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionParticipant;
@@ -28,6 +30,7 @@ public class GameHistoryPersistenceService {
 
     static final String HISTORY_VERSION = "history-v1";
     static final String GAME_MODE = "SOLO";
+    static final String MULTIPLAYER_GAME_MODE = "MULTIPLAYER";
     static final String CONFIGURATION_VERSION = "solo-v1";
     static final String ANSWER_SNAPSHOT_VERSION = "answers-v1";
     static final int RETENTION_MONTHS = 24;
@@ -72,7 +75,7 @@ public class GameHistoryPersistenceService {
         GameHistoryEntity history = new GameHistoryEntity();
         history.setSessionId(session.sessionId().value());
         history.setHistoryVersion(HISTORY_VERSION);
-        history.setGameMode(GAME_MODE);
+        history.setGameMode(session.isMultiplayer() ? MULTIPLAYER_GAME_MODE : GAME_MODE);
         history.setProtocolVersion((short) SessionProtocol.VERSION);
         history.setConfigurationVersion(CONFIGURATION_VERSION);
         history.setPlaylistIdSnapshot(session.configuration().playlistId());
@@ -94,31 +97,44 @@ public class GameHistoryPersistenceService {
         history.setCompletedAt(completedAt);
         history.setRetentionExpiresAt(completedAt.atZone(ZoneOffset.UTC).
                 plusMonths(RETENTION_MONTHS).toInstant());
-        history.addParticipant(toParticipant(session, summary));
+        session.participants().stream().
+                map(member -> toParticipant(session, summary, member)).
+                forEach(history::addParticipant);
         session.gameState().completedRounds().stream().
-                map(this::toRound).
+                map(round -> toRound(session, round)).
                 forEach(history::addRound);
         return history;
     }
 
     private GameHistoryParticipantEntity toParticipant(
             ActiveSessionSnapshot session,
-            GameSummary summary) {
-        SessionParticipant owner = session.participants().stream().
-                filter(participant -> participant.participantId().equals(
-                        session.ownerParticipantId())).
-                findFirst().
-                orElseThrow();
+            GameSummary summary,
+            SessionParticipant member) {
+        ParticipantStanding standing = summary.standingFor(member.participantId());
         GameHistoryParticipantEntity participant = new GameHistoryParticipantEntity();
-        participant.setParticipantId(owner.participantId().value());
-        owner.accountId().flatMap(userRepository::findById).ifPresent(participant::setUser);
-        participant.setDisplayName(owner.displayName());
-        participant.setParticipantKind(owner.accountId().isPresent()
+        participant.setParticipantId(member.participantId().value());
+        member.accountId().flatMap(userRepository::findById).ifPresent(participant::setUser);
+        participant.setDisplayName(member.displayName());
+        participant.setParticipantKind(member.accountId().isPresent()
                 ? HistoryParticipantKind.AUTHENTICATED : HistoryParticipantKind.GUEST);
-        participant.setOwner(true);
-        participant.setFinalScore(summary.totalScore());
-        participant.setFinalRank(1);
+        participant.setOwner(member.participantId().equals(session.ownerParticipantId()));
+        participant.setFinalScore(standing.totalScore());
+        participant.setFinalRank(standing.rank());
         return participant;
+    }
+
+    private GameHistoryRoundEntity toRound(ActiveSessionSnapshot session, RoundStateSnapshot snapshot) {
+        GameHistoryRoundEntity round = toRound(snapshot);
+        if (session.isMultiplayer()) {
+            for (SessionParticipant member : session.participants()) {
+                GameHistoryRoundResultEntity result = new GameHistoryRoundResultEntity();
+                result.setParticipantId(member.participantId().value());
+                result.setTitleFound(snapshot.scoreState().titleAwarded(member.participantId()));
+                result.setPoints(snapshot.scoreState().pointsFor(member.participantId()));
+                round.addResult(result);
+            }
+        }
+        return round;
     }
 
     private GameHistoryRoundEntity toRound(RoundStateSnapshot snapshot) {
