@@ -19,6 +19,8 @@ connection path.
 
 #### OPS-01 — Produce production-ready images
 
+Status: completed (see [current status](../product/status.md#roadmap-discrepancy)).
+
 Work:
 
 - multi-stage reproducible builds;
@@ -39,6 +41,8 @@ Acceptance:
 
 #### OPS-02 — Define production Compose topology
 
+Status: completed (see [current status](../product/status.md#roadmap-discrepancy)).
+
 Work:
 
 - PostgreSQL, backend, frontend, MinIO, MinIO init;
@@ -58,6 +62,8 @@ Acceptance:
   public network.
 
 #### OPS-03 — Integrate the existing reverse proxy
+
+Status: in use in production; see the [reverse-proxy runbook](../operations/reverse-proxy.md).
 
 Work:
 
@@ -147,7 +153,8 @@ Decision: [ADR-0011](../adr/0011-data-and-rejected-media-retention.md).
 Work:
 
 - expired refresh tokens;
-- old import jobs/errors;
+- expired, used, and revoked registration invitations (FND-07);
+- old import jobs/errors and staged upload files (CAT-11);
 - abandoned sessions;
 - rejected/orphaned media;
 - history retention if any;
@@ -158,6 +165,12 @@ Acceptance:
 - every growing dataset has an owner, retention rule, and observable cleanup.
 
 #### OPS-09 — Implement safe deployment and rollback
+
+Current state (2026-10-02): `build-images.yml` publishes commit-tagged GHCR images
+on every push to `main`, and `deploy.yml` deploys them over SSH with no CI gate,
+health-based promotion stop, pre-deploy backup, or automated rollback. The product
+owner accepted that risk until after Lot P2. TEST-06 owns the CI-check gate; this
+ticket owns everything after the gate.
 
 Work:
 
@@ -171,7 +184,7 @@ Work:
 - rollback to compatible images;
 - avoid `latest` in production;
 - preserve previous Compose/image/env versions securely;
-- make deployment conditional on the required CI checks.
+- consume the TEST-06 gate rather than re-implementing it.
 
 Acceptance:
 

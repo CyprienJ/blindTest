@@ -16,27 +16,17 @@ identity.
 
 ### Lot P2 — Multiplayer and guests
 
-- lobby and short join codes;
-- guest participant tokens;
-- registered and guest players;
-- host controls;
-- readiness;
-- up to ten participants;
-- synchronized `startAt`;
-- per-player private secondary discoveries;
-- scores and scoreboard;
-- disconnect/rejoin;
-- host departure policy;
-- multiplayer concurrency tests.
-
-The V1 server-authoritative engine, participant abstraction, private queues, and
-session store port are prerequisites.
+Scheduled next after CAT-11 (decided 2026-10-02). Tickets MP-01 to MP-10 are in
+[Lot P2 — Multiplayer and guests](lot-p2-multiplayer.md), with rules in
+[ADR-0019](../adr/0019-multiplayer-session-rules.md) and
+[ADR-0020](../adr/0020-guest-participants.md).
 
 ### Lot P3 — Additional game modes
 
 - reveal-mode product decisions;
 - alternative scoring;
-- skip voting;
+- configurable skip-vote threshold (P2 ships a fixed 60% vote);
+- "first to find" mode from the reference create screen;
 - categories/decades and mixed selections;
 - mode-versioned configuration;
 - compatibility with historical snapshots.

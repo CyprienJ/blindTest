@@ -7,11 +7,20 @@
 Validate the complete product with representative users and launch with controlled
 risk.
 
+Re-baselined on 2026-10-02: production at `nosblindtests.fr` already runs and is
+deployed from `main` by `.github/workflows/deploy.yml`. The product owner decided
+not to build a separate beta; the remaining tickets sign off the running
+production as V1. Recovery rehearsals still restore into an isolated target, never
+into production.
+
 ### Tickets
 
 #### REL-01 — Deploy an isolated beta environment
 
-Work:
+Status: dropped on 2026-10-02; production already runs and no separate beta will
+be built. REL-04 keeps its own isolated restore target.
+
+Original work:
 
 - separate database, bucket, credentials, ports, and domain;
 - same image artifacts as production;
@@ -23,10 +32,14 @@ Acceptance:
 
 #### REL-02 — Execute product acceptance
 
+Run against production with a non-administrator test account.
+
 Checklist:
 
-- register/verify/login/reset;
-- admin import/preview/publish;
+- invitation, registration, verify, login, reset;
+- administrator invitations and account management;
+- admin YouTube and audio-file import, excerpt, cover, preview, publish;
+- difficulty, streaming links, and answer aliases;
 - playlist create/order;
 - all game outcomes;
 - summary refresh;
@@ -58,7 +71,7 @@ Acceptance:
 
 Work:
 
-- restore beta PostgreSQL;
+- restore a production backup of PostgreSQL into an isolated database;
 - restore/reconcile MinIO;
 - verify histories and playback;
 - measure actual recovery time.
@@ -83,7 +96,12 @@ Acceptance:
 
 #### REL-06 — Execute production launch
 
-Work:
+Status: partially superseded on 2026-10-02. Production is live, an administrator
+exists, and tracks were imported; what remains is a recorded launch baseline:
+pre-deploy backup, pinned image tag, health and smoke results, and the first
+monitoring review once OPS-07 and OPS-09 exist.
+
+Original work:
 
 - backups;
 - migrations;

@@ -97,8 +97,9 @@ are not equivalent to full-stack browser gameplay acceptance. See
   even with cookies. Audio-file upload (CAT-11) is the supported workaround;
   YouTube import is kept as best effort.
 
-- Beta deployment triggers independently of CI; required checks do not currently
-  gate a push-triggered deployment. TEST-06 tracks this prerequisite.
+- Production deployment on push to `main` runs independently of CI; required
+  checks do not gate it, and there is no automated rollback. The product owner
+  accepted this until TEST-06 and OPS-09, which follow Lot P2.
 - OpenAPI includes intended endpoints that do not exist; verify controllers before
   generating clients or documenting a delivered operation.
 - The production frontend build fetches Google Fonts and requires network access.

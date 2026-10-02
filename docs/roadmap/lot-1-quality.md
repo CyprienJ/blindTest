@@ -97,7 +97,8 @@ Acceptance:
 Work:
 
 - expose required status checks for backend, frontend, migration, and smoke tests;
-- prevent beta deployment from racing the CI workflow;
+- prevent the push-to-`main` production deployment from racing or bypassing the
+  CI workflow (there is no separate beta since the 2026-10-02 Lot 9 re-baseline);
 - upload test artifacts on failure.
 
 Acceptance:

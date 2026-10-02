@@ -5,8 +5,8 @@
 These features are outside the first release but must be anticipated at domain and
 boundary level:
 
-- multiplayer sessions;
-- guest players without accounts;
+- multiplayer sessions and guest players (now scheduled as
+  [Lot P2](lot-p2-multiplayer.md));
 - configurable reveal/scoring game modes beyond the initial solo mode;
 - friends and friend requests;
 - invitations and notifications;

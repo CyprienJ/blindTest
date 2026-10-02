@@ -20,6 +20,8 @@ LOT 0  Repository, security, and decision baseline
 LOT 7  Full-stack validation and hardening (progresses across Lots 2-6)
 LOT 8  VPS operations and deployment readiness
 LOT 9  Beta validation and production launch
+
+LOT P2 Multiplayer and guests (scheduled after CAT-11, ahead of Lots 8-9)
 ```
 
 Lots may overlap when their dependencies permit. The critical product path is:

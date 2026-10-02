@@ -43,3 +43,5 @@ Allowed statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, and
 | [ADR-0016](0016-per-track-looped-excerpt-window.md) | Accepted | Let administrators set a looped per-track excerpt window |
 | [ADR-0017](0017-invitation-only-registration.md) | Accepted | Make registration invitation-only |
 | [ADR-0018](0018-administrator-account-management.md) | Accepted | Let administrators manage accounts |
+| [ADR-0019](0019-multiplayer-session-rules.md) | Accepted | Define multiplayer lobby, scoring, and round rules |
+| [ADR-0020](0020-guest-participants.md) | Accepted | Let guests join multiplayer games with a code |

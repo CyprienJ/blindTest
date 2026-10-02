@@ -13,9 +13,11 @@ Deployment target: one VPS, Docker Compose, existing host reverse proxy
 **[CAT-11 — Import tracks from uploaded audio files](roadmap/lot-3-catalogue.md#cat-11--import-tracks-from-uploaded-audio-files)**
 
 Status: in progress. Inserted ahead of OPS-04 on 2026-09-29 because production
-YouTube imports are blocked by bot detection; resume
-[OPS-04 — Manage production secrets](roadmap/lot-8-operations.md#ops-04--manage-production-secrets)
-once CAT-11 is done.
+YouTube imports are blocked by bot detection. On 2026-10-02 the product owner moved
+[MP-01 — Generalize the game domain to several participants](roadmap/lot-p2-multiplayer.md#mp-01--generalize-the-game-domain-to-several-participants)
+ahead of [OPS-04 — Manage production secrets](roadmap/lot-8-operations.md#ops-04--manage-production-secrets):
+it is the next ticket after CAT-11 (see the
+[execution sequence](roadmap/execution-sequence.md)).
 
 [FND-07 — Make registration invitation-only](roadmap/lot-0-foundation.md#fnd-07--make-registration-invitation-only)
 and [FND-08 — Let administrators manage accounts](roadmap/lot-0-foundation.md#fnd-08--let-administrators-manage-accounts)
@@ -87,8 +89,8 @@ E2E-07 is complete: security verification covers the REST and STOMP authorizatio
 matrix, enumeration boundaries, request and gameplay limits, browser headers,
 CORS/cookies, private signed-media handling, secret scanning, dependency auditing,
 and documented residual findings in [security verification](operations/security-verification.md).
-TEST-06 remains required before beta deployment; beta deployment is currently
-manual from an already built image. MEDIA-08 remains deferred until legacy files
+There is no separate beta since the 2026-10-02 Lot 9 re-baseline; pushes to `main`
+deploy production without a CI gate until TEST-06 and OPS-09. MEDIA-08 remains deferred until legacy files
 need migration.
 
 This is the authoritative next ticket to implement. When it meets the
