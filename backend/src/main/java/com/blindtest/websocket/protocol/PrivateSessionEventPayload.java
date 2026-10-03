@@ -96,6 +96,7 @@ public sealed interface PrivateSessionEventPayload permits
             Map<String, String> streamingLinks,
             Optional<String> coverUrl,
             Optional<Instant> advanceAt,
+            Optional<Instant> pausedAt,
             int roundPoints,
             boolean titleFound,
             boolean skipVoted,
@@ -122,6 +123,7 @@ public sealed interface PrivateSessionEventPayload permits
                     Objects.requireNonNull(streamingLinks, "streamingLinks are required")));
             coverUrl = requireOptionalText(coverUrl, "coverUrl");
             advanceAt = Objects.requireNonNull(advanceAt, "advanceAt is required");
+            pausedAt = Objects.requireNonNull(pausedAt, "pausedAt is required");
             excerptStartSeconds.ifPresent(
                     value -> SessionProtocol.requireNonNegative(value, "excerptStartSeconds"));
             excerptDurationSeconds.ifPresent(value -> {

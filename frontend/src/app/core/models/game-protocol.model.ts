@@ -25,6 +25,8 @@ export type SessionCommandType =
   | 'SUBMIT_ANSWER'
   | 'SKIP_ROUND'
   | 'ADVANCE_ROUND'
+  | 'PAUSE_ROUND'
+  | 'RESUME_ROUND'
   | 'REQUEST_SNAPSHOT';
 
 export interface SessionCommand {
@@ -132,6 +134,30 @@ export interface LobbyStartedPayload {
   totalRounds: number;
 }
 
+/** The owner paused the playing round (solo only) or its reveal. */
+export interface RoundPausedPayload {
+  roundIndex: number;
+  totalRounds: number;
+  status: 'PLAYING' | 'REVEALED';
+  pausedAt: string;
+}
+
+/**
+ * A paused round runs again. A playing round carries its moved timing and a fresh media URL;
+ * a reveal carries its delayed transition.
+ */
+export interface RoundResumedPayload {
+  roundIndex: number;
+  totalRounds: number;
+  status: 'PLAYING' | 'REVEALED';
+  startsAt: string | null;
+  deadline: string | null;
+  excerptStartSeconds: number | null;
+  excerptDurationSeconds: number | null;
+  playbackUrl: string | null;
+  transitionAt: string | null;
+}
+
 export interface ScoreUpdatedPayload {
   participantId: string;
   roundPoints: number;
@@ -156,7 +182,9 @@ export type PublicSessionEvent =
   | PublicEvent<'GAME_FINISHED', GameFinishedPayload>
   | PublicEvent<'SKIP_VOTE_UPDATED', SkipVoteUpdatedPayload>
   | PublicEvent<'LOBBY_UPDATED', LobbyUpdatedPayload>
-  | PublicEvent<'LOBBY_STARTED', LobbyStartedPayload>;
+  | PublicEvent<'LOBBY_STARTED', LobbyStartedPayload>
+  | PublicEvent<'ROUND_PAUSED', RoundPausedPayload>
+  | PublicEvent<'ROUND_RESUMED', RoundResumedPayload>;
 
 interface PublicEvent<T extends string, P> {
   metadata: SessionEventMetadata;
@@ -193,6 +221,8 @@ export interface CurrentRoundProjection {
   streamingLinks: RevealStreamingLinks;
   coverUrl: string | null;
   advanceAt: string | null;
+  /** Set while the round or its reveal is paused. */
+  pausedAt?: string | null;
   /** This player's points in the round. */
   roundPoints: number;
   titleFound: boolean;

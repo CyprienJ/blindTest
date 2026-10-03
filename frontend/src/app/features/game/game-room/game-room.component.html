@@ -119,8 +119,35 @@
                 @if (phase === 'playing') {
                   <span i18n class="mono timer" aria-hidden="true">{{ secondsLeft }}s left</span>
                 }
+                @if (showPauseControl) {
+                  <button
+                    class="bt-btn bt-btn-ghost bt-btn-sm pause-toggle"
+                    type="button"
+                    [attr.aria-pressed]="paused"
+                    [disabled]="!canTogglePause"
+                    (click)="togglePause()"
+                  >
+                    @if (paused) {
+                      <span aria-hidden="true">▶</span> <ng-container i18n>Resume</ng-container>
+                    } @else {
+                      <span aria-hidden="true">❚❚</span> <ng-container i18n>Pause</ng-container>
+                    }
+                  </button>
+                }
               </span>
             </header>
+
+            @if (paused) {
+              <p class="notice paused-notice" role="status">
+                @if (!isOwner) {
+                  <ng-container i18n>The host paused the game.</ng-container>
+                } @else if (phase === 'revealed') {
+                  <ng-container i18n>Paused — the next track waits until you resume.</ng-container>
+                } @else {
+                  <ng-container i18n>Paused — the music and the timer are stopped.</ng-container>
+                }
+              </p>
+            }
 
             @if (socketStatus === 'reconnecting') {
               <p i18n class="notice" role="status">Connection lost — reconnecting…</p>
@@ -246,7 +273,12 @@
                   @if (lastRoundPoints !== null) {
                     <ng-container i18n>+{{ lastRoundPoints }} points ·</ng-container>
                   }
-                  @if (secondsLeft > 0) {
+                  @if (paused) {
+                    <ng-container i18n>{isLastRound, select,
+                      true {Results on hold}
+                      other {Next track on hold}
+                    }</ng-container>
+                  } @else if (secondsLeft > 0) {
                     <ng-container i18n
                       >{isLastRound, select, true {Results} other {Next track}} in
                       {{ secondsLeft }} seconds</ng-container
@@ -289,7 +321,7 @@
                     type="text"
                     autocomplete="off"
                     [(ngModel)]="answer"
-                    [disabled]="phase !== 'playing' || socketStatus === 'reconnecting'"
+                    [disabled]="phase !== 'playing' || paused || socketStatus === 'reconnecting'"
                     i18n-aria-label
                     aria-label="Your answer"
                     aria-describedby="answer-feedback"

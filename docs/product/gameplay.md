@@ -47,6 +47,18 @@ and three beyond 20. Read the matcher for tier ordering and token-boundary detai
 - Skip and timeout reveal the answer and award zero title points.
 - The server automatically advances after a four-second reveal interval.
 
+## Pausing
+
+The owner can pause and resume ([ADR-0021](../adr/0021-pause-rounds-and-reveals.md)):
+
+- during a **solo** round: the music and the timer stop and answers are refused;
+  resuming restores the same remaining time and score curve;
+- during any **reveal**, solo or multiplayer: the music keeps playing and the next
+  track waits; resuming keeps the remaining reveal time. "Next now" still advances.
+
+Multiplayer rounds cannot pause while playing, so a host cannot freeze other players.
+Only the multiplayer host can pause or resume a reveal.
+
 The server enforces a 300 ms per-player answer cooldown and a 20-command
 per-session one-second window. Client button guards are only a usability aid.
 

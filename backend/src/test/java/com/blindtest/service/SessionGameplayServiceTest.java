@@ -48,6 +48,7 @@ import com.blindtest.websocket.protocol.PublicSessionEventPayload;
 import com.blindtest.websocket.protocol.PublicSessionEventType;
 import com.blindtest.websocket.protocol.SessionCommand;
 import com.blindtest.websocket.protocol.SessionCommandType;
+import com.blindtest.websocket.protocol.SessionEventMetadata;
 import com.blindtest.websocket.protocol.SessionProtocol;
 import java.net.URI;
 import java.time.Clock;
@@ -81,6 +82,12 @@ class SessionGameplayServiceTest {
             UUID.fromString("00000000-0000-4000-8000-000000000002");
     private static final UUID SESSION_ID =
             UUID.fromString("00000000-0000-4000-8000-000000000003");
+    private static final UUID GUEST_ACCOUNT_ID =
+            UUID.fromString("00000000-0000-4000-8000-000000000004");
+    private static final UUID GUEST_PARTICIPANT_ID =
+            UUID.fromString("00000000-0000-4000-8000-000000000005");
+    private static final UUID MULTIPLAYER_SESSION_ID =
+            UUID.fromString("00000000-0000-4000-8000-000000000006");
 
     private final SessionStore store = new InMemorySessionStore();
     private final MutableClock clock = new MutableClock(NOW);
@@ -98,13 +105,13 @@ class SessionGameplayServiceTest {
         SessionEventPublisher publisher = mock(SessionEventPublisher.class);
         doAnswer(invocation -> {
             PublicSessionEvent event = invocation.getArgument(0);
-            assertPersisted(event.metadata().sessionVersion());
+            assertPersisted(event.metadata());
             publicEvents.add(event);
             return null;
         }).when(publisher).publishPublic(any(PublicSessionEvent.class));
         doAnswer(invocation -> {
             PrivateSessionEvent event = invocation.getArgument(1);
-            assertPersisted(event.metadata().sessionVersion());
+            assertPersisted(event.metadata());
             privateEvents.add(event);
             return null;
         }).when(publisher).publishPrivate(any(UUID.class), any(PrivateSessionEvent.class));
@@ -426,6 +433,146 @@ class SessionGameplayServiceTest {
         verify(historyCompletionService).complete(finished);
     }
 
+    @Test
+    void pausedSoloRoundHoldsItsDeadlineAndResumesWithTheSameRemainingTime() {
+        startGame();
+        ScheduledTask originalDeadline = scheduler.tasks().getFirst();
+        clock.advance(Duration.ofSeconds(10));
+
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.PAUSE_ROUND, 2, null, UUID.randomUUID()));
+
+        assertThat(current().version()).isEqualTo(3);
+        assertThat(publicEvents).singleElement().satisfies(event -> {
+            assertThat(event.type()).isEqualTo(PublicSessionEventType.ROUND_PAUSED);
+            PublicSessionEventPayload.RoundPaused paused =
+                    (PublicSessionEventPayload.RoundPaused) event.payload();
+            assertThat(paused.status()).isEqualTo(RoundStatus.PLAYING);
+            assertThat(paused.pausedAt()).isEqualTo(NOW.plusSeconds(10));
+        });
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SUBMIT_ANSWER, 3, "Title 0", UUID.randomUUID()));
+        assertThat(privateEvents).singleElement().satisfies(event ->
+                assertThat(((PrivateSessionEventPayload.AnswerRejected) event.payload()).reason()).
+                        isEqualTo(AnswerRejectionReason.INVALID_ROUND_STATE));
+        clock.set(originalDeadline.executeAt());
+        originalDeadline.task().run();
+        assertThat(current().gameState().currentRound().orElseThrow().status()).
+                isEqualTo(RoundStatus.PLAYING);
+
+        clock.set(NOW.plusSeconds(110));
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.RESUME_ROUND, 3, null, UUID.randomUUID()));
+
+        PublicSessionEventPayload.RoundResumed resumed =
+                (PublicSessionEventPayload.RoundResumed) publicEvents.getLast().payload();
+        assertThat(resumed.status()).isEqualTo(RoundStatus.PLAYING);
+        assertThat(resumed.startsAt()).contains(NOW.plusSeconds(100));
+        assertThat(resumed.deadline()).contains(NOW.plusSeconds(130));
+        assertThat(resumed.playbackUrl()).contains(
+                URI.create("https://media.example.test/audio.mp3?signature=2"));
+        assertThat(scheduler.tasks().getLast().executeAt()).isEqualTo(NOW.plusSeconds(130));
+
+        clock.advance(Duration.ofSeconds(5));
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SUBMIT_ANSWER, 4, "Title 0", UUID.randomUUID()));
+        // 15 of the 30 seconds remain: 10 s before the pause and 5 s after it.
+        assertThat(current().gameState().currentRound().orElseThrow().scoreState().totalPoints()).
+                isEqualTo(500);
+    }
+
+    @Test
+    void pausedRevealHoldsTheNextRoundUntilItResumes() {
+        startGame();
+        clock.advance(Duration.ofSeconds(1));
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SKIP_ROUND, 2, null, UUID.randomUUID()));
+        ScheduledTask originalAdvance = scheduler.tasks().getLast();
+        clock.advance(Duration.ofSeconds(1));
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.PAUSE_ROUND, 3, null, UUID.randomUUID()));
+
+        clock.set(originalAdvance.executeAt());
+        originalAdvance.task().run();
+        assertThat(current().gameState().currentRoundIndex()).isZero();
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.REQUEST_SNAPSHOT, 0, null, UUID.randomUUID()));
+        PrivateSessionEventPayload.CurrentRound recovered =
+                ((PrivateSessionEventPayload.CurrentSnapshot) privateEvents.getLast().payload()).
+                        currentRound().orElseThrow();
+        assertThat(recovered.pausedAt()).contains(NOW.plusSeconds(2));
+        assertThat(recovered.advanceAt()).contains(NOW.plusSeconds(5));
+
+        clock.set(NOW.plusSeconds(12));
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.RESUME_ROUND, 4, null, UUID.randomUUID()));
+
+        PublicSessionEventPayload.RoundResumed resumed =
+                (PublicSessionEventPayload.RoundResumed) publicEvents.getLast().payload();
+        assertThat(resumed.status()).isEqualTo(RoundStatus.REVEALED);
+        assertThat(resumed.transitionAt()).contains(NOW.plusSeconds(15));
+        ScheduledTask delayedAdvance = scheduler.tasks().getLast();
+        assertThat(delayedAdvance.executeAt()).isEqualTo(NOW.plusSeconds(15));
+        clock.set(delayedAdvance.executeAt());
+        delayedAdvance.task().run();
+        assertThat(current().gameState().currentRoundIndex()).isEqualTo(1);
+    }
+
+    @Test
+    void multiplayerHostCanPauseOnlyTheRevealAndGuestsCannotPause() {
+        assertThat(store.create(multiplayerSession(), clock.instant())).
+                isEqualTo(SessionCreateOutcome.CREATED);
+        service.handle(MULTIPLAYER_SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.START_GAME, 0, null, UUID.randomUUID()));
+        clock.advance(Duration.ofSeconds(2));
+
+        service.handle(MULTIPLAYER_SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.PAUSE_ROUND, multiplayerVersion(), null, UUID.randomUUID()));
+        service.handle(MULTIPLAYER_SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SKIP_ROUND, multiplayerVersion(), null, UUID.randomUUID()));
+        service.handle(MULTIPLAYER_SESSION_ID, GUEST_ACCOUNT_ID, command(
+                SessionCommandType.SKIP_ROUND, multiplayerVersion(), null, UUID.randomUUID()));
+        service.handle(MULTIPLAYER_SESSION_ID, GUEST_ACCOUNT_ID, command(
+                SessionCommandType.PAUSE_ROUND, multiplayerVersion(), null, UUID.randomUUID()));
+        service.handle(MULTIPLAYER_SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.PAUSE_ROUND, multiplayerVersion(), null, UUID.randomUUID()));
+
+        assertThat(privateEvents).filteredOn(event ->
+                event.type() == PrivateSessionEventType.ERROR).
+                extracting(event -> ((PrivateSessionEventPayload.Error) event.payload()).code()).
+                containsExactly("ROUND_PAUSE_UNAVAILABLE", "SESSION_OWNER_REQUIRED");
+        assertThat(store.find(new SessionId(MULTIPLAYER_SESSION_ID), clock.instant()).
+                orElseThrow().gameState().currentRound().orElseThrow().pausedAt()).
+                contains(clock.instant());
+    }
+
+    private long multiplayerVersion() {
+        return store.find(new SessionId(MULTIPLAYER_SESSION_ID), clock.instant()).
+                orElseThrow().version();
+    }
+
+    private ActiveSessionSnapshot multiplayerSession() {
+        ActiveSessionSnapshot solo = createdSession();
+        GameParticipantId host = new GameParticipantId(PARTICIPANT_ID);
+        GameParticipantId guest = new GameParticipantId(GUEST_PARTICIPANT_ID);
+        GameStateSnapshot game = GameStateSnapshot.created(
+                solo.configuration(), new GameTrackSelection(tracks()), List.of(host, guest));
+        return new ActiveSessionSnapshot(
+                new SessionId(MULTIPLAYER_SESSION_ID),
+                host,
+                List.of(
+                        new SessionParticipant(host, Optional.of(ACCOUNT_ID), "Host"),
+                        new SessionParticipant(guest, Optional.of(GUEST_ACCOUNT_ID), "Guest")),
+                solo.configuration(),
+                game,
+                SecondaryDiscoveryState.empty(),
+                ProcessedCommandLedger.empty(),
+                0,
+                NOW,
+                NOW,
+                NOW.plus(Duration.ofHours(1)), 0);
+    }
+
     private void startGame() {
         service.handle(SESSION_ID, ACCOUNT_ID, command(
                 SessionCommandType.START_GAME, 0, null, UUID.randomUUID()));
@@ -476,8 +623,9 @@ class SessionGameplayServiceTest {
         return new SessionCommand(SessionProtocol.VERSION, commandId, version, type, answer);
     }
 
-    private void assertPersisted(long version) {
-        assertThat(current().version()).isGreaterThanOrEqualTo(version);
+    private void assertPersisted(SessionEventMetadata metadata) {
+        assertThat(store.find(new SessionId(metadata.sessionId()), clock.instant()).
+                orElseThrow().version()).isGreaterThanOrEqualTo(metadata.sessionVersion());
     }
 
     private ActiveSessionSnapshot current() {

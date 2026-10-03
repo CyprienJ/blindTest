@@ -131,6 +131,86 @@ class RoundStateMachineTest {
     }
 
     @Test
+    void pausedPlayingRoundFreezesItsRemainingTimeAndScore() {
+        RoundStateSnapshot playing = machine.start(RoundStateSnapshot.preparing(track(0)), WINDOW);
+
+        RoundStateSnapshot paused = machine.pause(playing, START.plusSeconds(15));
+
+        assertThat(paused.pausedAt()).contains(START.plusSeconds(15));
+        assertFailure(
+                () -> machine.awardTitle(paused, SOLO, TITLE_MATCH, START.plusSeconds(16), SOLO_ACTIVE),
+                GameTransitionError.ROUND_PAUSED);
+        assertFailure(
+                () -> machine.voteSkip(paused, SOLO, START.plusSeconds(16), SOLO_ACTIVE),
+                GameTransitionError.ROUND_PAUSED);
+        assertFailure(
+                () -> machine.timeout(paused, WINDOW.deadline()),
+                GameTransitionError.ROUND_PAUSED);
+        assertFailure(
+                () -> machine.pause(paused, START.plusSeconds(16)),
+                GameTransitionError.ROUND_PAUSED);
+
+        RoundStateSnapshot resumed = machine.resume(paused, START.plusSeconds(115));
+        RoundScoringWindow shifted =
+                new RoundScoringWindow(WINDOW.deadline().plusSeconds(100), WINDOW.configuredDuration());
+
+        assertThat(resumed.paused()).isFalse();
+        assertThat(resumed.scoringWindow()).contains(shifted);
+        assertThat(resumed.playbackWindow()).contains(
+                RoundPlaybackWindow.from(track(0).playback(), shifted));
+        // 15 s played before the pause and 15 s after it: 30 of 60 s remain, as without a pause.
+        RoundStateSnapshot revealed = machine.awardTitle(
+                resumed, SOLO, TITLE_MATCH, START.plusSeconds(130), SOLO_ACTIVE);
+        assertThat(revealed.scoreState().totalPoints()).isEqualTo(500);
+    }
+
+    @Test
+    void pausedRevealAccumulatesItsPausesAndCanStillComplete() {
+        RoundStateSnapshot playing = machine.start(RoundStateSnapshot.preparing(track(0)), WINDOW);
+        RoundStateSnapshot revealed = machine.voteSkip(playing, SOLO, START.plusSeconds(10), SOLO_ACTIVE);
+
+        RoundStateSnapshot once = machine.resume(
+                machine.pause(revealed, START.plusSeconds(11)), START.plusSeconds(31));
+        RoundStateSnapshot pausedAgain = machine.pause(once, START.plusSeconds(32));
+
+        assertThat(once.revealPause()).isEqualTo(Duration.ofSeconds(20));
+        assertThat(once.scoringWindow()).contains(WINDOW);
+        assertThat(machine.resume(pausedAgain, START.plusSeconds(37)).revealPause()).
+                isEqualTo(Duration.ofSeconds(25));
+
+        RoundStateSnapshot completed = machine.complete(pausedAgain, START.plusSeconds(40));
+        assertThat(completed.status()).isEqualTo(RoundStatus.COMPLETED);
+        assertThat(completed.paused()).isFalse();
+        assertThat(completed.revealPause()).isEqualTo(Duration.ofSeconds(20));
+    }
+
+    @Test
+    void pauseAndResumeRejectInvalidStatesAndTimes() {
+        RoundStateSnapshot preparing = RoundStateSnapshot.preparing(track(0));
+        RoundStateSnapshot playing = machine.start(preparing, WINDOW);
+        RoundStateSnapshot revealed = machine.voteSkip(playing, SOLO, START.plusSeconds(10), SOLO_ACTIVE);
+
+        assertFailure(
+                () -> machine.pause(preparing, START),
+                GameTransitionError.ILLEGAL_ROUND_TRANSITION);
+        assertFailure(
+                () -> machine.pause(playing, START.minusNanos(1)),
+                GameTransitionError.ROUND_TIME_INVALID);
+        assertFailure(
+                () -> machine.pause(playing, WINDOW.deadline()),
+                GameTransitionError.ROUND_TIME_INVALID);
+        assertFailure(
+                () -> machine.pause(revealed, START.plusSeconds(9)),
+                GameTransitionError.ROUND_TIME_INVALID);
+        assertFailure(
+                () -> machine.resume(playing, START.plusSeconds(1)),
+                GameTransitionError.ROUND_NOT_PAUSED);
+        assertFailure(
+                () -> machine.resume(machine.pause(playing, START.plusSeconds(5)), START.plusSeconds(4)),
+                GameTransitionError.ROUND_TIME_INVALID);
+    }
+
+    @Test
     void snapshotRejectsDataThatDoesNotBelongToItsLifecycleState() {
         assertThatThrownBy(() -> new RoundStateSnapshot(
                         track(0),

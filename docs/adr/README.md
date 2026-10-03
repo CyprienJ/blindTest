@@ -45,3 +45,4 @@ Allowed statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, and
 | [ADR-0018](0018-administrator-account-management.md) | Accepted | Let administrators manage accounts |
 | [ADR-0019](0019-multiplayer-session-rules.md) | Accepted | Define multiplayer lobby, scoring, and round rules |
 | [ADR-0020](0020-guest-participants.md) | Accepted | Let guests join multiplayer games with a code |
+| [ADR-0021](0021-pause-rounds-and-reveals.md) | Accepted | Let the owner pause a round or its reveal |

@@ -90,6 +90,18 @@ public final class GameStateMachine {
         return withCurrentRound(game, revealed);
     }
 
+    /** Pauses the active playing or revealed round. */
+    public GameStateSnapshot pauseRound(GameStateSnapshot game, Instant pausedAt) {
+        requireStatus(game, GameStatus.PLAYING);
+        return withCurrentRound(game, roundStateMachine.pause(currentRound(game), pausedAt));
+    }
+
+    /** Resumes the active paused round, moving its deadline or reveal transition. */
+    public GameStateSnapshot resumeRound(GameStateSnapshot game, Instant resumedAt) {
+        requireStatus(game, GameStatus.PLAYING);
+        return withCurrentRound(game, roundStateMachine.resume(currentRound(game), resumedAt));
+    }
+
     /**
      * Completes the active revealed round, then prepares the next track or finishes once.
      */

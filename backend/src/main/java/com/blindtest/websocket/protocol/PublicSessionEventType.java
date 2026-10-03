@@ -10,7 +10,9 @@ public enum PublicSessionEventType {
     GAME_FINISHED(PublicSessionEventPayload.GameFinished.class),
     LOBBY_UPDATED(PublicSessionEventPayload.LobbyUpdated.class),
     LOBBY_STARTED(PublicSessionEventPayload.LobbyStarted.class),
-    SKIP_VOTE_UPDATED(PublicSessionEventPayload.SkipVoteUpdated.class);
+    SKIP_VOTE_UPDATED(PublicSessionEventPayload.SkipVoteUpdated.class),
+    ROUND_PAUSED(PublicSessionEventPayload.RoundPaused.class),
+    ROUND_RESUMED(PublicSessionEventPayload.RoundResumed.class);
 
     private final Class<? extends PublicSessionEventPayload> payloadType;
 

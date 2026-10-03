@@ -172,6 +172,14 @@ export class GameSocketService implements OnDestroy {
     this.send('ADVANCE_ROUND');
   }
 
+  pauseRound(): void {
+    this.send('PAUSE_ROUND');
+  }
+
+  resumeRound(): void {
+    this.send('RESUME_ROUND');
+  }
+
   requestSnapshot(): void {
     this.send('REQUEST_SNAPSHOT');
   }

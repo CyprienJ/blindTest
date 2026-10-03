@@ -1,7 +1,14 @@
 import { inject, Injectable, InjectionToken, OnDestroy } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
-export type AudioPlaybackStatus = 'idle' | 'loading' | 'playing' | 'blocked' | 'ended' | 'error';
+export type AudioPlaybackStatus =
+  | 'idle'
+  | 'loading'
+  | 'playing'
+  | 'paused'
+  | 'blocked'
+  | 'ended'
+  | 'error';
 
 /** Authoritative timing for one round's media excerpt (from `ROUND_STARTED` / snapshot). */
 export interface RoundPlaybackRequest {
@@ -102,6 +109,16 @@ export class AudioPlaybackService implements OnDestroy {
   /** Lets the current track play on past its excerpt window, e.g. once the round is revealed. */
   releaseLoop(): void {
     this.loopReleased = true;
+  }
+
+  /**
+   * Silences a paused round while keeping its media buffered. Playback restarts when the
+   * resumed round is scheduled again with its moved server timeline.
+   */
+  pause(): void {
+    this.teardownPlayback();
+    this.pending = null;
+    this.setStatus('paused');
   }
 
   /** Retries playback after the browser blocked autoplay — call from a user gesture. */

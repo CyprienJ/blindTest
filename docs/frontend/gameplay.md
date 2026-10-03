@@ -82,6 +82,19 @@ cover each outcome, deadline expiry, final-round recovery, and command guards;
 the mocked STOMP browser journey checks title visibility and server-driven advance.
 The wire contract is unchanged.
 
+## Pause
+
+The owner sees a Pause/Resume toggle in the round header during a solo round and
+during any reveal; multiplayer guests see only a "host paused" notice
+([ADR-0021](../adr/0021-pause-rounds-and-reveals.md)). `ROUND_PAUSED` freezes the
+countdown at `pausedAt`. A paused round also disables the answer field and skip, and
+calls `AudioPlaybackService.pause()`, which stops the sound but keeps the media
+buffered; a paused reveal keeps its music. `ROUND_RESUMED` either reschedules round
+audio from the moved `startsAt`/`deadline` and fresh URL, so the usual timeline seek
+restarts the track where it stopped, or projects the reveal's delayed `transitionAt`.
+A snapshot with `pausedAt` restores the frozen state without starting audio. Unit tests
+and `e2e/game-pause.spec.ts` cover both phases.
+
 ## Audio ownership
 
 `AudioPlaybackService` owns one `HTMLAudioElement` behind an injectable factory.

@@ -36,7 +36,9 @@ one. They now pick a rating, and all eight full-stack specs pass.
 [FND-07 — Make registration invitation-only](roadmap/lot-0-foundation.md#fnd-07--make-registration-invitation-only)
 and [FND-08 — Let administrators manage accounts](roadmap/lot-0-foundation.md#fnd-08--let-administrators-manage-accounts)
 were completed on 2026-10-02 at the product owner's request without moving this
-pointer.
+pointer. Pausing a solo round or any reveal
+([ADR-0021](adr/0021-pause-rounds-and-reveals.md)) was added the same way on
+2026-10-03.
 
 Git history and source confirm UI-01 through UI-05 were implemented on 2026-09-02
 (`f8febc9`, `e9cac42`, `4548500`, `65ea8ec`, and `8228f4b`). UI-06 through UI-10

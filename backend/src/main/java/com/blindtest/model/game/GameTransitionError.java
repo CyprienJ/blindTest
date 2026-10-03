@@ -15,7 +15,11 @@ public enum GameTransitionError {
     ROUND_DEADLINE_NOT_REACHED(
             "GAME_ROUND_DEADLINE_NOT_REACHED", "The round deadline has not been reached"),
     ROUND_TIME_INVALID(
-            "GAME_ROUND_TIME_INVALID", "The round transition timestamp is invalid");
+            "GAME_ROUND_TIME_INVALID", "The round transition timestamp is invalid"),
+    ROUND_PAUSED(
+            "GAME_ROUND_PAUSED", "The round is paused"),
+    ROUND_NOT_PAUSED(
+            "GAME_ROUND_NOT_PAUSED", "The round is not paused");
 
     private final String code;
     private final String safeMessage;

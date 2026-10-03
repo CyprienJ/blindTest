@@ -174,6 +174,33 @@ describe('AudioPlaybackService', () => {
     expect(statuses.at(-1)).toBe('playing');
   });
 
+  it('silences a paused round and restarts it on the moved timeline', async () => {
+    service.scheduleRound(round());
+    await flush();
+    jasmine.clock().mockDate(new Date(NOW + 5_000));
+
+    service.pause();
+    expect(audio.paused).toBeTrue();
+    expect(statuses.at(-1)).toBe('paused');
+    expect(audio.src).toBe('https://media.example/excerpt.mp3?sig=abc');
+    jasmine.clock().tick(60_000);
+    expect(audio.playCalls.length).toBe(1);
+
+    // Resumed 60 s later: the server moved the round, so 5 s have still elapsed.
+    jasmine.clock().mockDate(new Date(NOW + 65_000));
+    service.scheduleRound(
+      round({
+        url: 'https://media.example/excerpt.mp3?sig=fresh',
+        startsAt: new Date(NOW + 60_000).toISOString(),
+        deadline: new Date(NOW + 90_000).toISOString(),
+      }),
+    );
+    await flush();
+    expect(audio.src).toBe('https://media.example/excerpt.mp3?sig=fresh');
+    expect(audio.currentTime).toBe(20);
+    expect(statuses.at(-1)).toBe('playing');
+  });
+
   it('releases the media element on stop', async () => {
     service.scheduleRound(round());
     await flush();

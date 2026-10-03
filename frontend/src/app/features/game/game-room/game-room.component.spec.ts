@@ -78,6 +78,8 @@ class FakeGameSocket {
   submitAnswer = jasmine.createSpy('submitAnswer');
   skipRound = jasmine.createSpy('skipRound');
   advanceRound = jasmine.createSpy('advanceRound');
+  pauseRound = jasmine.createSpy('pauseRound');
+  resumeRound = jasmine.createSpy('resumeRound');
   requestSnapshot = jasmine.createSpy('requestSnapshot');
 }
 
@@ -88,6 +90,7 @@ class FakeAudio {
   scheduleRound = jasmine.createSpy('scheduleRound');
   resume = jasmine.createSpy('resume');
   stop = jasmine.createSpy('stop');
+  pause = jasmine.createSpy('pause');
   releaseLoop = jasmine.createSpy('releaseLoop');
 }
 
@@ -631,6 +634,216 @@ describe('GameRoomComponent', () => {
       // Only the host may advance early.
       expect(text(fixture)).toContain('The host can skip ahead');
       expect(component.canAdvance).toBeFalse();
+    });
+  });
+
+  describe('pause', () => {
+    const hostSession: ActiveSoloSession = {
+      ...active,
+      host: true,
+      hostParticipantId: active.participantId,
+    };
+    const guestSession: ActiveSoloSession = {
+      ...active,
+      host: false,
+      hostParticipantId: '77777777-7777-4777-8777-777777777777',
+    };
+
+    function paused(status: 'PLAYING' | 'REVEALED', at: number): PublicSessionEvent {
+      return {
+        metadata: meta(10),
+        type: 'ROUND_PAUSED',
+        payload: { roundIndex: 0, totalRounds: 12, status, pausedAt: new Date(at).toISOString() },
+      };
+    }
+
+    function revealed(): PublicSessionEvent {
+      return {
+        metadata: meta(5),
+        type: 'ROUND_REVEALED',
+        payload: {
+          roundIndex: 0,
+          totalRounds: 12,
+          outcome: 'SKIPPED',
+          title: 'Take On Me',
+          artist: 'a-ha',
+          composer: null,
+          album: null,
+          streamingLinks: {},
+          coverUrl: null,
+          roundPoints: 0,
+          totalScore: 0,
+          transitionAt: new Date(NOW + 4_000).toISOString(),
+          scores: [],
+        },
+      };
+    }
+
+    function pauseButton(fixture: ComponentFixture<GameRoomComponent>): HTMLButtonElement | null {
+      return fixture.nativeElement.querySelector('.pause-toggle');
+    }
+
+    it('stops the music and the timer of a solo round, then resumes on the moved timeline', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+      const component = fixture.componentInstance;
+      socket.status$.next('connected');
+      socket.publicEvents$.next(roundStarted(0));
+      jasmine.clock().mockDate(new Date(NOW + 10_000));
+      jasmine.clock().tick(250);
+      fixture.changeDetectorRef.detectChanges();
+
+      pauseButton(fixture)!.click();
+      pauseButton(fixture)!.click();
+      expect(socket.pauseRound).toHaveBeenCalledTimes(1);
+
+      socket.publicEvents$.next(paused('PLAYING', NOW + 10_000));
+      jasmine.clock().mockDate(new Date(NOW + 70_000));
+      jasmine.clock().tick(250);
+      fixture.changeDetectorRef.detectChanges();
+      expect(audio.pause).toHaveBeenCalled();
+      expect(text(fixture)).toContain('20s left');
+      expect(text(fixture)).toContain('the music and the timer are stopped');
+      expect(component.canSubmit).toBeFalse();
+      expect(component.canSkip).toBeFalse();
+      expect(pauseButton(fixture)!.getAttribute('aria-pressed')).toBe('true');
+
+      pauseButton(fixture)!.click();
+      expect(socket.resumeRound).toHaveBeenCalledTimes(1);
+      socket.publicEvents$.next({
+        metadata: meta(11),
+        type: 'ROUND_RESUMED',
+        payload: {
+          roundIndex: 0,
+          totalRounds: 12,
+          status: 'PLAYING',
+          startsAt: new Date(NOW + 60_000).toISOString(),
+          deadline: new Date(NOW + 90_000).toISOString(),
+          excerptStartSeconds: 15,
+          excerptDurationSeconds: 20,
+          playbackUrl: 'https://media.example/excerpt.mp3?sig=fresh',
+          transitionAt: null,
+        },
+      });
+      fixture.changeDetectorRef.detectChanges();
+      expect(audio.scheduleRound).toHaveBeenCalledWith({
+        url: 'https://media.example/excerpt.mp3?sig=fresh',
+        startsAt: new Date(NOW + 60_000).toISOString(),
+        deadline: new Date(NOW + 90_000).toISOString(),
+        excerptStartSeconds: 15,
+        excerptDurationSeconds: 20,
+      });
+      expect(component.paused).toBeFalse();
+      expect(component.canSubmit).toBeTrue();
+      expect(text(fixture)).toContain('20s left');
+      jasmine.clock().mockDate(new Date(NOW + 75_000));
+      jasmine.clock().tick(250);
+      fixture.changeDetectorRef.detectChanges();
+      expect(text(fixture)).toContain('15s left');
+    });
+
+    it('keeps the music of a paused reveal and holds the next track until resumed', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+      socket.status$.next('connected');
+      socket.publicEvents$.next(roundStarted(0));
+      socket.publicEvents$.next(revealed());
+
+      socket.publicEvents$.next(paused('REVEALED', NOW + 1_000));
+      jasmine.clock().mockDate(new Date(NOW + 60_000));
+      jasmine.clock().tick(250);
+      fixture.changeDetectorRef.detectChanges();
+      expect(audio.pause).not.toHaveBeenCalled();
+      expect(text(fixture)).toContain('Next track on hold');
+      expect(text(fixture)).toContain('the next track waits until you resume');
+
+      socket.publicEvents$.next({
+        metadata: meta(11),
+        type: 'ROUND_RESUMED',
+        payload: {
+          roundIndex: 0,
+          totalRounds: 12,
+          status: 'REVEALED',
+          startsAt: null,
+          deadline: null,
+          excerptStartSeconds: null,
+          excerptDurationSeconds: null,
+          playbackUrl: null,
+          transitionAt: new Date(NOW + 63_000).toISOString(),
+        },
+      });
+      fixture.changeDetectorRef.detectChanges();
+      expect(text(fixture)).toContain('Next track in 3 seconds');
+    });
+
+    it('recovers a paused round from a snapshot without starting its audio', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+      socket.status$.next('connected');
+      socket.snapshots$.next({
+        ...snapshot('PLAYING'),
+        currentRound: {
+          roundIndex: 0,
+          status: 'PLAYING',
+          startsAt: new Date(NOW - 50_000).toISOString(),
+          deadline: new Date(NOW - 20_000).toISOString(),
+          playbackUrl: null,
+          excerptStartSeconds: 15,
+          excerptDurationSeconds: 20,
+          outcome: null,
+          title: null,
+          artist: null,
+          composer: null,
+          album: null,
+          streamingLinks: {},
+          coverUrl: null,
+          advanceAt: null,
+          pausedAt: new Date(NOW - 40_000).toISOString(),
+          roundPoints: 0,
+          titleFound: false,
+          skipVoted: false,
+          skipVotes: 0,
+          requiredSkipVotes: 1,
+        },
+      });
+      fixture.changeDetectorRef.detectChanges();
+
+      expect(fixture.componentInstance.paused).toBeTrue();
+      expect(audio.scheduleRound).not.toHaveBeenCalled();
+      expect(text(fixture)).toContain('20s left');
+      expect(text(fixture)).toContain('Resume');
+    });
+
+    it('lets a multiplayer host pause only the reveal', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(hostSession));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+      socket.status$.next('connected');
+      socket.publicEvents$.next(roundStarted(0));
+      fixture.changeDetectorRef.detectChanges();
+      expect(pauseButton(fixture)).toBeNull();
+
+      socket.publicEvents$.next(revealed());
+      fixture.changeDetectorRef.detectChanges();
+      pauseButton(fixture)!.click();
+      expect(socket.pauseRound).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells multiplayer guests that the host paused, without a control', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(guestSession));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+      socket.status$.next('connected');
+      socket.publicEvents$.next(roundStarted(0));
+      socket.publicEvents$.next(revealed());
+      socket.publicEvents$.next(paused('REVEALED', NOW + 1_000));
+      fixture.changeDetectorRef.detectChanges();
+
+      expect(pauseButton(fixture)).toBeNull();
+      expect(text(fixture)).toContain('The host paused the game.');
     });
   });
 

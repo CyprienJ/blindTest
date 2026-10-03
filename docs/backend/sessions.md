@@ -45,6 +45,13 @@ The server schedules round deadlines and the four-second reveal transition.
 Callbacks verify current state so duplicate or late timers cannot resolve a round
 twice. Answers at or after the deadline earn no title points.
 
+`PAUSE_ROUND` and `RESUME_ROUND` ([ADR-0021](../adr/0021-pause-rounds-and-reveals.md))
+record `pausedAt` on the round snapshot. Timer callbacks ignore a paused round.
+Resuming a playing round moves its scoring and playback windows by the paused time
+and reschedules the deadline; resuming a reveal adds the paused time to the round's
+`revealPause`, which delays the transition. Only the owner may pause, and multiplayer
+sessions may pause only a reveal.
+
 `ROUND_STARTED` includes authoritative timing, excerpt offset and window length
 (capped to the round duration), and an authorized
 short-lived media URL. Reconnection requests a private `CURRENT_SNAPSHOT`, including

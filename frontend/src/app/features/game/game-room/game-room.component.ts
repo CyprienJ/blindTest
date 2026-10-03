@@ -25,6 +25,7 @@ import {
   PrivateSessionEvent,
   PublicSessionEvent,
   RoundOutcome,
+  RoundResumedPayload,
   RoundStartedPayload,
   SecondaryAnswerType,
 } from '../../../core/models/game-protocol.model';
@@ -89,6 +90,11 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   advancing = false;
   private advanceAtMs: number | null = null;
 
+  /** Set while the owner paused the playing round (solo) or its reveal; timers freeze. */
+  paused = false;
+  pausing = false;
+  private pausedAtMs: number | null = null;
+
   /* Multiplayer state (MP-06); solo sessions leave these empty. */
   scores: ParticipantScore[] = [];
   /** Participants who found the current round's title. */
@@ -124,6 +130,39 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     if (!this.canAdvance) return;
     this.advancing = true;
     this.gameSocket.advanceRound();
+  }
+
+  /**
+   * The owner can pause a solo round while it plays, which stops the music and the timer, and
+   * any reveal, which keeps the music but holds the next track. Multiplayer rounds pause only
+   * during the reveal, so the host cannot freeze other players' guessing.
+   */
+  get showPauseControl(): boolean {
+    return (
+      this.isOwner && (this.phase === 'revealed' || (this.phase === 'playing' && !this.multiplayer))
+    );
+  }
+
+  get canTogglePause(): boolean {
+    return (
+      this.showPauseControl &&
+      this.socketStatus === 'connected' &&
+      !this.pausing &&
+      !this.advancing &&
+      (this.paused || this.phase === 'revealed' || this.startsInSeconds === 0)
+    );
+  }
+
+  togglePause(): void {
+    if (!this.canTogglePause) return;
+    this.pausing = true;
+    if (this.paused) {
+      this.gameSocket.resumeRound();
+    } else {
+      this.gameSocket.pauseRound();
+    }
+    // The server's ROUND_PAUSED / ROUND_RESUMED normally clears this sooner.
+    window.setTimeout(() => (this.pausing = false), COMMAND_GUARD_MS);
   }
 
   @HostListener('window:keydown.enter', ['$event'])
@@ -238,6 +277,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   get canSubmit(): boolean {
     return (
       this.phase === 'playing' &&
+      !this.paused &&
       this.socketStatus === 'connected' &&
       !this.sending &&
       this.startsInSeconds === 0 &&
@@ -248,6 +288,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   get canSkip(): boolean {
     return (
       this.phase === 'playing' &&
+      !this.paused &&
       this.socketStatus !== 'reconnecting' &&
       !this.skipping &&
       !this.skipVoted &&
@@ -256,6 +297,9 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   }
 
   get stateLabel(): string {
+    if (this.paused) {
+      return $localize`Paused`;
+    }
     if (this.phase === 'revealed') {
       return $localize`Revealed`;
     }
@@ -314,23 +358,29 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     void this.router.navigate(['/lobby/create']);
   }
 
+  /** Round clock: frozen at the pause instant while the round or its reveal is paused. */
+  private roundClockMs(): number {
+    return this.paused && this.pausedAtMs !== null ? this.pausedAtMs : Date.now();
+  }
+
   private tick(): void {
+    const now = this.roundClockMs();
     // Multiplayer rounds start shortly after ROUND_STARTED; earlier commands would be rejected.
     this.startsInSeconds =
       this.phase === 'playing' && this.roundStartMs !== null
-        ? Math.max(0, Math.ceil((this.roundStartMs - Date.now()) / 1000))
+        ? Math.max(0, Math.ceil((this.roundStartMs - now) / 1000))
         : 0;
     this.cooldownSeconds = Math.max(0, Math.ceil((this.retryAtMs - Date.now()) / 1000));
     this.secondsLeft =
       this.phase === 'revealed'
-        ? Math.max(0, Math.ceil(((this.advanceAtMs ?? Date.now()) - Date.now()) / 1000))
+        ? Math.max(0, Math.ceil(((this.advanceAtMs ?? now) - now) / 1000))
         : this.deadlineMs === null
           ? 0
-          : Math.max(0, Math.ceil((this.deadlineMs - Date.now()) / 1000));
-    this.progressPct = this.computeProgressPct();
+          : Math.max(0, Math.ceil((this.deadlineMs - now) / 1000));
+    this.progressPct = this.computeProgressPct(now);
   }
 
-  private computeProgressPct(): number {
+  private computeProgressPct(now: number): number {
     if (this.roundStartMs === null || this.deadlineMs === null) {
       return 0;
     }
@@ -338,12 +388,13 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     if (total <= 0) {
       return 100;
     }
-    return Math.min(100, Math.max(0, ((Date.now() - this.roundStartMs) / total) * 100));
+    return Math.min(100, Math.max(0, ((now - this.roundStartMs) / total) * 100));
   }
 
   private applySnapshot(snapshot: CurrentSnapshotPayload): void {
     this.resetFeedback();
     this.clearReveal();
+    this.clearPause();
     this.deadlineMs = null;
     this.roundStartMs = null;
     this.progressPct = 0;
@@ -401,6 +452,9 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         } else {
           this.enterReveal(round, round.outcome, round.roundPoints, round.advanceAt);
         }
+        if (round.pausedAt && (round.status === 'PLAYING' || round.status === 'REVEALED')) {
+          this.applyPause(round.status, round.pausedAt);
+        }
         return;
       }
       default:
@@ -416,6 +470,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       case 'ROUND_PREPARING':
         this.resetFeedback();
         this.clearReveal();
+        this.clearPause();
         this.phase = 'preparing';
         this.roundNumber = event.payload.roundIndex + 1;
         this.totalRounds = event.payload.totalRounds;
@@ -477,12 +532,31 @@ export class GameRoomComponent implements OnInit, OnDestroy {
         this.skipVotes = event.payload.votes;
         this.requiredSkipVotes = event.payload.requiredVotes;
         return;
+      case 'ROUND_PAUSED':
+        if (event.payload.roundIndex + 1 !== this.roundNumber) {
+          this.gameSocket.requestSnapshot();
+          return;
+        }
+        this.applyPause(event.payload.status, event.payload.pausedAt);
+        this.announcement = this.isOwner
+          ? $localize`Game paused.`
+          : $localize`The host paused the game.`;
+        return;
+      case 'ROUND_RESUMED':
+        if (event.payload.roundIndex + 1 !== this.roundNumber) {
+          this.gameSocket.requestSnapshot();
+          return;
+        }
+        this.applyResume(event.payload);
+        this.announcement = $localize`Game resumed.`;
+        return;
       case 'LOBBY_UPDATED':
       case 'LOBBY_STARTED':
         return;
       case 'GAME_FINISHED':
         this.resetFeedback();
         this.clearReveal();
+        this.clearPause();
         this.phase = 'finished';
         this.finished = event.payload;
         this.totalScore =
@@ -549,6 +623,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       }
       case 'ERROR':
         this.advancing = false;
+        this.pausing = false;
         this.gameError = this.commandErrorMessage(event.payload.code);
         if (!event.payload.recoverable) {
           this.phase = 'error';
@@ -573,6 +648,52 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     }
   }
 
+  private applyPause(status: 'PLAYING' | 'REVEALED', pausedAt: string): void {
+    const pausedAtMs = Date.parse(pausedAt);
+    this.paused = true;
+    this.pausing = false;
+    this.pausedAtMs = Number.isNaN(pausedAtMs) ? Date.now() : pausedAtMs;
+    // A paused reveal keeps its music; a paused round stops it with the timer.
+    if (status === 'PLAYING') {
+      this.audioPlayback.pause();
+    }
+    this.tick();
+  }
+
+  private applyResume(payload: RoundResumedPayload): void {
+    this.clearPause();
+    if (payload.status === 'REVEALED') {
+      this.advanceAtMs = payload.transitionAt ? Date.parse(payload.transitionAt) : null;
+      this.tick();
+      return;
+    }
+    if (!payload.startsAt || !payload.deadline) {
+      this.gameSocket.requestSnapshot();
+      return;
+    }
+    // The server moved the round by the paused time, so the usual timeline sync restarts the
+    // music where it stopped.
+    this.roundStartMs = Date.parse(payload.startsAt);
+    this.deadlineMs = Date.parse(payload.deadline);
+    this.tick();
+    this.focusInput();
+    if (payload.playbackUrl) {
+      this.audioPlayback.scheduleRound({
+        url: payload.playbackUrl,
+        startsAt: payload.startsAt,
+        deadline: payload.deadline,
+        excerptStartSeconds: payload.excerptStartSeconds ?? 0,
+        excerptDurationSeconds: payload.excerptDurationSeconds ?? undefined,
+      });
+    }
+  }
+
+  private clearPause(): void {
+    this.paused = false;
+    this.pausing = false;
+    this.pausedAtMs = null;
+  }
+
   private applyFatalError(message: string): void {
     this.gameError = message;
     this.phase = 'error';
@@ -586,6 +707,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   ): void {
     this.resetFeedback();
     this.clearReveal();
+    this.clearPause();
     this.phase = 'playing';
     this.roundStartMs = Date.parse(payload.startsAt);
     this.deadlineMs = Date.parse(payload.deadline);
@@ -637,6 +759,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     advanceAt: string | null,
   ): void {
     this.resetFeedback();
+    this.clearPause();
     this.phase = 'revealed';
     // Keep the music going from where it is rather than restarting the excerpt.
     this.audioPlayback.releaseLoop();

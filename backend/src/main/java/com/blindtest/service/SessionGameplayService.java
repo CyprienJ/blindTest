@@ -164,6 +164,8 @@ public class SessionGameplayService {
             case SUBMIT_ANSWER -> submitAnswer(session, participant, accountId, command);
             case SKIP_ROUND -> skipRound(session, participant, accountId, command);
             case ADVANCE_ROUND -> advanceRound(session, participant, accountId, command);
+            case PAUSE_ROUND -> pauseRound(session, participant, accountId, command);
+            case RESUME_ROUND -> resumeRound(session, participant, accountId, command);
             case REQUEST_SNAPSHOT -> throw new IllegalStateException("snapshot handled earlier");
             default -> throw new IllegalStateException("Unknown gameplay command");
         };
@@ -206,7 +208,7 @@ public class SessionGameplayService {
             UUID accountId,
             SessionCommand command) {
         RoundStateSnapshot round = playingRound(session);
-        if (round == null) {
+        if (round == null || round.paused()) {
             invalidState(session, participant, accountId, command);
             return true;
         }
@@ -389,6 +391,103 @@ public class SessionGameplayService {
         return true;
     }
 
+    /**
+     * Pauses the current round for the owner. A playing round can pause only in solo games, so
+     * a multiplayer host cannot freeze other players' guessing; any reveal can pause.
+     */
+    private boolean pauseRound(
+            ActiveSessionSnapshot session,
+            SessionParticipant participant,
+            UUID accountId,
+            SessionCommand command) {
+        if (!isOwner(session, participant)) {
+            commandError(session, participant, accountId, command, "SESSION_OWNER_REQUIRED",
+                    "Only the session owner can pause the game.");
+            return true;
+        }
+        RoundStateSnapshot round = currentRound(session);
+        if (round != null && round.status() == RoundStatus.PLAYING && session.isMultiplayer()) {
+            commandError(session, participant, accountId, command, "ROUND_PAUSE_UNAVAILABLE",
+                    "A multiplayer round can only be paused during its reveal.");
+            return true;
+        }
+        try {
+            Instant now = expirationPolicy.instant();
+            GameStateSnapshot paused = gameStateMachine.pauseRound(session.gameState(), now);
+            ActiveSessionSnapshot persisted = nextForCommand(session, paused, command, now);
+            if (!persist(session, persisted)) {
+                staleAfterConflict(session, participant, accountId, command);
+                return true;
+            }
+            RoundStateSnapshot pausedRound = currentRound(persisted);
+            publishPublic(
+                    persisted,
+                    PublicSessionEventType.ROUND_PAUSED,
+                    new PublicSessionEventPayload.RoundPaused(
+                            paused.currentRoundIndex(),
+                            totalRounds(paused),
+                            pausedRound.status(),
+                            pausedRound.pausedAt().orElseThrow()));
+            return true;
+        } catch (GameTransitionException exception) {
+            invalidState(session, participant, accountId, command);
+            return true;
+        }
+    }
+
+    /** Resumes the paused round for the owner and reschedules its deadline or transition. */
+    private boolean resumeRound(
+            ActiveSessionSnapshot session,
+            SessionParticipant participant,
+            UUID accountId,
+            SessionCommand command) {
+        if (!isOwner(session, participant)) {
+            commandError(session, participant, accountId, command, "SESSION_OWNER_REQUIRED",
+                    "Only the session owner can resume the game.");
+            return true;
+        }
+        try {
+            Instant now = expirationPolicy.instant();
+            GameStateSnapshot resumed = gameStateMachine.resumeRound(session.gameState(), now);
+            ActiveSessionSnapshot persisted = nextForCommand(session, resumed, command, now);
+            if (!persist(session, persisted)) {
+                staleAfterConflict(session, participant, accountId, command);
+                return true;
+            }
+            int roundIndex = resumed.currentRoundIndex();
+            RoundStateSnapshot round = currentRound(persisted);
+            if (round.status() == RoundStatus.REVEALED) {
+                Instant advanceAt = advanceAt(round);
+                scheduleAdvance(
+                        persisted.sessionId(), roundIndex, round.revealedAt().orElseThrow(), advanceAt);
+                publishPublic(
+                        persisted,
+                        PublicSessionEventType.ROUND_RESUMED,
+                        new PublicSessionEventPayload.RoundResumed(
+                                roundIndex, totalRounds(resumed), RoundStatus.REVEALED,
+                                Optional.empty(), Optional.empty(), Optional.empty(),
+                                Optional.empty(), Optional.empty(), Optional.of(advanceAt)));
+                return true;
+            }
+            RoundScoringWindow window = round.scoringWindow().orElseThrow();
+            RoundPlaybackWindow playback = round.playbackWindow().orElseThrow();
+            scheduleDeadline(persisted, roundIndex, window.deadline());
+            publishPublic(
+                    persisted,
+                    PublicSessionEventType.ROUND_RESUMED,
+                    new PublicSessionEventPayload.RoundResumed(
+                            roundIndex, totalRounds(resumed), RoundStatus.PLAYING,
+                            Optional.of(window.startsAt()), Optional.of(window.deadline()),
+                            Optional.of(playback.excerptStartSeconds()),
+                            Optional.of(playback.excerptDurationSeconds()),
+                            Optional.of(resolvePlaybackUrl(round)), Optional.empty()));
+            return true;
+        } catch (GameTransitionException exception) {
+            invalidState(session, participant, accountId, command);
+            return true;
+        }
+    }
+
     private boolean startPreparedRound(SessionId sessionId, int roundIndex) {
         ActiveSessionSnapshot session = find(sessionId);
         if (session == null || session.gameState().currentRoundIndex() != roundIndex) {
@@ -449,7 +548,8 @@ public class SessionGameplayService {
                 return false;
             }
             RoundStateSnapshot round = currentRound(session);
-            if (round == null || round.status() != RoundStatus.PLAYING
+            // A paused round's deadline is rescheduled when it resumes.
+            if (round == null || round.status() != RoundStatus.PLAYING || round.paused()
                     || round.scoringWindow().filter(window -> window.deadline().equals(deadline)).
                     isEmpty()) {
                 return false;
@@ -479,12 +579,13 @@ public class SessionGameplayService {
         if (round == null || round.status() != RoundStatus.REVEALED) {
             throw new IllegalStateException("revealed round is required");
         }
-        Instant advanceAt = round.revealedAt().orElseThrow().plus(REVEAL_DURATION);
+        Instant advanceAt = advanceAt(round);
         // Schedule before publishing so the advance exists once clients observe the reveal.
-        scheduler.schedule(session.sessionId(), advanceAt, () -> onAdvance(
+        scheduleAdvance(
                 session.sessionId(),
                 session.gameState().currentRoundIndex(),
-                round.revealedAt().orElseThrow()));
+                round.revealedAt().orElseThrow(),
+                advanceAt);
         int totalScore = totalScore(session.gameState());
         // Multiplayer score changes were already announced as each participant found the title.
         if (!session.isMultiplayer() && round.scoreState().titleAwarded()) {
@@ -523,16 +624,15 @@ public class SessionGameplayService {
                 return false;
             }
             RoundStateSnapshot round = currentRound(session);
-            if (round == null || round.status() != RoundStatus.REVEALED
+            // A paused reveal schedules its transition again when it resumes.
+            if (round == null || round.status() != RoundStatus.REVEALED || round.paused()
                     || round.revealedAt().filter(revealedAt::equals).isEmpty()) {
                 return false;
             }
-            Instant advanceAt = revealedAt.plus(REVEAL_DURATION);
+            Instant advanceAt = advanceAt(round);
             Instant now = expirationPolicy.instant();
             if (now.isBefore(advanceAt)) {
-                scheduler.schedule(
-                        sessionId, advanceAt,
-                        () -> onAdvance(sessionId, roundIndex, revealedAt));
+                scheduleAdvance(sessionId, roundIndex, revealedAt, advanceAt);
                 return true;
             }
             RoundCompletionTransition completion = gameStateMachine.completeRound(
@@ -549,6 +649,20 @@ public class SessionGameplayService {
             }
             return false;
         }
+    }
+
+    private void scheduleAdvance(
+            SessionId sessionId,
+            int roundIndex,
+            Instant revealedAt,
+            Instant advanceAt) {
+        scheduler.schedule(
+                sessionId, advanceAt, () -> onAdvance(sessionId, roundIndex, revealedAt));
+    }
+
+    /** Automatic transition after a reveal, delayed by the time the reveal spent paused. */
+    private static Instant advanceAt(RoundStateSnapshot round) {
+        return round.revealedAt().orElseThrow().plus(REVEAL_DURATION).plus(round.revealPause());
     }
 
     private void publishProgression(
@@ -628,10 +742,9 @@ public class SessionGameplayService {
         Optional<Instant> startsAt = round.scoringWindow().map(RoundScoringWindow::startsAt);
         Optional<Instant> deadline = round.scoringWindow().map(RoundScoringWindow::deadline);
         boolean revealed = round.status() == RoundStatus.REVEALED;
-        Optional<Instant> advanceAt = revealed
-                ? round.revealedAt().map(value -> value.plus(REVEAL_DURATION))
-                : Optional.empty();
-        Optional<URI> playbackUrl = round.status() == RoundStatus.PLAYING
+        Optional<Instant> advanceAt = revealed ? Optional.of(advanceAt(round)) : Optional.empty();
+        // A paused round gets a fresh URL when it resumes.
+        Optional<URI> playbackUrl = round.status() == RoundStatus.PLAYING && !round.paused()
                 ? Optional.of(resolvePlaybackUrl(round))
                 : Optional.empty();
         return new PrivateSessionEventPayload.CurrentRound(
@@ -654,6 +767,7 @@ public class SessionGameplayService {
                 revealed ? round.track().streamingLinks().links() : Map.of(),
                 revealed ? coverUrl(round) : Optional.empty(),
                 advanceAt,
+                round.pausedAt(),
                 round.scoreState().pointsFor(recipient),
                 round.scoreState().titleAwarded(recipient),
                 round.scoreState().skipVoted(recipient),

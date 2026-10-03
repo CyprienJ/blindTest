@@ -2,6 +2,7 @@ package com.blindtest.websocket.protocol;
 
 import com.blindtest.model.game.GameStatus;
 import com.blindtest.model.game.RoundOutcome;
+import com.blindtest.model.game.RoundStatus;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
@@ -22,7 +23,9 @@ public sealed interface PublicSessionEventPayload permits
         PublicSessionEventPayload.GameFinished,
         PublicSessionEventPayload.LobbyUpdated,
         PublicSessionEventPayload.LobbyStarted,
-        PublicSessionEventPayload.SkipVoteUpdated {
+        PublicSessionEventPayload.SkipVoteUpdated,
+        PublicSessionEventPayload.RoundPaused,
+        PublicSessionEventPayload.RoundResumed {
 
     /** One participant's round and running scores, in join order. */
     record ParticipantScore(UUID participantId, String displayName, int roundPoints, int totalScore) {
@@ -193,6 +196,57 @@ public sealed interface PublicSessionEventPayload permits
         }
     }
 
+    /**
+     * Announces that the owner paused the playing round or its reveal.
+     *
+     * @param status {@code PLAYING} or {@code REVEALED}
+     */
+    record RoundPaused(int roundIndex, int totalRounds, RoundStatus status, Instant pausedAt)
+            implements PublicSessionEventPayload {
+
+        /** Validates the paused round position and phase. */
+        public RoundPaused {
+            validateRoundPosition(roundIndex, totalRounds);
+            requirePausablePhase(status);
+            SessionProtocol.requireInstant(pausedAt, "pausedAt");
+        }
+    }
+
+    /**
+     * Announces that a paused round runs again. A playing round carries its moved timing and a
+     * fresh media URL, so clients restart playback where it stopped; a reveal carries its
+     * delayed {@code transitionAt}.
+     */
+    record RoundResumed(
+            int roundIndex,
+            int totalRounds,
+            RoundStatus status,
+            Optional<Instant> startsAt,
+            Optional<Instant> deadline,
+            Optional<Integer> excerptStartSeconds,
+            Optional<Integer> excerptDurationSeconds,
+            Optional<URI> playbackUrl,
+            Optional<Instant> transitionAt) implements PublicSessionEventPayload {
+
+        /** Requires the timing that matches the resumed phase. */
+        public RoundResumed {
+            validateRoundPosition(roundIndex, totalRounds);
+            requirePausablePhase(status);
+            Objects.requireNonNull(startsAt, "startsAt is required");
+            Objects.requireNonNull(deadline, "deadline is required");
+            Objects.requireNonNull(excerptStartSeconds, "excerptStartSeconds is required");
+            Objects.requireNonNull(excerptDurationSeconds, "excerptDurationSeconds is required");
+            Objects.requireNonNull(playbackUrl, "playbackUrl is required");
+            Objects.requireNonNull(transitionAt, "transitionAt is required");
+            boolean playing = status == RoundStatus.PLAYING;
+            if (playing != (startsAt.isPresent() && deadline.isPresent()
+                    && excerptStartSeconds.isPresent() && excerptDurationSeconds.isPresent())
+                    || playing == transitionAt.isPresent()) {
+                throw new IllegalArgumentException("resumed timing does not match its phase");
+            }
+        }
+    }
+
     /** Broadcasts one participant's authoritative score change. */
     record ScoreUpdated(UUID participantId, int roundPoints, int totalScore)
             implements PublicSessionEventPayload {
@@ -233,6 +287,13 @@ public sealed interface PublicSessionEventPayload permits
         SessionProtocol.requirePositive(totalRounds, "totalRounds");
         if (roundIndex >= totalRounds) {
             throw new IllegalArgumentException("roundIndex must be below totalRounds");
+        }
+    }
+
+    private static void requirePausablePhase(RoundStatus status) {
+        Objects.requireNonNull(status, "status is required");
+        if (status != RoundStatus.PLAYING && status != RoundStatus.REVEALED) {
+            throw new IllegalArgumentException("only a playing or revealed round can pause");
         }
     }
 

@@ -6,5 +6,7 @@ public enum SessionCommandType {
     SUBMIT_ANSWER,
     SKIP_ROUND,
     ADVANCE_ROUND,
+    PAUSE_ROUND,
+    RESUME_ROUND,
     REQUEST_SNAPSHOT
 }

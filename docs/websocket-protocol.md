@@ -97,10 +97,12 @@ an older version belongs to a previous round and is rejected as stale.
 | `START_GAME` | none | Owner (lobby host) requests the first round |
 | `SUBMIT_ANSWER` | non-blank `answer` | Participant submits one guess |
 | `SKIP_ROUND` | none | Participant votes to skip; solo reveals at once, multiplayer at 60% of connected participants rounded up ([ADR-0019](adr/0019-multiplayer-session-rules.md)) |
-| `ADVANCE_ROUND` | none | Owner requests an idempotent early transition during the reveal window |
+| `ADVANCE_ROUND` | none | Owner requests an idempotent early transition during the reveal window, paused or not |
+| `PAUSE_ROUND` | none | Owner pauses the reveal, or a solo playing round ([ADR-0021](adr/0021-pause-rounds-and-reveals.md)) |
+| `RESUME_ROUND` | none | Owner resumes the paused round or reveal |
 | `REQUEST_SNAPSHOT` | none | Requests private recovery state from the expected version |
 
-All five command types carry an idempotency UUID. The server keeps a bounded
+All command types carry an idempotency UUID. The server keeps a bounded
 per-session ledger for state-changing commands. It rejects duplicate, stale,
 unauthorized, and out-of-state commands without applying a second transition.
 `REQUEST_SNAPSHOT` is read-only and always returns the latest private projection,
@@ -144,6 +146,8 @@ session topic:
 | `GAME_FINISHED` | combined total score, title/skip/timeout aggregate counts, and ranked `standings` (`participantId`, `displayName`, `totalScore`, `titlesFound`, shared `rank`) |
 | `LOBBY_UPDATED` | lobby `code`, `hostParticipantId`, ordered `participants` (`participantId`, `displayName`, `ready`, `host`, `guest`), `canStart` |
 | `LOBBY_STARTED` | `totalRounds` of the game session created under the same `sessionId` |
+| `ROUND_PAUSED` | round position, paused phase `status` (`PLAYING` or `REVEALED`), `pausedAt` |
+| `ROUND_RESUMED` | round position and `status`; a playing round adds its moved `startsAt`/`deadline`, excerpt offset and window length, and a fresh `playbackUrl`; a reveal adds its delayed `transitionAt` |
 
 ## Lobby events
 
@@ -193,7 +197,7 @@ asynchronous `ERROR`.
 |---|---|
 | `SECONDARY_MATCH` | secondary `answerType`, display value, `alreadyFound` |
 | `ANSWER_REJECTED` | stable rejection `reason`, optional cooldown `retryAt` |
-| `CURRENT_SNAPSHOT` | game/round state, this player's score, every participant's `scores`, playback/reveal projection with this player's `roundPoints`, `titleFound`, `skipVoted`, and the round's `skipVotes`/`requiredSkipVotes`, only this player's secondary discoveries, expiry |
+| `CURRENT_SNAPSHOT` | game/round state, this player's score, every participant's `scores`, playback/reveal projection with `pausedAt` while paused, this player's `roundPoints`, `titleFound`, `skipVoted`, and the round's `skipVotes`/`requiredSkipVotes`, only this player's secondary discoveries, expiry |
 | `ERROR` | stable `code`, safe `message`, `recoverable` |
 
 `ANSWER_REJECTED.reason` is one of `WRONG_ANSWER`, `ALREADY_FOUND`, `COOLDOWN`,
@@ -216,9 +220,15 @@ the private queue and in only that participant's recovery snapshot.
 - Title, skip, and deadline commands race through one compare-and-set transition.
   The winning snapshot is persisted with its new session version before any event
   carrying that version is published.
-- A revealed round exposes `transitionAt`, exactly four seconds after `revealedAt`.
-  The server advances automatically then; an owner `ADVANCE_ROUND` command may win
-  the same transition earlier, and duplicate or late timer callbacks are harmless.
+- A revealed round exposes `transitionAt`, four seconds after `revealedAt` plus any
+  time the reveal spent paused. The server advances automatically then; an owner
+  `ADVANCE_ROUND` command may win the same transition earlier, and duplicate or late
+  timer callbacks are harmless.
+- A paused round ignores its deadline and transition timers. A paused playing round
+  rejects answers and skips as `INVALID_ROUND_STATE`, and its snapshot omits
+  `playbackUrl`: the remaining time is `deadline − pausedAt`. Resuming moves the
+  deadline by the paused time and publishes a fresh URL in `ROUND_RESUMED`. Pausing a
+  multiplayer playing round fails with `ROUND_PAUSE_UNAVAILABLE`.
 - `CURRENT_SNAPSHOT` retains the original playback window (`excerptStartSeconds`,
   `excerptDurationSeconds`) while playing. Clients loop the window from its start
   when it is shorter than the round

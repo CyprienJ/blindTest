@@ -1,10 +1,16 @@
 package com.blindtest.model.game;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Immutable state snapshot for one selected game track. */
+/**
+ * Immutable state snapshot for one selected game track.
+ *
+ * @param pausedAt when the playing round or its reveal was paused; empty while running
+ * @param revealPause total time the reveal spent paused, which delays the next round
+ */
 public record RoundStateSnapshot(
         GameTrackSnapshot track,
         RoundStatus status,
@@ -13,7 +19,9 @@ public record RoundStateSnapshot(
         Optional<RoundOutcome> outcome,
         RoundScoreState scoreState,
         Optional<Instant> revealedAt,
-        Optional<Instant> completedAt) {
+        Optional<Instant> completedAt,
+        Optional<Instant> pausedAt,
+        Duration revealPause) {
 
     /** Validates the data required and forbidden in each lifecycle state. */
     public RoundStateSnapshot {
@@ -25,9 +33,31 @@ public record RoundStateSnapshot(
         Objects.requireNonNull(scoreState, "scoreState is required");
         Objects.requireNonNull(revealedAt, "revealedAt is required");
         Objects.requireNonNull(completedAt, "completedAt is required");
+        Objects.requireNonNull(pausedAt, "pausedAt is required");
+        Objects.requireNonNull(revealPause, "revealPause is required");
         validateShape(
                 track, status, scoringWindow, playbackWindow,
                 outcome, scoreState, revealedAt, completedAt);
+        validatePause(status, scoringWindow, revealedAt, pausedAt, revealPause);
+    }
+
+    /** Creates a running snapshot that has never been paused. */
+    public RoundStateSnapshot(
+            GameTrackSnapshot track,
+            RoundStatus status,
+            Optional<RoundScoringWindow> scoringWindow,
+            Optional<RoundPlaybackWindow> playbackWindow,
+            Optional<RoundOutcome> outcome,
+            RoundScoreState scoreState,
+            Optional<Instant> revealedAt,
+            Optional<Instant> completedAt) {
+        this(track, status, scoringWindow, playbackWindow, outcome, scoreState,
+                revealedAt, completedAt, Optional.empty(), Duration.ZERO);
+    }
+
+    /** Whether the playing round or its reveal is currently paused. */
+    public boolean paused() {
+        return pausedAt.isPresent();
     }
 
     /** Creates the initial round state before authoritative playback starts. */
@@ -123,6 +153,31 @@ public record RoundStateSnapshot(
             Optional<Instant> completedAt) {
         require(scoringWindow.isPresent() && playbackWindow.isPresent() && outcome.isPresent());
         require(revealedAt.isPresent() && completedAt.isPresent());
+    }
+
+    private static void validatePause(
+            RoundStatus status,
+            Optional<RoundScoringWindow> scoringWindow,
+            Optional<Instant> revealedAt,
+            Optional<Instant> pausedAt,
+            Duration revealPause) {
+        if (revealPause.isNegative()) {
+            throw new IllegalArgumentException("revealPause cannot be negative");
+        }
+        boolean revealedOrLater = status == RoundStatus.REVEALED || status == RoundStatus.COMPLETED;
+        if (!revealPause.isZero() && !revealedOrLater) {
+            throw new IllegalArgumentException("only a revealed round can accumulate reveal pauses");
+        }
+        if (pausedAt.isEmpty()) {
+            return;
+        }
+        Instant paused = pausedAt.orElseThrow();
+        switch (status) {
+            case PLAYING -> require(!paused.isBefore(scoringWindow.orElseThrow().startsAt())
+                    && paused.isBefore(scoringWindow.orElseThrow().deadline()));
+            case REVEALED -> require(!paused.isBefore(revealedAt.orElseThrow()));
+            default -> throw new IllegalArgumentException("only a running round can be paused");
+        }
     }
 
     private static void require(boolean valid) {

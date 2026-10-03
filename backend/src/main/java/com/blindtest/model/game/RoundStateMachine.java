@@ -1,5 +1,6 @@
 package com.blindtest.model.game;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -44,7 +45,7 @@ public final class RoundStateMachine {
             AnswerMatchResult match,
             Instant acceptedAt,
             Set<GameParticipantId> activeParticipants) {
-        requireStatus(round, RoundStatus.PLAYING);
+        requireRunning(round, RoundStatus.PLAYING);
         Objects.requireNonNull(participantId, "participantId is required");
         Objects.requireNonNull(match, "match is required");
         Objects.requireNonNull(acceptedAt, "acceptedAt is required");
@@ -78,7 +79,7 @@ public final class RoundStateMachine {
             GameParticipantId participantId,
             Instant votedAt,
             Set<GameParticipantId> activeParticipants) {
-        requireStatus(round, RoundStatus.PLAYING);
+        requireRunning(round, RoundStatus.PLAYING);
         Objects.requireNonNull(participantId, "participantId is required");
         Objects.requireNonNull(votedAt, "votedAt is required");
         Objects.requireNonNull(activeParticipants, "activeParticipants are required");
@@ -104,7 +105,7 @@ public final class RoundStateMachine {
             RoundStateSnapshot round,
             Instant evaluatedAt,
             Set<GameParticipantId> activeParticipants) {
-        requireStatus(round, RoundStatus.PLAYING);
+        requireRunning(round, RoundStatus.PLAYING);
         Objects.requireNonNull(evaluatedAt, "evaluatedAt is required");
         Objects.requireNonNull(activeParticipants, "activeParticipants are required");
         requireAtOrAfterStart(evaluatedAt, round.scoringWindow().orElseThrow());
@@ -113,7 +114,7 @@ public final class RoundStateMachine {
 
     /** Reveals a playing round as timed out only at or after its deadline. */
     public RoundStateSnapshot timeout(RoundStateSnapshot round, Instant timedOutAt) {
-        requireStatus(round, RoundStatus.PLAYING);
+        requireRunning(round, RoundStatus.PLAYING);
         Objects.requireNonNull(timedOutAt, "timedOutAt is required");
         if (timedOutAt.isBefore(round.scoringWindow().orElseThrow().deadline())) {
             throw failure(GameTransitionError.ROUND_DEADLINE_NOT_REACHED);
@@ -125,7 +126,7 @@ public final class RoundStateMachine {
                 scoreCalculator.scoreTimeout(round.scoreState()).state());
     }
 
-    /** Completes a revealed round at or after its reveal timestamp. */
+    /** Completes a revealed round at or after its reveal timestamp, even while it is paused. */
     public RoundStateSnapshot complete(RoundStateSnapshot round, Instant completedAt) {
         requireStatus(round, RoundStatus.REVEALED);
         Objects.requireNonNull(completedAt, "completedAt is required");
@@ -140,7 +141,60 @@ public final class RoundStateMachine {
                 round.outcome(),
                 round.scoreState(),
                 round.revealedAt(),
-                Optional.of(completedAt));
+                Optional.of(completedAt),
+                Optional.empty(),
+                round.revealPause());
+    }
+
+    /**
+     * Pauses a playing round before its deadline, freezing its remaining time, or a revealed
+     * round, holding the transition to the next track.
+     */
+    public RoundStateSnapshot pause(RoundStateSnapshot round, Instant pausedAt) {
+        Objects.requireNonNull(round, "round is required");
+        Objects.requireNonNull(pausedAt, "pausedAt is required");
+        if (round.status() != RoundStatus.PLAYING && round.status() != RoundStatus.REVEALED) {
+            throw failure(GameTransitionError.ILLEGAL_ROUND_TRANSITION);
+        }
+        if (round.paused()) {
+            throw failure(GameTransitionError.ROUND_PAUSED);
+        }
+        if (round.status() == RoundStatus.PLAYING) {
+            RoundScoringWindow window = round.scoringWindow().orElseThrow();
+            requireAtOrAfterStart(pausedAt, window);
+            if (!pausedAt.isBefore(window.deadline())) {
+                throw failure(GameTransitionError.ROUND_TIME_INVALID);
+            }
+        } else if (pausedAt.isBefore(round.revealedAt().orElseThrow())) {
+            throw failure(GameTransitionError.ROUND_TIME_INVALID);
+        }
+        return withPause(round, round.scoringWindow(), round.playbackWindow(),
+                Optional.of(pausedAt), round.revealPause());
+    }
+
+    /**
+     * Resumes a paused round. A playing round's deadline moves by the paused time, so its
+     * remaining time and title score are unchanged; a reveal's transition is delayed likewise.
+     */
+    public RoundStateSnapshot resume(RoundStateSnapshot round, Instant resumedAt) {
+        Objects.requireNonNull(round, "round is required");
+        Objects.requireNonNull(resumedAt, "resumedAt is required");
+        Instant pausedAt = round.pausedAt().orElseThrow(
+                () -> failure(GameTransitionError.ROUND_NOT_PAUSED));
+        if (resumedAt.isBefore(pausedAt)) {
+            throw failure(GameTransitionError.ROUND_TIME_INVALID);
+        }
+        Duration paused = Duration.between(pausedAt, resumedAt);
+        if (round.status() == RoundStatus.REVEALED) {
+            return withPause(round, round.scoringWindow(), round.playbackWindow(),
+                    Optional.empty(), round.revealPause().plus(paused));
+        }
+        RoundScoringWindow previous = round.scoringWindow().orElseThrow();
+        RoundScoringWindow shifted = new RoundScoringWindow(
+                previous.deadline().plus(paused), previous.configuredDuration());
+        return withPause(round, Optional.of(shifted),
+                Optional.of(RoundPlaybackWindow.from(round.track().playback(), shifted)),
+                Optional.empty(), round.revealPause());
     }
 
     private RoundStateSnapshot resolveIfComplete(
@@ -167,7 +221,28 @@ public final class RoundStateMachine {
                 round.outcome(),
                 state,
                 round.revealedAt(),
-                round.completedAt());
+                round.completedAt(),
+                round.pausedAt(),
+                round.revealPause());
+    }
+
+    private RoundStateSnapshot withPause(
+            RoundStateSnapshot round,
+            Optional<RoundScoringWindow> scoringWindow,
+            Optional<RoundPlaybackWindow> playbackWindow,
+            Optional<Instant> pausedAt,
+            Duration revealPause) {
+        return new RoundStateSnapshot(
+                round.track(),
+                round.status(),
+                scoringWindow,
+                playbackWindow,
+                round.outcome(),
+                round.scoreState(),
+                round.revealedAt(),
+                round.completedAt(),
+                pausedAt,
+                revealPause);
     }
 
     private RoundStateSnapshot reveal(
@@ -190,6 +265,13 @@ public final class RoundStateMachine {
         Objects.requireNonNull(round, "round is required");
         if (round.status() != expected) {
             throw failure(GameTransitionError.ILLEGAL_ROUND_TRANSITION);
+        }
+    }
+
+    private void requireRunning(RoundStateSnapshot round, RoundStatus expected) {
+        requireStatus(round, expected);
+        if (round.paused()) {
+            throw failure(GameTransitionError.ROUND_PAUSED);
         }
     }
 

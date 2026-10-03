@@ -214,6 +214,7 @@ class SessionProtocolTest {
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
+                Optional.empty(),
                 0,
                 false,
                 false,
@@ -292,6 +293,29 @@ class SessionProtocolTest {
                 List.of())).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("coverUrl");
+    }
+
+    @Test
+    void validatesPauseEventsAgainstTheirPhase() {
+        var revealResume = new PublicSessionEventPayload.RoundResumed(
+                0, 5, RoundStatus.REVEALED, Optional.empty(), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(NOW));
+
+        assertThat(revealResume.transitionAt()).contains(NOW);
+        assertThatThrownBy(() -> new PublicSessionEventPayload.RoundPaused(
+                0, 5, RoundStatus.PREPARING, NOW)).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessageContaining("playing or revealed");
+        assertThatThrownBy(() -> new PublicSessionEventPayload.RoundResumed(
+                0, 5, RoundStatus.PLAYING, Optional.of(NOW), Optional.of(NOW.plusSeconds(30)),
+                Optional.of(0), Optional.of(30), Optional.empty(), Optional.of(NOW))).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessageContaining("phase");
+        assertThatThrownBy(() -> new PublicSessionEventPayload.RoundResumed(
+                0, 5, RoundStatus.PLAYING, Optional.of(NOW), Optional.empty(),
+                Optional.of(0), Optional.of(30), Optional.empty(), Optional.empty())).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessageContaining("phase");
     }
 
     private SessionCommand command(SessionCommandType type, String answer) {
