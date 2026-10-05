@@ -11,6 +11,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -22,6 +23,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    /** Origins allowed to embed the application in a frame. */
+    static final String FRAME_ANCESTORS = "frame-ancestors 'self' https://cjorant.fr";
 
     private final JwtAuthFilter jwtAuthFilter;
     private final RestSecurityErrorHandler restSecurityErrorHandler;
@@ -46,6 +50,10 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable);
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.cors(c -> c.configurationSource(corsConfigurationSource()));
+        // X-Frame-Options cannot allow a foreign origin; CSP frame-ancestors replaces it.
+        http.headers(h -> h.
+                frameOptions(HeadersConfigurer.FrameOptionsConfig::disable).
+                contentSecurityPolicy(csp -> csp.policyDirectives(FRAME_ANCESTORS)));
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         http.exceptionHandling(e -> e.
                 authenticationEntryPoint(restSecurityErrorHandler).

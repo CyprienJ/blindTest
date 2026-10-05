@@ -113,6 +113,14 @@ class SecurityConfigIntegrationTest {
     private CoverSuggestionService coverSuggestionService;
 
     @Test
+    void framingIsAllowedOnlyFromSelfAndCjorant() throws Exception {
+        mockMvc.perform(get("/api/tracks")).
+                andExpect(header().doesNotExist("X-Frame-Options")).
+                andExpect(header().string("Content-Security-Policy",
+                        "frame-ancestors 'self' https://cjorant.fr"));
+    }
+
+    @Test
     void completedSessionSummaryRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/sessions/{sessionId}/summary", UUID.randomUUID())).
                 andExpect(status().isUnauthorized()).
