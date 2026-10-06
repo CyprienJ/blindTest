@@ -27,6 +27,8 @@ public class SecurityConfig {
     /** Origins allowed to embed the application in a frame. */
     static final String FRAME_ANCESTORS = "frame-ancestors 'self' https://cjorant.fr";
 
+    private static final String[] ACCOUNT_ROLES = {"USER", "ADMIN"};
+
     private final JwtAuthFilter jwtAuthFilter;
     private final RestSecurityErrorHandler restSecurityErrorHandler;
     private final List<String> allowedOrigins;
@@ -67,11 +69,17 @@ public class SecurityConfig {
             // inert everywhere else since no controller answers this path.
             auth.requestMatchers("/api/e2e/**").permitAll();
             auth.requestMatchers("/ws/**").permitAll();
+            // Guest tokens (ADR-0020) reach only their lobby and game summary; services then
+            // check membership. Every other authenticated endpoint needs an account role.
+            auth.requestMatchers(HttpMethod.POST, "/api/lobbies/*/guests").permitAll();
+            auth.requestMatchers(HttpMethod.POST, "/api/lobbies", "/api/lobbies/*/participants").
+                    hasAnyRole(ACCOUNT_ROLES);
+            auth.requestMatchers("/api/lobbies/**").authenticated();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*/summary").authenticated();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*", "/api/tracks",
                     "/api/playlists/**", "/api/covers/*", "/media/**").permitAll();
             auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
-            auth.anyRequest().authenticated();
+            auth.anyRequest().hasAnyRole(ACCOUNT_ROLES);
         });
         return http.build();
     }

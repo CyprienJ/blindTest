@@ -19,8 +19,11 @@ holds the requested configuration, a unique six-character code, up to ten member
 with ready flags, and the host; it slides on the session inactivity TTL and a
 scheduled sweep frees expired codes. Start re-runs `GameSetupService`, creates a
 `CREATED` session under the lobby's ID with every member as a participant and the
-host as owner, removes the lobby, and publishes `LOBBY_STARTED`. Guest flows are
-not delivered.
+host as owner, removes the lobby, and publishes `LOBBY_STARTED`. Guests join through
+`GuestAdmission` (rate limits, nickname, Turnstile) and become members without an
+account; every lookup matches participants by principal ID — the account ID, or a
+guest's participant ID — so gameplay, private queues, and summaries treat both alike.
+The lobby also holds the host's `AudioMode`, which only the browser acts on.
 
 ## Active state and commands
 

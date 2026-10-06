@@ -10,6 +10,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GameSummary, GameSummaryRound } from '../../core/models/game-summary.model';
 import { RoundOutcome } from '../../core/models/game-protocol.model';
 import { GameSessionService } from '../../core/services/game-session.service';
+import { GuestSessionService } from '../../core/services/guest-session.service';
 
 type EndScreenView = 'loading' | 'error' | 'ready';
 
@@ -26,6 +27,7 @@ export class EndScreenComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly gameSessions = inject(GameSessionService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly guestSession = inject(GuestSessionService);
 
   view: EndScreenView = 'loading';
   summary: GameSummary | null = null;
@@ -57,7 +59,17 @@ export class EndScreenComponent implements OnInit {
     });
   }
 
+  /** Guests have no history or account screens; they can only join another game. */
+  get guest(): boolean {
+    return this.guestSession.get() !== null;
+  }
+
   playAgain(): void {
+    if (this.guest) {
+      this.guestSession.clear();
+      void this.router.navigate(['/lobby/join']);
+      return;
+    }
     void this.router.navigate(['/lobby/create']);
   }
 

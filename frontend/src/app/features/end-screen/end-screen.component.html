@@ -14,7 +14,12 @@
           <p i18n class="eyebrow">Solo blindtest</p>
           <h1 i18n>Summary unavailable</h1>
           <p class="muted">{{ errorMessage }}</p>
-          <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+          <a class="bt-btn bt-btn-ghost" [routerLink]="guest ? '/lobby/join' : '/lobby/create'">
+            <ng-container i18n>{guest, select,
+              true {Join another game}
+              other {Back to configuration}
+            }</ng-container>
+          </a>
         </section>
       }
 
@@ -87,10 +92,7 @@
                     <strong>{{ round.title }}</strong>
                     <span class="round-artist">{{ round.artist }}</span>
                   </span>
-                  <span
-                    class="round-outcome"
-                    [class.is-found]="round.titleFound"
-                  >
+                  <span class="round-outcome" [class.is-found]="round.titleFound">
                     {{ outcomeLabel(round.outcome) }}
                   </span>
                   <span class="round-response mono">{{ responseTimeLabel(round) }}</span>
@@ -100,14 +102,18 @@
             </ul>
           </section>
 
+          @if (guest) {
+            <p i18n class="guest-notice muted">
+              You played as a guest, so this score is not kept once you close this tab. Accounts are
+              by invitation only — ask your host to invite you to keep your history.
+            </p>
+          }
           <div class="end-actions">
-            <button
-              i18n
-              class="bt-btn bt-btn-primary bt-btn-lg"
-              type="button"
-              (click)="playAgain()"
-            >
-              Play again
+            <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
+              <ng-container i18n>{guest, select,
+                true {Join another game}
+                other {Play again}
+              }</ng-container>
             </button>
           </div>
         }

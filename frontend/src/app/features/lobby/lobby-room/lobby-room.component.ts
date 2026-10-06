@@ -13,9 +13,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { filter, finalize, Observable } from 'rxjs';
 import { LobbyUpdatedPayload } from '../../../core/models/game-protocol.model';
-import { Lobby, LobbyParticipant } from '../../../core/models/lobby.model';
+import { AudioMode, Lobby, LobbyParticipant } from '../../../core/models/lobby.model';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { GameSocketService } from '../../../core/services/game-socket.service';
+import { GuestSessionService } from '../../../core/services/guest-session.service';
 import { LobbyService } from '../../../core/services/lobby.service';
 
 type LobbyState = 'loading' | 'open' | 'removed' | 'unavailable';
@@ -40,6 +41,7 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly guestSession = inject(GuestSessionService);
 
   readonly hostLabel = $localize`Host`;
   readonly readyLabel = $localize`Ready`;
@@ -81,6 +83,11 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
 
   get isHost(): boolean {
     return !!this.lobby && this.lobby.hostParticipantId === this.lobby.participantId;
+  }
+
+  /** Guests have no account home; they go back to the public page. */
+  get homeLink(): string {
+    return this.guestSession.get() ? '/' : '/home';
   }
 
   get readyCount(): number {
@@ -143,6 +150,13 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
     });
   }
 
+  setAudioMode(audioMode: AudioMode): void {
+    if (!this.lobby || this.lobby.audioMode === audioMode) {
+      return;
+    }
+    this.run(this.lobbies.setAudioMode(this.code, audioMode), (lobby) => (this.lobby = lobby));
+  }
+
   start(): void {
     this.run(this.lobbies.start(this.code), () => this.enterGame());
   }
@@ -150,7 +164,9 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
   leave(): void {
     this.run(this.lobbies.leave(this.code), () => {
       this.gameSocket.disconnect();
-      void this.router.navigate(['/home']);
+      const home = this.homeLink;
+      this.guestSession.clear();
+      void this.router.navigate([home]);
     });
   }
 
@@ -214,6 +230,7 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
       hostParticipantId: update.hostParticipantId,
       participants: update.participants,
       canStart: update.canStart,
+      audioMode: update.audioMode,
     };
   }
 
@@ -235,6 +252,7 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
       maxRoundSeconds: lobby.maxRoundSeconds,
       host: this.isHost,
       hostParticipantId: lobby.hostParticipantId,
+      audioMode: lobby.audioMode,
     });
     void this.router.navigate(['/game', lobby.sessionId]);
   }

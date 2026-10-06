@@ -103,10 +103,32 @@ describe('AppShellComponent', () => {
     pending.complete();
   });
 
-  it('omits the account details when no session is restored', async () => {
+  it('omits the account details and navigation when no session is restored', async () => {
     const element = await render(null);
     expect(element.querySelector('.bt-account-name')).toBeNull();
     expect(element.querySelector('.bt-sign-out')).toBeNull();
-    expect(element.querySelector('nav[aria-label="Primary navigation"]')).not.toBeNull();
+    expect(element.querySelector('nav[aria-label="Primary navigation"]')).toBeNull();
+    expect(element.textContent).toContain('Sign in');
+  });
+
+  it('shows a guest tab its nickname without account navigation', async () => {
+    sessionStorage.setItem(
+      'guest_session',
+      JSON.stringify({
+        token: 't',
+        code: 'ABC234',
+        sessionId: 's',
+        participantId: 'p',
+        nickname: 'Visitor',
+      }),
+    );
+    try {
+      const element = await render(null);
+      expect(element.querySelector('.bt-account-name')?.textContent).toContain('Visitor');
+      expect(element.textContent).toContain('Guest');
+      expect(element.querySelector('nav[aria-label="Primary navigation"]')).toBeNull();
+    } finally {
+      sessionStorage.clear();
+    }
   });
 });

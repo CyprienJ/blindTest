@@ -39,4 +39,6 @@ export interface ActiveSoloSession extends SoloSessionResponse {
   host?: boolean;
   /** The lobby host, for the multiplayer scoreboard's host marker. */
   hostParticipantId?: string;
+  /** Multiplayer only: `HOST_ONLY` keeps every other player's browser silent. */
+  audioMode?: 'EVERYONE' | 'HOST_ONLY';
 }

@@ -1,5 +1,6 @@
 package com.blindtest.model.dto;
 
+import com.blindtest.model.lobby.AudioMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -18,5 +19,6 @@ public record LobbyResponse(
         SessionConnectionInstructions connection,
         String playlistName,
         int trackCount,
-        int maxRoundSeconds) {
+        int maxRoundSeconds,
+        AudioMode audioMode) {
 }

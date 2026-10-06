@@ -15,6 +15,14 @@ the browser goes to `/lobby/{code}`. When the lobby starts, every member stores 
 active session with a `host` flag and opens `/game/{sessionId}`; only the host's
 room sends `START_GAME`, while the others wait for the first round.
 
+Without an account, `/lobby/join` asks for a nickname and a Turnstile check and
+calls `POST /api/lobbies/{code}/guests`. `GuestSessionService` keeps the returned
+token, code, session, and participant in `sessionStorage`. The HTTP interceptor and
+the STOMP client send it when no account token exists, `authGuard` lets that tab
+open only its own lobby, game room, and end screen, and the shell hides account
+navigation. A 401 on a guest token returns to the join screen. Leaving the lobby or
+replaying from the finish views forgets the token.
+
 `GameSessionService` retains the session in memory and `sessionStorage` so a reload
 can reconnect. It tracks one current browser session even though the backend
 allows an account to create multiple sessions. Opening an ID that is not locally
@@ -112,6 +120,10 @@ For a playing round it:
 6. keeps playing past the deadline, so the reveal keeps the music until the next
    round's playback replaces it. Once the round is revealed (`releaseLoop()`) or its
    deadline passes, the track continues from where it is instead of restarting.
+
+In a `HOST_ONLY` lobby ([ADR-0022](../adr/0022-host-only-audio.md)) the active
+session carries `audioMode`, and every room except the host's skips
+`scheduleRound()` and shows that the music plays on the host's device.
 
 Already expired rounds never start audio. The game room stops playback on finish,
 fatal error, snapshot resynchronization, and component destruction. Unit tests use a fake audio

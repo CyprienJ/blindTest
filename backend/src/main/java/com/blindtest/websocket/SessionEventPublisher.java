@@ -23,12 +23,15 @@ public class SessionEventPublisher {
                 SessionProtocol.publicEventDestination(event.metadata().sessionId()), event);
     }
 
-    /** Publishes feedback only to the authenticated account's session-specific user queue. */
-    public void publishPrivate(UUID accountId, PrivateSessionEvent event) {
-        Objects.requireNonNull(accountId, "accountId is required");
+    /**
+     * Publishes feedback only to the principal's session-specific user queue: the account ID,
+     * or the participant ID a guest token authenticates as.
+     */
+    public void publishPrivate(UUID principalId, PrivateSessionEvent event) {
+        Objects.requireNonNull(principalId, "principalId is required");
         Objects.requireNonNull(event, "event is required");
         messagingTemplate.convertAndSendToUser(
-                accountId.toString(),
+                principalId.toString(),
                 SessionProtocol.privateEventQueue(event.metadata().sessionId()),
                 event);
     }

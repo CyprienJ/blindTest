@@ -46,6 +46,18 @@ Administrator HTTP endpoints require the `ADMIN` role. Solo creation additionall
 requires a verified account, and completed summaries are restricted to their owner.
 Frontend guards guide navigation; backend checks remain authoritative.
 
+Guests ([ADR-0020](../adr/0020-guest-participants.md)) join through the anonymous
+`POST /api/lobbies/{code}/guests`, which applies per-client and per-code limits,
+nickname rules, and Turnstile before issuing a guest JWT (audience `guest`, the
+session and participant IDs, no account or role, six-hour expiry). Account token
+validation rejects guest tokens and guest parsing rejects every other token. The
+[`BearerTokenAuthenticator`](../../backend/src/main/java/com/blindtest/security/BearerTokenAuthenticator.java)
+maps a guest to its participant ID with `ROLE_GUEST`, for both HTTP and STOMP.
+`SecurityConfig` lets that role reach only `/api/lobbies/**` member routes and
+`GET /api/sessions/*/summary`; every other protected route requires `USER` or
+`ADMIN`. Services then check that the participant is still a member, so a removed
+guest or an ended session stops the token working at once.
+
 STOMP `CONNECT` uses an access JWT in its native `Authorization` header. Subsequent
 game commands and subscriptions require active membership and exact destinations.
 A connected session can survive access-token expiry, but reconnecting requires a

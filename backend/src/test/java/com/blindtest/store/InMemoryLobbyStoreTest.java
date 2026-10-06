@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.blindtest.model.game.GameParticipantId;
 import com.blindtest.model.game.RequestedGameConfiguration;
+import com.blindtest.model.lobby.AudioMode;
 import com.blindtest.model.lobby.LobbyCode;
 import com.blindtest.model.lobby.LobbyParticipant;
 import com.blindtest.model.lobby.LobbySnapshot;
@@ -65,6 +66,7 @@ class InMemoryLobbyStoreTest {
                 new LobbyCode(code),
                 member(),
                 new RequestedGameConfiguration(UUID.randomUUID(), 5, 30, Map.of()),
+                AudioMode.EVERYONE,
                 NOW,
                 EXPIRY);
     }

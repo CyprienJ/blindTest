@@ -33,10 +33,12 @@ payloads.
 
 ## Authentication and authorization
 
-- `CONNECT` must carry a valid access JWT in the native `Authorization` header.
+- `CONNECT` must carry a valid access JWT, or a guest token from
+  `POST /api/lobbies/{code}/guests` ([ADR-0020](adr/0020-guest-participants.md)),
+  in the native `Authorization` header. A guest authenticates as its participant ID.
 - Every gameplay `SEND` and `SUBSCRIBE` resolves the canonical UUID destination
-  against the active `SessionStore` and verifies that the authenticated account is
-  a participant. While no game session exists yet, the open lobby with the same
+  against the active `SessionStore` and verifies that the authenticated account or
+  guest is a participant; a guest token is also rejected outside the session it names. While no game session exists yet, the open lobby with the same
   ID is checked instead, so lobby members can subscribe before the game starts.
 - Only the exact destinations returned by `POST /api/sessions` are accepted.
   Malformed UUIDs, added path segments, cross-channel use, direct sends to topics or
@@ -144,7 +146,7 @@ session topic:
 | `SCORE_UPDATED` | `participantId`, round points, total score; in multiplayer it is sent as each participant finds the title and never names the answer |
 | `SKIP_VOTE_UPDATED` | multiplayer `votes` among connected participants and `requiredVotes` |
 | `GAME_FINISHED` | combined total score, title/skip/timeout aggregate counts, and ranked `standings` (`participantId`, `displayName`, `totalScore`, `titlesFound`, shared `rank`) |
-| `LOBBY_UPDATED` | lobby `code`, `hostParticipantId`, ordered `participants` (`participantId`, `displayName`, `ready`, `host`, `guest`), `canStart` |
+| `LOBBY_UPDATED` | lobby `code`, `hostParticipantId`, ordered `participants` (`participantId`, `displayName`, `ready`, `host`, `guest`), `canStart`, `audioMode` (`EVERYONE` or `HOST_ONLY`, ADR-0022) |
 | `LOBBY_STARTED` | `totalRounds` of the game session created under the same `sessionId` |
 | `ROUND_PAUSED` | round position, paused phase `status` (`PLAYING` or `REVEALED`), `pausedAt` |
 | `ROUND_RESUMED` | round position and `status`; a playing round adds its moved `startsAt`/`deadline`, excerpt offset and window length, and a fresh `playbackUrl`; a reveal adds its delayed `transitionAt` |

@@ -99,6 +99,7 @@ class LobbySnapshotTest {
                 new LobbyCode("ABC234"),
                 host,
                 new RequestedGameConfiguration(UUID.randomUUID(), 5, 30, Map.of()),
+                AudioMode.EVERYONE,
                 NOW,
                 LATER);
     }

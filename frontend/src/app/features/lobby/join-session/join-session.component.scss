@@ -103,3 +103,33 @@ h1 {
     font-size: 22px;
   }
 }
+
+.guest-note {
+  margin: 0;
+  color: var(--fg-1);
+  font-size: 13px;
+}
+
+.nickname-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+
+  span {
+    color: var(--fg-1);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  small {
+    color: var(--fg-2);
+    font-size: 11px;
+  }
+}
+
+.turnstile {
+  display: flex;
+  justify-content: center;
+  min-height: 65px;
+}

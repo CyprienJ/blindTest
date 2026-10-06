@@ -21,6 +21,14 @@ public record LobbyParticipant(
         }
     }
 
+    /**
+     * Returns the identity this member authenticates with: the account ID, or for a guest the
+     * participant ID that its guest token carries.
+     */
+    public UUID principalId() {
+        return accountId.orElse(participantId.value());
+    }
+
     /** Returns whether this member signed in with an account. */
     public boolean registered() {
         return accountId.isPresent();

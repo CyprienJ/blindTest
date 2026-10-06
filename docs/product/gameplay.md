@@ -77,9 +77,8 @@ For example, a title accepted halfway through a 30-second round earns 500 points
 
 ## Several participants
 
-The backend applies the multiplayer rules of
-[ADR-0019](../adr/0019-multiplayer-session-rules.md) to games started from a lobby;
-the browser screens are still in progress ([Lot P2](../roadmap/lot-p2-multiplayer.md)). Every
+Games started from a lobby follow the multiplayer rules of
+[ADR-0019](../adr/0019-multiplayer-session-rules.md) ([Lot P2](../roadmap/lot-p2-multiplayer.md)). Every
 participant who finds the title scores on the curve above, at most once per round. A
 round is revealed when every connected participant found the title, when skip votes
 reach 60% of connected participants rounded up, or at the deadline. Final standings
@@ -87,6 +86,21 @@ rank by total score, and equal scores share a rank (1, 1, 3). A solo game is the
 one-participant case, so its single skip vote reveals the round at once.
 Multiplayer rounds begin 1.5 seconds after the server starts them so every
 player's audio starts together, and only the host can advance a reveal early.
+
+### Guests and shared audio
+
+A registered player hosts the lobby and shares its code or invite link. Anyone
+holding a live code may join without an account by choosing a 2–20 character
+nickname, unique in the lobby regardless of case, and passing a Turnstile check
+([ADR-0020](../adr/0020-guest-participants.md)). Guests play and score like everyone
+else; their guest token lives only in the browser tab, so a reload rejoins but a new
+or closed tab cannot. Guests keep no history: the finished game lists them by
+nickname to its registered players, and the guest can read its summary only while
+the tab keeps its token.
+
+The host chooses who hears the music ([ADR-0022](../adr/0022-host-only-audio.md)):
+every player's device, or only the host's when everyone is in the same room. The
+choice can change in the lobby until the game starts.
 
 ## Audio excerpts
 

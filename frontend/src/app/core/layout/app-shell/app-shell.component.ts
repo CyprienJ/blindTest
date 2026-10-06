@@ -3,6 +3,7 @@ import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { GuestSessionService } from '../../services/guest-session.service';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -16,9 +17,15 @@ export class AppShellComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly guestSession = inject(GuestSessionService);
 
   readonly currentUser$ = this.authService.currentUser$;
   signingOut = false;
+
+  /** A guest tab's nickname; guests see no account navigation. */
+  get guestNickname(): string | null {
+    return this.guestSession.get()?.nickname ?? null;
+  }
 
   signOut(): void {
     if (this.signingOut) return;

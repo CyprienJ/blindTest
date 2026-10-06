@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Reads durable completed-game summaries only for registered participants of that game. */
+/** Reads durable completed-game summaries only for participants of that game, guests included. */
 @Service
 public class GameHistorySummaryService {
 
@@ -40,22 +40,24 @@ public class GameHistorySummaryService {
     }
 
     /**
-     * Returns the caller's view of the durable summary; unknown games and games the account did
-     * not play return the same not-found response.
+     * Returns the caller's view of the durable summary; unknown games and games the caller did
+     * not play return the same not-found response. The caller is an account ID or, for a guest
+     * token, the guest's participant ID (ADR-0020).
      */
     @Transactional(readOnly = true)
-    public CurrentGameSummaryResponse getParticipantSummary(UUID sessionId, UUID accountId) {
-        if (sessionId == null || accountId == null) {
+    public CurrentGameSummaryResponse getParticipantSummary(UUID sessionId, UUID callerId) {
+        if (sessionId == null || callerId == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         GameHistoryEntity history = historyRepository.
-                findParticipatedBySessionIdAndAccountId(sessionId, accountId).
+                findParticipatedBySessionIdAndAccountId(sessionId, callerId).
+                or(() -> historyRepository.
+                        findParticipatedBySessionIdAndGuestParticipantId(sessionId, callerId)).
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         List<GameHistoryParticipantEntity> participants =
                 participantRepository.findByGameHistoryId(history.getId());
         GameHistoryParticipantEntity caller = participants.stream().
-                filter(participant -> participant.getUser() != null
-                        && accountId.equals(participant.getUser().getId())).
+                filter(participant -> isCaller(participant, callerId)).
                 findFirst().
                 orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         List<GameSummaryRoundResponse> rounds = roundRepository.
@@ -85,6 +87,14 @@ public class GameHistorySummaryService {
                                 participant.getFinalRank(),
                                 participant.getParticipantKind() == HistoryParticipantKind.GUEST)).
                         toList());
+    }
+
+    private static boolean isCaller(GameHistoryParticipantEntity participant, UUID callerId) {
+        if (participant.getUser() != null) {
+            return callerId.equals(participant.getUser().getId());
+        }
+        return participant.getParticipantKind() == HistoryParticipantKind.GUEST
+                && callerId.equals(participant.getParticipantId());
     }
 
     /** Solo rounds have no result rows: the round's points and outcome are the owner's. */

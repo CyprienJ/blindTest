@@ -6,7 +6,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.blindtest.model.entity.UserRole;
+import com.blindtest.security.BearerTokenAuthenticator;
+import com.blindtest.security.GuestToken;
 import com.blindtest.security.JwtTokenProvider;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +28,7 @@ class JwtChannelInterceptorTest {
     @BeforeEach
     void setUp() {
         jwtTokenProvider = mock(JwtTokenProvider.class);
-        interceptor = new JwtChannelInterceptor(jwtTokenProvider);
+        interceptor = new JwtChannelInterceptor(new BearerTokenAuthenticator(jwtTokenProvider));
     }
 
     @Test
@@ -46,6 +49,23 @@ class JwtChannelInterceptorTest {
         UsernamePasswordAuthenticationToken auth =
                 (UsernamePasswordAuthenticationToken) resultAccessor.getUser();
         assertThat(auth.getName()).isEqualTo(userId.toString());
+    }
+
+    @Test
+    void preSendAuthenticatesGuestsAsTheirParticipant() {
+        UUID sessionId = UUID.randomUUID();
+        UUID participantId = UUID.randomUUID();
+        String token = "guest-token";
+        when(jwtTokenProvider.parseGuestToken(token)).
+                thenReturn(Optional.of(new GuestToken(sessionId, participantId)));
+
+        Message<?> result = interceptor.preSend(buildConnectMessage("Bearer " + token), null);
+
+        UsernamePasswordAuthenticationToken auth =
+                (UsernamePasswordAuthenticationToken) StompHeaderAccessor.wrap(result).getUser();
+        assertThat(auth.getName()).isEqualTo(participantId.toString());
+        assertThat(auth.getAuthorities()).extracting(Object::toString).containsExactly("ROLE_GUEST");
+        assertThat(auth.getDetails()).isEqualTo(new GuestToken(sessionId, participantId));
     }
 
     @Test

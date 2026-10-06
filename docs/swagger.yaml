@@ -6,7 +6,11 @@ info:
 
     ## Authentication
     Protected endpoints require a Bearer JWT in the `Authorization` header.
-    Guests will receive a session-scoped token from `/lobbies/{code}/guests` (planned, MP-08).
+    Guests receive a session-scoped token from `/lobbies/{code}/guests` (ADR-0020). It
+    authenticates as the guest's participant ID and only reaches that lobby's member
+    routes (read, ready, leave, and host actions if the guest becomes host), its STOMP
+    destinations, and `GET /sessions/{sessionId}/summary`. Every other protected route
+    answers 403 to a guest token.
 
     ## Roles
     - `USER`: registered player
@@ -146,6 +150,10 @@ components:
             - LOBBY_HOST_REQUIRED
             - LOBBY_NOT_READY
             - LOBBY_PARTICIPANT_NOT_FOUND
+            - LOBBY_AUDIO_MODE_INVALID
+            - GUEST_NICKNAME_INVALID
+            - GUEST_NICKNAME_TAKEN
+            - GUEST_JOIN_RATE_LIMITED
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
         message:
@@ -707,13 +715,13 @@ components:
           type: boolean
         guest:
           type: boolean
-          description: Always false until guest joins exist (MP-08).
+          description: True for a member who joined with a nickname instead of an account.
 
     Lobby:
       type: object
       required: [sessionId, code, participantId, hostParticipantId, participants,
         canStart, maxParticipants, version, expiresAt, connection, playlistName,
-        trackCount, maxRoundSeconds]
+        trackCount, maxRoundSeconds, audioMode]
       properties:
         sessionId:
           $ref: '#/components/schemas/UUID'
@@ -752,6 +760,45 @@ components:
           type: integer
         maxRoundSeconds:
           type: integer
+        audioMode:
+          $ref: '#/components/schemas/AudioMode'
+
+    AudioMode:
+      type: string
+      enum: [EVERYONE, HOST_ONLY]
+      description: |
+        Which devices play the round audio (ADR-0022). `HOST_ONLY` is for players in
+        one room: every browser but the host's stays silent.
+
+    CreateLobbyRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateSessionRequest'
+        - type: object
+          properties:
+            audioMode:
+              allOf:
+                - $ref: '#/components/schemas/AudioMode'
+              description: Omitted or null means `EVERYONE`.
+
+    LobbyAudioModeRequest:
+      type: object
+      required: [audioMode]
+      properties:
+        audioMode:
+          $ref: '#/components/schemas/AudioMode'
+
+    GuestJoinResponse:
+      type: object
+      required: [guestToken, lobby]
+      properties:
+        guestToken:
+          type: string
+          description: |
+            Signed guest JWT (audience `guest`) carrying the session and participant
+            IDs. Keep it in `sessionStorage`; it stops working once the guest leaves,
+            is removed, or the session ends.
+        lobby:
+          $ref: '#/components/schemas/Lobby'
 
     LobbyReadyRequest:
       type: object
@@ -762,7 +809,7 @@ components:
 
     JoinAsGuestRequest:
       type: object
-      description: Planned for MP-08; not implemented.
+      description: Nicknames are trimmed, then need 2 to 20 printable characters.
       required: [nickname, turnstileToken]
       properties:
         nickname:
@@ -1690,8 +1737,8 @@ paths:
       summary: Read a completed game summary
       description: |
         Returns the ordered durable result snapshot, from the caller's point of
-        view, to a registered account that played the game. Missing games and
-        games the account did not play both return 404. Responses use `Cache-Control: no-store` and never
+        view, to an account or a guest token that played the game. Missing games
+        and games the caller did not play both return 404. Responses use `Cache-Control: no-store` and never
         expose provider URLs, private object keys, checksums, raw guesses, or
         internal answer aliases.
       parameters:
@@ -1732,7 +1779,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateSessionRequest'
+              $ref: '#/components/schemas/CreateLobbyRequest'
       responses:
         '201':
           description: Lobby opened
@@ -1903,8 +1950,13 @@ paths:
   /lobbies/{code}/guests:
     post:
       tags: [Lobbies]
-      summary: Join as a guest (planned, MP-08)
-      description: Not implemented; see ADR-0020.
+      summary: Join as a guest without an account
+      description: |
+        Anyone holding a live code may join with a nickname and a Turnstile token
+        (ADR-0020). Attempts are limited per client address and per code before
+        Turnstile is checked. Nicknames are unique in the lobby regardless of case,
+        registered usernames included. Unknown, expired, and started codes all
+        return `LOBBY_NOT_FOUND`. Responses use `Cache-Control: no-store`.
       security: []
       parameters:
         - $ref: '#/components/parameters/SessionCode'
@@ -1915,8 +1967,75 @@ paths:
             schema:
               $ref: '#/components/schemas/JoinAsGuestRequest'
       responses:
-        '501':
-          description: Not implemented yet
+        '200':
+          description: Joined; the token authorizes only this lobby and its game
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestJoinResponse'
+        '400':
+          description: '`GUEST_NICKNAME_INVALID`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: '`TURNSTILE_FAILED`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: '`LOBBY_FULL` or `GUEST_NICKNAME_TAKEN`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: '`GUEST_JOIN_RATE_LIMITED`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /lobbies/{code}/audio-mode:
+    put:
+      tags: [Lobbies]
+      summary: Choose which devices play the music (host only)
+      description: Broadcast to members as `LOBBY_UPDATED` (ADR-0022).
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LobbyAudioModeRequest'
+      responses:
+        '200':
+          description: Updated lobby
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lobby'
+        '400':
+          description: '`LOBBY_AUDIO_MODE_INVALID`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: '`LOBBY_HOST_REQUIRED`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /tracks:
     get:

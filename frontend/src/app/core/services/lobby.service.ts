@@ -2,15 +2,15 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE } from '../config';
-import { CreateSoloSessionRequest, SoloSessionResponse } from '../models/game-session.model';
-import { Lobby } from '../models/lobby.model';
+import { SoloSessionResponse } from '../models/game-session.model';
+import { AudioMode, CreateLobbyRequest, GuestJoinResponse, Lobby } from '../models/lobby.model';
 
 /** REST client for multiplayer lobbies; live changes arrive as STOMP lobby events. */
 @Injectable({ providedIn: 'root' })
 export class LobbyService {
   private readonly http = inject(HttpClient);
 
-  create(request: CreateSoloSessionRequest): Observable<Lobby> {
+  create(request: CreateLobbyRequest): Observable<Lobby> {
     return this.http.post<Lobby>(`${API_BASE}/lobbies`, request);
   }
 
@@ -23,6 +23,24 @@ export class LobbyService {
       `${API_BASE}/lobbies/${encodeURIComponent(code)}/participants`,
       {},
     );
+  }
+
+  /** Joins without an account; the returned token only reaches this lobby and its game. */
+  joinAsGuest(
+    code: string,
+    nickname: string,
+    turnstileToken: string,
+  ): Observable<GuestJoinResponse> {
+    return this.http.post<GuestJoinResponse>(
+      `${API_BASE}/lobbies/${encodeURIComponent(code)}/guests`,
+      { nickname, turnstileToken },
+    );
+  }
+
+  setAudioMode(code: string, audioMode: AudioMode): Observable<Lobby> {
+    return this.http.put<Lobby>(`${API_BASE}/lobbies/${encodeURIComponent(code)}/audio-mode`, {
+      audioMode,
+    });
   }
 
   leave(code: string): Observable<void> {

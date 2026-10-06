@@ -2,6 +2,7 @@ package com.blindtest.service;
 
 import com.blindtest.error.ApiErrorCode;
 import com.blindtest.model.dto.CreateSoloSessionRequest;
+import com.blindtest.model.entity.PlaylistEntity;
 import com.blindtest.model.entity.PlaylistTrackEntity;
 import com.blindtest.model.entity.TrackAnswerAliasEntity;
 import com.blindtest.model.entity.TrackAnswerType;
@@ -69,6 +70,14 @@ public class GameSetupService {
 
     /** Validated configuration and the immutable tracks selected for it. */
     public record GameSetup(GameConfiguration configuration, GameTrackSelection selection) {
+    }
+
+    /** Returns the playlist's display name, or a placeholder once it no longer exists. */
+    @Transactional(readOnly = true)
+    public String playlistName(UUID playlistId) {
+        return playlistRepository.findById(playlistId).
+                map(PlaylistEntity::getName).
+                orElse("Unavailable playlist");
     }
 
     /** Validates the request against current eligibility and selects its tracks. */

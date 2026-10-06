@@ -128,6 +128,7 @@ export interface LobbyUpdatedPayload {
   hostParticipantId: string;
   participants: LobbyMember[];
   canStart: boolean;
+  audioMode: 'EVERYONE' | 'HOST_ONLY';
 }
 
 export interface LobbyStartedPayload {

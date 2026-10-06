@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.blindtest.model.entity.GameHistoryEntity;
@@ -210,6 +211,77 @@ class MultiplayerGameBackendFlowIntegrationTest {
         assertNoAnswerOrDiscoveryLeaked();
         players.forEach(player -> player.session.disconnect());
         assertMultiplayerHistoryAndSummaries();
+    }
+
+    /** MP-08: a guest joins with a nickname, plays over STOMP, and reads its own summary. */
+    @Test
+    void registeredHostAndGuestPlayToTheGuestsSummary() throws Exception {
+        org.mockito.Mockito.when(turnstileVerifier.verify("solved")).thenReturn(true);
+        UserEntity alice = saveUser("mp-alice");
+        seedPlaylist(alice);
+        JsonNode lobby = json(perform(post("/api/lobbies"), alice, configuration()));
+        String code = lobby.get("code").asText();
+        sessionId = UUID.fromString(lobby.get("sessionId").asText());
+        a = connect(alice, lobby.get("participantId").asText());
+        JsonNode joined = json(mockMvc.perform(post("/api/lobbies/" + code + "/guests").
+                contentType(MediaType.APPLICATION_JSON).
+                content("{\"nickname\":\"Visitor\",\"turnstileToken\":\"solved\"}")).
+                andExpect(status().isOk()));
+        String guestToken = joined.get("guestToken").asText();
+        Player guest = connect(guestToken, joined.at("/lobby/participantId").asText());
+        mockMvc.perform(put("/api/lobbies/" + code + "/participants/me/ready").
+                        header(HttpHeaders.AUTHORIZATION, "Bearer " + guestToken).
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{\"ready\":true}")).
+                andExpect(status().isOk());
+        perform(post("/api/lobbies/" + code + "/start"), alice, null).andExpect(status().isOk());
+        players = List.of(a, guest);
+        players.forEach(player -> expectedTotals.put(player, 0));
+        awaitAll(players, "LOBBY_STARTED");
+
+        send(a, SessionCommandType.START_GAME, version(), null);
+        Instant startsAt = Instant.parse(
+                awaitAll(players, "ROUND_STARTED").at("/payload/startsAt").asText());
+        // Private events reach the guest's own queue.
+        send(guest, SessionCommandType.REQUEST_SNAPSHOT, version(), null);
+        assertThat(awaitPrivate(guest, "CURRENT_SNAPSHOT").get("recipientParticipantId").asText()).
+                isEqualTo(guest.participantId);
+        clock.set(startsAt.plusSeconds(5));
+        send(guest, SessionCommandType.SUBMIT_ANSWER, version(), title(0));
+        assertScore(guest, 833);
+        clock.set(startsAt.plusSeconds(10));
+        send(a, SessionCommandType.SUBMIT_ANSWER, version(), title(0));
+        assertScore(a, 667);
+        awaitAll(players, "ROUND_REVEALED");
+        startsAt = advance();
+        for (int round = 1; round < TRACK_COUNT; round++) {
+            clock.set(startsAt.plusSeconds(2));
+            send(a, SessionCommandType.SKIP_ROUND, version(), null);
+            awaitAll(players, "SKIP_VOTE_UPDATED");
+            send(guest, SessionCommandType.SKIP_ROUND, version(), null);
+            awaitAll(players, "ROUND_REVEALED");
+            if (round < TRACK_COUNT - 1) {
+                startsAt = advance();
+            }
+        }
+        send(a, SessionCommandType.ADVANCE_ROUND, version(), null);
+        awaitAll(players, "GAME_FINISHED");
+        players.forEach(player -> player.session.disconnect());
+
+        GameHistoryEntity history = awaitHistory();
+        var stored = participantRepository.findByGameHistoryId(history.getId()).stream().
+                filter(participant -> participant.getParticipantId().toString().
+                        equals(guest.participantId)).
+                findFirst().orElseThrow();
+        assertThat(stored.getUser()).isNull();
+        assertThat(stored.getParticipantKind().name()).isEqualTo("GUEST");
+        assertThat(stored.getDisplayName()).isEqualTo("Visitor");
+        mockMvc.perform(get("/api/sessions/{sessionId}/summary", sessionId).
+                        header(HttpHeaders.AUTHORIZATION, "Bearer " + guestToken)).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.totalScore").value(833)).
+                andExpect(jsonPath("$.standings[0].participantId").value(guest.participantId)).
+                andExpect(jsonPath("$.standings[0].guest").value(true));
     }
 
     /** MP-04: every participant is stored with a shared rank and reads their own summary. */
@@ -460,8 +532,12 @@ class MultiplayerGameBackendFlowIntegrationTest {
     }
 
     private Player connect(UserEntity account, String participantId) throws Exception {
+        return connect(token(account), participantId);
+    }
+
+    private Player connect(String bearerToken, String participantId) throws Exception {
         StompHeaders connectHeaders = new StompHeaders();
-        connectHeaders.add("Authorization", "Bearer " + token(account));
+        connectHeaders.add("Authorization", "Bearer " + bearerToken);
         StompSession session = stompClient.connectAsync(
                         "ws://127.0.0.1:" + port + SessionProtocol.WEB_SOCKET_ENDPOINT,
                         new WebSocketHttpHeaders(),

@@ -33,6 +33,7 @@ import {
   AudioPlaybackService,
   AudioPlaybackStatus,
 } from '../../../core/services/audio-playback.service';
+import { GuestSessionService } from '../../../core/services/guest-session.service';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { GameSocketService, GameSocketStatus } from '../../../core/services/game-socket.service';
 import { ScoreboardComponent } from '../scoreboard/scoreboard.component';
@@ -64,6 +65,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   private readonly gameSessions = inject(GameSessionService);
   private readonly gameSocket = inject(GameSocketService);
   private readonly audioPlayback = inject(AudioPlaybackService);
+  private readonly guestSession = inject(GuestSessionService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly injector = inject(Injector);
 
@@ -103,6 +105,20 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   requiredSkipVotes = 1;
   skipVoted = false;
   titleFound = false;
+
+  /** A guest tab has no account, so it leaves through the join screen. */
+  get guest(): boolean {
+    return this.guestSession.get()?.sessionId === this.session?.sessionId;
+  }
+
+  get exitLink(): string {
+    return this.guest ? '/lobby/join' : '/lobby/create';
+  }
+
+  /** In a host-only audio game (ADR-0022), every device but the host's stays silent. */
+  get silentDevice(): boolean {
+    return this.session?.audioMode === 'HOST_ONLY' && this.session.host === false;
+  }
 
   get multiplayer(): boolean {
     return this.session?.host !== undefined;
@@ -205,7 +221,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     const sessionId = this.route.snapshot.paramMap.get('sessionId');
     this.session = sessionId ? this.gameSessions.getActiveSession(sessionId) : null;
     if (!this.session) {
-      void this.router.navigate(['/lobby/create']);
+      void this.router.navigate([this.guestSession.get() ? '/lobby/join' : '/lobby/create']);
       return;
     }
 
@@ -355,7 +371,11 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   }
 
   playAgain(): void {
-    void this.router.navigate(['/lobby/create']);
+    const exit = this.exitLink;
+    if (this.guest) {
+      this.guestSession.clear();
+    }
+    void this.router.navigate([exit]);
   }
 
   /** Round clock: frozen at the pause instant while the round or its reveal is paused. */
@@ -677,7 +697,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.deadlineMs = Date.parse(payload.deadline);
     this.tick();
     this.focusInput();
-    if (payload.playbackUrl) {
+    if (payload.playbackUrl && !this.silentDevice) {
       this.audioPlayback.scheduleRound({
         url: payload.playbackUrl,
         startsAt: payload.startsAt,
@@ -718,7 +738,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.tick();
     this.focusInput();
 
-    if (payload.playbackUrl) {
+    if (payload.playbackUrl && !this.silentDevice) {
       this.audioPlayback.scheduleRound({
         url: payload.playbackUrl,
         startsAt: payload.startsAt,

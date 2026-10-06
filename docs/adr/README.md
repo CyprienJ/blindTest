@@ -46,3 +46,4 @@ Allowed statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, and
 | [ADR-0019](0019-multiplayer-session-rules.md) | Accepted | Define multiplayer lobby, scoring, and round rules |
 | [ADR-0020](0020-guest-participants.md) | Accepted | Let guests join multiplayer games with a code |
 | [ADR-0021](0021-pause-rounds-and-reveals.md) | Accepted | Let the owner pause a round or its reveal |
+| [ADR-0022](0022-host-only-audio.md) | Accepted | Let the host play the music for a room |

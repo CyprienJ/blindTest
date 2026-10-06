@@ -1,39 +1,46 @@
 <div class="bt-screen">
   <header class="bt-topbar">
     <div class="bt-topbar-lead">
-      <a class="bt-logo" routerLink="/home" i18n-aria-label aria-label="Blindtest home">
+      <a
+        class="bt-logo"
+        [routerLink]="(currentUser$ | async) ? '/home' : '/'"
+        i18n-aria-label
+        aria-label="Blindtest home"
+      >
         <span class="bt-logo-mark" aria-hidden="true"></span>
         <span>Blindtest</span>
       </a>
-      <nav class="bt-nav" i18n-aria-label aria-label="Primary navigation">
-        <a routerLink="/lobby/create" routerLinkActive="active" ariaCurrentWhenActive="page" i18n
-          >Play</a
-        >
-        <a routerLink="/lobby/create" fragment="public-playlists" i18n>Playlists</a>
-        <span
-          class="bt-nav-item is-disabled"
-          aria-disabled="true"
-          i18n-title
-          title="Available soon"
-          i18n
-        >
-          Friends
-        </span>
-        <span
-          class="bt-nav-item is-disabled"
-          aria-disabled="true"
-          i18n-title
-          title="Available soon"
-          i18n
-        >
-          History
-        </span>
-        @if ((currentUser$ | async)?.role === 'ADMIN') {
-          <a routerLink="/admin" routerLinkActive="active" ariaCurrentWhenActive="page" i18n
-            >Admin</a
+      @if (currentUser$ | async) {
+        <nav class="bt-nav" i18n-aria-label aria-label="Primary navigation">
+          <a routerLink="/lobby/create" routerLinkActive="active" ariaCurrentWhenActive="page" i18n
+            >Play</a
           >
-        }
-      </nav>
+          <a routerLink="/lobby/create" fragment="public-playlists" i18n>Playlists</a>
+          <span
+            class="bt-nav-item is-disabled"
+            aria-disabled="true"
+            i18n-title
+            title="Available soon"
+            i18n
+          >
+            Friends
+          </span>
+          <span
+            class="bt-nav-item is-disabled"
+            aria-disabled="true"
+            i18n-title
+            title="Available soon"
+            i18n
+          >
+            History
+          </span>
+          @if ((currentUser$ | async)?.role === 'ADMIN') {
+            <a routerLink="/admin" routerLinkActive="active" ariaCurrentWhenActive="page" i18n
+              >Admin</a
+            >
+          }
+        </nav>
+      }
     </div>
 
     <div class="bt-topbar-account">
@@ -53,6 +60,12 @@
             <ng-container i18n>Sign out</ng-container>
           }
         </button>
+      } @else if (guestNickname) {
+        <span class="bt-avatar" aria-hidden="true">{{ initials(guestNickname) }}</span>
+        <span class="bt-account-name">{{ guestNickname }}</span>
+        <span i18n class="bt-chip">Guest</span>
+      } @else {
+        <a i18n class="bt-btn bt-btn-ghost bt-btn-sm" routerLink="/auth/login">Sign in</a>
       }
     </div>
   </header>

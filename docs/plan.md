@@ -23,6 +23,10 @@ Status: ready. On 2026-10-02 the product owner moved
 [MP-05](roadmap/lot-p2-multiplayer.md#mp-05--build-the-create-join-and-lobby-screens), and
 [MP-06](roadmap/lot-p2-multiplayer.md#mp-06--show-multiplayer-state-in-the-game-room-and-end-screen)
 are complete: registered users can play multiplayer games end to end.
+On 2026-10-06, at the product owner's request and without moving this pointer,
+[MP-08](roadmap/lot-p2-multiplayer.md#mp-08--issue-guest-participant-tokens) and
+[MP-09](roadmap/lot-p2-multiplayer.md#mp-09--let-guests-join-from-the-browser) were
+completed with a host-chosen audio mode ([ADR-0022](adr/0022-host-only-audio.md)).
 
 [CAT-11 — Import tracks from uploaded audio files](roadmap/lot-3-catalogue.md#cat-11--import-tracks-from-uploaded-audio-files)
 awaits only one product-owner check: publish a track from a local audio file on the

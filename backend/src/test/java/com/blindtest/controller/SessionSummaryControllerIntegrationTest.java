@@ -139,6 +139,45 @@ class SessionSummaryControllerIntegrationTest {
     }
 
     @Test
+    void guestReadsOnlyTheSummaryOfTheGameItPlayed() throws Exception {
+        UUID guestSessionId = UUID.randomUUID();
+        UUID guestParticipantId = UUID.randomUUID();
+        GameHistoryEntity multiplayer = history(owner);
+        multiplayer.setSessionId(guestSessionId);
+        multiplayer.setGameMode("MULTIPLAYER");
+        GameHistoryParticipantEntity guest = participant(owner);
+        guest.setParticipantId(guestParticipantId);
+        guest.setUser(null);
+        guest.setDisplayName("Visitor");
+        guest.setParticipantKind(HistoryParticipantKind.GUEST);
+        guest.setOwner(false);
+        guest.setFinalScore(0);
+        guest.setFinalRank(2);
+        multiplayer.addParticipant(guest);
+        historyRepository.saveAndFlush(multiplayer);
+
+        mockMvc.perform(get("/api/sessions/{sessionId}/summary", guestSessionId).
+                        header(HttpHeaders.AUTHORIZATION,
+                                guestBearer(guestSessionId, guestParticipantId))).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.participantId").value(guestParticipantId.toString())).
+                andExpect(jsonPath("$.totalScore").value(0)).
+                andExpect(jsonPath("$.standings.length()").value(2)).
+                andExpect(jsonPath("$.standings[1].displayName").value("Visitor")).
+                andExpect(jsonPath("$.standings[1].guest").value(true));
+
+        // Another game, or a guest identity that did not play, looks like an unknown game.
+        mockMvc.perform(get("/api/sessions/{sessionId}/summary", SESSION_ID).
+                        header(HttpHeaders.AUTHORIZATION,
+                                guestBearer(SESSION_ID, guestParticipantId))).
+                andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/sessions/{sessionId}/summary", guestSessionId).
+                        header(HttpHeaders.AUTHORIZATION,
+                                guestBearer(guestSessionId, UUID.randomUUID()))).
+                andExpect(status().isNotFound());
+    }
+
+    @Test
     void malformedSessionIdentityUsesSafeParameterError() throws Exception {
         mockMvc.perform(get("/api/sessions/not-a-uuid/summary").
                         header(HttpHeaders.AUTHORIZATION, bearer(owner))).
@@ -213,6 +252,10 @@ class SessionSummaryControllerIntegrationTest {
         user.setPasswordHash("hash");
         user.setEmailVerified(true);
         return user;
+    }
+
+    private String guestBearer(UUID sessionId, UUID participantId) {
+        return "Bearer " + jwtTokenProvider.generateGuestToken(sessionId, participantId);
     }
 
     private String bearer(UserEntity user) {

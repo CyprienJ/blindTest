@@ -5,16 +5,35 @@ import {
   Component,
   ElementRef,
   inject,
+  NgZone,
+  OnDestroy,
   OnInit,
   QueryList,
   ViewChildren,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { LOBBY_CODE_ALPHABET, LOBBY_CODE_LENGTH } from '../../../core/models/lobby.model';
+import { TURNSTILE_SITE_KEY } from '../../../core/config';
+import {
+  GUEST_NICKNAME_MAX_LENGTH,
+  GUEST_NICKNAME_MIN_LENGTH,
+  LOBBY_CODE_ALPHABET,
+  LOBBY_CODE_LENGTH,
+} from '../../../core/models/lobby.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { GuestSessionService } from '../../../core/services/guest-session.service';
 import { LobbyService } from '../../../core/services/lobby.service';
 
-/** Join a multiplayer lobby with the six-character code its host shared (MP-05). */
+declare const turnstile: {
+  render: (container: string | HTMLElement, options: Record<string, unknown>) => string;
+  reset: (widgetId: string) => void;
+  remove: (widgetId: string) => void;
+};
+
+/**
+ * Join a multiplayer lobby with the six-character code its host shared (MP-05). Visitors without
+ * an account join as guests with a nickname and a Turnstile check (MP-09).
+ */
 @Component({
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-join-session',
@@ -23,10 +42,13 @@ import { LobbyService } from '../../../core/services/lobby.service';
   templateUrl: './join-session.component.html',
   styleUrl: './join-session.component.scss',
 })
-export class JoinSessionComponent implements OnInit {
+export class JoinSessionComponent implements OnInit, OnDestroy {
   private readonly lobbies = inject(LobbyService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthService);
+  private readonly guestSession = inject(GuestSessionService);
+  private readonly zone = inject(NgZone);
 
   @ViewChildren('cell') private readonly cells!: QueryList<ElementRef<HTMLInputElement>>;
 
@@ -34,12 +56,44 @@ export class JoinSessionComponent implements OnInit {
   characters: string[] = Array.from({ length: LOBBY_CODE_LENGTH }, () => '');
   joining = false;
   errorMessage = '';
+  /** Without an account, the visitor joins as a guest with a nickname. */
+  readonly guest = !this.auth.isLoggedIn();
+  readonly nicknameMaxLength = GUEST_NICKNAME_MAX_LENGTH;
+  nickname = '';
+  turnstileToken = '';
+  private widgetId = '';
+  private destroyed = false;
 
   ngOnInit(): void {
     const code = this.route.snapshot.queryParamMap.get('code');
     if (code) {
       this.fill(0, code);
     }
+    if (this.guest) {
+      setTimeout(() => this.initTurnstile(), 0);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    if (this.widgetId && typeof turnstile !== 'undefined') {
+      turnstile.remove(this.widgetId);
+    }
+  }
+
+  get nicknameValid(): boolean {
+    const length = [...this.nickname.trim()].length;
+    return length >= GUEST_NICKNAME_MIN_LENGTH && length <= GUEST_NICKNAME_MAX_LENGTH;
+  }
+
+  /** Whether every field the join needs is filled in. */
+  get ready(): boolean {
+    return this.missing === 0 && (!this.guest || (this.nicknameValid && !!this.turnstileToken));
+  }
+
+  onNicknameInput(event: Event): void {
+    this.nickname = (event.target as HTMLInputElement).value;
+    this.errorMessage = '';
   }
 
   get code(): string {
@@ -86,7 +140,11 @@ export class JoinSessionComponent implements OnInit {
   }
 
   join(): void {
-    if (this.missing > 0 || this.joining) {
+    if (!this.ready || this.joining) {
+      return;
+    }
+    if (this.guest) {
+      this.joinAsGuest();
       return;
     }
     const code = this.code;
@@ -99,6 +157,69 @@ export class JoinSessionComponent implements OnInit {
         next: (lobby) => void this.router.navigate(['/lobby', lobby.code]),
         error: (error) => (this.errorMessage = this.describe(error)),
       });
+  }
+
+  private joinAsGuest(): void {
+    const turnstileToken = this.turnstileToken;
+    this.turnstileToken = '';
+    this.joining = true;
+    this.errorMessage = '';
+    this.lobbies
+      .joinAsGuest(this.code, this.nickname.trim(), turnstileToken)
+      .pipe(finalize(() => (this.joining = false)))
+      .subscribe({
+        next: ({ guestToken, lobby }) => {
+          const me = lobby.participants.find(
+            (participant) => participant.participantId === lobby.participantId,
+          );
+          this.guestSession.set({
+            token: guestToken,
+            code: lobby.code,
+            sessionId: lobby.sessionId,
+            participantId: lobby.participantId,
+            nickname: me?.displayName ?? this.nickname.trim(),
+          });
+          void this.router.navigate(['/lobby', lobby.code]);
+        },
+        error: (error) => {
+          // A Turnstile token is single-use, so every failed attempt needs a fresh check.
+          this.resetTurnstile();
+          this.errorMessage = this.describe(error);
+        },
+      });
+  }
+
+  private initTurnstile(): void {
+    if (this.destroyed) {
+      return;
+    }
+    if (typeof turnstile === 'undefined') {
+      setTimeout(() => this.initTurnstile(), 500);
+      return;
+    }
+    this.widgetId = turnstile.render('#guest-turnstile', {
+      sitekey: TURNSTILE_SITE_KEY,
+      theme: 'dark',
+      action: 'guest-join',
+      'response-field': false,
+      'refresh-expired': 'auto',
+      callback: (token: string) => this.zone.run(() => (this.turnstileToken = token)),
+      'expired-callback': () => this.zone.run(() => (this.turnstileToken = '')),
+      'error-callback': (): boolean => {
+        this.zone.run(() => {
+          this.turnstileToken = '';
+          this.errorMessage = $localize`Security check could not be completed. Please try again.`;
+        });
+        return true;
+      },
+    });
+  }
+
+  private resetTurnstile(): void {
+    this.turnstileToken = '';
+    if (this.widgetId && typeof turnstile !== 'undefined') {
+      turnstile.reset(this.widgetId);
+    }
   }
 
   /** Writes accepted characters from `index` on, ignoring anything outside the code alphabet. */
@@ -139,6 +260,14 @@ export class JoinSessionComponent implements OnInit {
           return $localize`This lobby is full (10 players).`;
         case 'EMAIL_NOT_VERIFIED':
           return $localize`Verify your email address before joining a game.`;
+        case 'GUEST_NICKNAME_INVALID':
+          return $localize`Choose a nickname of 2 to 20 characters.`;
+        case 'GUEST_NICKNAME_TAKEN':
+          return $localize`Someone in this lobby already uses this nickname. Pick another one.`;
+        case 'GUEST_JOIN_RATE_LIMITED':
+          return $localize`Too many attempts to join. Wait a few minutes and try again.`;
+        case 'TURNSTILE_FAILED':
+          return $localize`Security check failed. Please try again.`;
         default:
           break;
       }

@@ -3,6 +3,7 @@ package com.blindtest.websocket.protocol;
 import com.blindtest.model.game.GameStatus;
 import com.blindtest.model.game.RoundOutcome;
 import com.blindtest.model.game.RoundStatus;
+import com.blindtest.model.lobby.AudioMode;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
@@ -87,12 +88,14 @@ public sealed interface PublicSessionEventPayload permits
             String code,
             UUID hostParticipantId,
             List<LobbyMember> participants,
-            boolean canStart) implements PublicSessionEventPayload {
+            boolean canStart,
+            AudioMode audioMode) implements PublicSessionEventPayload {
 
         /** Copies the ordered member list. */
         public LobbyUpdated {
             SessionProtocol.requireText(code, "code");
             Objects.requireNonNull(hostParticipantId, "hostParticipantId is required");
+            Objects.requireNonNull(audioMode, "audioMode is required");
             participants = List.copyOf(participants);
         }
     }

@@ -68,6 +68,12 @@ public enum ApiErrorCode {
     LOBBY_NOT_READY(
             HttpStatus.CONFLICT, "At least two players must be present and every guest player ready"),
     LOBBY_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "This player is not in the lobby"),
+    LOBBY_AUDIO_MODE_INVALID(HttpStatus.BAD_REQUEST, "Choose who plays the round audio"),
+    GUEST_NICKNAME_INVALID(
+            HttpStatus.BAD_REQUEST, "Nicknames have 2 to 20 characters and no control characters"),
+    GUEST_NICKNAME_TAKEN(HttpStatus.CONFLICT, "Another player in this lobby uses this nickname"),
+    GUEST_JOIN_RATE_LIMITED(
+            HttpStatus.TOO_MANY_REQUESTS, "Too many attempts to join as a guest; try again later"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Media type is not supported"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
 

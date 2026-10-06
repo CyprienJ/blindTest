@@ -3,6 +3,7 @@ import { RxStomp, RxStompState } from '@stomp/rx-stomp';
 import { ReconnectionTimeMode } from '@stomp/stompjs';
 import { BehaviorSubject, filter, map, Observable, Subject, Subscription } from 'rxjs';
 import { AuthService } from './auth.service';
+import { GuestSessionService } from './guest-session.service';
 import { ActiveSoloSession } from '../models/game-session.model';
 import {
   CurrentSnapshotPayload,
@@ -39,13 +40,14 @@ function randomCommandId(): string {
 }
 
 /**
- * Owns the single gameplay STOMP connection: access-token connect headers,
+ * Owns the single gameplay STOMP connection: account or guest token connect headers,
  * a typed command API, exponential reconnect, automatic resubscription and
  * post-reconnect snapshot recovery, and teardown on route exit or logout.
  */
 @Injectable({ providedIn: 'root' })
 export class GameSocketService implements OnDestroy {
   private readonly auth = inject(AuthService);
+  private readonly guestSession = inject(GuestSessionService);
   private readonly createClient = inject(GAME_SOCKET_CLIENT);
 
   private client: RxStomp | null = null;
@@ -79,10 +81,13 @@ export class GameSocketService implements OnDestroy {
   );
 
   constructor() {
+    // Only a sign-out closes the connection; a guest tab never had an account to lose.
+    let signedIn = false;
     this.logoutSubscription = this.auth.currentUser$.subscribe((user) => {
-      if (!user) {
+      if (!user && signedIn) {
         this.disconnect();
       }
+      signedIn = !!user;
     });
   }
 
@@ -252,7 +257,9 @@ export class GameSocketService implements OnDestroy {
     this.privateSubject.next(event);
   }
 
+  /** The account token, or a guest tab's participant token (ADR-0020). */
   private authHeaders(): { Authorization: string } {
-    return { Authorization: `Bearer ${this.auth.getAccessToken() ?? ''}` };
+    const token = this.auth.getAccessToken() ?? this.guestSession.token() ?? '';
+    return { Authorization: `Bearer ${token}` };
   }
 }

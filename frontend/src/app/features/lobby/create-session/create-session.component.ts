@@ -6,6 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { CreateSoloSessionRequest } from '../../../core/models/game-session.model';
+import { AudioMode } from '../../../core/models/lobby.model';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { LobbyService } from '../../../core/services/lobby.service';
 import { PublicPlaylist, PublicPlaylistDetail } from './catalogue.model';
@@ -40,6 +41,8 @@ export class CreateSessionComponent implements OnInit {
   /** Solo plays at once; multiplayer opens a lobby that friends join by code. */
   mode: 'solo' | 'multiplayer' =
     this.route.snapshot.queryParamMap.get('mode') === 'multiplayer' ? 'multiplayer' : 'solo';
+  /** Multiplayer only: whether every player hears the music or only the host's device. */
+  audioMode: AudioMode = 'EVERYONE';
 
   readonly form = this.formBuilder.nonNullable.group({
     playlistId: ['', Validators.required],
@@ -198,6 +201,10 @@ export class CreateSessionComponent implements OnInit {
     return parts.join(' · ') || $localize`None`;
   }
 
+  setAudioMode(audioMode: AudioMode): void {
+    this.audioMode = audioMode;
+  }
+
   setMode(mode: 'solo' | 'multiplayer'): void {
     this.mode = mode;
     this.submitError = '';
@@ -222,7 +229,7 @@ export class CreateSessionComponent implements OnInit {
     this.submitError = '';
     if (this.mode === 'multiplayer') {
       this.lobbies
-        .create(request)
+        .create({ ...request, audioMode: this.audioMode })
         .pipe(finalize(() => (this.submitting = false)))
         .subscribe({
           next: (lobby) => void this.router.navigate(['/lobby', lobby.code]),

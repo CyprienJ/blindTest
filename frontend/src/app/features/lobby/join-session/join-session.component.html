@@ -24,6 +24,28 @@
       }
     </div>
 
+    @if (guest) {
+      <p i18n class="guest-note">You're joining as a guest — no account required.</p>
+      <label class="nickname-field">
+        <span i18n>Your nickname</span>
+        <input
+          class="bt-input"
+          type="text"
+          name="nickname"
+          autocomplete="nickname"
+          spellcheck="false"
+          [value]="nickname"
+          [attr.maxlength]="nicknameMaxLength"
+          i18n-placeholder
+          placeholder="How other players will see you"
+          (input)="onNicknameInput($event)"
+          (keydown.enter)="join()"
+        />
+        <small i18n>2 to 20 characters. Your score is not kept after the game.</small>
+      </label>
+      <div id="guest-turnstile" class="turnstile"></div>
+    }
+
     @if (errorMessage) {
       <p class="notice error" role="alert">{{ errorMessage }}</p>
     }
@@ -31,7 +53,7 @@
     <button
       class="bt-btn bt-btn-primary bt-btn-lg"
       type="button"
-      [disabled]="missing > 0 || joining"
+      [disabled]="!ready || joining"
       (click)="join()"
     >
       @if (joining) {
@@ -41,14 +63,23 @@
           =1 {Enter 1 more character}
           other {Enter {{ missing }} more characters}
         }</ng-container>
+      } @else if (guest && !nicknameValid) {
+        <ng-container i18n>Choose a nickname</ng-container>
+      } @else if (guest && !turnstileToken) {
+        <ng-container i18n>Complete the security check</ng-container>
       } @else {
         <ng-container i18n>Join lobby →</ng-container>
       }
     </button>
 
     <p class="footer">
-      <ng-container i18n>Don't have a code?</ng-container>
-      <a i18n routerLink="/lobby/create" [queryParams]="{ mode: 'multiplayer' }">Host your own</a>
+      @if (guest) {
+        <ng-container i18n>Have an account?</ng-container>
+        <a i18n routerLink="/auth/login" [queryParams]="{ returnUrl: '/lobby/join' }">Sign in</a>
+      } @else {
+        <ng-container i18n>Don't have a code?</ng-container>
+        <a i18n routerLink="/lobby/create" [queryParams]="{ mode: 'multiplayer' }">Host your own</a>
+      }
     </p>
   </section>
 </div>

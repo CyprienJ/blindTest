@@ -2,6 +2,7 @@ package com.blindtest.config;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,6 +11,7 @@ import com.blindtest.config.properties.ApplicationProperties;
 import com.blindtest.error.GlobalExceptionHandler;
 import com.blindtest.error.RestSecurityErrorHandler;
 import com.blindtest.model.entity.UserRole;
+import com.blindtest.security.BearerTokenAuthenticator;
 import com.blindtest.security.JwtAuthFilter;
 import com.blindtest.security.JwtTokenProvider;
 import com.blindtest.service.AdminPlaylistService;
@@ -44,6 +46,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @EnableConfigurationProperties(ApplicationProperties.class)
 @Import({
     AppConfig.class,
+    BearerTokenAuthenticator.class,
     CorrelationIdFilter.class,
     GlobalExceptionHandler.class,
     JwtAuthFilter.class,
@@ -136,6 +139,41 @@ class SecurityConfigIntegrationTest {
         mockMvc.perform(post("/api/lobbies/ABCDEF/participants")).
                 andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/lobbies/ABCDEF/start")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void guestJoinIsOpenWithoutAToken() throws Exception {
+        mockMvc.perform(post("/api/lobbies/ABCDEF/guests").
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{\"nickname\":\"Visitor\",\"turnstileToken\":\"t\"}")).
+                andExpect(status().isOk());
+    }
+
+    @Test
+    void guestTokensReachOnlyLobbyMemberRoutesAndSummaries() throws Exception {
+        String bearer = "Bearer " + jwtTokenProvider.generateGuestToken(
+                UUID.randomUUID(), UUID.randomUUID());
+        // Lobby member routes and summaries pass security; the services then check membership.
+        mockMvc.perform(get("/api/lobbies/ABCDEF").header(HttpHeaders.AUTHORIZATION, bearer)).
+                andExpect(status().isOk());
+        mockMvc.perform(put("/api/lobbies/ABCDEF/participants/me/ready").
+                        header(HttpHeaders.AUTHORIZATION, bearer).
+                        contentType(MediaType.APPLICATION_JSON).
+                        content("{\"ready\":true}")).
+                andExpect(status().isOk());
+        mockMvc.perform(get("/api/sessions/{sessionId}/summary", UUID.randomUUID()).
+                        header(HttpHeaders.AUTHORIZATION, bearer)).
+                andExpect(status().isOk());
+        // Everything that needs an account is forbidden.
+        for (var request : java.util.List.of(
+                post("/api/lobbies"),
+                post("/api/lobbies/ABCDEF/participants"),
+                post("/api/sessions"),
+                get("/api/users/profile"),
+                get("/api/admin/users"))) {
+            mockMvc.perform(request.header(HttpHeaders.AUTHORIZATION, bearer)).
+                    andExpect(status().isForbidden());
+        }
     }
 
     @Test

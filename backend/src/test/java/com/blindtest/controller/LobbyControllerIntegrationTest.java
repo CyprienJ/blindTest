@@ -3,6 +3,7 @@ package com.blindtest.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -18,6 +19,7 @@ import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.entity.UserRole;
 import com.blindtest.model.game.GameRandom;
 import com.blindtest.model.game.GameStatus;
+import com.blindtest.model.lobby.AudioMode;
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
@@ -53,7 +55,10 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-/** MP-02 acceptance: lobbies, join codes, readiness, host start, and stable failures. */
+/**
+ * MP-02 and MP-08 acceptance: lobbies, join codes, guests, readiness, audio mode, host start,
+ * and stable failures.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
@@ -290,6 +295,148 @@ class LobbyControllerIntegrationTest {
                 andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void guestJoinsWithANicknameAndPlaysWithoutAnAccount() throws Exception {
+        when(turnstileVerifier.verify("solved")).thenReturn(true);
+        String code = json(perform(post("/api/lobbies"), host,
+                configuration().replace("{}}", "{},\"audioMode\":\"HOST_ONLY\"}")).
+                andExpect(status().isCreated()).
+                andExpect(jsonPath("$.audioMode").value("HOST_ONLY"))).get("code").asText();
+
+        JsonNode joined = json(joinAsGuest(code, "  Visitor  ", "solved", "203.0.113.1").
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.lobby.participants.length()").value(2)).
+                andExpect(jsonPath("$.lobby.participants[1].displayName").value("Visitor")).
+                andExpect(jsonPath("$.lobby.participants[1].guest").value(true)).
+                andExpect(jsonPath("$.lobby.audioMode").value("HOST_ONLY")));
+        String token = joined.get("guestToken").asText();
+        String guestParticipantId = joined.get("lobby").get("participantId").asText();
+        UUID sessionId = UUID.fromString(joined.get("lobby").get("sessionId").asText());
+
+        asGuest(get("/api/lobbies/" + code), token, null).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.participantId").value(guestParticipantId));
+        asGuest(put("/api/lobbies/" + code + "/participants/me/ready"), token, "{\"ready\":true}").
+                andExpect(jsonPath("$.canStart").value(true));
+
+        // The guest token reaches nothing that needs an account.
+        asGuest(post("/api/lobbies"), token, configuration()).
+                andExpect(status().isForbidden());
+        asGuest(post("/api/sessions"), token, configuration()).
+                andExpect(status().isForbidden());
+        asGuest(post("/api/lobbies/" + createLobby() + "/participants"), token, null).
+                andExpect(status().isForbidden());
+        asGuest(get("/api/admin/users"), token, null).
+                andExpect(status().isForbidden());
+        asGuest(post("/api/lobbies/" + code + "/start"), token, null).
+                andExpect(status().isForbidden()).
+                andExpect(jsonPath("$.code").value("LOBBY_HOST_REQUIRED"));
+
+        perform(post("/api/lobbies/" + code + "/start"), host, null).
+                andExpect(status().isOk());
+        ActiveSessionSnapshot session =
+                sessionStore.find(new SessionId(sessionId), clock.instant()).orElseThrow();
+        assertThat(session.participants()).extracting(SessionParticipant::accountId).
+                containsExactly(Optional.of(host.getId()), Optional.empty());
+        assertThat(session.participants().get(1).principalId().toString()).
+                isEqualTo(guestParticipantId);
+    }
+
+    @Test
+    void guestTokensStayInTheirLobbyAndStopWorkingOnceKicked() throws Exception {
+        when(turnstileVerifier.verify("solved")).thenReturn(true);
+        String code = createLobby();
+        String otherCode = createLobby();
+        JsonNode joined = json(joinAsGuest(code, "Visitor", "solved", "203.0.113.2"));
+        String token = joined.get("guestToken").asText();
+
+        asGuest(get("/api/lobbies/" + otherCode), token, null).
+                andExpect(status().isNotFound()).
+                andExpect(jsonPath("$.code").value("LOBBY_NOT_FOUND"));
+
+        perform(delete("/api/lobbies/" + code + "/participants/"
+                + joined.get("lobby").get("participantId").asText()), host, null).
+                andExpect(status().isNoContent());
+        asGuest(get("/api/lobbies/" + code), token, null).
+                andExpect(status().isNotFound());
+        asGuest(put("/api/lobbies/" + code + "/participants/me/ready"), token, "{\"ready\":true}").
+                andExpect(status().isNotFound());
+    }
+
+    @Test
+    void guestJoinFailuresUseStableCodes() throws Exception {
+        when(turnstileVerifier.verify("solved")).thenReturn(true);
+        String code = createLobby();
+
+        joinAsGuest(code, "Visitor", "rejected", "203.0.113.3").
+                andExpect(status().isForbidden()).
+                andExpect(jsonPath("$.code").value("TURNSTILE_FAILED"));
+        joinAsGuest(code, "V", "solved", "203.0.113.3").
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("GUEST_NICKNAME_INVALID"));
+        joinAsGuest(code, "x".repeat(21), "solved", "203.0.113.3").
+                andExpect(jsonPath("$.code").value("GUEST_NICKNAME_INVALID"));
+        joinAsGuest(code, "Vis\u200Bitor", "solved", "203.0.113.3").
+                andExpect(jsonPath("$.code").value("GUEST_NICKNAME_INVALID"));
+        // Nicknames are unique in the lobby regardless of case, registered usernames included.
+        joinAsGuest(code, "HOST", "solved", "203.0.113.3").
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("GUEST_NICKNAME_TAKEN"));
+        joinAsGuest("ZZZZZZ", "Visitor", "solved", "203.0.113.3").
+                andExpect(status().isNotFound()).
+                andExpect(jsonPath("$.code").value("LOBBY_NOT_FOUND"));
+
+        for (int index = 1; index < 10; index++) {
+            joinAsGuest(code, "Guest " + index, "solved", "203.0.113.3").
+                    andExpect(status().isOk());
+        }
+        joinAsGuest(code, "Guest 10", "solved", "203.0.113.3").
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("LOBBY_FULL"));
+    }
+
+    @Test
+    void guestJoinAttemptsAreRateLimitedPerClientAddressAndPerCode() throws Exception {
+        for (int attempt = 0; attempt < 30; attempt++) {
+            joinAsGuest("RATEAA", "Visitor", "rejected", "198.51.100.7").
+                    andExpect(status().isForbidden());
+        }
+        joinAsGuest("RATEBB", "Visitor", "rejected", "198.51.100.7").
+                andExpect(status().isTooManyRequests()).
+                andExpect(jsonPath("$.code").value("GUEST_JOIN_RATE_LIMITED"));
+        // Every further attempt on the same code is limited too, whatever the address.
+        joinAsGuest("RATEAA", "Visitor", "rejected", "198.51.100.8").
+                andExpect(status().isTooManyRequests());
+        joinAsGuest("RATECC", "Visitor", "rejected", "198.51.100.8").
+                andExpect(status().isForbidden());
+    }
+
+    @Test
+    void onlyTheHostChoosesWhoPlaysTheAudio() throws Exception {
+        String code = createLobby();
+        perform(get("/api/lobbies/" + code), host, null).
+                andExpect(jsonPath("$.audioMode").value("EVERYONE"));
+        perform(post("/api/lobbies/" + code + "/participants"), guest, null);
+
+        perform(put("/api/lobbies/" + code + "/audio-mode"), guest, "{\"audioMode\":\"HOST_ONLY\"}").
+                andExpect(status().isForbidden()).
+                andExpect(jsonPath("$.code").value("LOBBY_HOST_REQUIRED"));
+        perform(put("/api/lobbies/" + code + "/audio-mode"), host, "{\"audioMode\":null}").
+                andExpect(status().isBadRequest()).
+                andExpect(jsonPath("$.code").value("LOBBY_AUDIO_MODE_INVALID"));
+        perform(put("/api/lobbies/" + code + "/audio-mode"), host, "{\"audioMode\":\"HOST_ONLY\"}").
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.audioMode").value("HOST_ONLY"));
+        perform(get("/api/lobbies/" + code), guest, null).
+                andExpect(jsonPath("$.audioMode").value("HOST_ONLY"));
+
+        ArgumentCaptor<PublicSessionEvent> events = ArgumentCaptor.forClass(PublicSessionEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishPublic(events.capture());
+        PublicSessionEventPayload.LobbyUpdated last = (PublicSessionEventPayload.LobbyUpdated)
+                events.getAllValues().getLast().payload();
+        assertThat(last.audioMode()).isEqualTo(AudioMode.HOST_ONLY);
+    }
+
     private String createLobby() throws Exception {
         return json(perform(post("/api/lobbies"), host, configuration()).
                 andExpect(status().isCreated())).get("code").asText();
@@ -301,6 +448,27 @@ class LobbyControllerIntegrationTest {
             String body) throws Exception {
         request.header(HttpHeaders.AUTHORIZATION,
                 "Bearer " + jwtTokenProvider.generateAccessToken(user.getId(), UserRole.USER));
+        if (body != null) {
+            request.contentType(MediaType.APPLICATION_JSON).content(body);
+        }
+        return mockMvc.perform(request);
+    }
+
+    private ResultActions joinAsGuest(
+            String code, String nickname, String turnstileToken, String clientAddress)
+            throws Exception {
+        return mockMvc.perform(post("/api/lobbies/" + code + "/guests").
+                header("X-Forwarded-For", clientAddress + ", 10.0.0.1").
+                contentType(MediaType.APPLICATION_JSON).
+                content(objectMapper.writeValueAsString(
+                        java.util.Map.of("nickname", nickname, "turnstileToken", turnstileToken))));
+    }
+
+    private ResultActions asGuest(
+            org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
+            String token,
+            String body) throws Exception {
+        request.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
         if (body != null) {
             request.contentType(MediaType.APPLICATION_JSON).content(body);
         }

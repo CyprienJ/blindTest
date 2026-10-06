@@ -2,6 +2,7 @@ package com.blindtest.websocket;
 
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionId;
+import com.blindtest.security.GuestToken;
 import com.blindtest.store.LobbyStore;
 import com.blindtest.store.SessionStore;
 import com.blindtest.websocket.protocol.SessionProtocol;
@@ -18,6 +19,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 /** Authorizes gameplay commands and subscriptions against session or lobby membership. */
@@ -44,26 +46,32 @@ public class SessionDestinationAuthorizationInterceptor implements ChannelInterc
         }
 
         UUID sessionId = authorizedSessionId(accessor.getCommand(), destination);
-        UUID accountId = authenticatedAccountId(accessor.getUser());
-        if (!isSessionMember(new SessionId(sessionId), accountId)) {
+        UUID principalId = authenticatedPrincipalId(accessor.getUser());
+        if (!isGuestScopedTo(accessor.getUser(), sessionId)
+                || !isSessionMember(new SessionId(sessionId), principalId)) {
             throw denied("Session is unavailable or access is denied");
         }
         return message;
     }
 
     /** Lobby members subscribe before the game session exists under the same ID. */
-    private boolean isSessionMember(SessionId sessionId, UUID accountId) {
+    private boolean isSessionMember(SessionId sessionId, UUID principalId) {
         Instant now = clock.instant();
         Optional<ActiveSessionSnapshot> session = sessionStore.find(sessionId, now);
         if (session.isPresent()) {
             return session.get().participants().stream().
-                    anyMatch(participant -> participant.accountId().
-                            filter(accountId::equals).
-                            isPresent());
+                    anyMatch(participant -> participant.principalId().equals(principalId));
         }
         return lobbyStore.find(sessionId, now).
-                flatMap(lobby -> lobby.memberFor(accountId)).
+                flatMap(lobby -> lobby.memberFor(principalId)).
                 isPresent();
+    }
+
+    /** A guest token only ever reaches the session it was issued for (ADR-0020). */
+    private boolean isGuestScopedTo(Principal principal, UUID sessionId) {
+        return !(principal instanceof Authentication authentication
+                && authentication.getDetails() instanceof GuestToken guest)
+                || guest.sessionId().equals(sessionId);
     }
 
     private boolean isDestinationCommand(StompCommand command) {
@@ -99,7 +107,7 @@ public class SessionDestinationAuthorizationInterceptor implements ChannelInterc
         }
     }
 
-    private UUID authenticatedAccountId(Principal principal) {
+    private UUID authenticatedPrincipalId(Principal principal) {
         if (principal == null) {
             throw denied("Authentication is required");
         }

@@ -154,10 +154,15 @@ test.describe('multiplayer lobby', () => {
 
     await page.goto('/lobby/create');
     await page.getByRole('radio', { name: 'With friends' }).click();
+    await page.getByRole('radio', { name: /Only my device/ }).check();
     await page.getByRole('button', { name: 'Open lobby →' }).click();
 
     await expect(page).toHaveURL(new RegExp(`/lobby/${CODE}$`));
-    expect(created).toMatchObject({ playlistId: PLAYLIST_ID, trackCount: 8 });
+    expect(created).toMatchObject({
+      playlistId: PLAYLIST_ID,
+      trackCount: 8,
+      audioMode: 'HOST_ONLY',
+    });
     await expect(page.getByLabel('Session code')).toHaveText(CODE);
     await expect(page.getByText('Party mix')).toBeVisible();
     const start = page.getByRole('button', { name: '▶ Start game' });

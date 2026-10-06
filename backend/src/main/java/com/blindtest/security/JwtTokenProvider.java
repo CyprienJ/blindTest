@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,11 +23,14 @@ public class JwtTokenProvider {
     private static final String CLAIM_PURPOSE = "purpose";
     private static final String PURPOSE_EMAIL_VERIFY = "EMAIL_VERIFY";
     private static final String PURPOSE_PASSWORD_RESET = "PASSWORD_RESET";
+    private static final String CLAIM_SESSION = "sid";
+    private static final String GUEST_AUDIENCE = "guest";
 
     private final SecretKey signingKey;
     private final long accessTokenTtlMs;
     private final long emailVerificationTtlMs;
     private final long passwordResetTtlMs;
+    private final long guestTokenTtlMs;
     private final Clock clock;
     private final TokenGenerator tokenGenerator;
 
@@ -36,12 +40,14 @@ public class JwtTokenProvider {
             @Value("${jwt.access-token.ttl-ms:900000}") long accessTokenTtlMs,
             @Value("${jwt.email-verification.ttl-ms:86400000}") long emailVerificationTtlMs,
             @Value("${jwt.password-reset.ttl-ms:3600000}") long passwordResetTtlMs,
+            @Value("${jwt.guest-token.ttl-ms:21600000}") long guestTokenTtlMs,
             Clock clock,
             TokenGenerator tokenGenerator) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenTtlMs = accessTokenTtlMs;
         this.emailVerificationTtlMs = emailVerificationTtlMs;
         this.passwordResetTtlMs = passwordResetTtlMs;
+        this.guestTokenTtlMs = guestTokenTtlMs;
         this.clock = clock;
         this.tokenGenerator = tokenGenerator;
     }
@@ -67,15 +73,44 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Returns {@code true} if the token has a valid HS256 signature and has not expired;
-     * {@code false} for any expired, malformed, or incorrectly signed token.
+     * Returns {@code true} if the token is an unexpired account access token with a valid HS256
+     * signature; {@code false} for any expired, malformed, incorrectly signed, or guest token.
      */
     public boolean validateToken(String token) {
         try {
-            parseClaims(token);
-            return true;
+            Claims claims = parseClaims(token);
+            return !isGuest(claims) && claims.get(CLAIM_ROLE, String.class) != null;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
+        }
+    }
+
+    /**
+     * Generates a guest participant token (ADR-0020) with a distinct {@code guest} audience. It
+     * carries no account or role, so account endpoints and {@link #validateToken} reject it; the
+     * server also stops honouring it once the guest leaves its session or the session ends.
+     */
+    public String generateGuestToken(UUID sessionId, UUID participantId) {
+        Date now = Date.from(clock.instant());
+        Date expiry = new Date(now.getTime() + guestTokenTtlMs);
+        var builder = Jwts.builder().subject(participantId.toString());
+        builder.audience().add(GUEST_AUDIENCE).and().claim(CLAIM_SESSION, sessionId.toString());
+        builder.issuedAt(now).expiration(expiry).signWith(signingKey);
+        return builder.compact();
+    }
+
+    /** Returns the claims of a valid, unexpired guest token, or empty for any other token. */
+    public Optional<GuestToken> parseGuestToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            if (!isGuest(claims)) {
+                return Optional.empty();
+            }
+            return Optional.of(new GuestToken(
+                    UUID.fromString(claims.get(CLAIM_SESSION, String.class)),
+                    UUID.fromString(claims.getSubject())));
+        } catch (JwtException | IllegalArgumentException | NullPointerException e) {
+            return Optional.empty();
         }
     }
 
@@ -149,6 +184,10 @@ public class JwtTokenProvider {
     /** Extracts the user ID from a valid password-reset token. */
     public UUID extractUserIdFromPasswordResetToken(String token) {
         return UUID.fromString(parseClaims(token).getSubject());
+    }
+
+    private static boolean isGuest(Claims claims) {
+        return claims.getAudience() != null && claims.getAudience().contains(GUEST_AUDIENCE);
     }
 
     private Claims parseClaims(String token) {

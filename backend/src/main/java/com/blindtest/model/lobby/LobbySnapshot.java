@@ -24,6 +24,7 @@ public record LobbySnapshot(
         GameParticipantId hostParticipantId,
         List<LobbyParticipant> participants,
         RequestedGameConfiguration configuration,
+        AudioMode audioMode,
         long version,
         Instant createdAt,
         Instant updatedAt,
@@ -39,6 +40,7 @@ public record LobbySnapshot(
         Objects.requireNonNull(hostParticipantId, "hostParticipantId is required");
         Objects.requireNonNull(participants, "participants are required");
         Objects.requireNonNull(configuration, "configuration is required");
+        Objects.requireNonNull(audioMode, "audioMode is required");
         Objects.requireNonNull(createdAt, "createdAt is required");
         Objects.requireNonNull(updatedAt, "updatedAt is required");
         Objects.requireNonNull(expiresAt, "expiresAt is required");
@@ -61,10 +63,11 @@ public record LobbySnapshot(
             LobbyCode code,
             LobbyParticipant host,
             RequestedGameConfiguration configuration,
+            AudioMode audioMode,
             Instant now,
             Instant expiresAt) {
         return new LobbySnapshot(
-                sessionId, code, host.participantId(), List.of(host), configuration,
+                sessionId, code, host.participantId(), List.of(host), configuration, audioMode,
                 0, now, now, expiresAt);
     }
 
@@ -78,11 +81,17 @@ public record LobbySnapshot(
         return participants.size() >= GameStateSnapshot.MAXIMUM_PARTICIPANTS;
     }
 
-    /** Returns the member signed in with the account, if any. */
-    public Optional<LobbyParticipant> memberFor(UUID accountId) {
+    /** Returns the member authenticated as the account or guest principal, if any. */
+    public Optional<LobbyParticipant> memberFor(UUID principalId) {
         return participants.stream().
-                filter(member -> member.accountId().filter(accountId::equals).isPresent()).
+                filter(member -> member.principalId().equals(principalId)).
                 findFirst();
+    }
+
+    /** Returns whether a member already uses the display name, ignoring case. */
+    public boolean hasDisplayName(String displayName) {
+        return participants.stream().
+                anyMatch(member -> member.displayName().equalsIgnoreCase(displayName));
     }
 
     /** Returns the member with the participant identity, if any. */
@@ -147,13 +156,20 @@ public record LobbySnapshot(
         return next(hostParticipantId, next, now, nextExpiresAt);
     }
 
+    /** Changes which devices play the round audio. */
+    public LobbySnapshot withAudioMode(AudioMode nextAudioMode, Instant now, Instant nextExpiresAt) {
+        return new LobbySnapshot(
+                sessionId, code, hostParticipantId, participants, configuration, nextAudioMode,
+                Math.addExact(version, 1), createdAt, now, nextExpiresAt);
+    }
+
     private LobbySnapshot next(
             GameParticipantId nextHost,
             List<LobbyParticipant> nextParticipants,
             Instant now,
             Instant nextExpiresAt) {
         return new LobbySnapshot(
-                sessionId, code, nextHost, nextParticipants, configuration,
+                sessionId, code, nextHost, nextParticipants, configuration, audioMode,
                 Math.addExact(version, 1), createdAt, now, nextExpiresAt);
     }
 

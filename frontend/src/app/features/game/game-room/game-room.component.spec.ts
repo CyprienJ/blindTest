@@ -556,6 +556,51 @@ describe('GameRoomComponent', () => {
       ];
     }
 
+    it('keeps a non-host device silent when only the host plays the music', async () => {
+      const silent: ActiveSoloSession = { ...guest, audioMode: 'HOST_ONLY' };
+      sessionStorage.setItem('active_solo_session', JSON.stringify(silent));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+
+      socket.publicEvents$.next(roundStarted(0));
+      fixture.changeDetectorRef.detectChanges();
+
+      expect(audio.scheduleRound).not.toHaveBeenCalled();
+      expect(text(fixture)).toContain("The music plays on the host's device.");
+    });
+
+    it("plays the music on the host's device in a host-only game", async () => {
+      const host: ActiveSoloSession = { ...active, host: true, audioMode: 'HOST_ONLY' };
+      sessionStorage.setItem('active_solo_session', JSON.stringify(host));
+      const harness = await setup(SESSION_ID);
+      await harness.create();
+
+      socket.publicEvents$.next(roundStarted(0));
+
+      expect(audio.scheduleRound).toHaveBeenCalled();
+    });
+
+    it('sends a guest who replays to the join screen and forgets its token', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(guest));
+      sessionStorage.setItem(
+        'guest_session',
+        JSON.stringify({
+          token: 't',
+          code: 'ABC234',
+          sessionId: SESSION_ID,
+          participantId: ME,
+          nickname: 'Me',
+        }),
+      );
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+
+      fixture.componentInstance.playAgain();
+
+      expect(harness.navigate).toHaveBeenCalledWith(['/lobby/join']);
+      expect(sessionStorage.getItem('guest_session')).toBeNull();
+    });
+
     it('waits for the host instead of starting a CREATED game', async () => {
       sessionStorage.setItem('active_solo_session', JSON.stringify(guest));
       const harness = await setup(SESSION_ID);

@@ -19,4 +19,12 @@ public record SessionParticipant(
             throw new IllegalArgumentException("displayName is required");
         }
     }
+
+    /**
+     * Returns the identity this participant authenticates with: the account ID, or for a guest
+     * the participant ID that its guest token carries.
+     */
+    public UUID principalId() {
+        return accountId.orElse(participantId.value());
+    }
 }

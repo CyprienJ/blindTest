@@ -185,6 +185,14 @@ Acceptance:
 
 #### MP-08 — Issue guest participant tokens
 
+Status: completed on 2026-10-06, out of sequence at the product owner's request,
+together with a host-chosen audio mode ([ADR-0022](../adr/0022-host-only-audio.md)).
+The guest token lives six hours instead of the inactivity window; liveness is
+checked per request (see ADR-0020 implementation notes). Covered by
+`LobbyControllerIntegrationTest`, `SecurityConfigIntegrationTest`,
+`SessionSummaryControllerIntegrationTest`, `JwtTokenProviderTest`, and a guest
+STOMP game in `MultiplayerGameBackendFlowIntegrationTest`.
+
 Work:
 
 - `POST /api/lobbies/{code}/guests` with nickname and Turnstile token;
@@ -200,6 +208,11 @@ Acceptance:
 - the security verification matrix lists the guest cases.
 
 #### MP-09 — Let guests join from the browser
+
+Status: completed on 2026-10-06 with MP-08. `e2e-full-stack/guest-journey.spec.ts`
+plays a registered host (host-only audio) and a guest to the guest end screen,
+including a reload rejoin and a refused new tab; `e2e/guest.spec.ts` covers the
+mocked join, every join error, and the audio switch.
 
 Work:
 

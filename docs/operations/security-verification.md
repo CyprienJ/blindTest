@@ -13,7 +13,9 @@ inventory.
 | Public catalogue reads | Anonymous catalogue, playlist, and session bootstrap reads work | `SecurityConfigIntegrationTest` |
 | Authenticated routes | Missing or invalid access tokens return the safe 401 contract | `SecurityConfigIntegrationTest` |
 | Administrator routes | Anonymous callers receive 401; users receive 403; admins reach the controller | `SecurityConfigIntegrationTest` |
-| Completed summaries | Only the owner can read a summary; another account and unknown IDs both receive 404 | `GameHistorySummaryService`, `SessionSummaryControllerIntegrationTest` |
+| Completed summaries | Only participants (accounts or that game's guests) can read a summary; others and unknown IDs both receive 404 | `GameHistorySummaryService`, `SessionSummaryControllerIntegrationTest` |
+| Guest tokens | Reach only lobby member routes and summaries; account, admin, and creation routes return 403; account validation rejects them | `SecurityConfigIntegrationTest`, `JwtTokenProviderTest`, `LobbyControllerIntegrationTest` |
+| Guest isolation | A guest token reads no other lobby, stops working once kicked, and is denied STOMP destinations of another session | `LobbyControllerIntegrationTest`, `SessionDestinationAuthorizationInterceptorTest` |
 | Active game destinations | Only members can subscribe or send, with one canonical UUID destination | `SessionWebSocketAuthorizationIntegrationTest`, `SessionDestinationAuthorizationInterceptorTest` |
 | Media objects | Storage is private and URLs are short-lived bearer credentials issued after domain checks | `AdminTrackServiceTest`, `SessionGameplayServiceTest`, `MinioMediaStorageIntegrationTest` |
 
@@ -42,6 +44,10 @@ media limit and a process timeout. The server rejects oversized request headers
 and form bodies before controller work. Gameplay commands have a
 20-command-per-session-second burst limit and a 300 ms per-player answer
 cooldown; repeated abuse feedback is bounded and later commands are dropped.
+Guest joins allow 30 attempts per client address and per code every 10 minutes
+before Turnstile runs (`GUEST_JOIN_RATE_LIMITED`); the address is the first
+`X-Forwarded-For` hop and can be forged, so Turnstile and the per-code limit are
+the binding controls.
 
 ## Automated release checks
 

@@ -49,6 +49,19 @@ code may play as a guest. Account creation stays invitation-only.
 - **Guest tokens in `localStorage`:** survive a closed tab but leak more easily
   across sessions on shared machines.
 
+## Implementation notes (2026-10-06)
+
+Delivered with MP-08 and MP-09. Two details differ from the wording above:
+
+- the token lives for a fixed six hours (`jwt.guest-token.ttl-ms`) rather than the
+  30-minute inactivity window, because a guest could not reconnect or read the
+  summary once a long game outlived it; liveness is still enforced on every request
+  by checking that the guest is a member of a live lobby or session;
+- the per-client limit reads the first `X-Forwarded-For` hop, which a client can
+  forge. Turnstile and the per-code limit remain the binding controls, and the
+  per-client limit (30 attempts per 10 minutes) stays above a full lobby because
+  players in one room share an address.
+
 ## Follow-up
 
 - Add guest token verification next to the account JWT path in MP-08.

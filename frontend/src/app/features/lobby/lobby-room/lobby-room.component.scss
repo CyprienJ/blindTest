@@ -247,3 +247,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.audio-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+
+  button {
+    cursor: pointer;
+  }
+}

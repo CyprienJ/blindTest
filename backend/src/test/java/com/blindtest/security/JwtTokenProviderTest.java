@@ -25,7 +25,7 @@ class JwtTokenProviderTest {
         AtomicInteger tokenSequence = new AtomicInteger();
         TokenGenerator tokenGenerator = () -> "refresh-token-" + tokenSequence.incrementAndGet();
         provider = new JwtTokenProvider(
-                SECRET, 900_000L, 86_400_000L, 3_600_000L, CLOCK, tokenGenerator);
+                SECRET, 900_000L, 86_400_000L, 3_600_000L, 21_600_000L, CLOCK, tokenGenerator);
     }
 
     @Test
@@ -61,7 +61,7 @@ class JwtTokenProviderTest {
     @Test
     void validateTokenReturnsFalseForExpiredToken() {
         JwtTokenProvider shortLived = new JwtTokenProvider(
-                SECRET, -1L, 86_400_000L, 3_600_000L, CLOCK, () -> "unused");
+                SECRET, -1L, 86_400_000L, 3_600_000L, 21_600_000L, CLOCK, () -> "unused");
         String expiredToken = shortLived.generateAccessToken(USER_ID, UserRole.USER);
         assertThat(provider.validateToken(expiredToken)).isFalse();
     }
@@ -76,9 +76,46 @@ class JwtTokenProviderTest {
     void validateTokenReturnsFalseForTokenSignedWithDifferentKey() {
         JwtTokenProvider other = new JwtTokenProvider(
                 "other-secret-key-that-is-32-bytes!!", 900_000L, 86_400_000L, 3_600_000L,
-                CLOCK, () -> "unused");
+                21_600_000L, CLOCK, () -> "unused");
         String token = other.generateAccessToken(USER_ID, UserRole.USER);
         assertThat(provider.validateToken(token)).isFalse();
+    }
+
+    @Test
+    void guestTokenCarriesItsSessionAndParticipant() {
+        UUID sessionId = UUID.randomUUID();
+        UUID participantId = UUID.randomUUID();
+        String token = provider.generateGuestToken(sessionId, participantId);
+        assertThat(provider.parseGuestToken(token)).
+                contains(new GuestToken(sessionId, participantId));
+    }
+
+    @Test
+    void guestTokenIsNeverAnAccountAccessToken() {
+        String token = provider.generateGuestToken(UUID.randomUUID(), UUID.randomUUID());
+        assertThat(provider.validateToken(token)).isFalse();
+    }
+
+    @Test
+    void accountAndPurposeTokensAreNeverGuestTokens() {
+        assertThat(provider.parseGuestToken(provider.generateAccessToken(USER_ID, UserRole.USER))).
+                isEmpty();
+        assertThat(provider.parseGuestToken(provider.generateEmailVerificationToken(USER_ID))).
+                isEmpty();
+        assertThat(provider.parseGuestToken("")).isEmpty();
+    }
+
+    @Test
+    void purposeTokensAreNotAccessTokens() {
+        assertThat(provider.validateToken(provider.generatePasswordResetToken(USER_ID))).isFalse();
+    }
+
+    @Test
+    void expiredGuestTokenIsRejected() {
+        JwtTokenProvider shortLived = new JwtTokenProvider(
+                SECRET, 900_000L, 86_400_000L, 3_600_000L, -1L, CLOCK, () -> "unused");
+        String token = shortLived.generateGuestToken(UUID.randomUUID(), UUID.randomUUID());
+        assertThat(provider.parseGuestToken(token)).isEmpty();
     }
 
     @Test

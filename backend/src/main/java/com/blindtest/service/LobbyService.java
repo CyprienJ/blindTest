@@ -1,18 +1,20 @@
 package com.blindtest.service;
 
 import com.blindtest.error.ApiErrorCode;
-import com.blindtest.model.dto.CreateSoloSessionRequest;
+import com.blindtest.model.dto.CreateLobbyRequest;
+import com.blindtest.model.dto.GuestJoinRequest;
+import com.blindtest.model.dto.GuestJoinResponse;
 import com.blindtest.model.dto.LobbyParticipantResponse;
 import com.blindtest.model.dto.LobbyResponse;
 import com.blindtest.model.dto.SessionConnectionInstructions;
 import com.blindtest.model.dto.SoloSessionResponse;
-import com.blindtest.model.entity.PlaylistEntity;
 import com.blindtest.model.entity.UserEntity;
 import com.blindtest.model.game.GameParticipantId;
 import com.blindtest.model.game.GameStateSnapshot;
 import com.blindtest.model.game.GameStatus;
 import com.blindtest.model.game.RequestedGameConfiguration;
 import com.blindtest.model.game.SecondaryDiscoveryState;
+import com.blindtest.model.lobby.AudioMode;
 import com.blindtest.model.lobby.LobbyCode;
 import com.blindtest.model.lobby.LobbyParticipant;
 import com.blindtest.model.lobby.LobbySnapshot;
@@ -20,7 +22,6 @@ import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.ProcessedCommandLedger;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
-import com.blindtest.repository.PlaylistRepository;
 import com.blindtest.service.port.LobbyCodeGenerator;
 import com.blindtest.service.port.SessionIdentityGenerator;
 import com.blindtest.store.LobbyStore;
@@ -42,7 +43,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Multiplayer lobby lifecycle from creation to start (ADR-0019, MP-02). Membership changes go
+ * Multiplayer lobby lifecycle from creation to start (ADR-0019, MP-02), including guests who
+ * join with a nickname instead of an account (ADR-0020, MP-08). Membership changes go
  * through REST and are broadcast as {@code LOBBY_UPDATED} on the session's public topic; start
  * snapshots tracks and creates a {@code CREATED} game session under the lobby's session ID.
  */
@@ -59,10 +61,10 @@ public class LobbyService {
     private final LobbyCodeGenerator codeGenerator;
     private final SessionExpirationPolicy expirationPolicy;
     private final SessionEventPublisher eventPublisher;
-    private final PlaylistRepository playlistRepository;
+    private final GuestAdmission guestAdmission;
     private final Object[] locks = new Object[LOCK_STRIPES];
 
-    /** Wires game setup, lobby and session state, identities, time, events, and playlists. */
+    /** Wires game setup, lobby and session state, identities, time, events, and guest checks. */
     public LobbyService(
             GameSetupService gameSetupService,
             LobbyStore lobbyStore,
@@ -71,7 +73,7 @@ public class LobbyService {
             LobbyCodeGenerator codeGenerator,
             SessionExpirationPolicy expirationPolicy,
             SessionEventPublisher eventPublisher,
-            PlaylistRepository playlistRepository) {
+            GuestAdmission guestAdmission) {
         this.gameSetupService = gameSetupService;
         this.lobbyStore = lobbyStore;
         this.sessionStore = sessionStore;
@@ -79,14 +81,17 @@ public class LobbyService {
         this.codeGenerator = codeGenerator;
         this.expirationPolicy = expirationPolicy;
         this.eventPublisher = eventPublisher;
-        this.playlistRepository = playlistRepository;
+        this.guestAdmission = guestAdmission;
         Arrays.setAll(locks, ignored -> new Object());
     }
 
     /** Validates the configuration against the catalogue now and opens a lobby hosted by the caller. */
-    public LobbyResponse create(UUID accountId, CreateSoloSessionRequest request) {
+    public LobbyResponse create(UUID accountId, CreateLobbyRequest request) {
         UserEntity host = gameSetupService.requireVerifiedPlayer(accountId);
-        RequestedGameConfiguration requested = gameSetupService.toRequestedConfiguration(request);
+        RequestedGameConfiguration requested = gameSetupService.toRequestedConfiguration(
+                request == null ? null : request.gameRequest());
+        AudioMode audioMode = request == null || request.audioMode() == null
+                ? AudioMode.EVERYONE : request.audioMode();
         // Fail early on an unusable configuration; tracks are selected again at start.
         gameSetupService.prepare(requested);
         LobbyParticipant member = newMember(host);
@@ -97,6 +102,7 @@ public class LobbyService {
                     codeGenerator.next(),
                     member,
                     requested,
+                    audioMode,
                     now,
                     expiresAt(now));
             if (lobbyStore.create(lobby, now)) {
@@ -106,10 +112,13 @@ public class LobbyService {
         throw new IllegalStateException("could not allocate a unique lobby code");
     }
 
-    /** Returns the lobby to one of its members; anyone else gets the not-found response. */
-    public LobbyResponse get(UUID accountId, String rawCode) {
+    /**
+     * Returns the lobby to one of its members; anyone else gets the not-found response. Like
+     * every member operation below, the caller is an account ID or a guest's participant ID.
+     */
+    public LobbyResponse get(UUID callerId, String rawCode) {
         LobbySnapshot lobby = requireLobby(rawCode);
-        LobbyParticipant member = requireMember(lobby, accountId);
+        LobbyParticipant member = requireMember(lobby, callerId);
         return response(lobby, member.participantId());
     }
 
@@ -133,21 +142,51 @@ public class LobbyService {
         }
     }
 
-    /** Removes the caller; the host role moves on when the host leaves. */
-    public void leave(UUID accountId, String rawCode) {
+    /**
+     * Admits a guest without an account (ADR-0020) and returns a token scoped to this lobby's
+     * session. Rate limits apply before Turnstile is verified, and the code lookup fails the same
+     * way for unknown, expired, and started lobbies.
+     */
+    public GuestJoinResponse joinAsGuest(String rawCode, GuestJoinRequest request, String clientAddress) {
+        String nickname = guestAdmission.check(
+                clientAddress, LobbyCode.parse(rawCode).map(LobbyCode::value).orElse(""), request);
         SessionId sessionId = requireLobby(rawCode).sessionId();
         synchronized (lockFor(sessionId)) {
             LobbySnapshot lobby = current(sessionId);
-            removeMember(lobby, requireMember(lobby, accountId).participantId());
+            if (lobby.isFull()) {
+                throw failure(ApiErrorCode.LOBBY_FULL);
+            }
+            if (lobby.hasDisplayName(nickname)) {
+                throw failure(ApiErrorCode.GUEST_NICKNAME_TAKEN);
+            }
+            LobbyParticipant guest = new LobbyParticipant(
+                    new GameParticipantId(identityGenerator.nextId()),
+                    Optional.empty(),
+                    nickname,
+                    false);
+            Instant now = expirationPolicy.instant();
+            LobbySnapshot joined = replace(lobby, lobby.join(guest, now, expiresAt(now)), now);
+            return new GuestJoinResponse(
+                    guestAdmission.issueToken(sessionId.value(), guest.participantId().value()),
+                    response(joined, guest.participantId()));
+        }
+    }
+
+    /** Removes the caller; the host role moves on when the host leaves. */
+    public void leave(UUID callerId, String rawCode) {
+        SessionId sessionId = requireLobby(rawCode).sessionId();
+        synchronized (lockFor(sessionId)) {
+            LobbySnapshot lobby = current(sessionId);
+            removeMember(lobby, requireMember(lobby, callerId).participantId());
         }
     }
 
     /** Sets the caller's ready flag. */
-    public LobbyResponse setReady(UUID accountId, String rawCode, boolean ready) {
+    public LobbyResponse setReady(UUID callerId, String rawCode, boolean ready) {
         SessionId sessionId = requireLobby(rawCode).sessionId();
         synchronized (lockFor(sessionId)) {
             LobbySnapshot lobby = current(sessionId);
-            LobbyParticipant member = requireMember(lobby, accountId);
+            LobbyParticipant member = requireMember(lobby, callerId);
             if (member.ready() == ready) {
                 return response(lobby, member.participantId());
             }
@@ -158,12 +197,31 @@ public class LobbyService {
         }
     }
 
-    /** Lets the host remove another member. */
-    public void kick(UUID accountId, String rawCode, UUID rawParticipantId) {
+    /** Lets the host choose which devices play the round audio (ADR-0022). */
+    public LobbyResponse setAudioMode(UUID callerId, String rawCode, AudioMode audioMode) {
+        if (audioMode == null) {
+            throw failure(ApiErrorCode.LOBBY_AUDIO_MODE_INVALID);
+        }
         SessionId sessionId = requireLobby(rawCode).sessionId();
         synchronized (lockFor(sessionId)) {
             LobbySnapshot lobby = current(sessionId);
-            LobbyParticipant host = requireHost(lobby, accountId);
+            LobbyParticipant host = requireHost(lobby, callerId);
+            if (lobby.audioMode() == audioMode) {
+                return response(lobby, host.participantId());
+            }
+            Instant now = expirationPolicy.instant();
+            LobbySnapshot updated = replace(
+                    lobby, lobby.withAudioMode(audioMode, now, expiresAt(now)), now);
+            return response(updated, host.participantId());
+        }
+    }
+
+    /** Lets the host remove another member. */
+    public void kick(UUID callerId, String rawCode, UUID rawParticipantId) {
+        SessionId sessionId = requireLobby(rawCode).sessionId();
+        synchronized (lockFor(sessionId)) {
+            LobbySnapshot lobby = current(sessionId);
+            LobbyParticipant host = requireHost(lobby, callerId);
             GameParticipantId target = new GameParticipantId(rawParticipantId);
             if (target.equals(host.participantId()) || lobby.member(target).isEmpty()) {
                 throw failure(ApiErrorCode.LOBBY_PARTICIPANT_NOT_FOUND);
@@ -176,11 +234,11 @@ public class LobbyService {
      * Lets the host start once everyone is ready: snapshots tracks, creates the game session
      * under the lobby's ID, closes the lobby, and tells members to open the game room.
      */
-    public SoloSessionResponse start(UUID accountId, String rawCode) {
+    public SoloSessionResponse start(UUID callerId, String rawCode) {
         SessionId sessionId = requireLobby(rawCode).sessionId();
         synchronized (lockFor(sessionId)) {
             LobbySnapshot lobby = current(sessionId);
-            LobbyParticipant host = requireHost(lobby, accountId);
+            LobbyParticipant host = requireHost(lobby, callerId);
             if (!lobby.canStart()) {
                 throw failure(ApiErrorCode.LOBBY_NOT_READY);
             }
@@ -255,7 +313,8 @@ public class LobbyService {
                                         next.isHost(member.participantId()),
                                         !member.registered())).
                                 toList(),
-                        next.canStart()));
+                        next.canStart(),
+                        next.audioMode()));
         return next;
     }
 
@@ -285,12 +344,12 @@ public class LobbyService {
                 orElseThrow(() -> failure(ApiErrorCode.LOBBY_NOT_FOUND));
     }
 
-    private LobbyParticipant requireMember(LobbySnapshot lobby, UUID accountId) {
-        return lobby.memberFor(accountId).orElseThrow(() -> failure(ApiErrorCode.LOBBY_NOT_FOUND));
+    private LobbyParticipant requireMember(LobbySnapshot lobby, UUID callerId) {
+        return lobby.memberFor(callerId).orElseThrow(() -> failure(ApiErrorCode.LOBBY_NOT_FOUND));
     }
 
-    private LobbyParticipant requireHost(LobbySnapshot lobby, UUID accountId) {
-        LobbyParticipant member = requireMember(lobby, accountId);
+    private LobbyParticipant requireHost(LobbySnapshot lobby, UUID callerId) {
+        LobbyParticipant member = requireMember(lobby, callerId);
         if (!lobby.isHost(member.participantId())) {
             throw failure(ApiErrorCode.LOBBY_HOST_REQUIRED);
         }
@@ -328,11 +387,10 @@ public class LobbyService {
                 lobby.version(),
                 lobby.expiresAt(),
                 SessionConnectionInstructions.forSession(lobby.sessionId().value()),
-                playlistRepository.findById(lobby.configuration().playlistId()).
-                        map(PlaylistEntity::getName).
-                        orElse("Unavailable playlist"),
+                gameSetupService.playlistName(lobby.configuration().playlistId()),
                 lobby.configuration().requestedTrackCount(),
-                lobby.configuration().maximumRoundDurationSeconds());
+                lobby.configuration().maximumRoundDurationSeconds(),
+                lobby.audioMode());
     }
 
     private ResponseStatusException failure(ApiErrorCode code) {

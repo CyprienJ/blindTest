@@ -100,10 +100,10 @@ public class SessionGameplayService {
         Arrays.setAll(locks, ignored -> new Object());
     }
 
-    /** Applies one authenticated STOMP command to its canonical active session. */
-    public boolean handle(UUID rawSessionId, UUID accountId, SessionCommand command) {
+    /** Applies one STOMP command from an account or guest principal to its active session. */
+    public boolean handle(UUID rawSessionId, UUID principalId, SessionCommand command) {
         Objects.requireNonNull(rawSessionId, "sessionId is required");
-        Objects.requireNonNull(accountId, "accountId is required");
+        Objects.requireNonNull(principalId, "principalId is required");
         Objects.requireNonNull(command, "command is required");
         SessionId sessionId = new SessionId(rawSessionId);
         synchronized (lockFor(sessionId)) {
@@ -112,7 +112,7 @@ public class SessionGameplayService {
                 rateLimiter.forget(sessionId);
                 return false;
             }
-            SessionParticipant participant = participant(session, accountId);
+            SessionParticipant participant = participant(session, principalId);
             if (participant == null) {
                 return false;
             }
@@ -127,45 +127,45 @@ public class SessionGameplayService {
                 commandError(
                         session,
                         participant,
-                        accountId,
+                        principalId,
                         command,
                         "SESSION_RATE_LIMITED",
                         "Too many gameplay commands. Try again shortly.");
                 return true;
             }
-            return handleAuthenticated(session, participant, accountId, command);
+            return handleAuthenticated(session, participant, principalId, command);
         }
     }
 
     private boolean handleAuthenticated(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         if (command.type() == SessionCommandType.REQUEST_SNAPSHOT) {
-            publishSnapshot(session, participant, accountId, command.commandId());
+            publishSnapshot(session, participant, principalId, command.commandId());
             return true;
         }
         if (session.processedCommands().contains(command.commandId())) {
-            reject(session, participant, accountId, command, AnswerRejectionReason.DUPLICATE_COMMAND);
+            reject(session, participant, principalId, command, AnswerRejectionReason.DUPLICATE_COMMAND);
             return true;
         }
         if (!isFresh(session, command)) {
             reject(
                     session,
                     participant,
-                    accountId,
+                    principalId,
                     command,
                     AnswerRejectionReason.STALE_SESSION_VERSION);
             return true;
         }
         return switch (command.type()) {
-            case START_GAME -> startGame(session, participant, accountId, command);
-            case SUBMIT_ANSWER -> submitAnswer(session, participant, accountId, command);
-            case SKIP_ROUND -> skipRound(session, participant, accountId, command);
-            case ADVANCE_ROUND -> advanceRound(session, participant, accountId, command);
-            case PAUSE_ROUND -> pauseRound(session, participant, accountId, command);
-            case RESUME_ROUND -> resumeRound(session, participant, accountId, command);
+            case START_GAME -> startGame(session, participant, principalId, command);
+            case SUBMIT_ANSWER -> submitAnswer(session, participant, principalId, command);
+            case SKIP_ROUND -> skipRound(session, participant, principalId, command);
+            case ADVANCE_ROUND -> advanceRound(session, participant, principalId, command);
+            case PAUSE_ROUND -> pauseRound(session, participant, principalId, command);
+            case RESUME_ROUND -> resumeRound(session, participant, principalId, command);
             case REQUEST_SNAPSHOT -> throw new IllegalStateException("snapshot handled earlier");
             default -> throw new IllegalStateException("Unknown gameplay command");
         };
@@ -174,10 +174,10 @@ public class SessionGameplayService {
     private boolean startGame(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         if (!isOwner(session, participant)) {
-            commandError(session, participant, accountId, command, "SESSION_OWNER_REQUIRED",
+            commandError(session, participant, principalId, command, "SESSION_OWNER_REQUIRED",
                     "Only the session owner can start the game.");
             return true;
         }
@@ -186,7 +186,7 @@ public class SessionGameplayService {
             ActiveSessionSnapshot persisted = nextForCommand(
                     session, started, command, expirationPolicy.instant());
             if (!persist(session, persisted)) {
-                staleAfterConflict(session, participant, accountId, command);
+                staleAfterConflict(session, participant, principalId, command);
                 return true;
             }
             publishPublic(
@@ -197,7 +197,7 @@ public class SessionGameplayService {
             startPreparedRound(persisted.sessionId(), started.currentRoundIndex());
             return true;
         } catch (GameTransitionException exception) {
-            invalidState(session, participant, accountId, command);
+            invalidState(session, participant, principalId, command);
             return true;
         }
     }
@@ -205,21 +205,21 @@ public class SessionGameplayService {
     private boolean submitAnswer(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         RoundStateSnapshot round = playingRound(session);
         if (round == null || round.paused()) {
-            invalidState(session, participant, accountId, command);
+            invalidState(session, participant, principalId, command);
             return true;
         }
         Instant acceptedAt = expirationPolicy.instant();
-        if (answerRateLimited(session, participant, accountId, command, acceptedAt)) {
+        if (answerRateLimited(session, participant, principalId, command, acceptedAt)) {
             return true;
         }
         AnswerMatchResult match = answerMatcher.match(command.answer(), round.track().answers());
         Optional<GameAnswerType> matchedType = match.matchedType();
         if (matchedType.filter(type -> type == GameAnswerType.TITLE).isPresent()) {
-            return resolveTitle(session, participant, accountId, command, match, acceptedAt);
+            return resolveTitle(session, participant, principalId, command, match, acceptedAt);
         }
         SecondaryDiscoveryResult discovery = discoveryTracker.route(
                 session.discoveries(), participant.participantId(), match);
@@ -230,7 +230,7 @@ public class SessionGameplayService {
                 acceptedAt,
                 expirationPolicy.expiresAt(session.gameState().status(), acceptedAt));
         if (!persist(session, persisted)) {
-            staleAfterConflict(session, participant, accountId, command);
+            staleAfterConflict(session, participant, principalId, command);
             return true;
         }
         if (discovery.outcome() == SecondaryDiscoveryOutcome.DISCOVERED) {
@@ -238,7 +238,7 @@ public class SessionGameplayService {
             publishPrivate(
                     persisted,
                     participant,
-                    accountId,
+                    principalId,
                     Optional.of(command.commandId()),
                     PrivateSessionEventType.SECONDARY_MATCH,
                     new PrivateSessionEventPayload.SecondaryMatch(
@@ -248,7 +248,7 @@ public class SessionGameplayService {
                     == SecondaryDiscoveryOutcome.ALREADY_FOUND
                     ? AnswerRejectionReason.ALREADY_FOUND
                     : AnswerRejectionReason.WRONG_ANSWER;
-            answerRejected(persisted, participant, accountId, command.commandId(), reason);
+            answerRejected(persisted, participant, principalId, command.commandId(), reason);
         }
         return true;
     }
@@ -256,7 +256,7 @@ public class SessionGameplayService {
     private boolean answerRateLimited(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command,
             Instant acceptedAt) {
         var rateDecision = rateLimiter.checkAnswer(
@@ -270,7 +270,7 @@ public class SessionGameplayService {
             answerRejected(
                     session,
                     participant,
-                    accountId,
+                    principalId,
                     command.commandId(),
                     AnswerRejectionReason.COOLDOWN,
                     rateDecision.retryAt());
@@ -282,12 +282,12 @@ public class SessionGameplayService {
     private boolean resolveTitle(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command,
             AnswerMatchResult match,
             Instant acceptedAt) {
         if (currentRound(session).scoreState().titleAwarded(participant.participantId())) {
-            answerRejected(session, participant, accountId, command.commandId(),
+            answerRejected(session, participant, principalId, command.commandId(),
                     AnswerRejectionReason.ALREADY_FOUND);
             return true;
         }
@@ -301,7 +301,7 @@ public class SessionGameplayService {
             ActiveSessionSnapshot persisted = nextForCommand(
                     session, awarded, command, acceptedAt);
             if (!persist(session, persisted)) {
-                staleAfterConflict(session, participant, accountId, command);
+                staleAfterConflict(session, participant, principalId, command);
                 return true;
             }
             if (persisted.isMultiplayer()) {
@@ -320,7 +320,7 @@ public class SessionGameplayService {
             }
             return true;
         } catch (GameTransitionException exception) {
-            invalidState(session, participant, accountId, command);
+            invalidState(session, participant, principalId, command);
             return true;
         }
     }
@@ -328,7 +328,7 @@ public class SessionGameplayService {
     private boolean skipRound(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         try {
             Instant skippedAt = expirationPolicy.instant();
@@ -340,7 +340,7 @@ public class SessionGameplayService {
             ActiveSessionSnapshot persisted = nextForCommand(
                     session, voted, command, skippedAt);
             if (!persist(session, persisted)) {
-                staleAfterConflict(session, participant, accountId, command);
+                staleAfterConflict(session, participant, principalId, command);
                 return true;
             }
             RoundStateSnapshot round = currentRound(persisted);
@@ -358,7 +358,7 @@ public class SessionGameplayService {
             }
             return true;
         } catch (GameTransitionException exception) {
-            invalidState(session, participant, accountId, command);
+            invalidState(session, participant, principalId, command);
             return true;
         }
     }
@@ -366,16 +366,16 @@ public class SessionGameplayService {
     private boolean advanceRound(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         if (!isOwner(session, participant)) {
-            commandError(session, participant, accountId, command, "SESSION_OWNER_REQUIRED",
+            commandError(session, participant, principalId, command, "SESSION_OWNER_REQUIRED",
                     "Only the session owner can advance the round.");
             return true;
         }
         RoundStateSnapshot round = currentRound(session);
         if (round == null || round.status() != RoundStatus.REVEALED) {
-            invalidState(session, participant, accountId, command);
+            invalidState(session, participant, principalId, command);
             return true;
         }
         Instant now = expirationPolicy.instant();
@@ -384,7 +384,7 @@ public class SessionGameplayService {
         ActiveSessionSnapshot persisted = nextForCommand(
                 session, completion.game(), command, now);
         if (!persist(session, persisted)) {
-            staleAfterConflict(session, participant, accountId, command);
+            staleAfterConflict(session, participant, principalId, command);
             return true;
         }
         publishProgression(persisted, completion.progression());
@@ -398,16 +398,16 @@ public class SessionGameplayService {
     private boolean pauseRound(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         if (!isOwner(session, participant)) {
-            commandError(session, participant, accountId, command, "SESSION_OWNER_REQUIRED",
+            commandError(session, participant, principalId, command, "SESSION_OWNER_REQUIRED",
                     "Only the session owner can pause the game.");
             return true;
         }
         RoundStateSnapshot round = currentRound(session);
         if (round != null && round.status() == RoundStatus.PLAYING && session.isMultiplayer()) {
-            commandError(session, participant, accountId, command, "ROUND_PAUSE_UNAVAILABLE",
+            commandError(session, participant, principalId, command, "ROUND_PAUSE_UNAVAILABLE",
                     "A multiplayer round can only be paused during its reveal.");
             return true;
         }
@@ -416,7 +416,7 @@ public class SessionGameplayService {
             GameStateSnapshot paused = gameStateMachine.pauseRound(session.gameState(), now);
             ActiveSessionSnapshot persisted = nextForCommand(session, paused, command, now);
             if (!persist(session, persisted)) {
-                staleAfterConflict(session, participant, accountId, command);
+                staleAfterConflict(session, participant, principalId, command);
                 return true;
             }
             RoundStateSnapshot pausedRound = currentRound(persisted);
@@ -430,7 +430,7 @@ public class SessionGameplayService {
                             pausedRound.pausedAt().orElseThrow()));
             return true;
         } catch (GameTransitionException exception) {
-            invalidState(session, participant, accountId, command);
+            invalidState(session, participant, principalId, command);
             return true;
         }
     }
@@ -439,10 +439,10 @@ public class SessionGameplayService {
     private boolean resumeRound(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         if (!isOwner(session, participant)) {
-            commandError(session, participant, accountId, command, "SESSION_OWNER_REQUIRED",
+            commandError(session, participant, principalId, command, "SESSION_OWNER_REQUIRED",
                     "Only the session owner can resume the game.");
             return true;
         }
@@ -451,7 +451,7 @@ public class SessionGameplayService {
             GameStateSnapshot resumed = gameStateMachine.resumeRound(session.gameState(), now);
             ActiveSessionSnapshot persisted = nextForCommand(session, resumed, command, now);
             if (!persist(session, persisted)) {
-                staleAfterConflict(session, participant, accountId, command);
+                staleAfterConflict(session, participant, principalId, command);
                 return true;
             }
             int roundIndex = resumed.currentRoundIndex();
@@ -483,7 +483,7 @@ public class SessionGameplayService {
                             Optional.of(resolvePlaybackUrl(round)), Optional.empty()));
             return true;
         } catch (GameTransitionException exception) {
-            invalidState(session, participant, accountId, command);
+            invalidState(session, participant, principalId, command);
             return true;
         }
     }
@@ -704,7 +704,7 @@ public class SessionGameplayService {
     private void publishSnapshot(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             UUID commandId) {
         GameStateSnapshot game = session.gameState();
         Optional<PrivateSessionEventPayload.CurrentRound> current = game.currentRound().
@@ -718,7 +718,7 @@ public class SessionGameplayService {
         publishPrivate(
                 session,
                 participant,
-                accountId,
+                principalId,
                 Optional.of(commandId),
                 PrivateSessionEventType.CURRENT_SNAPSHOT,
                 new PrivateSessionEventPayload.CurrentSnapshot(
@@ -806,16 +806,16 @@ public class SessionGameplayService {
     private void reject(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command,
             AnswerRejectionReason reason) {
         if (command.type() == SessionCommandType.SUBMIT_ANSWER) {
-            answerRejected(session, participant, accountId, command.commandId(), reason);
+            answerRejected(session, participant, principalId, command.commandId(), reason);
         } else {
             commandError(
                     session,
                     participant,
-                    accountId,
+                    principalId,
                     command,
                     reason.name(),
                     "The gameplay command was not accepted.");
@@ -825,12 +825,12 @@ public class SessionGameplayService {
     private void invalidState(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         reject(
                 session,
                 participant,
-                accountId,
+                principalId,
                 command,
                 AnswerRejectionReason.INVALID_ROUND_STATE);
     }
@@ -838,38 +838,38 @@ public class SessionGameplayService {
     private void staleAfterConflict(
             ActiveSessionSnapshot observed,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command) {
         ActiveSessionSnapshot latest = find(observed.sessionId());
         if (latest != null) {
             AnswerRejectionReason reason = latest.processedCommands().contains(command.commandId())
                     ? AnswerRejectionReason.DUPLICATE_COMMAND
                     : AnswerRejectionReason.STALE_SESSION_VERSION;
-            reject(latest, participant, accountId, command, reason);
+            reject(latest, participant, principalId, command, reason);
         }
     }
 
     private void answerRejected(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             UUID commandId,
             AnswerRejectionReason reason) {
         answerRejected(
-                session, participant, accountId, commandId, reason, Optional.empty());
+                session, participant, principalId, commandId, reason, Optional.empty());
     }
 
     private void answerRejected(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             UUID commandId,
             AnswerRejectionReason reason,
             Optional<Instant> retryAt) {
         publishPrivate(
                 session,
                 participant,
-                accountId,
+                principalId,
                 Optional.of(commandId),
                 PrivateSessionEventType.ANSWER_REJECTED,
                 new PrivateSessionEventPayload.AnswerRejected(reason, retryAt));
@@ -878,14 +878,14 @@ public class SessionGameplayService {
     private void commandError(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             SessionCommand command,
             String code,
             String message) {
         publishPrivate(
                 session,
                 participant,
-                accountId,
+                principalId,
                 Optional.of(command.commandId()),
                 PrivateSessionEventType.ERROR,
                 new PrivateSessionEventPayload.Error(code, message, true));
@@ -901,11 +901,11 @@ public class SessionGameplayService {
     private void publishPrivate(
             ActiveSessionSnapshot session,
             SessionParticipant participant,
-            UUID accountId,
+            UUID principalId,
             Optional<UUID> commandId,
             PrivateSessionEventType type,
             PrivateSessionEventPayload payload) {
-        eventPublisher.publishPrivate(accountId, new PrivateSessionEvent(
+        eventPublisher.publishPrivate(principalId, new PrivateSessionEvent(
                 metadata(session), participant.participantId().value(), commandId, type, payload));
     }
 
@@ -934,9 +934,9 @@ public class SessionGameplayService {
 
     private SessionParticipant participant(
             ActiveSessionSnapshot session,
-            UUID accountId) {
+            UUID principalId) {
         return session.participants().stream().
-                filter(value -> value.accountId().filter(accountId::equals).isPresent()).
+                filter(value -> value.principalId().equals(principalId)).
                 findFirst().orElse(null);
     }
 

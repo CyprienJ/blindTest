@@ -232,6 +232,40 @@
               />
               <small i18n>Each round ends sooner when the title is found.</small>
             </label>
+
+            @if (mode === 'multiplayer') {
+              <fieldset class="audio-mode">
+                <legend i18n>Who hears the music?</legend>
+                <label class="audio-option" [class.selected]="audioMode === 'EVERYONE'">
+                  <input
+                    type="radio"
+                    name="audioMode"
+                    value="EVERYONE"
+                    [checked]="audioMode === 'EVERYONE'"
+                    (change)="setAudioMode('EVERYONE')"
+                  />
+                  <span>
+                    <strong i18n>Every player</strong>
+                    <small i18n
+                      >Each device plays the music — for players in different places.</small
+                    >
+                  </span>
+                </label>
+                <label class="audio-option" [class.selected]="audioMode === 'HOST_ONLY'">
+                  <input
+                    type="radio"
+                    name="audioMode"
+                    value="HOST_ONLY"
+                    [checked]="audioMode === 'HOST_ONLY'"
+                    (change)="setAudioMode('HOST_ONLY')"
+                  />
+                  <span>
+                    <strong i18n>Only my device</strong>
+                    <small i18n>Everyone is in the same room: only the host plays the music.</small>
+                  </span>
+                </label>
+              </fieldset>
+            }
           </form>
         </section>
       </div>
@@ -273,6 +307,14 @@
             <dt i18n>Estimated duration</dt>
             <dd i18n>~{{ estimatedMinutes() }} minutes</dd>
           </div>
+          @if (mode === 'multiplayer') {
+            <div>
+              <dt i18n>Music</dt>
+              <dd i18n>
+                {audioMode, select, HOST_ONLY {Host's device only} other {Every player}}
+              </dd>
+            </div>
+          }
           <div>
             <dt i18n>Mode</dt>
             <dd i18n>

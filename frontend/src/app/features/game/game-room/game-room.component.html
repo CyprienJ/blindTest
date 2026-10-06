@@ -32,7 +32,12 @@
               }
             }
           </p>
-          <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+          <a class="bt-btn bt-btn-ghost" [routerLink]="exitLink">
+            <ng-container i18n>{guest, select,
+              true {Join another game}
+              other {Back to configuration}
+            }</ng-container>
+          </a>
         </section>
       }
 
@@ -50,7 +55,12 @@
           } @else {
             <p class="muted" i18n>The game could not continue.</p>
           }
-          <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/create">Back to configuration</a>
+          <a class="bt-btn bt-btn-ghost" [routerLink]="exitLink">
+            <ng-container i18n>{guest, select,
+              true {Join another game}
+              other {Back to configuration}
+            }</ng-container>
+          </a>
         </section>
       }
 
@@ -88,13 +98,11 @@
             </p>
           }
           <div class="finished-actions">
-            <button
-              i18n
-              class="bt-btn bt-btn-primary bt-btn-lg"
-              type="button"
-              (click)="playAgain()"
-            >
-              Play again
+            <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
+              <ng-container i18n>{guest, select,
+                true {Join another game}
+                other {Play again}
+              }</ng-container>
             </button>
             <a
               i18n
@@ -247,7 +255,11 @@
                     <span class="mono time-left" aria-hidden="true">{{ secondsLeft }}s</span>
                   </div>
                   <div class="bt-progress"><div [style.width.%]="progressPct"></div></div>
-                  @if (audioStatus === 'blocked') {
+                  @if (silentDevice) {
+                    <p i18n class="audio-note" role="status">
+                      🔈 The music plays on the host's device.
+                    </p>
+                  } @else if (audioStatus === 'blocked') {
                     <button
                       i18n
                       class="bt-btn bt-btn-primary bt-btn-sm"

@@ -7,12 +7,14 @@ import static org.mockito.Mockito.when;
 
 import com.blindtest.model.game.GameParticipantId;
 import com.blindtest.model.game.RequestedGameConfiguration;
+import com.blindtest.model.lobby.AudioMode;
 import com.blindtest.model.lobby.LobbyCode;
 import com.blindtest.model.lobby.LobbyParticipant;
 import com.blindtest.model.lobby.LobbySnapshot;
 import com.blindtest.model.session.ActiveSessionSnapshot;
 import com.blindtest.model.session.SessionId;
 import com.blindtest.model.session.SessionParticipant;
+import com.blindtest.security.GuestToken;
 import com.blindtest.store.LobbyStore;
 import com.blindtest.store.SessionStore;
 import com.blindtest.websocket.protocol.SessionProtocol;
@@ -62,6 +64,7 @@ class SessionDestinationAuthorizationInterceptorTest {
                 new LobbyCode("ABCDEF"),
                 host,
                 new RequestedGameConfiguration(UUID.randomUUID(), 5, 30, java.util.Map.of()),
+                AudioMode.EVERYONE,
                 NOW,
                 NOW.plusSeconds(1800));
         when(lobbyStore.find(new SessionId(SESSION_ID), NOW)).thenReturn(Optional.of(lobby));
@@ -148,10 +151,39 @@ class SessionDestinationAuthorizationInterceptorTest {
         assertThat(interceptor.preSend(importSubscription, null)).isSameAs(importSubscription);
     }
 
+    @Test
+    void authorizesGuestsOnlyInTheSessionTheirTokenNames() {
+        UUID guestParticipantId = UUID.randomUUID();
+        ActiveSessionSnapshot snapshot = mock(ActiveSessionSnapshot.class);
+        when(snapshot.participants()).thenReturn(List.of(new SessionParticipant(
+                new GameParticipantId(guestParticipantId), Optional.empty(), "Guest")));
+        when(sessionStore.find(new SessionId(SESSION_ID), NOW)).thenReturn(Optional.of(snapshot));
+
+        Message<byte[]> own = guestMessage(
+                SessionProtocol.privateEventDestination(SESSION_ID),
+                new GuestToken(SESSION_ID, guestParticipantId));
+        assertThat(interceptor.preSend(own, null)).isSameAs(own);
+        assertDenied(guestMessage(
+                SessionProtocol.privateEventDestination(SESSION_ID),
+                new GuestToken(UUID.randomUUID(), guestParticipantId)),
+                "Session is unavailable or access is denied");
+    }
+
+    private Message<byte[]> guestMessage(String destination, GuestToken guest) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination(destination);
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(guest.participantId(), null);
+        authentication.setDetails(guest);
+        accessor.setUser(authentication);
+        accessor.setLeaveMutable(true);
+        return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
     private void stubActiveMember(UUID accountId) {
         ActiveSessionSnapshot snapshot = mock(ActiveSessionSnapshot.class);
-        SessionParticipant participant = mock(SessionParticipant.class);
-        when(participant.accountId()).thenReturn(Optional.of(accountId));
+        SessionParticipant participant = new SessionParticipant(
+                new GameParticipantId(UUID.randomUUID()), Optional.of(accountId), "Member");
         when(snapshot.participants()).thenReturn(List.of(participant));
         when(sessionStore.find(new SessionId(SESSION_ID), NOW)).thenReturn(Optional.of(snapshot));
     }

@@ -13,7 +13,7 @@
           <p role="alert">{{ errorMessage }}</p>
           <div class="actions">
             <a i18n class="bt-btn bt-btn-primary" routerLink="/lobby/join">Join another lobby</a>
-            <a i18n class="bt-btn bt-btn-ghost" routerLink="/home">Back home</a>
+            <a i18n class="bt-btn bt-btn-ghost" [routerLink]="homeLink">Back home</a>
           </div>
         </section>
       }
@@ -23,7 +23,7 @@
           <p i18n role="alert">The host removed you from the lobby.</p>
           <div class="actions">
             <a i18n class="bt-btn bt-btn-primary" routerLink="/lobby/join">Join another lobby</a>
-            <a i18n class="bt-btn bt-btn-ghost" routerLink="/home">Back home</a>
+            <a i18n class="bt-btn bt-btn-ghost" [routerLink]="homeLink">Back home</a>
           </div>
         </section>
       }
@@ -43,7 +43,9 @@
                   }</ng-container>
                 </button>
               </div>
-              <p i18n class="hint">Share the code — friends join from “Join a session”.</p>
+              <p i18n class="hint">
+                Share the invite — friends join from “Join a session”, no account needed.
+              </p>
             </div>
             <div class="chips">
               <span i18n class="bt-chip bt-chip-accent">● Lobby open</span>
@@ -129,7 +131,50 @@
                 <dt i18n>Source</dt>
                 <dd>{{ lobby.playlistName }}</dd>
               </div>
+              <div>
+                <dt i18n>Music</dt>
+                <dd i18n>
+                  {lobby.audioMode, select, HOST_ONLY {Host's device only} other {Every player}}
+                </dd>
+              </div>
             </dl>
+            @if (isHost) {
+              <div
+                class="audio-switch"
+                role="radiogroup"
+                i18n-aria-label
+                aria-label="Who hears the music"
+              >
+                <button
+                  i18n
+                  type="button"
+                  role="radio"
+                  class="bt-chip"
+                  [class.bt-chip-accent]="lobby.audioMode === 'EVERYONE'"
+                  [attr.aria-checked]="lobby.audioMode === 'EVERYONE'"
+                  [disabled]="busy"
+                  (click)="setAudioMode('EVERYONE')"
+                >
+                  Every player hears the music
+                </button>
+                <button
+                  i18n
+                  type="button"
+                  role="radio"
+                  class="bt-chip"
+                  [class.bt-chip-accent]="lobby.audioMode === 'HOST_ONLY'"
+                  [attr.aria-checked]="lobby.audioMode === 'HOST_ONLY'"
+                  [disabled]="busy"
+                  (click)="setAudioMode('HOST_ONLY')"
+                >
+                  Only my device plays it
+                </button>
+              </div>
+            } @else if (lobby.audioMode === 'HOST_ONLY') {
+              <p i18n class="muted start-hint">
+                The music plays on the host's device only — stay within earshot.
+              </p>
+            }
             <div class="actions">
               @if (isHost) {
                 <button
