@@ -161,8 +161,7 @@
 }
 
 .cover-thumb img,
-.track-art img,
-.cover-preview img {
+.track-art img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -431,30 +430,6 @@
   min-height: 76px;
   padding: 10px 14px;
   resize: vertical;
-}
-
-.cover-preview {
-  display: grid;
-  place-items: center;
-  height: 108px;
-  overflow: hidden;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-2);
-}
-
-.cover-preview.empty {
-  align-content: center;
-  gap: 3px;
-  color: var(--fg-3);
-}
-
-.cover-preview.empty span {
-  font-size: 22px;
-}
-
-.cover-preview.empty small {
-  font-size: 10.5px;
 }
 
 .save-details {

@@ -38,6 +38,7 @@ public class AdminPlaylistService {
     private final PlaylistTrackRepository playlistTrackRepository;
     private final TrackRepository trackRepository;
     private final UserRepository userRepository;
+    private final TrackCoverService coverService;
 
     /** Returns all playlists with their playable published-track count. */
     @Transactional(readOnly = true)
@@ -67,7 +68,9 @@ public class AdminPlaylistService {
         PlaylistEntity playlist = new PlaylistEntity();
         playlist.setName(request.getName());
         playlist.setDescription(request.getDescription());
-        playlist.setImageUrl(request.getImageUrl());
+        if (request.getCoverCandidateId() != null) {
+            playlist.setCoverId(coverService.storeCandidate(request.getCoverCandidateId()).id());
+        }
         playlist.setCreatedBy(admin);
         playlist = playlistRepository.save(playlist);
         return PlaylistAdminResponse.from(playlist, 0);
@@ -83,19 +86,18 @@ public class AdminPlaylistService {
         if (request.getDescription() != null) {
             playlist.setDescription(request.getDescription());
         }
-        if (request.getImageUrl() != null) {
-            playlist.setImageUrl(request.getImageUrl());
-        }
+        applyCover(playlist, request);
         playlist = playlistRepository.save(playlist);
         int count = playlistTrackRepository.countPublishedInPlaylist(
                 playlistId, TrackStatus.PUBLISHED);
         return PlaylistAdminResponse.from(playlist, count);
     }
 
-    /** Deletes the playlist and all its track entries. Returns 404 if not found. */
+    /** Deletes the playlist, its track entries, and its stored cover. Returns 404 if not found. */
     @Transactional
     public void deletePlaylist(UUID playlistId) {
-        findForUpdateOrThrow(playlistId);
+        PlaylistEntity playlist = findForUpdateOrThrow(playlistId);
+        coverService.discard(playlist.getCoverId());
         playlistTrackRepository.deleteByIdPlaylistId(playlistId);
         playlistRepository.deleteById(playlistId);
     }
@@ -193,6 +195,19 @@ public class AdminPlaylistService {
         }
     }
 
+    private void applyCover(PlaylistEntity playlist, UpdatePlaylistRequest request) {
+        if (Boolean.TRUE.equals(request.getRemoveCover())) {
+            coverService.discard(playlist.getCoverId());
+            playlist.setCoverId(null);
+            playlist.setImageUrl(null);
+        } else if (request.getCoverCandidateId() != null) {
+            UUID previous = playlist.getCoverId();
+            playlist.setCoverId(coverService.storeCandidate(request.getCoverCandidateId()).id());
+            playlist.setImageUrl(null);
+            coverService.discard(previous);
+        }
+    }
+
     private void normalize(List<PlaylistTrackEntity> entries) {
         entries.sort(Comparator.comparingInt(PlaylistTrackEntity::getTrackOrder));
         for (int position = 0; position < entries.size(); position++) {
@@ -205,7 +220,7 @@ public class AdminPlaylistService {
         List<TrackAdminResponse> tracks = entries.stream().
                 map(entry -> TrackAdminResponse.from(entry.getTrack())).toList();
         return new PlaylistAdminDetailResponse(playlist.getId(), playlist.getName(),
-                playlist.getDescription(), playlist.getImageUrl(), tracks.size(), tracks);
+                playlist.getDescription(), playlist.displayImageUrl(), tracks.size(), tracks);
     }
 
     private ResponseStatusException invalidOrder() {

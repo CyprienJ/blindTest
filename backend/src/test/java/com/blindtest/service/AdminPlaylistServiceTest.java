@@ -11,14 +11,18 @@ import static org.mockito.Mockito.when;
 import com.blindtest.model.dto.AddTrackToPlaylistRequest;
 import com.blindtest.model.dto.CreatePlaylistRequest;
 import com.blindtest.model.dto.ReorderPlaylistTracksRequest;
+import com.blindtest.model.dto.UpdatePlaylistRequest;
+import com.blindtest.model.entity.CoverSource;
 import com.blindtest.model.entity.PlaylistEntity;
 import com.blindtest.model.entity.PlaylistTrackEntity;
 import com.blindtest.model.entity.TrackEntity;
 import com.blindtest.model.entity.TrackStatus;
+import com.blindtest.model.entity.UserEntity;
 import com.blindtest.repository.PlaylistRepository;
 import com.blindtest.repository.PlaylistTrackRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
+import com.blindtest.service.TrackCoverService.StoredCover;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +45,7 @@ class AdminPlaylistServiceTest {
     private PlaylistTrackRepository playlistTrackRepository;
     private TrackRepository trackRepository;
     private UserRepository userRepository;
+    private TrackCoverService coverService;
     private AdminPlaylistService service;
     private PlaylistEntity playlist;
     private TrackEntity firstTrack;
@@ -52,8 +57,9 @@ class AdminPlaylistServiceTest {
         playlistTrackRepository = mock(PlaylistTrackRepository.class);
         trackRepository = mock(TrackRepository.class);
         userRepository = mock(UserRepository.class);
-        service = new AdminPlaylistService(
-                playlistRepository, playlistTrackRepository, trackRepository, userRepository);
+        coverService = mock(TrackCoverService.class);
+        service = new AdminPlaylistService(playlistRepository, playlistTrackRepository,
+                trackRepository, userRepository, coverService);
 
         playlist = mock(PlaylistEntity.class);
         when(playlist.getId()).thenReturn(PLAYLIST_ID);
@@ -74,6 +80,70 @@ class AdminPlaylistServiceTest {
         assertStatus(401, () -> service.createPlaylist(request, unknownAdminId));
 
         verify(playlistRepository, never()).save(any());
+    }
+
+    @Test
+    void createPlaylistStoresTheUploadedCover() {
+        UUID adminId = UUID.randomUUID();
+        UUID candidateId = UUID.randomUUID();
+        UUID coverId = UUID.randomUUID();
+        CreatePlaylistRequest request = new CreatePlaylistRequest();
+        ReflectionTestUtils.setField(request, "name", "New playlist");
+        ReflectionTestUtils.setField(request, "coverCandidateId", candidateId);
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(new UserEntity()));
+        when(coverService.storeCandidate(candidateId)).
+                thenReturn(new StoredCover(coverId, CoverSource.UPLOAD));
+        when(playlistRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = service.createPlaylist(request, adminId);
+
+        assertThat(response.getImageUrl()).isEqualTo("/api/covers/" + coverId);
+    }
+
+    @Test
+    void updatePlaylistReplacesTheStoredCoverAndClearsTheLegacyUrl() {
+        UUID previousCover = UUID.randomUUID();
+        UUID newCover = UUID.randomUUID();
+        UUID candidateId = UUID.randomUUID();
+        PlaylistEntity stored = storedPlaylist(previousCover, "https://example.test/old.jpg");
+        UpdatePlaylistRequest request = new UpdatePlaylistRequest();
+        ReflectionTestUtils.setField(request, "coverCandidateId", candidateId);
+        when(coverService.storeCandidate(candidateId)).
+                thenReturn(new StoredCover(newCover, CoverSource.UPLOAD));
+
+        var response = service.updatePlaylist(PLAYLIST_ID, request);
+
+        assertThat(stored.getCoverId()).isEqualTo(newCover);
+        assertThat(stored.getImageUrl()).isNull();
+        assertThat(response.getImageUrl()).isEqualTo("/api/covers/" + newCover);
+        verify(coverService).discard(previousCover);
+    }
+
+    @Test
+    void updatePlaylistRemovesTheStoredCoverAndLegacyUrl() {
+        UUID previousCover = UUID.randomUUID();
+        PlaylistEntity stored = storedPlaylist(previousCover, "https://example.test/old.jpg");
+        UpdatePlaylistRequest request = new UpdatePlaylistRequest();
+        ReflectionTestUtils.setField(request, "removeCover", true);
+        ReflectionTestUtils.setField(request, "coverCandidateId", UUID.randomUUID());
+
+        var response = service.updatePlaylist(PLAYLIST_ID, request);
+
+        assertThat(stored.getCoverId()).isNull();
+        assertThat(response.getImageUrl()).isNull();
+        verify(coverService).discard(previousCover);
+        verify(coverService, never()).storeCandidate(any());
+    }
+
+    @Test
+    void deletePlaylistDiscardsItsStoredCover() {
+        UUID cover = UUID.randomUUID();
+        when(playlist.getCoverId()).thenReturn(cover);
+
+        service.deletePlaylist(PLAYLIST_ID);
+
+        verify(coverService).discard(cover);
+        verify(playlistRepository).deleteById(PLAYLIST_ID);
     }
 
     @Test
@@ -132,6 +202,16 @@ class AdminPlaylistServiceTest {
         assertThat(entries.getFirst().getTrackOrder()).isZero();
         verify(playlistTrackRepository).delete(any(PlaylistTrackEntity.class));
         verify(playlistTrackRepository).saveAll(entries);
+    }
+
+    private PlaylistEntity storedPlaylist(UUID coverId, String imageUrl) {
+        PlaylistEntity stored = new PlaylistEntity();
+        stored.setName("Stored playlist");
+        stored.setCoverId(coverId);
+        stored.setImageUrl(imageUrl);
+        when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(stored));
+        when(playlistRepository.save(stored)).thenReturn(stored);
+        return stored;
     }
 
     private List<PlaylistTrackEntity> entries() {

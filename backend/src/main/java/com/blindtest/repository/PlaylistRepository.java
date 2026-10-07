@@ -22,6 +22,9 @@ public interface PlaylistRepository extends JpaRepository<PlaylistEntity, UUID> 
     /** Returns public playlists in a stable name and identifier order. */
     List<PlaylistEntity> findAllByOrderByNameAscIdAsc();
 
+    /** Returns only the cover IDs of playlists with a stored cover. */
+    List<PlaylistCoverReference> findCoverReferencesByCoverIdIsNotNull();
+
     /** Locks a playlist so membership updates serialize even when it is currently empty. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT playlist FROM PlaylistEntity playlist WHERE playlist.id = :id")

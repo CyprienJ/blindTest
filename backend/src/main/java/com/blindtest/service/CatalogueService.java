@@ -68,7 +68,7 @@ public class CatalogueService {
         List<PlaylistResponse> result = new ArrayList<>();
         for (PlaylistEntity p : playlists) {
             int count = playlistTrackRepository.countPublishedInPlaylist(p.getId(), TrackStatus.PUBLISHED);
-            result.add(new PlaylistResponse(p.getId(), p.getName(), p.getDescription(), p.getImageUrl(), count));
+            result.add(new PlaylistResponse(p.getId(), p.getName(), p.getDescription(), p.displayImageUrl(), count));
         }
         return result;
     }
@@ -85,7 +85,7 @@ public class CatalogueService {
         }
         return new PlaylistDetailResponse(
                 playlist.getId(), playlist.getName(), playlist.getDescription(),
-                playlist.getImageUrl(), tracks.size(), tracks);
+                playlist.displayImageUrl(), tracks.size(), tracks);
     }
 
     private String escapeLike(String value) {

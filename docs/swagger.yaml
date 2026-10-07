@@ -1191,6 +1191,9 @@ components:
         imageUrl:
           type: string
           nullable: true
+          description: |
+            Same-origin `/api/covers/{coverId}` path of the uploaded cover, or a legacy
+            external image URL for playlists created before cover uploads.
         trackCount:
           type: integer
 
@@ -1237,9 +1240,14 @@ components:
         description:
           type: string
           nullable: true
-        imageUrl:
-          type: string
+        coverCandidateId:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
           nullable: true
+          description: |
+            Uploaded cover (`POST /admin/cover-suggestions/upload`) to store as the
+            playlist cover. Fails with `COVER_SUGGESTION_EXPIRED` once the 30-minute
+            candidate expired.
 
     UpdatePlaylistRequest:
       type: object
@@ -1251,9 +1259,20 @@ components:
         description:
           type: string
           nullable: true
-        imageUrl:
-          type: string
+        coverCandidateId:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
           nullable: true
+          description: |
+            Uploaded cover (`POST /admin/cover-suggestions/upload`) to store as the
+            playlist cover. Fails with `COVER_SUGGESTION_EXPIRED` once the 30-minute
+            candidate expired.
+        removeCover:
+          type: boolean
+          nullable: true
+          description: |
+            When true, clears the stored cover and any legacy external image URL;
+            takes precedence over `coverCandidateId`.
 
     AddTrackToPlaylistRequest:
       type: object

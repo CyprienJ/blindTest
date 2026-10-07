@@ -269,7 +269,7 @@
               <div class="panel-heading">
                 <div>
                   <h3 i18n>Details</h3>
-                  @if (metadataForm.dirty) {
+                  @if (hasUnsavedChanges) {
                     <p i18n class="unsaved">Unsaved changes</p>
                   }
                 </div>
@@ -297,34 +297,22 @@
                     aria-label="Playlist description"
                   ></textarea>
                 </label>
-                <label class="field">
-                  <span i18n>Cover URL</span>
-                  <input
-                    class="bt-input"
-                    formControlName="imageUrl"
-                    i18n-placeholder
-                    placeholder="https://…"
-                    i18n-aria-label
-                    aria-label="Playlist cover URL"
-                  />
-                </label>
-                <div class="cover-preview" [class.empty]="!metadataForm.controls.imageUrl.value">
-                  @if (metadataForm.controls.imageUrl.value) {
-                    <img
-                      [src]="metadataForm.controls.imageUrl.value"
-                      i18n-alt
-                      alt="Playlist cover preview"
+                <div class="field cover-field">
+                  <span i18n>Cover</span>
+                  @for (key of [coverPickerKey]; track key) {
+                    <app-cover-picker
+                      [suggest]="false"
+                      [currentCoverUrl]="creating ? null : (selected?.imageUrl ?? null)"
+                      [disabled]="savingMetadata"
+                      [(selection)]="coverSelection"
                     />
-                  } @else {
-                    <span aria-hidden="true">♪</span>
-                    <small i18n>Playlist cover</small>
                   }
                 </div>
                 <button
                   class="bt-btn bt-btn-primary save-details"
                   type="submit"
                   [disabled]="
-                    savingMetadata || metadataForm.invalid || (!creating && !metadataForm.dirty)
+                    savingMetadata || metadataForm.invalid || (!creating && !hasUnsavedChanges)
                   "
                 >
                   @if (savingMetadata) {

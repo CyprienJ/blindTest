@@ -18,7 +18,7 @@ describe('AdminPlaylistService', () => {
   afterEach(() => http.verify());
 
   it('uses the playlist metadata endpoints', () => {
-    const metadata = { name: 'Synthwave', description: null, imageUrl: null };
+    const metadata = { name: 'Synthwave', description: null };
 
     service.list().subscribe();
     const list = http.expectOne('/api/admin/playlists');

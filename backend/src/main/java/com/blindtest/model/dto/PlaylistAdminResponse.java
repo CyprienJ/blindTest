@@ -19,6 +19,6 @@ public class PlaylistAdminResponse {
     /** Creates a summary response from the given entity and total track count. */
     public static PlaylistAdminResponse from(PlaylistEntity entity, int trackCount) {
         return new PlaylistAdminResponse(entity.getId(), entity.getName(),
-                entity.getDescription(), entity.getImageUrl(), trackCount);
+                entity.getDescription(), entity.displayImageUrl(), trackCount);
     }
 }

@@ -139,6 +139,50 @@ test.describe('admin playlist editor', () => {
     await expect(page.getByRole('button', { name: 'Add Take On Me' })).toBeHidden();
   });
 
+  test('uploads a cover file instead of entering a link', async ({ page }) => {
+    const playlist = {
+      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      name: 'Covers',
+      description: null,
+      imageUrl: null as string | null,
+      trackCount: 0,
+    };
+    let createBody: Record<string, unknown> | null = null;
+    await page.route('**/api/admin/playlists', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({ json: createBody ? [playlist] : [] });
+        return;
+      }
+      createBody = route.request().postDataJSON();
+      playlist.imageUrl = '/api/covers/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+      await route.fulfill({ status: 201, json: playlist });
+    });
+    await page.route('**/api/admin/cover-suggestions/upload', (route) =>
+      route.fulfill({
+        json: { candidateId: 'upload-1', source: 'UPLOAD', album: '', artist: '' },
+      }),
+    );
+
+    await page.goto('/admin/playlists');
+    await page.getByRole('button', { name: 'New playlist' }).first().click();
+    await expect(page.getByLabel('Playlist cover URL')).toHaveCount(0);
+    await page.getByLabel('Playlist name').fill('Covers');
+    await page.locator('app-cover-picker input[type="file"]').setInputFiles({
+      name: 'cover.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('89504e470d0a1a0a', 'hex'),
+    });
+    await expect(page.getByRole('radio', { name: /Uploaded image/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await page.getByRole('button', { name: 'Create playlist' }).click();
+    await expect(page.getByText('Playlist saved.')).toBeVisible();
+
+    expect(createBody).toEqual({ name: 'Covers', description: null, coverCandidateId: 'upload-1' });
+    await expect(page.getByRole('radio', { name: 'Current cover' })).toBeVisible();
+  });
+
   test('warns about metadata changes and restores a failed optimistic reorder', async ({
     page,
   }) => {

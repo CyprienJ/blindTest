@@ -15,5 +15,8 @@ export interface AdminPlaylistDetail extends AdminPlaylistSummary {
 export interface PlaylistMetadata {
   name: string;
   description: string | null;
-  imageUrl: string | null;
+  /** Uploaded cover candidate to store as the new cover. */
+  coverCandidateId?: string;
+  /** When true, clears the stored cover; takes precedence over coverCandidateId. */
+  removeCover?: boolean;
 }

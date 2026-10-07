@@ -18,7 +18,7 @@ import {
 } from '../../features/admin/track-list/admin-track.model';
 import { AdminTrackService } from '../../features/admin/track-list/admin-track.service';
 
-/** What the administrator chose for the track's cover; applied when the track is saved. */
+/** What the administrator chose for the cover; applied when the track or playlist is saved. */
 export type CoverSelection =
   | { kind: 'keep' }
   | { kind: 'candidate'; candidateId: string }
@@ -54,7 +54,7 @@ interface CoverTile extends CoverSuggestion {
 /**
  * Suggests up to six covers from the track's title, artist and album, searching again
  * automatically when they change, and lets the administrator pick one, upload an image,
- * keep the current cover, or remove it.
+ * keep the current cover, or remove it. With `suggest` off, only uploads are offered.
  */
 @Component({
   selector: 'app-cover-picker',
@@ -71,6 +71,8 @@ export class CoverPickerComponent {
   /** Path of the stored cover, shown as the "keep" option. */
   readonly currentCoverUrl = input<string | null>(null);
   readonly disabled = input(false);
+  /** Whether to search cover catalogues; off for covers with no track metadata, like playlists. */
+  readonly suggest = input(true);
   readonly selection = model<CoverSelection>(KEEP_COVER);
 
   readonly tiles = signal<CoverTile[]>([]);
@@ -95,7 +97,7 @@ export class CoverPickerComponent {
     toObservable(this.query)
       .pipe(
         debounceTime(SEARCH_DEBOUNCE_MS),
-        filter((query) => query.title !== '' && query.artist !== ''),
+        filter((query) => this.suggest() && query.title !== '' && query.artist !== ''),
         distinctUntilChanged(
           (a, b) => a.title === b.title && a.artist === b.artist && a.album === b.album,
         ),

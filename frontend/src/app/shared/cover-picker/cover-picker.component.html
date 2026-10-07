@@ -70,26 +70,32 @@
       />
     </label>
     <small class="hint" role="status">
-      @switch (searchState()) {
-        @case ('loading') {
-          <ng-container i18n>Searching covers…</ng-container>
-        }
-        @case ('error') {
-          <ng-container i18n
-            >Cover search is unavailable; you can still upload an image.</ng-container
-          >
-        }
-        @case ('ready') {
-          @if (tiles().length === 0) {
-            <ng-container i18n
-              >No cover found; try adjusting the album or upload an image.</ng-container
-            >
-          } @else {
-            <ng-container i18n>Suggestions from Deezer, iTunes and Cover Art Archive.</ng-container>
+      @if (!suggest()) {
+        <ng-container i18n>JPEG, PNG or WebP, up to {{ maxUploadLabel }}.</ng-container>
+      } @else {
+        @switch (searchState()) {
+          @case ('loading') {
+            <ng-container i18n>Searching covers…</ng-container>
           }
-        }
-        @default {
-          <ng-container i18n>Fill in the title and artist to get suggestions.</ng-container>
+          @case ('error') {
+            <ng-container i18n
+              >Cover search is unavailable; you can still upload an image.</ng-container
+            >
+          }
+          @case ('ready') {
+            @if (tiles().length === 0) {
+              <ng-container i18n
+                >No cover found; try adjusting the album or upload an image.</ng-container
+              >
+            } @else {
+              <ng-container i18n
+                >Suggestions from Deezer, iTunes and Cover Art Archive.</ng-container
+              >
+            }
+          }
+          @default {
+            <ng-container i18n>Fill in the title and artist to get suggestions.</ng-container>
+          }
         }
       }
     </small>

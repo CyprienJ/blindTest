@@ -39,6 +39,10 @@ public class PlaylistEntity {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
+    /** Stored cover object ID; takes precedence over the legacy external {@link #imageUrl}. */
+    @Column(name = "cover_id", unique = true)
+    private UUID coverId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private UserEntity createdBy;
@@ -46,6 +50,11 @@ public class PlaylistEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     @Setter(AccessLevel.NONE)
     private LocalDateTime createdAt;
+
+    /** Returns the stored cover path, the legacy external image URL, or {@code null}. */
+    public String displayImageUrl() {
+        return coverId != null ? TrackCovers.publicPath(coverId) : imageUrl;
+    }
 
     @PrePersist
     void onCreate() {

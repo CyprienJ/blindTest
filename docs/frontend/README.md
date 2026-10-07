@@ -65,7 +65,8 @@ The shared cover picker searches again 700 ms after the title, artist, or album
 changes, shows up to six suggestions with thumbnails fetched as authorized blobs,
 and offers upload, keep, and "no cover"; the choice is sent with the track update.
 Playlist editing supports drag and keyboard ordering, rollback on failed
-mutations, and unsaved-change protection.
+mutations, and unsaved-change protection. Its cover uses the same picker with
+suggestions off, so the administrator uploads an image instead of typing a link.
 Its "Add tracks" panel lists only published tracks outside the playlist (excluded
 by the server), filters by text, category, decade, and difficulty, loads 20 more
 on demand, shows difficulty and duration, and previews each track's game excerpt.

@@ -11,6 +11,12 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
+import {
+  CoverPickerComponent,
+  CoverSelection,
+  coverUpdate,
+  KEEP_COVER,
+} from '../../../shared/cover-picker/cover-picker.component';
 import { AdminTrack } from '../track-list/admin-track.model';
 import {
   AdminPlaylistDetail,
@@ -24,7 +30,13 @@ import { PlaylistTrackPickerComponent } from './playlist-track-picker.component'
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-playlist-editor',
   standalone: true,
-  imports: [CommonModule, DragDropModule, ReactiveFormsModule, PlaylistTrackPickerComponent],
+  imports: [
+    CommonModule,
+    CoverPickerComponent,
+    DragDropModule,
+    ReactiveFormsModule,
+    PlaylistTrackPickerComponent,
+  ],
   templateUrl: './playlist-editor.component.html',
   styleUrl: './playlist-editor.component.scss',
 })
@@ -36,8 +48,10 @@ export class PlaylistEditorComponent implements OnInit {
   readonly metadataForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
     description: ['', Validators.maxLength(1000)],
-    imageUrl: ['', Validators.maxLength(500)],
   });
+  coverSelection: CoverSelection = KEEP_COVER;
+  /** Changes whenever the cover picker must start fresh, discarding its uploaded tiles. */
+  coverPickerKey = 0;
   playlists: AdminPlaylistSummary[] = [];
   selected: AdminPlaylistDetail | null = null;
   creating = false;
@@ -74,8 +88,7 @@ export class PlaylistEditorComponent implements OnInit {
             this.loadPlaylist(id);
           } else {
             this.selected = null;
-            this.metadataForm.reset({ name: '', description: '', imageUrl: '' });
-            this.metadataForm.markAsPristine();
+            this.resetMetadata(null);
           }
         },
         error: (error) => (this.listError = this.errorMessage(error)),
@@ -108,8 +121,7 @@ export class PlaylistEditorComponent implements OnInit {
     this.detailError = '';
     this.actionError = '';
     this.deleteConfirmation = false;
-    this.metadataForm.reset({ name: '', description: '', imageUrl: '' });
-    this.metadataForm.markAsPristine();
+    this.resetMetadata(null);
   }
 
   saveMetadata(): void {
@@ -121,7 +133,7 @@ export class PlaylistEditorComponent implements OnInit {
     const metadata: PlaylistMetadata = {
       name: raw.name.trim(),
       description: raw.description.trim() || null,
-      imageUrl: raw.imageUrl.trim() || null,
+      ...coverUpdate(this.coverSelection),
     };
     this.savingMetadata = true;
     this.actionError = '';
@@ -132,12 +144,7 @@ export class PlaylistEditorComponent implements OnInit {
       next: (playlist) => {
         const existingTracks = this.selected?.id === playlist.id ? this.selected.tracks : [];
         this.creating = false;
-        this.metadataForm.reset({
-          name: playlist.name,
-          description: playlist.description ?? '',
-          imageUrl: playlist.imageUrl ?? '',
-        });
-        this.metadataForm.markAsPristine();
+        this.resetMetadata(playlist);
         this.selected = { ...playlist, tracks: existingTracks };
         this.upsertSummary(playlist);
         this.showSuccess(
@@ -274,12 +281,17 @@ export class PlaylistEditorComponent implements OnInit {
   }
 
   canDeactivate(): boolean {
-    return !this.metadataForm.dirty || window.confirm($localize`Discard unsaved playlist changes?`);
+    return !this.hasUnsavedChanges || window.confirm($localize`Discard unsaved playlist changes?`);
+  }
+
+  /** Whether the details form or the cover choice differ from the saved playlist. */
+  get hasUnsavedChanges(): boolean {
+    return this.metadataForm.dirty || this.coverSelection.kind !== 'keep';
   }
 
   @HostListener('window:beforeunload', ['$event'])
   warnBeforeUnload(event: BeforeUnloadEvent): void {
-    if (this.metadataForm.dirty) {
+    if (this.hasUnsavedChanges) {
       event.preventDefault();
     }
   }
@@ -294,15 +306,20 @@ export class PlaylistEditorComponent implements OnInit {
       .subscribe({
         next: (playlist) => {
           this.selected = playlist;
-          this.metadataForm.reset({
-            name: playlist.name,
-            description: playlist.description ?? '',
-            imageUrl: playlist.imageUrl ?? '',
-          });
-          this.metadataForm.markAsPristine();
+          this.resetMetadata(playlist);
         },
         error: (error) => (this.detailError = this.errorMessage(error)),
       });
+  }
+
+  private resetMetadata(playlist: AdminPlaylistSummary | null): void {
+    this.metadataForm.reset({
+      name: playlist?.name ?? '',
+      description: playlist?.description ?? '',
+    });
+    this.metadataForm.markAsPristine();
+    this.coverSelection = KEEP_COVER;
+    this.coverPickerKey++;
   }
 
   private reorderLocally(previousIndex: number, currentIndex: number): void {
@@ -368,7 +385,7 @@ export class PlaylistEditorComponent implements OnInit {
   }
 
   private confirmDiscard(): boolean {
-    return !this.metadataForm.dirty || window.confirm($localize`Discard unsaved playlist changes?`);
+    return !this.hasUnsavedChanges || window.confirm($localize`Discard unsaved playlist changes?`);
   }
 
   private showSuccess(message: string): void {

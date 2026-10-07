@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.blindtest.model.entity.MediaDeletionTaskEntity;
 import com.blindtest.repository.MediaDeletionTaskRepository;
+import com.blindtest.repository.PlaylistCoverReference;
+import com.blindtest.repository.PlaylistRepository;
 import com.blindtest.repository.TrackCoverReference;
 import com.blindtest.repository.TrackMediaReference;
 import com.blindtest.repository.TrackRepository;
@@ -38,7 +40,7 @@ class MediaReconciliationServiceTest {
                 "tracks/present.mp3", "tracks/orphan.mp3", "tracks/pending-delete.mp3"));
         Instant now = Instant.parse("2026-07-30T12:00:00Z");
         MediaReconciliationService service = new MediaReconciliationService(
-                trackRepository, deletionRepository, storage, metrics,
+                trackRepository, mock(PlaylistRepository.class), deletionRepository, storage, metrics,
                 Clock.fixed(now, ZoneOffset.UTC));
 
         var report = service.reconcile();
@@ -67,7 +69,8 @@ class MediaReconciliationServiceTest {
                 thenReturn(List.of(stored, missing));
         when(storage.listObjectKeys()).thenReturn(Set.of("covers/" + storedCover + ".jpg"));
         MediaReconciliationService service = new MediaReconciliationService(
-                trackRepository, deletionRepository, storage, mock(MediaOperationalMetrics.class),
+                trackRepository, mock(PlaylistRepository.class), deletionRepository, storage,
+                mock(MediaOperationalMetrics.class),
                 Clock.fixed(Instant.parse("2026-10-01T12:00:00Z"), ZoneOffset.UTC));
 
         var report = service.reconcile();
@@ -75,6 +78,28 @@ class MediaReconciliationServiceTest {
         assertThat(report.orphanedCount()).isZero();
         assertThat(report.missingObjects()).singleElement().
                 satisfies(item -> assertThat(item.trackId()).isEqualTo(missingCoverTrack));
+    }
+
+    @Test
+    void treatsStoredPlaylistCoversAsReferenced() {
+        PlaylistRepository playlistRepository = mock(PlaylistRepository.class);
+        MediaStorage storage = mock(MediaStorage.class);
+        UUID playlistCover = UUID.randomUUID();
+        PlaylistCoverReference reference = mock(PlaylistCoverReference.class);
+        when(reference.getCoverId()).thenReturn(playlistCover);
+        when(playlistRepository.findCoverReferencesByCoverIdIsNotNull()).
+                thenReturn(List.of(reference));
+        when(storage.listObjectKeys()).thenReturn(Set.of("covers/" + playlistCover + ".jpg"));
+        MediaReconciliationService service = new MediaReconciliationService(
+                mock(TrackRepository.class), playlistRepository,
+                mock(MediaDeletionTaskRepository.class), storage,
+                mock(MediaOperationalMetrics.class),
+                Clock.fixed(Instant.parse("2026-10-07T12:00:00Z"), ZoneOffset.UTC));
+
+        var report = service.reconcile();
+
+        assertThat(report.orphanedCount()).isZero();
+        assertThat(report.missingCount()).isZero();
     }
 
     private TrackCoverReference coverReference(UUID trackId, UUID coverId) {

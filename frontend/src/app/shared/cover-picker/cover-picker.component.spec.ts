@@ -12,7 +12,7 @@ describe('CoverPickerComponent', () => {
   ];
   let service: jasmine.SpyObj<AdminTrackService>;
 
-  function setup(currentCoverUrl: string | null = null) {
+  function setup(currentCoverUrl: string | null = null, suggest = true) {
     service = jasmine.createSpyObj<AdminTrackService>('AdminTrackService', [
       'suggestCovers',
       'coverThumbnail',
@@ -27,6 +27,7 @@ describe('CoverPickerComponent', () => {
     fixture.componentRef.setInput('title', 'Take On Me');
     fixture.componentRef.setInput('artist', 'a-ha');
     fixture.componentRef.setInput('currentCoverUrl', currentCoverUrl);
+    fixture.componentRef.setInput('suggest', suggest);
     fixture.detectChanges();
     return { fixture, picker: fixture.componentInstance };
   }
@@ -62,6 +63,17 @@ describe('CoverPickerComponent', () => {
     tick(700);
 
     expect(service.suggestCovers).not.toHaveBeenCalled();
+  }));
+
+  it('only offers uploads when suggestions are off', fakeAsync(() => {
+    const { fixture } = setup(null, false);
+    tick(700);
+    fixture.detectChanges();
+
+    expect(service.suggestCovers).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('.hint').textContent).toContain(
+      'JPEG, PNG or WebP, up to 5 MB.',
+    );
   }));
 
   it('selects a suggestion, keeps it across a new search, and can keep or remove the current cover', fakeAsync(() => {

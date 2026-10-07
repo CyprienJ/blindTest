@@ -4,6 +4,7 @@ import com.blindtest.model.dto.MediaReconciliationReport;
 import com.blindtest.model.dto.MissingMediaObject;
 import com.blindtest.model.entity.TrackCovers;
 import com.blindtest.repository.MediaDeletionTaskRepository;
+import com.blindtest.repository.PlaylistRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.service.port.MediaStorage;
 import java.time.Clock;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MediaReconciliationService {
 
     private final TrackRepository trackRepository;
+    private final PlaylistRepository playlistRepository;
     private final MediaDeletionTaskRepository deletionTaskRepository;
     private final MediaStorage mediaStorage;
     private final MediaOperationalMetrics metrics;
@@ -44,8 +46,13 @@ public class MediaReconciliationService {
                         map(reference -> new ObjectReference(
                                 reference.getId(), TrackCovers.objectKey(reference.getCoverId())))).
                 toList();
-        Set<String> referencedKeys = references.stream().
-                map(ObjectReference::objectKey).collect(Collectors.toSet());
+        // Playlist covers are not reported as missing, which is keyed by track, but must
+        // not be reported as orphans either.
+        Set<String> referencedKeys = Stream.concat(
+                references.stream().map(ObjectReference::objectKey),
+                playlistRepository.findCoverReferencesByCoverIdIsNotNull().stream().
+                        map(reference -> TrackCovers.objectKey(reference.getCoverId()))).
+                collect(Collectors.toSet());
         Set<String> storedKeys = mediaStorage.listObjectKeys();
         Set<String> pendingDeletionKeys = deletionTaskRepository.findAll().stream().
                 map(task -> task.getObjectKey()).collect(Collectors.toSet());

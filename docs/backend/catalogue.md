@@ -61,6 +61,14 @@ only in a round reveal, so the response is public and immutable. The legacy
 free-text `imageUrl` (the YouTube thumbnail) is kept but no longer edited.
 `app.covers.suggestions-enabled=false` disables provider searches; uploads still work.
 
+Playlist covers are uploaded files, never links. Creating or updating a playlist
+with the `coverCandidateId` of an upload stores it the same way in `playlists.cover_id`
+and clears any legacy external `image_url`; `removeCover` clears both, and deleting
+the playlist queues its cover for deletion. Playlist responses keep the `imageUrl`
+field: the `/api/covers/{coverId}` path of the stored cover, else the legacy URL.
+Reconciliation never reports a stored playlist cover as orphaned, but its missing
+list stays keyed by track and omits missing playlist covers.
+
 ## Import lifecycle
 
 Imports have two sources recorded on the job (`source`): an uploaded audio file
