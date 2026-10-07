@@ -16,7 +16,7 @@ describe('PublicHomeComponent', () => {
 
   afterEach(() => localStorage.clear());
 
-  it('offers sign-in and explains invitation-only access to an anonymous visitor', () => {
+  it('offers sign-in, guest join, and explains invitation-only access to an anonymous visitor', () => {
     fixture = TestBed.createComponent(PublicHomeComponent);
     fixture.detectChanges();
 
@@ -25,6 +25,7 @@ describe('PublicHomeComponent', () => {
     expect(element.querySelector('a[href="/auth/register"]')).toBeNull();
     expect(element.querySelector('a[href="/auth/login"]')?.textContent).toContain('Sign in');
     expect(element.textContent).toContain('invitation-only');
+    expect(element.querySelector('a[href="/lobby/join"]')?.textContent).toContain('Join a game');
     expect(element.querySelector('a[href="/home"]')).toBeNull();
   });
 
@@ -47,5 +48,6 @@ describe('PublicHomeComponent', () => {
     const link = fixture.nativeElement.querySelector('a[href="/home"]') as HTMLAnchorElement;
     expect(link.textContent).toContain('Continue as musicfan');
     expect(fixture.nativeElement.querySelector('a[href="/auth/register"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('a[href="/lobby/join"]')).toBeNull();
   });
 });
