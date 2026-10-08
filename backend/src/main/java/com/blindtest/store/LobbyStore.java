@@ -20,8 +20,19 @@ public interface LobbyStore {
     /** Replaces the lobby only when its stored version equals {@code expectedVersion}. */
     boolean compareAndSet(long expectedVersion, LobbySnapshot replacement, Instant now);
 
-    /** Removes the lobby and frees its code when the stored version still matches. */
+    /**
+     * Atomically replaces a started lobby, when its stored version equals
+     * {@code expectedVersion}, and stores the lobby reopened under a new session ID. The join code
+     * moves to the reopened lobby.
+     */
+    boolean reopen(long expectedVersion, LobbySnapshot startedReplacement, LobbySnapshot reopened,
+            Instant now);
+
+    /** Removes the lobby and frees its code unless a reopened lobby now holds the code. */
     boolean remove(SessionId sessionId, long expectedVersion);
+
+    /** Returns the live lobbies whose game has started. */
+    List<LobbySnapshot> findStarted(Instant now);
 
     /** Atomically removes and returns lobbies expired at the inclusive instant. */
     List<LobbySnapshot> removeExpired(Instant now);

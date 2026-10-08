@@ -60,14 +60,41 @@ public final class InMemoryLobbyStore implements LobbyStore {
     }
 
     @Override
+    public synchronized boolean reopen(
+            long expectedVersion,
+            LobbySnapshot startedReplacement,
+            LobbySnapshot reopened,
+            Instant now) {
+        Objects.requireNonNull(startedReplacement, "startedReplacement is required");
+        Objects.requireNonNull(reopened, "reopened is required");
+        if (!startedReplacement.started() || reopened.started()
+                || !startedReplacement.code().equals(reopened.code())
+                || !startedReplacement.reopenedAs().equals(Optional.of(reopened.sessionId()))
+                || lobbies.containsKey(reopened.sessionId()) || reopened.isExpiredAt(now)
+                || !compareAndSet(expectedVersion, startedReplacement, now)) {
+            return false;
+        }
+        lobbies.put(reopened.sessionId(), reopened);
+        codes.put(reopened.code(), reopened.sessionId());
+        return true;
+    }
+
+    @Override
     public synchronized boolean remove(SessionId sessionId, long expectedVersion) {
         LobbySnapshot existing = lobbies.get(Objects.requireNonNull(sessionId, "sessionId is required"));
         if (existing == null || existing.version() != expectedVersion) {
             return false;
         }
         lobbies.remove(sessionId);
-        codes.remove(existing.code());
+        codes.remove(existing.code(), sessionId);
         return true;
+    }
+
+    @Override
+    public synchronized List<LobbySnapshot> findStarted(Instant now) {
+        return lobbies.values().stream().
+                filter(lobby -> lobby.started() && !lobby.isExpiredAt(now)).
+                toList();
     }
 
     @Override
@@ -81,7 +108,7 @@ public final class InMemoryLobbyStore implements LobbyStore {
             }
             return false;
         });
-        expired.forEach(lobby -> codes.remove(lobby.code()));
+        expired.forEach(lobby -> codes.remove(lobby.code(), lobby.sessionId()));
         return expired;
     }
 }

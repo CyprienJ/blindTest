@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { CreateSessionComponent } from './create-session.component';
 
@@ -186,5 +186,89 @@ describe('CreateSessionComponent', () => {
 
     component.toggleDifficulty(5);
     expect(component.difficultyError()).toBe('Select at least one difficulty level.');
+  });
+
+  describe('lobby settings', () => {
+    const lobbySettings = {
+      sessionId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      code: 'ABC234',
+      participantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      hostParticipantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      playlistId: playlist.id,
+      playlistName: playlist.name,
+      trackCount: 8,
+      maxRoundSeconds: 45,
+      difficultyLevels: [1, 2],
+      includeUnrated: false,
+      audioMode: 'HOST_ONLY',
+    };
+
+    async function renderSettings(lobby: object): Promise<void> {
+      await TestBed.configureTestingModule({
+        imports: [CreateSessionComponent],
+        providers: [
+          provideHttpClient(),
+          provideHttpClientTesting(),
+          provideRouter([]),
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: {
+                paramMap: convertToParamMap({ code: 'abc234' }),
+                queryParamMap: convertToParamMap({}),
+              },
+            },
+          },
+        ],
+      }).compileComponents();
+      fixture = TestBed.createComponent(CreateSessionComponent);
+      component = fixture.componentInstance;
+      http = TestBed.inject(HttpTestingController);
+      router = TestBed.inject(Router);
+      spyOn(router, 'navigate').and.resolveTo(true);
+      fixture.detectChanges();
+      http.expectOne('/api/lobbies/ABC234').flush(lobby);
+    }
+
+    it('prefills the lobby settings and saves them for the host', async () => {
+      await renderSettings(lobbySettings);
+      http.expectOne('/api/playlists').flush([playlist]);
+      http.expectOne(`/api/playlists/${playlist.id}`).flush(detail());
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain('Lobby settings');
+      expect(fixture.nativeElement.querySelector('.mode-switch')).toBeNull();
+      expect(component.form.getRawValue()).toEqual({
+        playlistId: playlist.id,
+        trackCount: 6,
+        maxRoundSeconds: 45,
+      });
+
+      component.form.controls.trackCount.setValue(5);
+      component.createSession();
+      const request = http.expectOne('/api/lobbies/ABC234/settings');
+      expect(request.request.method).toBe('PUT');
+      expect(request.request.body).toEqual({
+        playlistId: playlist.id,
+        trackCount: 5,
+        maxRoundSeconds: 45,
+        extensions: {},
+        difficultyLevels: [1, 2],
+        includeUnrated: false,
+        audioMode: 'HOST_ONLY',
+      });
+      request.flush(lobbySettings);
+      expect(router.navigate).toHaveBeenCalledWith(['/lobby', 'ABC234']);
+    });
+
+    it('sends other members back to the lobby', async () => {
+      await renderSettings({
+        ...lobbySettings,
+        participantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      });
+
+      expect(router.navigate).toHaveBeenCalledWith(['/lobby', 'ABC234']);
+      http.expectNone('/api/playlists');
+    });
   });
 });

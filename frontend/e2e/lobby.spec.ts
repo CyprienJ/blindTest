@@ -2,7 +2,8 @@ import { Page, WebSocketRoute } from '@playwright/test';
 import { expect, test } from './fixtures/test';
 import { installSession } from './support/auth';
 
-// MP-05: create, join, ready, kick, and start a multiplayer lobby against mocked REST and STOMP.
+// MP-05 and MP-11: create, join, ready, kick, start, change the settings of, and return to a
+// multiplayer lobby against mocked REST and STOMP.
 
 const SESSION_ID = '77777777-7777-4777-8777-777777777777';
 const HOST_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -39,11 +40,22 @@ function lobby(participantId: string, participants: Member[], canStart = false) 
     version: 1,
     expiresAt: '2026-10-02T13:00:00Z',
     connection,
+    playlistId: PLAYLIST_ID,
     playlistName: 'Party mix',
     trackCount: 5,
     maxRoundSeconds: 30,
+    difficultyLevels: null,
+    includeUnrated: true,
+    audioMode: 'EVERYONE',
   };
 }
+
+const settings = {
+  audioMode: 'EVERYONE',
+  playlistName: 'Party mix',
+  trackCount: 5,
+  maxRoundSeconds: 30,
+};
 
 /** Minimal STOMP broker: acknowledges CONNECT and SUBSCRIBE and lets tests push lobby events. */
 async function mockStomp(page: Page): Promise<{ push: (type: string, payload: unknown) => void }> {
@@ -176,6 +188,7 @@ test.describe('multiplayer lobby', () => {
       hostParticipantId: HOST_ID,
       participants: [member(HOST_ID, 'musicfan', false, true), member(FRIEND_ID, 'Léa')],
       canStart: false,
+      ...settings,
     });
     await expect(page.getByText('Léa')).toBeVisible();
     await expect(page.getByText('Registered · Not ready')).toBeVisible();
@@ -186,6 +199,7 @@ test.describe('multiplayer lobby', () => {
       hostParticipantId: HOST_ID,
       participants: [member(HOST_ID, 'musicfan', false, true), member(FRIEND_ID, 'Léa', true)],
       canStart: true,
+      ...settings,
     });
     await expect(page.getByText('2/2 ready')).toBeVisible();
     await start.click();
@@ -256,6 +270,118 @@ test.describe('multiplayer lobby', () => {
     stomp.push('LOBBY_STARTED', { totalRounds: 5 });
     await expect(page).toHaveURL(new RegExp(`/game/${SESSION_ID}$`));
     await expect(page.getByText('Multiplayer blindtest')).toBeVisible();
+  });
+
+  test('host changes the playlist rules from the lobby', async ({ page }) => {
+    await mockCatalogue(page);
+    await mockStomp(page);
+    const players = [member(HOST_ID, 'musicfan', false, true), member(FRIEND_ID, 'Léa', true)];
+    await page.route(`**/api/lobbies/${CODE}`, (route) =>
+      route.fulfill({ json: lobby(HOST_ID, players, true) }),
+    );
+    let saved: unknown;
+    await page.route(`**/api/lobbies/${CODE}/settings`, (route) => {
+      saved = route.request().postDataJSON();
+      return route.fulfill({
+        json: {
+          ...lobby(HOST_ID, [players[0], member(FRIEND_ID, 'Léa')]),
+          trackCount: 8,
+          audioMode: 'HOST_ONLY',
+        },
+      });
+    });
+
+    await page.goto(`/lobby/${CODE}`);
+    await page.getByRole('link', { name: 'Change settings' }).click();
+    await expect(page).toHaveURL(new RegExp(`/lobby/${CODE}/settings$`));
+    await expect(page.getByRole('heading', { name: 'Lobby settings' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'With friends' })).toHaveCount(0);
+    await page.getByRole('radio', { name: /Only my device/ }).check();
+    await page.getByRole('button', { name: 'Save settings' }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/lobby/${CODE}$`));
+    expect(saved).toMatchObject({
+      playlistId: PLAYLIST_ID,
+      trackCount: 5,
+      maxRoundSeconds: 30,
+      audioMode: 'HOST_ONLY',
+    });
+  });
+
+  test('a friend sees the host change the rules and must get ready again', async ({ page }) => {
+    const stomp = await mockStomp(page);
+    const players = [member(HOST_ID, 'Host', false, true), member(FRIEND_ID, 'musicfan', true)];
+    await page.route(`**/api/lobbies/${CODE}`, (route) =>
+      route.fulfill({ json: lobby(FRIEND_ID, players, true) }),
+    );
+
+    await page.goto(`/lobby/${CODE}`);
+    await expect(page.getByRole('button', { name: 'Not ready' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Change settings' })).toHaveCount(0);
+
+    stomp.push('LOBBY_UPDATED', {
+      code: CODE,
+      hostParticipantId: HOST_ID,
+      participants: [member(HOST_ID, 'Host', false, true), member(FRIEND_ID, 'musicfan')],
+      canStart: false,
+      ...settings,
+      playlistName: 'Rock classics',
+      maxRoundSeconds: 45,
+    });
+    await expect(page.getByText('Rock classics')).toBeVisible();
+    await expect(page.getByText('45s')).toBeVisible();
+    await expect(page.getByRole('button', { name: "I'm ready" })).toBeVisible();
+  });
+
+  test('players go back to the reopened lobby after a game', async ({ page }) => {
+    await mockStomp(page);
+    const playedId = '99999999-9999-4999-8999-999999999999';
+    await page.route(`**/api/sessions/${playedId}/summary`, (route) =>
+      route.fulfill({
+        json: {
+          sessionId: playedId,
+          totalScore: 300,
+          totalRounds: 5,
+          titlesFound: 3,
+          skippedRounds: 1,
+          timedOutRounds: 1,
+          startedAt: '2026-10-02T12:00:00.000Z',
+          completedAt: '2026-10-02T12:04:00.000Z',
+          rounds: [],
+          gameMode: 'MULTIPLAYER',
+          participantId: FRIEND_ID,
+          standings: [
+            {
+              participantId: FRIEND_ID,
+              displayName: 'musicfan',
+              guest: false,
+              rank: 1,
+              finalScore: 300,
+            },
+          ],
+        },
+      }),
+    );
+    const reopened = lobby(FRIEND_ID, [member(FRIEND_ID, 'musicfan', false, true)]);
+    let rematches = 0;
+    await page.route(`**/api/sessions/${playedId}/rematch`, (route) => {
+      rematches++;
+      return route.fulfill({
+        json: { guestToken: null, lobby: { ...reopened, hostParticipantId: FRIEND_ID } },
+      });
+    });
+    await page.route(`**/api/lobbies/${CODE}`, (route) =>
+      route.fulfill({ json: { ...reopened, hostParticipantId: FRIEND_ID } }),
+    );
+
+    await page.goto(`/end-screen/${playedId}`);
+    await expect(page.getByRole('button', { name: 'New game' })).toBeVisible();
+    await page.getByRole('button', { name: 'Back to lobby' }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/lobby/${CODE}$`));
+    expect(rematches).toBe(1);
+    await expect(page.getByLabel('Session code')).toHaveText(CODE);
+    await expect(page.getByRole('link', { name: 'Change settings' })).toBeVisible();
   });
 
   for (const [code, status, message] of [

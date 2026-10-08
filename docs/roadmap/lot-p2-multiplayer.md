@@ -23,7 +23,8 @@ acceptance can be signed off; MP-01 to MP-04 and MP-07 to MP-08 are backend-only
 and not affected.
 
 Order: MP-01 to MP-06 deliver a playable registered-user game; MP-07 to MP-10
-add resilience, guests, and multiplayer hardening.
+add resilience, guests, and multiplayer hardening; MP-11 lets a group play again
+from the same lobby.
 
 ### Tickets
 
@@ -239,6 +240,32 @@ Acceptance:
 
 - the recorded load target completes with reconciled scores and no unexplained errors;
 - known multiplayer limitations are listed in current status.
+
+#### MP-11 — Return to the lobby and change lobby settings
+
+Status: completed on 2026-10-08, out of sequence at the product owner's request
+([ADR-0023](../adr/0023-return-to-lobby-and-lobby-settings.md)). Covered by
+`LobbyControllerIntegrationTest`, `LobbySnapshotTest`, `InMemoryLobbyStoreTest`,
+the end-screen, lobby-room, and create-session component specs, and
+`e2e/lobby.spec.ts`. When MP-07 lands, host transfer must also apply to the
+reopened lobby.
+
+Work:
+
+- keep the started lobby with its code while the game lives;
+  `POST /api/sessions/{sessionId}/rematch` reopens it under a new session ID or joins
+  the reopened lobby, and reissues guest tokens;
+- `PUT /api/lobbies/{code}/settings` for the host; `LOBBY_UPDATED` carries the
+  settings;
+- "Back to lobby" on the multiplayer end screen; a settings page reusing the
+  creation form.
+
+Acceptance:
+
+- players of a finished game return to a lobby with the same code and settings,
+  the previous host hosts it, and a guest's new token reaches the reopened session;
+- only the host changes settings, changes are validated like creation, broadcast,
+  and clear ready flags; the next game uses them.
 
 ### Lot exit criteria
 

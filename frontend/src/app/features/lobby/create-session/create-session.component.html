@@ -6,34 +6,47 @@
           solo {Solo blindtest}
           other {Multiplayer blindtest}
         }</span>
-        <h1 i18n>Configure a new game</h1>
-        <p i18n>Choose a public playlist, the number of rounds and the maximum answer time.</p>
+        @if (editCode) {
+          <h1 i18n>Lobby settings</h1>
+          <p i18n>
+            Change the playlist and rules for the next game. Players get ready again after a change.
+          </p>
+        } @else {
+          <h1 i18n>Configure a new game</h1>
+          <p i18n>Choose a public playlist, the number of rounds and the maximum answer time.</p>
+        }
       </div>
-      <div class="heading-actions">
-        <div class="mode-switch" role="radiogroup" i18n-aria-label aria-label="Game mode">
-          <button
-            i18n
-            type="button"
-            role="radio"
-            [attr.aria-checked]="mode === 'solo'"
-            [class.selected]="mode === 'solo'"
-            (click)="setMode('solo')"
-          >
-            Solo
-          </button>
-          <button
-            i18n
-            type="button"
-            role="radio"
-            [attr.aria-checked]="mode === 'multiplayer'"
-            [class.selected]="mode === 'multiplayer'"
-            (click)="setMode('multiplayer')"
-          >
-            With friends
-          </button>
+      @if (editCode) {
+        <div class="heading-actions">
+          <a i18n class="bt-btn bt-btn-ghost" [routerLink]="['/lobby', editCode]">Back to lobby</a>
         </div>
-        <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/join">Join instead</a>
-      </div>
+      } @else {
+        <div class="heading-actions">
+          <div class="mode-switch" role="radiogroup" i18n-aria-label aria-label="Game mode">
+            <button
+              i18n
+              type="button"
+              role="radio"
+              [attr.aria-checked]="mode === 'solo'"
+              [class.selected]="mode === 'solo'"
+              (click)="setMode('solo')"
+            >
+              Solo
+            </button>
+            <button
+              i18n
+              type="button"
+              role="radio"
+              [attr.aria-checked]="mode === 'multiplayer'"
+              [class.selected]="mode === 'multiplayer'"
+              (click)="setMode('multiplayer')"
+            >
+              With friends
+            </button>
+          </div>
+          <a i18n class="bt-btn bt-btn-ghost" routerLink="/lobby/join">Join instead</a>
+        </div>
+      }
     </div>
 
     @if (errorMessage) {
@@ -338,7 +351,12 @@
           "
           (click)="createSession()"
         >
-          @if (mode === 'solo') {
+          @if (editCode) {
+            <ng-container i18n>{submitting, select,
+              true {Saving settings…}
+              other {Save settings}
+            }</ng-container>
+          } @else if (mode === 'solo') {
             <ng-container i18n>{submitting, select,
               true {Creating game…}
               other {Create session →}

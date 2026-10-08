@@ -19,7 +19,13 @@ holds the requested configuration, a unique six-character code, up to ten member
 with ready flags, and the host; it slides on the session inactivity TTL and a
 scheduled sweep frees expired codes. Start re-runs `GameSetupService`, creates a
 `CREATED` session under the lobby's ID with every member as a participant and the
-host as owner, removes the lobby, and publishes `LOBBY_STARTED`. Guests join through
+host as owner, marks the lobby started, and publishes `LOBBY_STARTED`. A started
+lobby rejects member operations but keeps the code, roster, and settings while the
+game session lives; `rematch` reopens it under a new session ID with the same code,
+and the sweep forgets it once the game session is gone
+([ADR-0023](../adr/0023-return-to-lobby-and-lobby-settings.md)). The host can change
+the requested configuration and audio mode before starting; a changed configuration
+clears ready flags. Guests join through
 `GuestAdmission` (rate limits, nickname, Turnstile) and become members without an
 account; every lookup matches participants by principal ID — the account ID, or a
 guest's participant ID — so gameplay, private queues, and summaries treat both alike.

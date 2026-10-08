@@ -102,6 +102,18 @@ The host chooses who hears the music ([ADR-0022](../adr/0022-host-only-audio.md)
 every player's device, or only the host's when everyone is in the same room. The
 choice can change in the lobby until the game starts.
 
+### Settings and playing again
+
+Until the game starts, the host can change the playlist, track count, answer time,
+difficulty levels, and audio mode from the lobby; a changed playlist or rule makes
+every player get ready again. After a game, "Back to lobby" on the end screen
+returns a player to the same lobby code with the same settings
+([ADR-0023](../adr/0023-return-to-lobby-and-lobby-settings.md)). The first player
+back reopens it, the others join unready as they click, and the previous host
+becomes host again on return. Guests come back without a new security check. This
+works for about five minutes after the game ends; later, players open or join a new
+lobby.
+
 ## Audio excerpts
 
 Administrators configure a non-negative whole-second start offset and a window

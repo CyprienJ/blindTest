@@ -69,13 +69,15 @@ public class SecurityConfig {
             // inert everywhere else since no controller answers this path.
             auth.requestMatchers("/api/e2e/**").permitAll();
             auth.requestMatchers("/ws/**").permitAll();
-            // Guest tokens (ADR-0020) reach only their lobby and game summary; services then
-            // check membership. Every other authenticated endpoint needs an account role.
+            // Guest tokens (ADR-0020) reach only their lobby, game summary, and the return to the
+            // lobby (ADR-0023); services then check membership. Every other authenticated
+            // endpoint needs an account role.
             auth.requestMatchers(HttpMethod.POST, "/api/lobbies/*/guests").permitAll();
             auth.requestMatchers(HttpMethod.POST, "/api/lobbies", "/api/lobbies/*/participants").
                     hasAnyRole(ACCOUNT_ROLES);
             auth.requestMatchers("/api/lobbies/**").authenticated();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*/summary").authenticated();
+            auth.requestMatchers(HttpMethod.POST, "/api/sessions/*/rematch").authenticated();
             auth.requestMatchers(HttpMethod.GET, "/api/sessions/*", "/api/tracks",
                     "/api/playlists/**", "/api/covers/*", "/media/**").permitAll();
             auth.requestMatchers("/api/admin/**").hasRole("ADMIN");

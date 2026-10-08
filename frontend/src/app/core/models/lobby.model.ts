@@ -25,15 +25,28 @@ export interface Lobby {
   version: number;
   expiresAt: string;
   connection: SessionConnectionInstructions;
+  playlistId: string;
   playlistName: string;
   trackCount: number;
   maxRoundSeconds: number;
+  /** Requested star levels; `null` includes every level. */
+  difficultyLevels: number[] | null;
+  includeUnrated: boolean;
   audioMode: AudioMode;
 }
 
-/** Lobby creation: the solo configuration plus where the round audio plays. */
+/** Lobby creation or settings change: the solo configuration plus where the audio plays. */
 export interface CreateLobbyRequest extends CreateSoloSessionRequest {
   audioMode: AudioMode;
+}
+
+/**
+ * The lobby a player returns to after a multiplayer game (ADR-0023); guests get a new token
+ * for the reopened lobby, registered players `null`.
+ */
+export interface RematchResponse {
+  guestToken: string | null;
+  lobby: Lobby;
 }
 
 /** A guest's participant token and the lobby it joined (ADR-0020). */

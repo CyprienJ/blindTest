@@ -12,6 +12,11 @@ export const LOBBY_ROUTES: Routes = [
       import('./create-session/create-session.component').then((m) => m.CreateSessionComponent),
   },
   {
+    path: ':code/settings',
+    loadComponent: () =>
+      import('./create-session/create-session.component').then((m) => m.CreateSessionComponent),
+  },
+  {
     path: ':code',
     loadComponent: () =>
       import('./lobby-room/lobby-room.component').then((m) => m.LobbyRoomComponent),

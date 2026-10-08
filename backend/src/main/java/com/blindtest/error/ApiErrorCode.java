@@ -69,6 +69,7 @@ public enum ApiErrorCode {
             HttpStatus.CONFLICT, "At least two players must be present and every guest player ready"),
     LOBBY_PARTICIPANT_NOT_FOUND(HttpStatus.NOT_FOUND, "This player is not in the lobby"),
     LOBBY_AUDIO_MODE_INVALID(HttpStatus.BAD_REQUEST, "Choose who plays the round audio"),
+    LOBBY_GAME_IN_PROGRESS(HttpStatus.CONFLICT, "The game is still being played"),
     GUEST_NICKNAME_INVALID(
             HttpStatus.BAD_REQUEST, "Nicknames have 2 to 20 characters and no control characters"),
     GUEST_NICKNAME_TAKEN(HttpStatus.CONFLICT, "Another player in this lobby uses this nickname"),

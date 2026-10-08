@@ -7,10 +7,12 @@ import {
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
 import { GameSummary, GameSummaryRound } from '../../core/models/game-summary.model';
 import { RoundOutcome } from '../../core/models/game-protocol.model';
 import { GameSessionService } from '../../core/services/game-session.service';
 import { GuestSessionService } from '../../core/services/guest-session.service';
+import { LobbyService } from '../../core/services/lobby.service';
 
 type EndScreenView = 'loading' | 'error' | 'ready';
 
@@ -28,10 +30,13 @@ export class EndScreenComponent implements OnInit {
   private readonly gameSessions = inject(GameSessionService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly guestSession = inject(GuestSessionService);
+  private readonly lobbies = inject(LobbyService);
 
   view: EndScreenView = 'loading';
   summary: GameSummary | null = null;
   errorMessage = '';
+  returning = false;
+  rematchError = '';
 
   ngOnInit(): void {
     const sessionId = this.route.snapshot.paramMap.get('sessionId');
@@ -64,6 +69,43 @@ export class EndScreenComponent implements OnInit {
     return this.guestSession.get() !== null;
   }
 
+  /**
+   * Returns to the finished game's lobby with the same code and settings (ADR-0023). The first
+   * player back reopens it; guests switch to the token for the reopened lobby.
+   */
+  backToLobby(): void {
+    const summary = this.summary;
+    if (!summary || this.returning) {
+      return;
+    }
+    this.returning = true;
+    this.rematchError = '';
+    this.lobbies
+      .rematch(summary.sessionId)
+      .pipe(
+        finalize(() => {
+          this.returning = false;
+          this.changeDetector.markForCheck();
+        }),
+      )
+      .subscribe({
+        next: ({ guestToken, lobby }) => {
+          const guest = this.guestSession.get();
+          if (guest && guestToken) {
+            this.guestSession.set({
+              ...guest,
+              token: guestToken,
+              code: lobby.code,
+              sessionId: lobby.sessionId,
+              participantId: lobby.participantId,
+            });
+          }
+          void this.router.navigate(['/lobby', lobby.code]);
+        },
+        error: (error: unknown) => (this.rematchError = this.describeRematchError(error)),
+      });
+  }
+
   playAgain(): void {
     if (this.guest) {
       this.guestSession.clear();
@@ -71,6 +113,27 @@ export class EndScreenComponent implements OnInit {
       return;
     }
     void this.router.navigate(['/lobby/create']);
+  }
+
+  private describeRematchError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      switch (error.error?.code) {
+        case 'LOBBY_NOT_FOUND':
+          return $localize`This game's lobby has closed. Start or join a new game instead.`;
+        case 'LOBBY_FULL':
+          return $localize`The lobby is full now.`;
+        case 'GUEST_NICKNAME_TAKEN':
+          return $localize`Another player in the lobby now uses your nickname.`;
+        case 'LOBBY_GAME_IN_PROGRESS':
+          return $localize`The game is still being played.`;
+        default:
+          break;
+      }
+      if (error.status === 0) {
+        return $localize`The server can’t be reached. Check your connection and try again.`;
+      }
+    }
+    return $localize`Something went wrong. Please try again.`;
   }
 
   outcomeLabel(outcome: RoundOutcome): string {

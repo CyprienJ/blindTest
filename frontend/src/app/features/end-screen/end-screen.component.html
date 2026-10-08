@@ -108,13 +108,33 @@
               by invitation only — ask your host to invite you to keep your history.
             </p>
           }
+          @if (rematchError) {
+            <p class="notice error" role="alert">{{ rematchError }}</p>
+          }
           <div class="end-actions">
-            <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
-              <ng-container i18n>{guest, select,
-                true {Join another game}
-                other {Play again}
-              }</ng-container>
-            </button>
+            @if (summary.gameMode === 'MULTIPLAYER') {
+              <button
+                class="bt-btn bt-btn-primary bt-btn-lg"
+                type="button"
+                [disabled]="returning"
+                (click)="backToLobby()"
+              >
+                <ng-container i18n>{returning, select,
+                  true {Returning to the lobby…}
+                  other {Back to lobby}
+                }</ng-container>
+              </button>
+              <button class="bt-btn bt-btn-ghost bt-btn-lg" type="button" (click)="playAgain()">
+                <ng-container i18n>{guest, select, true {Leave} other {New game}}</ng-container>
+              </button>
+            } @else {
+              <button class="bt-btn bt-btn-primary bt-btn-lg" type="button" (click)="playAgain()">
+                <ng-container i18n>{guest, select,
+                  true {Join another game}
+                  other {Play again}
+                }</ng-container>
+              </button>
+            }
           </div>
         }
       }

@@ -47,7 +47,9 @@ clicks while pending and clears local state even when the logout request fails.
 interceptor attaches authorization and participates in refresh recovery. Guards
 protect navigation but cannot replace backend authorization.
 
-`LobbyService` calls the `/api/lobbies` endpoints; the lobby room reuses
+`LobbyService` calls the `/api/lobbies` endpoints and the post-game rematch; the
+host edits lobby settings on the creation screen at `/lobby/:code/settings`, and
+the end screen's "Back to lobby" swaps a guest to its reissued token. The lobby room reuses
 `GameSocketService` on the lobby's session ID for `LOBBY_UPDATED` and
 `LOBBY_STARTED`, then disconnects so the game room reconnects at version 0.
 `GameSessionService` calls the session REST endpoint and keeps the current session

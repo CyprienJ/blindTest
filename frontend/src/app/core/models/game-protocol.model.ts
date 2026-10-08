@@ -129,6 +129,9 @@ export interface LobbyUpdatedPayload {
   participants: LobbyMember[];
   canStart: boolean;
   audioMode: 'EVERYONE' | 'HOST_ONLY';
+  playlistName: string;
+  trackCount: number;
+  maxRoundSeconds: number;
 }
 
 export interface LobbyStartedPayload {

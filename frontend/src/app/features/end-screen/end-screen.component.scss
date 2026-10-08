@@ -161,8 +161,21 @@
 /* ── Actions ─────────────────────────────────────────────────────────── */
 .end-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 12px;
   margin-top: 4px;
+}
+
+.notice.error {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid oklch(0.42 0.1 30);
+  border-radius: var(--r-md);
+  color: var(--danger);
+  background: oklch(0.23 0.035 30);
+  font-size: 12.5px;
+  text-align: center;
 }
 
 @keyframes spin {

@@ -6,7 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { CreateSoloSessionRequest } from '../../../core/models/game-session.model';
-import { AudioMode } from '../../../core/models/lobby.model';
+import { AudioMode, Lobby } from '../../../core/models/lobby.model';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { LobbyService } from '../../../core/services/lobby.service';
 import { PublicPlaylist, PublicPlaylistDetail } from './catalogue.model';
@@ -38,9 +38,13 @@ export class CreateSessionComponent implements OnInit {
   readonly difficultyLevels = DIFFICULTY_LEVELS;
   readonly selectedLevels = new Set<number>(DIFFICULTY_LEVELS);
   includeUnrated = true;
+  /** Set on `/lobby/:code/settings`, where the host changes an open lobby's settings. */
+  readonly editCode = this.route.snapshot.paramMap.get('code')?.toUpperCase() ?? null;
   /** Solo plays at once; multiplayer opens a lobby that friends join by code. */
   mode: 'solo' | 'multiplayer' =
-    this.route.snapshot.queryParamMap.get('mode') === 'multiplayer' ? 'multiplayer' : 'solo';
+    this.editCode || this.route.snapshot.queryParamMap.get('mode') === 'multiplayer'
+      ? 'multiplayer'
+      : 'solo';
   /** Multiplayer only: whether every player hears the music or only the host's device. */
   audioMode: AudioMode = 'EVERYONE';
 
@@ -72,7 +76,25 @@ export class CreateSessionComponent implements OnInit {
   submitError = '';
 
   ngOnInit(): void {
-    this.loadPlaylists();
+    if (!this.editCode) {
+      this.loadPlaylists();
+      return;
+    }
+    const code = this.editCode;
+    this.lobbies.get(code).subscribe({
+      next: (lobby) => {
+        if (lobby.hostParticipantId !== lobby.participantId) {
+          void this.router.navigate(['/lobby', code]);
+          return;
+        }
+        this.applyLobbySettings(lobby);
+        this.loadPlaylists();
+      },
+      error: (error) => {
+        this.loading = false;
+        this.errorMessage = this.describeCreateError(error, this.form.controls.trackCount.value);
+      },
+    });
   }
 
   loadPlaylists(): void {
@@ -227,6 +249,17 @@ export class CreateSessionComponent implements OnInit {
     };
     this.submitting = true;
     this.submitError = '';
+    if (this.editCode) {
+      const code = this.editCode;
+      this.lobbies
+        .updateSettings(code, { ...request, audioMode: this.audioMode })
+        .pipe(finalize(() => (this.submitting = false)))
+        .subscribe({
+          next: () => void this.router.navigate(['/lobby', code]),
+          error: (error) => this.handleCreateError(error, trackCount),
+        });
+      return;
+    }
     if (this.mode === 'multiplayer') {
       this.lobbies
         .create({ ...request, audioMode: this.audioMode })
@@ -295,6 +328,10 @@ export class CreateSessionComponent implements OnInit {
           return $localize`This playlist doesn't have enough ready tracks for ${trackCount}:count: rounds. Pick fewer tracks or another playlist.`;
         case 'EMAIL_NOT_VERIFIED':
           return $localize`Verify your email address before starting a game.`;
+        case 'LOBBY_HOST_REQUIRED':
+          return $localize`Only the host can change the lobby settings.`;
+        case 'LOBBY_NOT_FOUND':
+          return $localize`This lobby is no longer open. It may have started, expired, or closed.`;
         default:
           break;
       }
@@ -323,6 +360,21 @@ export class CreateSessionComponent implements OnInit {
       return '—';
     }
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+
+  /** Prefills the form with an open lobby's current settings. */
+  private applyLobbySettings(lobby: Lobby): void {
+    this.form.patchValue({
+      playlistId: lobby.playlistId,
+      trackCount: lobby.trackCount,
+      maxRoundSeconds: lobby.maxRoundSeconds,
+    });
+    this.selectedLevels.clear();
+    for (const level of lobby.difficultyLevels ?? DIFFICULTY_LEVELS) {
+      this.selectedLevels.add(level);
+    }
+    this.includeUnrated = lobby.includeUnrated;
+    this.audioMode = lobby.audioMode;
   }
 
   private errorText(error: unknown): string {

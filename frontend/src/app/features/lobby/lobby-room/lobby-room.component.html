@@ -113,7 +113,17 @@
           </section>
 
           <section class="bt-card" aria-labelledby="rules-title">
-            <h2 i18n id="rules-title" class="bt-h2">Game rules</h2>
+            <div class="card-heading">
+              <h2 i18n id="rules-title" class="bt-h2">Game rules</h2>
+              @if (isHost) {
+                <a
+                  i18n
+                  class="bt-btn bt-btn-ghost bt-btn-sm"
+                  [routerLink]="['/lobby', lobby.code, 'settings']"
+                  >Change settings</a
+                >
+              }
+            </div>
             <dl class="rules">
               <div>
                 <dt i18n>Scoring</dt>

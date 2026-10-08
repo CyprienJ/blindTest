@@ -83,19 +83,25 @@ public sealed interface PublicSessionEventPayload permits
         }
     }
 
-    /** Current lobby membership, host, ready flags, and start eligibility. */
+    /** Current lobby membership, host, ready flags, start eligibility, and game settings. */
     record LobbyUpdated(
             String code,
             UUID hostParticipantId,
             List<LobbyMember> participants,
             boolean canStart,
-            AudioMode audioMode) implements PublicSessionEventPayload {
+            AudioMode audioMode,
+            String playlistName,
+            int trackCount,
+            int maxRoundSeconds) implements PublicSessionEventPayload {
 
-        /** Copies the ordered member list. */
+        /** Copies the ordered member list and validates the settings. */
         public LobbyUpdated {
             SessionProtocol.requireText(code, "code");
             Objects.requireNonNull(hostParticipantId, "hostParticipantId is required");
             Objects.requireNonNull(audioMode, "audioMode is required");
+            SessionProtocol.requireText(playlistName, "playlistName");
+            SessionProtocol.requirePositive(trackCount, "trackCount");
+            SessionProtocol.requirePositive(maxRoundSeconds, "maxRoundSeconds");
             participants = List.copyOf(participants);
         }
     }

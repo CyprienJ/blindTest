@@ -4,7 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 import { GameSummary } from '../../core/models/game-summary.model';
+import { Lobby, RematchResponse } from '../../core/models/lobby.model';
 import { GameSessionService } from '../../core/services/game-session.service';
+import { GuestSessionService } from '../../core/services/guest-session.service';
+import { LobbyService } from '../../core/services/lobby.service';
 import { EndScreenComponent } from './end-screen.component';
 
 const SESSION_ID = '55555555-5555-4555-8555-555555555555';
@@ -69,12 +72,46 @@ class FakeGameSessionService {
   }
 }
 
+class FakeLobbyService {
+  rematches: string[] = [];
+  readonly result = new Subject<RematchResponse>();
+
+  rematch(sessionId: string) {
+    this.rematches.push(sessionId);
+    return this.result.asObservable();
+  }
+}
+
+const REOPENED_ID = '77777777-7777-4777-8777-777777777777';
+
+const multiplayerSummary: GameSummary = {
+  ...summary,
+  gameMode: 'MULTIPLAYER',
+  standings: [
+    {
+      participantId: summary.participantId,
+      displayName: 'Friend',
+      guest: true,
+      rank: 1,
+      finalScore: 940,
+    },
+  ],
+} as GameSummary;
+
+function reopenedLobby(): Lobby {
+  return { sessionId: REOPENED_ID, code: 'ABC234', participantId: summary.participantId } as Lobby;
+}
+
 describe('EndScreenComponent', () => {
   let service: FakeGameSessionService;
+  let lobbies: FakeLobbyService;
 
   beforeEach(() => {
     service = new FakeGameSessionService();
+    lobbies = new FakeLobbyService();
   });
+
+  afterEach(() => sessionStorage.clear());
 
   async function setup(sessionId: string | null) {
     TestBed.resetTestingModule();
@@ -84,6 +121,7 @@ describe('EndScreenComponent', () => {
         provideRouter([]),
         provideZoneChangeDetection(),
         { provide: GameSessionService, useValue: service },
+        { provide: LobbyService, useValue: lobbies },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: convertToParamMap(sessionId ? { sessionId } : {}) } },
@@ -135,6 +173,62 @@ describe('EndScreenComponent', () => {
 
     (fixture.nativeElement.querySelector('.bt-btn-primary') as HTMLButtonElement).click();
     expect(harness.navigate).toHaveBeenCalledWith(['/lobby/create']);
+  });
+
+  it('takes a multiplayer player back to the reopened lobby', async () => {
+    const harness = await setup(SESSION_ID);
+    const fixture = await harness.create();
+    service.emit({ ...multiplayerSummary, standings: [] });
+    fixture.changeDetectorRef.detectChanges();
+
+    const back = fixture.nativeElement.querySelector('.bt-btn-primary') as HTMLButtonElement;
+    expect(back.textContent).toContain('Back to lobby');
+    expect(text(fixture)).toContain('New game');
+    back.click();
+    expect(lobbies.rematches).toEqual([SESSION_ID]);
+
+    lobbies.result.next({ guestToken: null, lobby: reopenedLobby() });
+    expect(harness.navigate).toHaveBeenCalledWith(['/lobby', 'ABC234']);
+  });
+
+  it('swaps a returning guest to the token for the reopened lobby', async () => {
+    const harness = await setup(SESSION_ID);
+    const guests = TestBed.inject(GuestSessionService);
+    guests.set({
+      token: 'old-token',
+      code: 'ABC234',
+      sessionId: SESSION_ID,
+      participantId: summary.participantId,
+      nickname: 'Friend',
+    });
+    const fixture = await harness.create();
+    service.emit(multiplayerSummary);
+    fixture.changeDetectorRef.detectChanges();
+
+    fixture.componentInstance.backToLobby();
+    lobbies.result.next({ guestToken: 'new-token', lobby: reopenedLobby() });
+
+    expect(guests.get()).toEqual(
+      jasmine.objectContaining({ token: 'new-token', sessionId: REOPENED_ID, nickname: 'Friend' }),
+    );
+    expect(guests.allows('/lobby/ABC234')).toBeTrue();
+    expect(harness.navigate).toHaveBeenCalledWith(['/lobby', 'ABC234']);
+  });
+
+  it('explains when the lobby of the game has closed', async () => {
+    const harness = await setup(SESSION_ID);
+    const fixture = await harness.create();
+    service.emit(multiplayerSummary);
+    fixture.changeDetectorRef.detectChanges();
+
+    fixture.componentInstance.backToLobby();
+    lobbies.result.error(
+      new HttpErrorResponse({ status: 404, error: { code: 'LOBBY_NOT_FOUND' } }),
+    );
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(text(fixture)).toContain("This game's lobby has closed.");
+    expect(harness.navigate).not.toHaveBeenCalled();
   });
 
   it('shows a not-found message on a 404 and offers a way back', async () => {

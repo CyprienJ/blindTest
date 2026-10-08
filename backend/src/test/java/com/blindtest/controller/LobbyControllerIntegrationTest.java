@@ -28,7 +28,9 @@ import com.blindtest.repository.PlaylistTrackRepository;
 import com.blindtest.repository.TrackAnswerAliasRepository;
 import com.blindtest.repository.TrackRepository;
 import com.blindtest.repository.UserRepository;
+import com.blindtest.security.GuestToken;
 import com.blindtest.security.JwtTokenProvider;
+import com.blindtest.service.LobbyService;
 import com.blindtest.service.port.EmailSender;
 import com.blindtest.service.port.TurnstileVerifier;
 import com.blindtest.store.SessionStore;
@@ -56,8 +58,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 /**
- * MP-02 and MP-08 acceptance: lobbies, join codes, guests, readiness, audio mode, host start,
- * and stable failures.
+ * MP-02, MP-08, and MP-11 acceptance: lobbies, join codes, guests, readiness, settings, audio
+ * mode, host start, the return to the lobby after a game, and stable failures.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -100,6 +102,9 @@ class LobbyControllerIntegrationTest {
 
     @Autowired
     private Clock clock;
+
+    @Autowired
+    private LobbyService lobbyService;
 
     @MockBean
     private GameRandom gameRandom;
@@ -435,6 +440,144 @@ class LobbyControllerIntegrationTest {
         PublicSessionEventPayload.LobbyUpdated last = (PublicSessionEventPayload.LobbyUpdated)
                 events.getAllValues().getLast().payload();
         assertThat(last.audioMode()).isEqualTo(AudioMode.HOST_ONLY);
+    }
+
+    @Test
+    void onlyTheHostChangesTheSettingsAndChangedRulesClearReadyFlags() throws Exception {
+        String code = createLobby();
+        perform(post("/api/lobbies/" + code + "/participants"), guest, null);
+        perform(put("/api/lobbies/" + code + "/participants/me/ready"), guest, "{\"ready\":true}").
+                andExpect(jsonPath("$.canStart").value(true));
+        String longer = configuration().replace("\"trackCount\":5", "\"trackCount\":6").
+                replace("\"maxRoundSeconds\":30", "\"maxRoundSeconds\":45").
+                replace("{}}", "{},\"difficultyLevels\":[1,2],\"audioMode\":\"HOST_ONLY\"}");
+
+        perform(put("/api/lobbies/" + code + "/settings"), guest, longer).
+                andExpect(status().isForbidden()).
+                andExpect(jsonPath("$.code").value("LOBBY_HOST_REQUIRED"));
+        perform(put("/api/lobbies/" + code + "/settings"), host,
+                configuration().replace("\"trackCount\":5", "\"trackCount\":7")).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("GAME_PLAYLIST_INSUFFICIENT_TRACKS"));
+        perform(put("/api/lobbies/" + code + "/settings"), host, longer).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.playlistId").value(playlist.getId().toString())).
+                andExpect(jsonPath("$.trackCount").value(6)).
+                andExpect(jsonPath("$.maxRoundSeconds").value(45)).
+                andExpect(jsonPath("$.difficultyLevels.length()").value(2)).
+                andExpect(jsonPath("$.includeUnrated").value(true)).
+                andExpect(jsonPath("$.audioMode").value("HOST_ONLY")).
+                andExpect(jsonPath("$.participants[1].ready").value(false)).
+                andExpect(jsonPath("$.canStart").value(false));
+
+        ArgumentCaptor<PublicSessionEvent> events = ArgumentCaptor.forClass(PublicSessionEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishPublic(events.capture());
+        PublicSessionEventPayload.LobbyUpdated last = (PublicSessionEventPayload.LobbyUpdated)
+                events.getAllValues().getLast().payload();
+        assertThat(last.trackCount()).isEqualTo(6);
+        assertThat(last.maxRoundSeconds()).isEqualTo(45);
+        assertThat(last.playlistName()).isEqualTo("Party");
+        assertThat(last.canStart()).isFalse();
+
+        // The started game uses the new settings.
+        perform(put("/api/lobbies/" + code + "/participants/me/ready"), guest, "{\"ready\":true}");
+        UUID sessionId = UUID.fromString(jsonPathValue(
+                perform(post("/api/lobbies/" + code + "/start"), host, null), "sessionId"));
+        ActiveSessionSnapshot session =
+                sessionStore.find(new SessionId(sessionId), clock.instant()).orElseThrow();
+        assertThat(session.gameState().trackSelection().tracks()).hasSize(6);
+        assertThat(session.configuration().maximumRoundDurationSeconds()).isEqualTo(45);
+    }
+
+    @Test
+    void playersReturnToALobbyReopenedWithTheSameCodeAndSettings() throws Exception {
+        JsonNode created = json(perform(post("/api/lobbies"), host,
+                configuration().replace("{}}", "{},\"audioMode\":\"HOST_ONLY\"}")));
+        String code = created.get("code").asText();
+        String hostParticipantId = created.get("participantId").asText();
+        String guestParticipantId = jsonPathValue(
+                perform(post("/api/lobbies/" + code + "/participants"), guest, null), "participantId");
+        perform(put("/api/lobbies/" + code + "/participants/me/ready"), guest, "{\"ready\":true}");
+        UUID playedId = UUID.fromString(jsonPathValue(
+                perform(post("/api/lobbies/" + code + "/start"), host, null), "sessionId"));
+
+        perform(post("/api/sessions/" + playedId + "/rematch"), guest, null).
+                andExpect(status().isConflict()).
+                andExpect(jsonPath("$.code").value("LOBBY_GAME_IN_PROGRESS"));
+        perform(post("/api/sessions/" + playedId + "/rematch"), saveUser("stranger", true), null).
+                andExpect(status().isNotFound()).
+                andExpect(jsonPath("$.code").value("LOBBY_NOT_FOUND"));
+        finish(playedId);
+
+        // The first player back reopens the lobby and hosts it until the previous host returns.
+        JsonNode reopened = json(perform(post("/api/sessions/" + playedId + "/rematch"), guest, null).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.guestToken").doesNotExist()).
+                andExpect(jsonPath("$.lobby.code").value(code)).
+                andExpect(jsonPath("$.lobby.participantId").value(guestParticipantId)).
+                andExpect(jsonPath("$.lobby.hostParticipantId").value(guestParticipantId)).
+                andExpect(jsonPath("$.lobby.participants.length()").value(1)).
+                andExpect(jsonPath("$.lobby.audioMode").value("HOST_ONLY")).
+                andExpect(jsonPath("$.lobby.trackCount").value(5)));
+        String reopenedId = reopened.get("lobby").get("sessionId").asText();
+        assertThat(reopenedId).isNotEqualTo(playedId.toString());
+
+        perform(post("/api/sessions/" + playedId + "/rematch"), host, null).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.lobby.sessionId").value(reopenedId)).
+                andExpect(jsonPath("$.lobby.hostParticipantId").value(hostParticipantId)).
+                andExpect(jsonPath("$.lobby.participants.length()").value(2)).
+                andExpect(jsonPath("$.lobby.participants[1].ready").value(false));
+        // Returning twice is idempotent, and the code now reaches the reopened lobby.
+        perform(post("/api/sessions/" + playedId + "/rematch"), host, null).
+                andExpect(jsonPath("$.lobby.participants.length()").value(2));
+        perform(get("/api/lobbies/" + code), guest, null).
+                andExpect(jsonPath("$.sessionId").value(reopenedId));
+        perform(post("/api/lobbies/" + code + "/participants"), saveUser("late", true), null).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.participants.length()").value(3));
+
+        // Once the played game is gone, its lobby is forgotten; the reopened one stays.
+        sessionStore.remove(new SessionId(playedId), currentVersion(playedId), clock.instant());
+        lobbyService.removeExpired();
+        perform(post("/api/sessions/" + playedId + "/rematch"), host, null).
+                andExpect(status().isNotFound());
+        perform(get("/api/lobbies/" + code), host, null).
+                andExpect(jsonPath("$.sessionId").value(reopenedId));
+    }
+
+    @Test
+    void returningGuestsGetATokenForTheReopenedLobbyWithoutTurnstile() throws Exception {
+        when(turnstileVerifier.verify("solved")).thenReturn(true);
+        String code = createLobby();
+        JsonNode joined = json(joinAsGuest(code, "Visitor", "solved", "203.0.113.9"));
+        String token = joined.get("guestToken").asText();
+        String guestParticipantId = joined.get("lobby").get("participantId").asText();
+        asGuest(put("/api/lobbies/" + code + "/participants/me/ready"), token, "{\"ready\":true}");
+        UUID playedId = UUID.fromString(jsonPathValue(
+                perform(post("/api/lobbies/" + code + "/start"), host, null), "sessionId"));
+        finish(playedId);
+
+        JsonNode returned = json(asGuest(post("/api/sessions/" + playedId + "/rematch"), token, null).
+                andExpect(status().isOk()).
+                andExpect(jsonPath("$.lobby.participantId").value(guestParticipantId)).
+                andExpect(jsonPath("$.lobby.participants[0].guest").value(true)));
+        UUID reopenedId = UUID.fromString(returned.get("lobby").get("sessionId").asText());
+        GuestToken reissued = jwtTokenProvider.parseGuestToken(
+                returned.get("guestToken").asText()).orElseThrow();
+        assertThat(reissued.sessionId()).isEqualTo(reopenedId);
+        assertThat(reissued.participantId().toString()).isEqualTo(guestParticipantId);
+    }
+
+    private void finish(UUID sessionId) {
+        // The game session ends; a removed session counts as a game no longer being played.
+        sessionStore.remove(new SessionId(sessionId), currentVersion(sessionId), clock.instant());
+    }
+
+    private long currentVersion(UUID sessionId) {
+        return sessionStore.find(new SessionId(sessionId), clock.instant()).
+                map(ActiveSessionSnapshot::version).
+                orElse(-1L);
     }
 
     private String createLobby() throws Exception {

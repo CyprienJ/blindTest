@@ -14,9 +14,13 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Immutable multiplayer lobby before its game exists (ADR-0019). Tracks are snapshotted only
- * when the host starts, so the lobby keeps the requested configuration. Its session ID becomes
- * the game session's ID at start.
+ * Immutable multiplayer lobby (ADR-0019). Tracks are snapshotted only when the host starts, so
+ * the lobby keeps the requested configuration. Its session ID becomes the game session's ID at
+ * start; the started lobby then only remembers the roster, settings, and code so that players
+ * can return to a reopened lobby under a new session ID after the game (ADR-0023).
+ *
+ * @param started whether the game began; a started lobby accepts no member operations
+ * @param reopenedAs the lobby reopened after this started lobby's game, if any
  */
 public record LobbySnapshot(
         SessionId sessionId,
@@ -28,7 +32,9 @@ public record LobbySnapshot(
         long version,
         Instant createdAt,
         Instant updatedAt,
-        Instant expiresAt) {
+        Instant expiresAt,
+        boolean started,
+        Optional<SessionId> reopenedAs) {
 
     /** Minimum players, host included, before the host may start. */
     public static final int MINIMUM_PARTICIPANTS = 2;
@@ -44,6 +50,7 @@ public record LobbySnapshot(
         Objects.requireNonNull(createdAt, "createdAt is required");
         Objects.requireNonNull(updatedAt, "updatedAt is required");
         Objects.requireNonNull(expiresAt, "expiresAt is required");
+        Objects.requireNonNull(reopenedAs, "reopenedAs is required");
         participants = List.copyOf(participants);
         if (participants.isEmpty() || participants.size() > GameStateSnapshot.MAXIMUM_PARTICIPANTS) {
             throw new IllegalArgumentException("a lobby holds one to ten participants");
@@ -54,6 +61,9 @@ public record LobbySnapshot(
         }
         if (version < 0 || updatedAt.isBefore(createdAt) || !expiresAt.isAfter(updatedAt)) {
             throw new IllegalArgumentException("lobby version or timestamps are invalid");
+        }
+        if (reopenedAs.isPresent() && (!started || reopenedAs.get().equals(sessionId))) {
+            throw new IllegalArgumentException("only a started lobby reopens under a new session");
         }
     }
 
@@ -68,7 +78,7 @@ public record LobbySnapshot(
             Instant expiresAt) {
         return new LobbySnapshot(
                 sessionId, code, host.participantId(), List.of(host), configuration, audioMode,
-                0, now, now, expiresAt);
+                0, now, now, expiresAt, false, Optional.empty());
     }
 
     /** Returns whether the lobby has expired at the inclusive instant. */
@@ -116,9 +126,21 @@ public record LobbySnapshot(
 
     /** Appends a new, unready member in join order. */
     public LobbySnapshot join(LobbyParticipant participant, Instant now, Instant nextExpiresAt) {
+        return join(participant, false, now, nextExpiresAt);
+    }
+
+    /**
+     * Appends a new, unready member in join order and, when {@code host} is set, hands them the
+     * host role; a previous host returning to a reopened lobby takes the role back.
+     */
+    public LobbySnapshot join(
+            LobbyParticipant participant,
+            boolean host,
+            Instant now,
+            Instant nextExpiresAt) {
         List<LobbyParticipant> next = new ArrayList<>(participants);
         next.add(participant.withReady(false));
-        return next(hostParticipantId, next, now, nextExpiresAt);
+        return next(host ? participant.participantId() : hostParticipantId, next, now, nextExpiresAt);
     }
 
     /**
@@ -158,9 +180,40 @@ public record LobbySnapshot(
 
     /** Changes which devices play the round audio. */
     public LobbySnapshot withAudioMode(AudioMode nextAudioMode, Instant now, Instant nextExpiresAt) {
+        return withSettings(configuration, nextAudioMode, now, nextExpiresAt);
+    }
+
+    /**
+     * Changes the game rules, playlist, and audio mode. Members agreed to the previous settings,
+     * so a changed game configuration clears every ready flag.
+     */
+    public LobbySnapshot withSettings(
+            RequestedGameConfiguration nextConfiguration,
+            AudioMode nextAudioMode,
+            Instant now,
+            Instant nextExpiresAt) {
+        List<LobbyParticipant> nextParticipants = configuration.equals(nextConfiguration)
+                ? participants
+                : participants.stream().map(member -> member.withReady(false)).toList();
         return new LobbySnapshot(
-                sessionId, code, hostParticipantId, participants, configuration, nextAudioMode,
-                Math.addExact(version, 1), createdAt, now, nextExpiresAt);
+                sessionId, code, hostParticipantId, nextParticipants, nextConfiguration,
+                nextAudioMode, Math.addExact(version, 1), createdAt, now, nextExpiresAt,
+                started, reopenedAs);
+    }
+
+    /** Marks the game as begun; the lobby is kept only for a later return to the lobby. */
+    public LobbySnapshot start(Instant now, Instant nextExpiresAt) {
+        return new LobbySnapshot(
+                sessionId, code, hostParticipantId, participants, configuration, audioMode,
+                Math.addExact(version, 1), createdAt, now, nextExpiresAt, true, Optional.empty());
+    }
+
+    /** Records the lobby that players of this started lobby's game return to. */
+    public LobbySnapshot reopenAs(SessionId nextSessionId, Instant now) {
+        return new LobbySnapshot(
+                sessionId, code, hostParticipantId, participants, configuration, audioMode,
+                Math.addExact(version, 1), createdAt, now, expiresAt, started,
+                Optional.of(nextSessionId));
     }
 
     private LobbySnapshot next(
@@ -170,7 +223,7 @@ public record LobbySnapshot(
             Instant nextExpiresAt) {
         return new LobbySnapshot(
                 sessionId, code, nextHost, nextParticipants, configuration, audioMode,
-                Math.addExact(version, 1), createdAt, now, nextExpiresAt);
+                Math.addExact(version, 1), createdAt, now, nextExpiresAt, started, reopenedAs);
     }
 
     private static void requireUnique(List<LobbyParticipant> participants) {

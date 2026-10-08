@@ -60,6 +60,31 @@ class InMemoryLobbyStoreTest {
         assertThat(store.create(lobby("XYZ789"), NOW)).isTrue();
     }
 
+    @Test
+    void reopeningMovesTheCodeToTheNewLobbyAndKeepsItWhenTheStartedLobbyGoes() {
+        LobbySnapshot lobby = lobby("ABC234");
+        store.create(lobby, NOW);
+        LobbySnapshot started = lobby.start(NOW, EXPIRY);
+        store.compareAndSet(0, started, NOW);
+        assertThat(store.findStarted(NOW)).containsExactly(started);
+        assertThat(store.findByCode(lobby.code(), NOW)).contains(started);
+
+        SessionId nextId = new SessionId(UUID.randomUUID());
+        LobbySnapshot reopened = LobbySnapshot.open(
+                nextId, lobby.code(), member(), lobby.configuration(), lobby.audioMode(), NOW, EXPIRY);
+        // The started lobby must name the reopened one, at its stored version.
+        assertThat(store.reopen(1, started.reopenAs(new SessionId(UUID.randomUUID()), NOW),
+                reopened, NOW)).isFalse();
+        assertThat(store.reopen(0, started.reopenAs(nextId, NOW), reopened, NOW)).isFalse();
+        assertThat(store.reopen(1, started.reopenAs(nextId, NOW), reopened, NOW)).isTrue();
+
+        assertThat(store.findByCode(lobby.code(), NOW)).contains(reopened);
+        assertThat(store.find(lobby.sessionId(), NOW).orElseThrow().reopenedAs()).contains(nextId);
+        assertThat(store.remove(lobby.sessionId(), 2)).isTrue();
+        assertThat(store.findByCode(lobby.code(), NOW)).contains(reopened);
+        assertThat(store.findStarted(NOW)).isEmpty();
+    }
+
     private LobbySnapshot lobby(String code) {
         return LobbySnapshot.open(
                 new SessionId(UUID.randomUUID()),

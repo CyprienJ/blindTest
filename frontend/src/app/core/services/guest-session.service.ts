@@ -45,7 +45,10 @@ export class GuestSessionService {
     }
   }
 
-  /** Whether the guest may open this URL: its own lobby, game room, or end screen. */
+  /**
+   * Whether the guest may open this URL: its own lobby, the lobby settings (for a guest who
+   * became host), game room, or end screen.
+   */
   allows(url: string): boolean {
     const session = this.session;
     if (!session) {
@@ -54,6 +57,7 @@ export class GuestSessionService {
     const path = url.split(/[?#]/, 1)[0];
     return (
       path === `/lobby/${session.code}` ||
+      path === `/lobby/${session.code}/settings` ||
       path === `/game/${session.sessionId}` ||
       path === `/end-screen/${session.sessionId}`
     );

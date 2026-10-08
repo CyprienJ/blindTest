@@ -27,6 +27,10 @@ On 2026-10-06, at the product owner's request and without moving this pointer,
 [MP-08](roadmap/lot-p2-multiplayer.md#mp-08--issue-guest-participant-tokens) and
 [MP-09](roadmap/lot-p2-multiplayer.md#mp-09--let-guests-join-from-the-browser) were
 completed with a host-chosen audio mode ([ADR-0022](adr/0022-host-only-audio.md)).
+On 2026-10-08, likewise without moving this pointer,
+[MP-11](roadmap/lot-p2-multiplayer.md#mp-11--return-to-the-lobby-and-change-lobby-settings)
+let players return to the same lobby after a game and the host change the lobby
+settings ([ADR-0023](adr/0023-return-to-lobby-and-lobby-settings.md)).
 
 [CAT-11 — Import tracks from uploaded audio files](roadmap/lot-3-catalogue.md#cat-11--import-tracks-from-uploaded-audio-files)
 awaits only one product-owner check: publish a track from a local audio file on the

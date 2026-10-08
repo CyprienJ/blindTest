@@ -53,8 +53,10 @@ session and participant IDs, no account or role, six-hour expiry). Account token
 validation rejects guest tokens and guest parsing rejects every other token. The
 [`BearerTokenAuthenticator`](../../backend/src/main/java/com/blindtest/security/BearerTokenAuthenticator.java)
 maps a guest to its participant ID with `ROLE_GUEST`, for both HTTP and STOMP.
-`SecurityConfig` lets that role reach only `/api/lobbies/**` member routes and
-`GET /api/sessions/*/summary`; every other protected route requires `USER` or
+`SecurityConfig` lets that role reach only `/api/lobbies/**` member routes,
+`GET /api/sessions/*/summary`, and `POST /api/sessions/*/rematch`, which issues a
+new guest token for the reopened lobby
+([ADR-0023](../adr/0023-return-to-lobby-and-lobby-settings.md)); every other protected route requires `USER` or
 `ADMIN`. Services then check that the participant is still a member, so a removed
 guest or an ended session stops the token working at once.
 

@@ -36,9 +36,12 @@ function lobby(participantId: string, overrides: Partial<Lobby> = {}): Lobby {
       eventDestination: '/topic/sessions/x',
       privateDestination: '/user/queue/sessions/x',
     },
+    playlistId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
     playlistName: 'Party',
     trackCount: 5,
     maxRoundSeconds: 30,
+    difficultyLevels: null,
+    includeUnrated: true,
     audioMode: 'EVERYONE',
     ...overrides,
   };
@@ -130,11 +133,18 @@ describe('LobbyRoomComponent', () => {
         ],
         canStart: true,
         audioMode: 'EVERYONE',
+        playlistName: 'Rock classics',
+        trackCount: 12,
+        maxRoundSeconds: 45,
       }),
     );
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(fixture.nativeElement.textContent).toContain('2/2 ready');
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('2/2 ready');
+    // The host's settings changes reach every member live.
+    expect(text).toContain('Rock classics');
+    expect(text).toContain('45s');
 
     socket.publicEvents$.next(
       event('LOBBY_UPDATED', {
@@ -145,6 +155,9 @@ describe('LobbyRoomComponent', () => {
         ],
         canStart: false,
         audioMode: 'EVERYONE',
+        playlistName: 'Party',
+        trackCount: 5,
+        maxRoundSeconds: 30,
       }),
     );
     fixture.detectChanges();
@@ -205,6 +218,18 @@ describe('LobbyRoomComponent', () => {
       'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     );
     expect(session?.audioMode).toBe('HOST_ONLY');
+  });
+
+  it('offers the settings page to the host only', async () => {
+    const hostFixture = await create(HOST);
+    const link = (hostFixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>(
+      'a[href="/lobby/ABC234/settings"]',
+    );
+    expect(link?.textContent).toContain('Change settings');
+    TestBed.resetTestingModule();
+
+    const memberFixture = await create(GUEST);
+    expect(memberFixture.nativeElement.textContent).not.toContain('Change settings');
   });
 
   it('tells other players when only the host plays the music', async () => {

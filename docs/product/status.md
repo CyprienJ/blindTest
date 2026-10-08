@@ -40,7 +40,9 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
   (MP-05) and plays them with a live scoreboard and ranked end screen (MP-06), and every member counts as connected until presence
   tracking (MP-07). Guests join by code with a nickname and Turnstile, receive a
   session-scoped token, and play to a guest end screen (MP-08, MP-09); the host
-  chooses whether every device or only its own plays the music (ADR-0022). Social
+  chooses whether every device or only its own plays the music (ADR-0022). The host
+  can change the playlist and rules in the lobby, and players return to the same
+  lobby after a game (MP-11, ADR-0023). Social
   APIs, profile management, and general history browsing are absent.
 - A guest's token lives in one browser tab; closing it loses the seat. The
   per-client guest join limit trusts the first `X-Forwarded-For` hop, which a
@@ -48,6 +50,9 @@ Source entry points: [backend controllers](../../backend/src/main/java/com/blind
   still receives the signed playback URL.
 - A member who leaves or is kicked from a lobby keeps any existing STOMP
   subscription to its public topic until they disconnect.
+- Returning to the lobby works only while the finished game is retained (five
+  minutes by default), and a member kicked from the reopened lobby can come back
+  through the end screen during that window.
 - Restarting the backend loses active games; completed history is durable.
 - Administrator invitations are delivered only by email, and Resend failures are
   only logged. The admin page cannot show or copy an invitation link, so an

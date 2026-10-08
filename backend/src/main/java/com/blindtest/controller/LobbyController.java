@@ -103,6 +103,18 @@ public class LobbyController {
         return lobbyService.setAudioMode(callerId, code, request.audioMode());
     }
 
+    /**
+     * Lets the host change the playlist, rules, and audio mode; changed rules clear every ready
+     * flag.
+     */
+    @PutMapping("/{code}/settings")
+    public LobbyResponse updateSettings(
+            @AuthenticationPrincipal UUID callerId,
+            @PathVariable String code,
+            @RequestBody(required = false) CreateLobbyRequest request) {
+        return lobbyService.updateSettings(callerId, code, request);
+    }
+
     /** Lets the host remove another member. */
     @DeleteMapping("/{code}/participants/{participantId}")
     public ResponseEntity<Void> kick(

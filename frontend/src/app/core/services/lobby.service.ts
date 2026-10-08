@@ -3,7 +3,13 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE } from '../config';
 import { SoloSessionResponse } from '../models/game-session.model';
-import { AudioMode, CreateLobbyRequest, GuestJoinResponse, Lobby } from '../models/lobby.model';
+import {
+  AudioMode,
+  CreateLobbyRequest,
+  GuestJoinResponse,
+  Lobby,
+  RematchResponse,
+} from '../models/lobby.model';
 
 /** REST client for multiplayer lobbies; live changes arrive as STOMP lobby events. */
 @Injectable({ providedIn: 'root' })
@@ -41,6 +47,22 @@ export class LobbyService {
     return this.http.put<Lobby>(`${API_BASE}/lobbies/${encodeURIComponent(code)}/audio-mode`, {
       audioMode,
     });
+  }
+
+  /** Host only: changes the playlist and rules; changed rules clear every ready flag. */
+  updateSettings(code: string, request: CreateLobbyRequest): Observable<Lobby> {
+    return this.http.put<Lobby>(
+      `${API_BASE}/lobbies/${encodeURIComponent(code)}/settings`,
+      request,
+    );
+  }
+
+  /** Returns to the lobby of a finished game, reopening it when nobody has yet. */
+  rematch(sessionId: string): Observable<RematchResponse> {
+    return this.http.post<RematchResponse>(
+      `${API_BASE}/sessions/${encodeURIComponent(sessionId)}/rematch`,
+      {},
+    );
   }
 
   leave(code: string): Observable<void> {

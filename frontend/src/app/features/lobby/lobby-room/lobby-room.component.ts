@@ -231,6 +231,9 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
       participants: update.participants,
       canStart: update.canStart,
       audioMode: update.audioMode,
+      playlistName: update.playlistName,
+      trackCount: update.trackCount,
+      maxRoundSeconds: update.maxRoundSeconds,
     };
   }
 
@@ -286,7 +289,7 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
         case 'GAME_DIFFICULTY_INSUFFICIENT_TRACKS':
         case 'GAME_PLAYLIST_INELIGIBLE':
         case 'GAME_PLAYLIST_NOT_FOUND':
-          return $localize`The playlist no longer has enough ready tracks. Open a new lobby with other settings.`;
+          return $localize`The playlist no longer has enough ready tracks. Change the settings to pick another playlist or fewer tracks.`;
         default:
           break;
       }

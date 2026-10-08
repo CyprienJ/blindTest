@@ -6,6 +6,7 @@ import com.blindtest.model.dto.GuestJoinRequest;
 import com.blindtest.model.dto.GuestJoinResponse;
 import com.blindtest.model.dto.LobbyParticipantResponse;
 import com.blindtest.model.dto.LobbyResponse;
+import com.blindtest.model.dto.RematchResponse;
 import com.blindtest.model.dto.SessionConnectionInstructions;
 import com.blindtest.model.dto.SoloSessionResponse;
 import com.blindtest.model.entity.UserEntity;
@@ -33,6 +34,7 @@ import com.blindtest.websocket.protocol.PublicSessionEventPayload;
 import com.blindtest.websocket.protocol.PublicSessionEventType;
 import com.blindtest.websocket.protocol.SessionEventMetadata;
 import com.blindtest.websocket.protocol.SessionProtocol;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -44,15 +46,19 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Multiplayer lobby lifecycle from creation to start (ADR-0019, MP-02), including guests who
- * join with a nickname instead of an account (ADR-0020, MP-08). Membership changes go
- * through REST and are broadcast as {@code LOBBY_UPDATED} on the session's public topic; start
- * snapshots tracks and creates a {@code CREATED} game session under the lobby's session ID.
+ * join with a nickname instead of an account (ADR-0020, MP-08). Membership and settings changes
+ * go through REST and are broadcast as {@code LOBBY_UPDATED} on the session's public topic;
+ * start snapshots tracks and creates a {@code CREATED} game session under the lobby's session
+ * ID. The started lobby is kept while its game lives so that players can return to a lobby
+ * reopened with the same code, roster, and settings (ADR-0023, MP-11).
  */
 @Service
 public class LobbyService {
 
     private static final int MAXIMUM_ID_ATTEMPTS = 20;
     private static final int LOCK_STRIPES = 64;
+    /** Upper bound on keeping a started lobby; it normally goes with its game session. */
+    private static final Duration STARTED_RETENTION = Duration.ofHours(12);
 
     private final GameSetupService gameSetupService;
     private final LobbyStore lobbyStore;
@@ -216,6 +222,28 @@ public class LobbyService {
         }
     }
 
+    /**
+     * Lets the host change the playlist, rules, and audio mode before starting. The
+     * configuration is validated against the catalogue as at creation; a changed configuration
+     * clears every ready flag. A {@code null} audio mode keeps the current one.
+     */
+    public LobbyResponse updateSettings(UUID callerId, String rawCode, CreateLobbyRequest request) {
+        RequestedGameConfiguration requested = gameSetupService.toRequestedConfiguration(
+                request == null ? null : request.gameRequest());
+        SessionId sessionId = requireLobby(rawCode).sessionId();
+        synchronized (lockFor(sessionId)) {
+            LobbySnapshot lobby = current(sessionId);
+            LobbyParticipant host = requireHost(lobby, callerId);
+            gameSetupService.prepare(requested);
+            AudioMode audioMode = request == null || request.audioMode() == null
+                    ? lobby.audioMode() : request.audioMode();
+            Instant now = expirationPolicy.instant();
+            LobbySnapshot updated = replace(
+                    lobby, lobby.withSettings(requested, audioMode, now, expiresAt(now)), now);
+            return response(updated, host.participantId());
+        }
+    }
+
     /** Lets the host remove another member. */
     public void kick(UUID callerId, String rawCode, UUID rawParticipantId) {
         SessionId sessionId = requireLobby(rawCode).sessionId();
@@ -232,7 +260,8 @@ public class LobbyService {
 
     /**
      * Lets the host start once everyone is ready: snapshots tracks, creates the game session
-     * under the lobby's ID, closes the lobby, and tells members to open the game room.
+     * under the lobby's ID, closes the lobby to member operations, and tells members to open the
+     * game room. The started lobby keeps the code for a later return to the lobby.
      */
     public SoloSessionResponse start(UUID callerId, String rawCode) {
         SessionId sessionId = requireLobby(rawCode).sessionId();
@@ -267,7 +296,10 @@ public class LobbyService {
             if (sessionStore.create(session, now) != SessionCreateOutcome.CREATED) {
                 throw new IllegalStateException("lobby session identity is already in use");
             }
-            lobbyStore.remove(sessionId, lobby.version());
+            if (!lobbyStore.compareAndSet(
+                    lobby.version(), lobby.start(now, now.plus(STARTED_RETENTION)), now)) {
+                throw new IllegalStateException("lobby changed while starting under its lock");
+            }
             publish(sessionId, session.version(), now, PublicSessionEventType.LOBBY_STARTED,
                     new PublicSessionEventPayload.LobbyStarted(
                             setup.selection().tracks().size()));
@@ -281,10 +313,94 @@ public class LobbyService {
         }
     }
 
-    /** Frees join codes of lobbies abandoned for the inactivity window. */
+    /**
+     * Returns a player of a finished multiplayer game to its lobby (ADR-0023). The first player
+     * back reopens the lobby under a new session ID with the same code, settings, and audio mode;
+     * later players join it unready, and the previous host takes the host role back on return.
+     * Guests get a new token for the reopened session instead of passing Turnstile again.
+     */
+    public RematchResponse rematch(UUID callerId, UUID rawSessionId) {
+        SessionId playedId = new SessionId(rawSessionId);
+        LobbyParticipant member;
+        SessionId reopenedId;
+        boolean previousHost;
+        // One lock at a time: the played and reopened lobbies may share a lock stripe order.
+        synchronized (lockFor(playedId)) {
+            Instant now = expirationPolicy.instant();
+            LobbySnapshot played = lobbyStore.find(playedId, now).
+                    filter(LobbySnapshot::started).
+                    orElseThrow(() -> failure(ApiErrorCode.LOBBY_NOT_FOUND));
+            member = requireMember(played, callerId);
+            if (isGameInProgress(playedId, now)) {
+                throw failure(ApiErrorCode.LOBBY_GAME_IN_PROGRESS);
+            }
+            if (played.reopenedAs().isEmpty()) {
+                return rematchResponse(reopen(played, member, now), member);
+            }
+            reopenedId = played.reopenedAs().get();
+            previousHost = played.isHost(member.participantId());
+        }
+        return rematchResponse(returnTo(reopenedId, member, previousHost), member);
+    }
+
+    /**
+     * Frees join codes of lobbies abandoned for the inactivity window, and forgets started
+     * lobbies once their game session is gone.
+     */
     @Scheduled(fixedDelayString = "${app.session.cleanup-delay:PT1M}")
     public void removeExpired() {
-        lobbyStore.removeExpired(expirationPolicy.instant());
+        Instant now = expirationPolicy.instant();
+        lobbyStore.removeExpired(now);
+        lobbyStore.findStarted(now).stream().
+                filter(lobby -> sessionStore.find(lobby.sessionId(), now).isEmpty()).
+                forEach(lobby -> lobbyStore.remove(lobby.sessionId(), lobby.version()));
+    }
+
+    private boolean isGameInProgress(SessionId sessionId, Instant now) {
+        return sessionStore.find(sessionId, now).
+                map(session -> session.gameState().status()).
+                filter(status -> status == GameStatus.CREATED || status == GameStatus.PLAYING).
+                isPresent();
+    }
+
+    private LobbySnapshot reopen(LobbySnapshot played, LobbyParticipant member, Instant now) {
+        SessionId nextId = new SessionId(identityGenerator.nextId());
+        LobbySnapshot reopened = LobbySnapshot.open(
+                nextId,
+                played.code(),
+                member,
+                played.configuration(),
+                played.audioMode(),
+                now,
+                expiresAt(now));
+        if (!lobbyStore.reopen(played.version(), played.reopenAs(nextId, now), reopened, now)) {
+            throw failure(ApiErrorCode.LOBBY_NOT_FOUND);
+        }
+        return reopened;
+    }
+
+    private RematchResponse rematchResponse(LobbySnapshot lobby, LobbyParticipant member) {
+        String guestToken = member.registered()
+                ? null
+                : guestAdmission.issueToken(lobby.sessionId().value(), member.participantId().value());
+        return new RematchResponse(guestToken, response(lobby, member.participantId()));
+    }
+
+    private LobbySnapshot returnTo(SessionId sessionId, LobbyParticipant member, boolean previousHost) {
+        synchronized (lockFor(sessionId)) {
+            LobbySnapshot lobby = current(sessionId);
+            if (lobby.member(member.participantId()).isPresent()) {
+                return lobby;
+            }
+            if (lobby.isFull()) {
+                throw failure(ApiErrorCode.LOBBY_FULL);
+            }
+            if (lobby.hasDisplayName(member.displayName())) {
+                throw failure(ApiErrorCode.GUEST_NICKNAME_TAKEN);
+            }
+            Instant now = expirationPolicy.instant();
+            return replace(lobby, lobby.join(member, previousHost, now, expiresAt(now)), now);
+        }
     }
 
     private void removeMember(LobbySnapshot lobby, GameParticipantId participantId) {
@@ -314,7 +430,10 @@ public class LobbyService {
                                         !member.registered())).
                                 toList(),
                         next.canStart(),
-                        next.audioMode()));
+                        next.audioMode(),
+                        gameSetupService.playlistName(next.configuration().playlistId()),
+                        next.configuration().requestedTrackCount(),
+                        next.configuration().maximumRoundDurationSeconds()));
         return next;
     }
 
@@ -336,11 +455,13 @@ public class LobbyService {
         // Malformed, unknown, expired, and started codes are deliberately indistinguishable.
         return LobbyCode.parse(rawCode).
                 flatMap(code -> lobbyStore.findByCode(code, expirationPolicy.instant())).
+                filter(lobby -> !lobby.started()).
                 orElseThrow(() -> failure(ApiErrorCode.LOBBY_NOT_FOUND));
     }
 
     private LobbySnapshot current(SessionId sessionId) {
         return lobbyStore.find(sessionId, expirationPolicy.instant()).
+                filter(lobby -> !lobby.started()).
                 orElseThrow(() -> failure(ApiErrorCode.LOBBY_NOT_FOUND));
     }
 
@@ -387,9 +508,12 @@ public class LobbyService {
                 lobby.version(),
                 lobby.expiresAt(),
                 SessionConnectionInstructions.forSession(lobby.sessionId().value()),
+                lobby.configuration().playlistId(),
                 gameSetupService.playlistName(lobby.configuration().playlistId()),
                 lobby.configuration().requestedTrackCount(),
                 lobby.configuration().maximumRoundDurationSeconds(),
+                lobby.configuration().difficultyLevels(),
+                lobby.configuration().includeUnrated(),
                 lobby.audioMode());
     }
 

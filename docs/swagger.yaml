@@ -151,6 +151,7 @@ components:
             - LOBBY_NOT_READY
             - LOBBY_PARTICIPANT_NOT_FOUND
             - LOBBY_AUDIO_MODE_INVALID
+            - LOBBY_GAME_IN_PROGRESS
             - GUEST_NICKNAME_INVALID
             - GUEST_NICKNAME_TAKEN
             - GUEST_JOIN_RATE_LIMITED
@@ -720,8 +721,9 @@ components:
     Lobby:
       type: object
       required: [sessionId, code, participantId, hostParticipantId, participants,
-        canStart, maxParticipants, version, expiresAt, connection, playlistName,
-        trackCount, maxRoundSeconds, audioMode]
+        canStart, maxParticipants, version, expiresAt, connection, playlistId,
+        playlistName, trackCount, maxRoundSeconds, difficultyLevels, includeUnrated,
+        audioMode]
       properties:
         sessionId:
           $ref: '#/components/schemas/UUID'
@@ -754,12 +756,24 @@ components:
           description: Sliding inactivity expiry; any membership change extends it.
         connection:
           $ref: '#/components/schemas/SessionConnectionInstructions'
+        playlistId:
+          $ref: '#/components/schemas/UUID'
         playlistName:
           type: string
         trackCount:
           type: integer
         maxRoundSeconds:
           type: integer
+        difficultyLevels:
+          type: array
+          nullable: true
+          description: Requested star levels; null includes every level.
+          items:
+            type: integer
+            minimum: 1
+            maximum: 5
+        includeUnrated:
+          type: boolean
         audioMode:
           $ref: '#/components/schemas/AudioMode'
 
@@ -797,6 +811,19 @@ components:
             Signed guest JWT (audience `guest`) carrying the session and participant
             IDs. Keep it in `sessionStorage`; it stops working once the guest leaves,
             is removed, or the session ends.
+        lobby:
+          $ref: '#/components/schemas/Lobby'
+
+    RematchResponse:
+      type: object
+      required: [guestToken, lobby]
+      properties:
+        guestToken:
+          type: string
+          nullable: true
+          description: |
+            For a guest, a new guest JWT scoped to the reopened lobby's session and the
+            same participant ID; null for an account.
         lobby:
           $ref: '#/components/schemas/Lobby'
 
@@ -1784,6 +1811,45 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /sessions/{sessionId}/rematch:
+    post:
+      tags: [Sessions, Lobbies]
+      summary: Return to the lobby after a multiplayer game
+      description: |
+        For a player of a game started from a lobby (ADR-0023). The first caller
+        reopens the lobby under a new `sessionId` with the same code, settings, and
+        audio mode, alone and as host; later callers join it unready, and the
+        previous host takes the host role back on return. Repeating the call returns
+        the current lobby. Guests receive a new token for the reopened session
+        without another Turnstile check. Available while the played game is still
+        retained after it ends; other players can also join the reopened lobby by
+        code. Responses use `Cache-Control: no-store`.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: The reopened lobby, from the caller's point of view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RematchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: |
+            `LOBBY_NOT_FOUND`: not a lobby game, not played by the caller, no longer
+            retained, or the reopened lobby has closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: '`LOBBY_GAME_IN_PROGRESS`, `LOBBY_FULL`, or `GUEST_NICKNAME_TAKEN`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /lobbies:
     post:
       tags: [Lobbies]
@@ -1943,7 +2009,8 @@ paths:
         (`LOBBY_NOT_READY` otherwise). Tracks are selected now; configuration
         errors use the session-creation codes. The lobby closes, members receive
         `LOBBY_STARTED`, and the game session keeps the lobby's `sessionId` in the
-        `CREATED` state until the host sends `START_GAME` over STOMP.
+        `CREATED` state until the host sends `START_GAME` over STOMP. The code stays
+        reserved for `POST /sessions/{sessionId}/rematch` while the game is retained.
       parameters:
         - $ref: '#/components/parameters/SessionCode'
       responses:
@@ -2018,6 +2085,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /lobbies/{code}/settings:
+    put:
+      tags: [Lobbies]
+      summary: Change the playlist, rules, and audio mode (host only)
+      description: |
+        Validated against the current catalogue like lobby creation, with the same
+        configuration error codes. A changed playlist or rule clears every ready
+        flag; an omitted or null `audioMode` keeps the current one. Broadcast to
+        members as `LOBBY_UPDATED` (ADR-0023).
+      parameters:
+        - $ref: '#/components/parameters/SessionCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLobbyRequest'
+      responses:
+        '200':
+          description: Updated lobby
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lobby'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: '`LOBBY_HOST_REQUIRED`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /lobbies/{code}/audio-mode:
     put:

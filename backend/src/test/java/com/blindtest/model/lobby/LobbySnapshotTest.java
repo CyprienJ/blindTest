@@ -87,6 +87,53 @@ class LobbySnapshotTest {
     }
 
     @Test
+    void changedSettingsClearEveryReadyFlagWhileTheSameRulesKeepThem() {
+        LobbyParticipant host = member("Host", true);
+        LobbyParticipant guest = member("Guest", true);
+        LobbySnapshot ready = open(host).join(guest, NOW, LATER).
+                withReady(guest.participantId(), true, NOW, LATER);
+
+        LobbySnapshot sameRules = ready.withSettings(
+                ready.configuration(), AudioMode.HOST_ONLY, NOW, LATER);
+        assertThat(sameRules.canStart()).isTrue();
+        assertThat(sameRules.audioMode()).isEqualTo(AudioMode.HOST_ONLY);
+
+        RequestedGameConfiguration longer = new RequestedGameConfiguration(
+                UUID.randomUUID(), 10, 45, Map.of(), java.util.List.of(1, 2), false);
+        LobbySnapshot changed = ready.withSettings(longer, AudioMode.EVERYONE, NOW, LATER);
+        assertThat(changed.configuration()).isEqualTo(longer);
+        assertThat(changed.participants()).noneMatch(LobbyParticipant::ready);
+        assertThat(changed.canStart()).isFalse();
+        assertThat(changed.version()).isEqualTo(ready.version() + 1);
+    }
+
+    @Test
+    void onlyAStartedLobbyRecordsTheLobbyItReopenedAs() {
+        LobbyParticipant host = member("Host", true);
+        LobbySnapshot lobby = open(host);
+        SessionId next = new SessionId(UUID.randomUUID());
+        assertThatThrownBy(() -> lobby.reopenAs(next, NOW)).
+                hasMessage("only a started lobby reopens under a new session");
+
+        LobbySnapshot started = lobby.start(NOW, LATER);
+        assertThat(started.started()).isTrue();
+        assertThat(started.reopenAs(next, NOW).reopenedAs()).contains(next);
+        assertThatThrownBy(() -> started.reopenAs(started.sessionId(), NOW)).
+                hasMessage("only a started lobby reopens under a new session");
+    }
+
+    @Test
+    void aReturningHostTakesTheRoleBack() {
+        LobbyParticipant first = member("First back", false);
+        LobbyParticipant host = member("Host", true);
+        LobbySnapshot lobby = open(first).join(host, true, NOW, LATER);
+
+        assertThat(lobby.hostParticipantId()).isEqualTo(host.participantId());
+        assertThat(lobby.participants()).extracting(LobbyParticipant::displayName).
+                containsExactly("First back", "Host");
+    }
+
+    @Test
     void expiresAtTheInclusiveInstant() {
         LobbySnapshot lobby = open(member("Host", true));
         assertThat(lobby.isExpiredAt(LATER.minusNanos(1))).isFalse();

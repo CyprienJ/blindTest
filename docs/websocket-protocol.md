@@ -146,7 +146,7 @@ session topic:
 | `SCORE_UPDATED` | `participantId`, round points, total score; in multiplayer it is sent as each participant finds the title and never names the answer |
 | `SKIP_VOTE_UPDATED` | multiplayer `votes` among connected participants and `requiredVotes` |
 | `GAME_FINISHED` | combined total score, title/skip/timeout aggregate counts, and ranked `standings` (`participantId`, `displayName`, `totalScore`, `titlesFound`, shared `rank`) |
-| `LOBBY_UPDATED` | lobby `code`, `hostParticipantId`, ordered `participants` (`participantId`, `displayName`, `ready`, `host`, `guest`), `canStart`, `audioMode` (`EVERYONE` or `HOST_ONLY`, ADR-0022) |
+| `LOBBY_UPDATED` | lobby `code`, `hostParticipantId`, ordered `participants` (`participantId`, `displayName`, `ready`, `host`, `guest`), `canStart`, `audioMode` (`EVERYONE` or `HOST_ONLY`, ADR-0022), and the game settings `playlistName`, `trackCount`, `maxRoundSeconds` (ADR-0023) |
 | `LOBBY_STARTED` | `totalRounds` of the game session created under the same `sessionId` |
 | `ROUND_PAUSED` | round position, paused phase `status` (`PLAYING` or `REVEALED`), `pausedAt` |
 | `ROUND_RESUMED` | round position and `status`; a playing round adds its moved `startsAt`/`deadline`, excerpt offset and window length, and a fresh `playbackUrl`; a reveal adds its delayed `transitionAt` |
@@ -162,6 +162,11 @@ updates sent between the join response and the subscription are not replayed.
 game room on the same session, and the host sends `START_GAME` as in solo play.
 A kicked or departed member's existing subscription is not revoked; it keeps
 receiving public events, which never contain answers before a reveal.
+
+After the game, players return through `POST /api/sessions/{sessionId}/rematch`
+(ADR-0023). The reopened lobby has a new session ID, so clients subscribe to its
+topic, and a guest switches to the token returned for it, since a guest token only
+reaches the session it names.
 
 The server never publishes an object-storage key as a separate browser credential.
 For each round start it signs the immutable media snapshot only after session
