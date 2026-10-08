@@ -122,7 +122,8 @@ public class GameSetupService {
                 request.maxRoundSeconds(),
                 request.extensions(),
                 request.difficultyLevels(),
-                !Boolean.FALSE.equals(request.includeUnrated()));
+                !Boolean.FALSE.equals(request.includeUnrated()),
+                Boolean.TRUE.equals(request.allTracks()));
     }
 
     private Map<Integer, Integer> countByDifficulty(List<GameTrackCandidate> candidates) {

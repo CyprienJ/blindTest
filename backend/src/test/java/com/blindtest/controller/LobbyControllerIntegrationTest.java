@@ -137,18 +137,44 @@ class LobbyControllerIntegrationTest {
         playlist.setCreatedBy(host);
         playlist = playlistRepository.save(playlist);
         for (int index = 0; index < 6; index++) {
-            TrackEntity track = new TrackEntity();
-            track.setTitle("Title " + index);
-            track.setArtist("Artist " + index);
-            track.setAudioObjectKey("tracks/" + index + "/audio.mp3");
-            track.setAudioChecksum("checksum-" + index);
-            track.setAudioSizeBytes(1000L + index);
-            track.setDurationSeconds(180);
-            track.setExcerptStartSeconds(0);
-            track.setStatus(TrackStatus.PUBLISHED);
-            track = trackRepository.save(track);
-            playlistTrackRepository.save(new PlaylistTrackEntity(playlist, track, index));
+            addPublishedTrack(index);
         }
+    }
+
+    private void addPublishedTrack(int index) {
+        TrackEntity track = new TrackEntity();
+        track.setTitle("Title " + index);
+        track.setArtist("Artist " + index);
+        track.setAudioObjectKey("tracks/" + index + "/audio.mp3");
+        track.setAudioChecksum("checksum-" + index);
+        track.setAudioSizeBytes(1000L + index);
+        track.setDurationSeconds(180);
+        track.setExcerptStartSeconds(0);
+        track.setStatus(TrackStatus.PUBLISHED);
+        track = trackRepository.save(track);
+        playlistTrackRepository.save(new PlaylistTrackEntity(playlist, track, index));
+    }
+
+    @Test
+    void allTracksShowsTheCurrentPlaylistSizeAndPlaysEveryTrackAtStart() throws Exception {
+        JsonNode created = json(perform(post("/api/lobbies"), host,
+                configuration().replace("{}}", "{},\"allTracks\":true}")).
+                andExpect(status().isCreated()).
+                andExpect(jsonPath("$.allTracks").value(true)).
+                andExpect(jsonPath("$.trackCount").value(6)));
+        String code = created.get("code").asText();
+        perform(post("/api/lobbies/" + code + "/participants"), guest, null);
+        perform(put("/api/lobbies/" + code + "/participants/me/ready"), guest, "{\"ready\":true}");
+
+        // A track published while the lobby waits is part of "all tracks".
+        addPublishedTrack(6);
+        UUID sessionId = UUID.fromString(jsonPathValue(
+                perform(post("/api/lobbies/" + code + "/start"), host, null), "sessionId"));
+
+        ActiveSessionSnapshot session =
+                sessionStore.find(new SessionId(sessionId), clock.instant()).orElseThrow();
+        assertThat(session.gameState().trackSelection().tracks()).hasSize(7);
+        assertThat(session.configuration().requestedTrackCount()).isEqualTo(7);
     }
 
     @Test

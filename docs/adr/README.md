@@ -32,7 +32,7 @@ Allowed statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, and
 | [ADR-0005](0005-private-s3-media-and-presigned-playback.md) | Accepted | Store media privately in S3 and use pre-signed playback URLs |
 | [ADR-0006](0006-postgresql-history-snapshots.md) | Accepted | Persist completed-game history snapshots in PostgreSQL |
 | [ADR-0007](0007-title-score-rounding-and-minimum.md) | Accepted | Round title scores to the nearest integer with a 100-point minimum |
-| [ADR-0008](0008-solo-game-configuration-limits.md) | Accepted | Use the reference solo-game configuration limits |
+| [ADR-0008](0008-solo-game-configuration-limits.md) | Partially superseded by ADR-0024 | Use the reference solo-game configuration limits |
 | [ADR-0009](0009-admin-configured-playback-offset.md) | Partially superseded by ADR-0016 | Let administrators configure a track playback offset |
 | [ADR-0010](0010-first-administrator-operator-command.md) | Partially superseded by ADR-0017 | Provision the first administrator with an operator command |
 | [ADR-0011](0011-data-and-rejected-media-retention.md) | Accepted | Apply balanced retention to histories, imports, and rejected media |
@@ -48,3 +48,4 @@ Allowed statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, and
 | [ADR-0021](0021-pause-rounds-and-reveals.md) | Accepted | Let the owner pause a round or its reveal |
 | [ADR-0022](0022-host-only-audio.md) | Accepted | Let the host play the music for a room |
 | [ADR-0023](0023-return-to-lobby-and-lobby-settings.md) | Accepted | Return to the lobby after a game and change lobby settings |
+| [ADR-0024](0024-play-all-playlist-tracks.md) | Accepted | Let players choose long games or every playlist track |

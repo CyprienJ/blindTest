@@ -92,7 +92,8 @@ public sealed interface PublicSessionEventPayload permits
             AudioMode audioMode,
             String playlistName,
             int trackCount,
-            int maxRoundSeconds) implements PublicSessionEventPayload {
+            int maxRoundSeconds,
+            boolean allTracks) implements PublicSessionEventPayload {
 
         /** Copies the ordered member list and validates the settings. */
         public LobbyUpdated {

@@ -1,11 +1,11 @@
 # ADR-0008: Use the reference solo-game configuration limits
 
-- Status: Accepted
+- Status: Partially superseded
 - Date: 2026-07-30
 - Deciders: Product owner and engineering
 - Related tickets: DG-02, GAME-01, GAME-02, UI-02
 - Supersedes: N/A
-- Superseded by: N/A
+- Superseded by: [ADR-0024](0024-play-all-playlist-tracks.md) for the 30-track maximum
 
 ## Context
 

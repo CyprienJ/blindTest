@@ -25,6 +25,8 @@ export interface CreateSoloSessionRequest {
   difficultyLevels: number[];
   /** Whether tracks without a difficulty rating are included. */
   includeUnrated: boolean;
+  /** Plays every matching track; the server then ignores `trackCount`. */
+  allTracks: boolean;
 }
 
 /** Server response enriched with the display details the game room needs before SESSION_READY. */

@@ -97,6 +97,63 @@ class GameConfigurationValidatorTest {
                                 isEqualTo("GAME_DIFFICULTY_INSUFFICIENT_TRACKS"));
     }
 
+    @Test
+    void allTracksPlaysEveryEligibleTrackWhateverTheRequestedCount() {
+        GameConfiguration configuration = validator.validate(
+                allTracksRequest(null, true), new PlaylistEligibilitySnapshot(PLAYLIST_ID, 42));
+
+        assertThat(configuration.requestedTrackCount()).isEqualTo(42);
+    }
+
+    @Test
+    void allTracksPlaysEveryTrackMatchingTheDifficultyFilter() {
+        PlaylistEligibilitySnapshot eligibility = new PlaylistEligibilitySnapshot(
+                PLAYLIST_ID, 9, Map.of(PlaylistEligibilitySnapshot.UNRATED, 2, 1, 3, 4, 2, 5, 2));
+
+        GameConfiguration configuration = validator.validate(
+                allTracksRequest(List.of(1, 4), true), eligibility);
+
+        assertThat(configuration.requestedTrackCount()).isEqualTo(7);
+    }
+
+    @Test
+    void allTracksRejectsDifficultyFiltersMatchingFewerThanTheMinimum() {
+        PlaylistEligibilitySnapshot eligibility = new PlaylistEligibilitySnapshot(
+                PLAYLIST_ID, 9, Map.of(PlaylistEligibilitySnapshot.UNRATED, 2, 1, 3, 4, 2, 5, 2));
+
+        assertCode(allTracksRequest(List.of(1), false), eligibility,
+                "GAME_DIFFICULTY_INSUFFICIENT_TRACKS");
+    }
+
+    @Test
+    void allTracksRejectsPlaylistsSmallerThanTheMinimum() {
+        assertCode(allTracksRequest(null, true), new PlaylistEligibilitySnapshot(PLAYLIST_ID, 4),
+                "GAME_PLAYLIST_INSUFFICIENT_TRACKS");
+    }
+
+    @Test
+    void allTracksRejectsPlaylistsLargerThanTheMaximum() {
+        assertCode(allTracksRequest(null, true),
+                new PlaylistEligibilitySnapshot(
+                        PLAYLIST_ID, GameConfigurationLimits.MAXIMUM_TRACK_COUNT + 1),
+                "GAME_TRACK_COUNT_INVALID");
+    }
+
+    private RequestedGameConfiguration allTracksRequest(
+            List<Integer> levels, boolean includeUnrated) {
+        return new RequestedGameConfiguration(
+                PLAYLIST_ID, 0, 30, Map.of(), levels, includeUnrated, true);
+    }
+
+    private void assertCode(
+            RequestedGameConfiguration requested,
+            PlaylistEligibilitySnapshot eligibility,
+            String code) {
+        assertThatThrownBy(() -> validator.validate(requested, eligibility)).
+                isInstanceOfSatisfying(GameConfigurationValidationException.class, exception ->
+                        assertThat(exception.code()).isEqualTo(code));
+    }
+
     @ParameterizedTest
     @MethodSource("invalidDifficultySelections")
     void rejectsEmptyOrOutOfRangeDifficultySelections(List<Integer> levels, boolean unrated) {

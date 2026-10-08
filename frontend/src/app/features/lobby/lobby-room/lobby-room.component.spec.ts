@@ -43,6 +43,7 @@ function lobby(participantId: string, overrides: Partial<Lobby> = {}): Lobby {
     difficultyLevels: null,
     includeUnrated: true,
     audioMode: 'EVERYONE',
+    allTracks: false,
     ...overrides,
   };
 }
@@ -136,6 +137,7 @@ describe('LobbyRoomComponent', () => {
         playlistName: 'Rock classics',
         trackCount: 12,
         maxRoundSeconds: 45,
+        allTracks: true,
       }),
     );
     fixture.detectChanges();
@@ -145,6 +147,7 @@ describe('LobbyRoomComponent', () => {
     // The host's settings changes reach every member live.
     expect(text).toContain('Rock classics');
     expect(text).toContain('45s');
+    expect(text).toContain('All (12)');
 
     socket.publicEvents$.next(
       event('LOBBY_UPDATED', {
@@ -158,6 +161,7 @@ describe('LobbyRoomComponent', () => {
         playlistName: 'Party',
         trackCount: 5,
         maxRoundSeconds: 30,
+        allTracks: false,
       }),
     );
     fixture.detectChanges();
@@ -168,13 +172,15 @@ describe('LobbyRoomComponent', () => {
 
   it('enters the game as a non-host when the lobby starts', async () => {
     await create(GUEST);
-    socket.publicEvents$.next(event('LOBBY_STARTED', { totalRounds: 5 }));
+    socket.publicEvents$.next(event('LOBBY_STARTED', { totalRounds: 7 }));
 
     const session = TestBed.inject(GameSessionService).getActiveSession(
       'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     );
     expect(session?.host).toBeFalse();
     expect(session?.version).toBe(0);
+    // The started game's size wins over the lobby's last count ("all tracks").
+    expect(session?.trackCount).toBe(7);
     expect(navigate).toHaveBeenCalledWith(['/game', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc']);
   });
 

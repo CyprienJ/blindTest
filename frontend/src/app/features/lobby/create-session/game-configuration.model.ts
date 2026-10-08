@@ -1,7 +1,7 @@
 export const GAME_CONFIGURATION_LIMITS = {
   trackCount: {
     minimum: 5,
-    maximum: 30,
+    maximum: 500,
     increment: 1,
     defaultValue: 15,
   },

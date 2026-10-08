@@ -69,7 +69,7 @@ class GameConfigurationOpenApiContractTest {
                 List.of("playlistId", "trackCount", "maxRoundSeconds"));
         assertThat(map(createSession.get("properties"))).containsOnlyKeys(
                 "playlistId", "trackCount", "maxRoundSeconds", "extensions",
-                "difficultyLevels", "includeUnrated");
+                "difficultyLevels", "includeUnrated", "allTracks");
     }
 
     @Test

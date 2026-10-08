@@ -132,6 +132,7 @@ export interface LobbyUpdatedPayload {
   playlistName: string;
   trackCount: number;
   maxRoundSeconds: number;
+  allTracks: boolean;
 }
 
 export interface LobbyStartedPayload {

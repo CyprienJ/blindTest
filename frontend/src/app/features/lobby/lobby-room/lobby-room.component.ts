@@ -198,7 +198,7 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
       if (event.type === 'LOBBY_UPDATED') {
         this.apply(event.payload);
       } else if (event.type === 'LOBBY_STARTED') {
-        this.enterGame();
+        this.enterGame(event.payload.totalRounds);
       }
       this.changeDetector.markForCheck();
     });
@@ -234,10 +234,12 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
       playlistName: update.playlistName,
       trackCount: update.trackCount,
       maxRoundSeconds: update.maxRoundSeconds,
+      allTracks: update.allTracks,
     };
   }
 
-  private enterGame(): void {
+  /** With "all tracks", the started game's size can differ from the lobby's last count. */
+  private enterGame(totalRounds?: number): void {
     if (this.entering || !this.lobby) {
       return;
     }
@@ -251,7 +253,7 @@ export class LobbyRoomComponent implements OnInit, OnDestroy {
       expiresAt: lobby.expiresAt,
       connection: lobby.connection,
       playlistName: lobby.playlistName,
-      trackCount: lobby.trackCount,
+      trackCount: totalRounds ?? lobby.trackCount,
       maxRoundSeconds: lobby.maxRoundSeconds,
       host: this.isHost,
       hostParticipantId: lobby.hostParticipantId,

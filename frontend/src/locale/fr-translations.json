@@ -738,5 +738,8 @@
   "Players who found the title": "Joueurs ayant trouvé le titre",
   "Waiting for the others · {$INTERPOLATION}/{$INTERPOLATION_1} found": "En attente des autres · {$INTERPOLATION}/{$INTERPOLATION_1} ont trouvé",
   "You found it": "Vous avez trouvé",
-  "You found it!": "Trouvé !"
+  "You found it!": "Trouvé !",
+  "All ({$INTERPOLATION})": "Tous ({$INTERPOLATION})",
+  "Every matching track, in random order.": "Tous les titres correspondants, dans un ordre aléatoire.",
+  "Play all tracks": "Jouer tous les titres"
 }

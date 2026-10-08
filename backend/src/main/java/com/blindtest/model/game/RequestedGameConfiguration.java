@@ -15,6 +15,8 @@ import java.util.UUID;
  *
  * @param difficultyLevels requested star levels; {@code null} selects every level
  * @param includeUnrated whether tracks without a difficulty are requested
+ * @param allTracks whether to play every matching track; validation then replaces
+ *     {@code requestedTrackCount} with the matching count of the catalogue at that moment
  */
 public record RequestedGameConfiguration(
         UUID playlistId,
@@ -22,7 +24,8 @@ public record RequestedGameConfiguration(
         int maximumRoundDurationSeconds,
         Map<String, String> extensions,
         List<Integer> difficultyLevels,
-        boolean includeUnrated) {
+        boolean includeUnrated,
+        boolean allTracks) {
 
     /** Defensively snapshots the reserved extension data supplied by the caller. */
     public RequestedGameConfiguration {
@@ -32,6 +35,19 @@ public record RequestedGameConfiguration(
                 ? null : Collections.unmodifiableList(new ArrayList<>(difficultyLevels));
     }
 
+    /** Requests an explicit track count. */
+    public RequestedGameConfiguration(
+            UUID playlistId,
+            int requestedTrackCount,
+            int maximumRoundDurationSeconds,
+            Map<String, String> extensions,
+            List<Integer> difficultyLevels,
+            boolean includeUnrated) {
+        this(
+                playlistId, requestedTrackCount, maximumRoundDurationSeconds, extensions,
+                difficultyLevels, includeUnrated, false);
+    }
+
     /** Requests every difficulty level, including unrated tracks. */
     public RequestedGameConfiguration(
             UUID playlistId,
@@ -39,5 +55,12 @@ public record RequestedGameConfiguration(
             int maximumRoundDurationSeconds,
             Map<String, String> extensions) {
         this(playlistId, requestedTrackCount, maximumRoundDurationSeconds, extensions, null, true);
+    }
+
+    /** Returns this request with an explicit track count, keeping every other setting. */
+    public RequestedGameConfiguration withTrackCount(int trackCount) {
+        return new RequestedGameConfiguration(
+                playlistId, trackCount, maximumRoundDurationSeconds, extensions,
+                difficultyLevels, includeUnrated, allTracks);
     }
 }

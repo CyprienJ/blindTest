@@ -8,7 +8,7 @@ describe('game configuration limits', () => {
   it('exposes the approved defaults and increments', () => {
     expect(GAME_CONFIGURATION_LIMITS.trackCount).toEqual({
       minimum: 5,
-      maximum: 30,
+      maximum: 500,
       increment: 1,
       defaultValue: 15,
     });
@@ -23,9 +23,9 @@ describe('game configuration limits', () => {
   it('accepts only track counts within the inclusive boundaries', () => {
     expect(isAllowedTrackCount(5)).toBeTrue();
     expect(isAllowedTrackCount(15)).toBeTrue();
-    expect(isAllowedTrackCount(30)).toBeTrue();
+    expect(isAllowedTrackCount(500)).toBeTrue();
     expect(isAllowedTrackCount(4)).toBeFalse();
-    expect(isAllowedTrackCount(31)).toBeFalse();
+    expect(isAllowedTrackCount(501)).toBeFalse();
     expect(isAllowedTrackCount(5.5)).toBeFalse();
   });
 

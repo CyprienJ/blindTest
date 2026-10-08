@@ -131,7 +131,11 @@
               </div>
               <div>
                 <dt i18n>Tracks</dt>
-                <dd>{{ lobby.trackCount }}</dd>
+                @if (lobby.allTracks) {
+                  <dd i18n>All ({{ lobby.trackCount }})</dd>
+                } @else {
+                  <dd>{{ lobby.trackCount }}</dd>
+                }
               </div>
               <div>
                 <dt i18n>Timer</dt>

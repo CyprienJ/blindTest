@@ -468,7 +468,7 @@ components:
         trackCount:
           type: integer
           minimum: 5
-          maximum: 30
+          maximum: 500
           multipleOf: 1
           default: 15
         speedBonus:
@@ -503,7 +503,7 @@ components:
         trackCount:
           type: integer
           minimum: 5
-          maximum: 30
+          maximum: 500
           multipleOf: 1
           default: 15
         maxRoundSeconds:
@@ -538,6 +538,16 @@ components:
             Whether tracks without a difficulty rating are included. At least
             one level or unrated tracks must be selected; when too few playable
             tracks match, creation returns GAME_DIFFICULTY_INSUFFICIENT_TRACKS.
+        allTracks:
+          type: boolean
+          nullable: true
+          default: false
+          description: |
+            Plays every playable track matching the difficulty selection instead of
+            `trackCount`, which is then ignored (ADR-0024). The count is resolved when
+            the game is created, so a lobby picks up tracks published while it waits.
+            Fewer than 5 matching tracks returns the usual insufficient-tracks error;
+            more than 500 returns GAME_TRACK_COUNT_INVALID.
 
     SessionConnectionInstructions:
       type: object
@@ -723,7 +733,7 @@ components:
       required: [sessionId, code, participantId, hostParticipantId, participants,
         canStart, maxParticipants, version, expiresAt, connection, playlistId,
         playlistName, trackCount, maxRoundSeconds, difficultyLevels, includeUnrated,
-        audioMode]
+        audioMode, allTracks]
       properties:
         sessionId:
           $ref: '#/components/schemas/UUID'
@@ -776,6 +786,12 @@ components:
           type: boolean
         audioMode:
           $ref: '#/components/schemas/AudioMode'
+        allTracks:
+          type: boolean
+          description: |
+            Whether the next game plays every matching track. `trackCount` then holds
+            the matching count when the settings were last saved; the start selects
+            every matching track again.
 
     AudioMode:
       type: string

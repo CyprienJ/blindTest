@@ -182,6 +182,7 @@ test.describe('game configuration', () => {
       extensions: {},
       difficultyLevels: [1, 2, 3, 4],
       includeUnrated: true,
+      allTracks: false,
     });
 
     await expect(page).toHaveURL(new RegExp(`/game/${SESSION_ID}$`));

@@ -1,10 +1,10 @@
 package com.blindtest.model.game;
 
-/** Authoritative first-release game configuration limits from ADR-0008. */
+/** Authoritative game configuration limits from ADR-0008 and ADR-0024. */
 public final class GameConfigurationLimits {
 
     public static final int MINIMUM_TRACK_COUNT = 5;
-    public static final int MAXIMUM_TRACK_COUNT = 30;
+    public static final int MAXIMUM_TRACK_COUNT = 500;
     public static final int TRACK_COUNT_INCREMENT = 1;
     public static final int DEFAULT_TRACK_COUNT = 15;
 

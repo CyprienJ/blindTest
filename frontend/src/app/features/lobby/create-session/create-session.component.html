@@ -209,9 +209,9 @@
               }
             </div>
 
-            <label class="range-field">
+            <div class="range-field">
               <span>
-                <strong i18n>Number of tracks</strong>
+                <strong i18n id="track-count-heading">Number of tracks</strong>
                 <output>{{ form.controls.trackCount.value }}</output>
               </span>
               <input
@@ -223,11 +223,27 @@
                 i18n-aria-label
                 aria-label="Number of tracks"
               />
-              <small i18n>
-                Between {{ limits.trackCount.minimum }} and {{ trackCountMaximum() }}, without
-                repeating a track.
-              </small>
-            </label>
+              <div class="track-count-options">
+                <button
+                  i18n
+                  type="button"
+                  class="bt-chip"
+                  [class.bt-chip-accent]="form.controls.allTracks.value"
+                  [attr.aria-pressed]="form.controls.allTracks.value"
+                  (click)="setAllTracks(!form.controls.allTracks.value)"
+                >
+                  Play all tracks
+                </button>
+                @if (form.controls.allTracks.value) {
+                  <small i18n>Every matching track, in random order.</small>
+                } @else {
+                  <small i18n>
+                    Between {{ limits.trackCount.minimum }} and {{ trackCountMaximum() }}, without
+                    repeating a track.
+                  </small>
+                }
+              </div>
+            </div>
 
             <label class="range-field">
               <span>
@@ -306,7 +322,11 @@
         <dl>
           <div>
             <dt i18n>Tracks</dt>
-            <dd>{{ form.controls.trackCount.value }}</dd>
+            @if (form.controls.allTracks.value) {
+              <dd i18n>All ({{ form.controls.trackCount.value }})</dd>
+            } @else {
+              <dd>{{ form.controls.trackCount.value }}</dd>
+            }
           </div>
           <div>
             <dt i18n>Difficulty</dt>

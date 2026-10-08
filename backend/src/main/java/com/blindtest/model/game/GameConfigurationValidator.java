@@ -18,7 +18,8 @@ public final class GameConfigurationValidator {
         if (requested.playlistId() == null) {
             throw failure(GameConfigurationError.PLAYLIST_REQUIRED);
         }
-        if (!GameConfigurationLimits.isAllowedTrackCount(requested.requestedTrackCount())) {
+        if (!requested.allTracks()
+                && !GameConfigurationLimits.isAllowedTrackCount(requested.requestedTrackCount())) {
             throw failure(GameConfigurationError.TRACK_COUNT_INVALID);
         }
         if (!GameConfigurationLimits.isAllowedRoundDuration(
@@ -36,19 +37,37 @@ public final class GameConfigurationValidator {
         if (playlistEligibility.eligiblePublishedTrackCount() == 0) {
             throw failure(GameConfigurationError.PLAYLIST_INELIGIBLE);
         }
-        if (playlistEligibility.eligiblePublishedTrackCount()
-                < requested.requestedTrackCount()) {
+        int trackCount = requested.allTracks()
+                ? allTrackCount(playlistEligibility, difficultyFilter)
+                : requested.requestedTrackCount();
+        if (playlistEligibility.eligiblePublishedTrackCount() < trackCount) {
             throw failure(GameConfigurationError.PLAYLIST_INSUFFICIENT_TRACKS);
         }
-        if (playlistEligibility.matchingTrackCount(difficultyFilter)
-                < requested.requestedTrackCount()) {
+        if (playlistEligibility.matchingTrackCount(difficultyFilter) < trackCount) {
             throw failure(GameConfigurationError.DIFFICULTY_INSUFFICIENT_TRACKS);
         }
         return new GameConfiguration(
                 requested.playlistId(),
-                requested.requestedTrackCount(),
+                trackCount,
                 requested.maximumRoundDurationSeconds(),
                 difficultyFilter);
+    }
+
+    /** Resolves "every matching track", which must still fit the approved count range. */
+    private int allTrackCount(
+            PlaylistEligibilitySnapshot playlistEligibility,
+            DifficultyFilter difficultyFilter) {
+        int matching = playlistEligibility.matchingTrackCount(difficultyFilter);
+        if (matching < GameConfigurationLimits.MINIMUM_TRACK_COUNT) {
+            throw failure(playlistEligibility.eligiblePublishedTrackCount()
+                    < GameConfigurationLimits.MINIMUM_TRACK_COUNT
+                    ? GameConfigurationError.PLAYLIST_INSUFFICIENT_TRACKS
+                    : GameConfigurationError.DIFFICULTY_INSUFFICIENT_TRACKS);
+        }
+        if (matching > GameConfigurationLimits.MAXIMUM_TRACK_COUNT) {
+            throw failure(GameConfigurationError.TRACK_COUNT_INVALID);
+        }
+        return matching;
     }
 
     private DifficultyFilter difficultyFilter(RequestedGameConfiguration requested) {

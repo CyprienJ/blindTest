@@ -18,11 +18,26 @@ public record CreateLobbyRequest(
         Map<String, String> extensions,
         List<Integer> difficultyLevels,
         Boolean includeUnrated,
-        AudioMode audioMode) {
+        AudioMode audioMode,
+        Boolean allTracks) {
+
+    /** Requests an explicit track count. */
+    public CreateLobbyRequest(
+            UUID playlistId,
+            int trackCount,
+            int maxRoundSeconds,
+            Map<String, String> extensions,
+            List<Integer> difficultyLevels,
+            Boolean includeUnrated,
+            AudioMode audioMode) {
+        this(playlistId, trackCount, maxRoundSeconds, extensions, difficultyLevels, includeUnrated,
+                audioMode, null);
+    }
 
     /** Returns the game configuration part shared with solo sessions. */
     public CreateSoloSessionRequest gameRequest() {
         return new CreateSoloSessionRequest(
-                playlistId, trackCount, maxRoundSeconds, extensions, difficultyLevels, includeUnrated);
+                playlistId, trackCount, maxRoundSeconds, extensions, difficultyLevels, includeUnrated,
+                allTracks);
     }
 }

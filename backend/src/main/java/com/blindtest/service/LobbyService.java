@@ -99,7 +99,7 @@ public class LobbyService {
         AudioMode audioMode = request == null || request.audioMode() == null
                 ? AudioMode.EVERYONE : request.audioMode();
         // Fail early on an unusable configuration; tracks are selected again at start.
-        gameSetupService.prepare(requested);
+        requested = withResolvedTrackCount(requested, gameSetupService.prepare(requested));
         LobbyParticipant member = newMember(host);
         Instant now = expirationPolicy.instant();
         for (int attempt = 0; attempt < MAXIMUM_ID_ATTEMPTS; attempt++) {
@@ -234,7 +234,7 @@ public class LobbyService {
         synchronized (lockFor(sessionId)) {
             LobbySnapshot lobby = current(sessionId);
             LobbyParticipant host = requireHost(lobby, callerId);
-            gameSetupService.prepare(requested);
+            requested = withResolvedTrackCount(requested, gameSetupService.prepare(requested));
             AudioMode audioMode = request == null || request.audioMode() == null
                     ? lobby.audioMode() : request.audioMode();
             Instant now = expirationPolicy.instant();
@@ -433,7 +433,8 @@ public class LobbyService {
                         next.audioMode(),
                         gameSetupService.playlistName(next.configuration().playlistId()),
                         next.configuration().requestedTrackCount(),
-                        next.configuration().maximumRoundDurationSeconds()));
+                        next.configuration().maximumRoundDurationSeconds(),
+                        next.configuration().allTracks()));
         return next;
     }
 
@@ -514,7 +515,20 @@ public class LobbyService {
                 lobby.configuration().maximumRoundDurationSeconds(),
                 lobby.configuration().difficultyLevels(),
                 lobby.configuration().includeUnrated(),
-                lobby.audioMode());
+                lobby.audioMode(),
+                lobby.configuration().allTracks());
+    }
+
+    /**
+     * Records how many tracks "all tracks" currently means, so members see the game size;
+     * the start selects every matching track again.
+     */
+    private RequestedGameConfiguration withResolvedTrackCount(
+            RequestedGameConfiguration requested,
+            GameSetupService.GameSetup setup) {
+        return requested.allTracks()
+                ? requested.withTrackCount(setup.configuration().requestedTrackCount())
+                : requested;
     }
 
     private ResponseStatusException failure(ApiErrorCode code) {

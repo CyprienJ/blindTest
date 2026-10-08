@@ -118,6 +118,7 @@ describe('CreateSessionComponent', () => {
       extensions: {},
       difficultyLevels: [1, 2, 3, 4, 5],
       includeUnrated: true,
+      allTracks: false,
     });
     request.flush(sessionResponse);
 
@@ -169,6 +170,40 @@ describe('CreateSessionComponent', () => {
     );
   });
 
+  it('plays every matching track when all tracks is selected', async () => {
+    await render([playlist]);
+
+    component.setAllTracks(true);
+    fixture.detectChanges();
+
+    expect(component.form.controls.trackCount.value).toBe(20);
+    expect(component.form.controls.trackCount.disabled).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.summary-card').textContent).toContain('All (20)');
+
+    // The count follows the difficulty selection instead of keeping a stale value.
+    component.toggleDifficulty(null);
+    expect(component.form.controls.trackCount.value).toBe(15);
+
+    component.createSession();
+    expect(http.expectOne('/api/sessions').request.body).toEqual(
+      jasmine.objectContaining({ trackCount: 15, allTracks: true, includeUnrated: false }),
+    );
+  });
+
+  it('lets the player choose a count again when all tracks is cleared', async () => {
+    await render([playlist]);
+
+    component.setAllTracks(true);
+    component.setAllTracks(false);
+
+    expect(component.form.controls.trackCount.enabled).toBeTrue();
+    component.form.controls.trackCount.setValue(7);
+    component.createSession();
+    expect(http.expectOne('/api/sessions').request.body).toEqual(
+      jasmine.objectContaining({ trackCount: 7, allTracks: false }),
+    );
+  });
+
   it('blocks creation when too few tracks match the selected difficulties', async () => {
     await render([playlist]);
 
@@ -201,6 +236,7 @@ describe('CreateSessionComponent', () => {
       difficultyLevels: [1, 2],
       includeUnrated: false,
       audioMode: 'HOST_ONLY',
+      allTracks: false,
     };
 
     async function renderSettings(lobby: object): Promise<void> {
@@ -241,6 +277,7 @@ describe('CreateSessionComponent', () => {
       expect(component.form.getRawValue()).toEqual({
         playlistId: playlist.id,
         trackCount: 6,
+        allTracks: false,
         maxRoundSeconds: 45,
       });
 
@@ -255,10 +292,21 @@ describe('CreateSessionComponent', () => {
         extensions: {},
         difficultyLevels: [1, 2],
         includeUnrated: false,
+        allTracks: false,
         audioMode: 'HOST_ONLY',
       });
       request.flush(lobbySettings);
       expect(router.navigate).toHaveBeenCalledWith(['/lobby', 'ABC234']);
+    });
+
+    it('prefills a lobby that plays all tracks', async () => {
+      await renderSettings({ ...lobbySettings, allTracks: true });
+      http.expectOne('/api/playlists').flush([playlist]);
+      http.expectOne(`/api/playlists/${playlist.id}`).flush(detail());
+
+      expect(component.form.controls.allTracks.value).toBeTrue();
+      expect(component.form.controls.trackCount.disabled).toBeTrue();
+      expect(component.form.controls.trackCount.value).toBe(6);
     });
 
     it('sends other members back to the lobby', async () => {

@@ -54,6 +54,8 @@ export class CreateSessionComponent implements OnInit {
       Number(this.limits.trackCount.defaultValue),
       this.trackCountValidators(this.limits.trackCount.maximum),
     ],
+    /** Plays every track matching the difficulty selection instead of a chosen count. */
+    allTracks: [false],
     maxRoundSeconds: [
       Number(this.limits.roundDurationSeconds.defaultValue),
       [
@@ -237,7 +239,7 @@ export class CreateSessionComponent implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
-    const { playlistId, trackCount, maxRoundSeconds } = this.form.getRawValue();
+    const { playlistId, trackCount, maxRoundSeconds, allTracks } = this.form.getRawValue();
     const playlistName = this.selected.name;
     const request: CreateSoloSessionRequest = {
       playlistId,
@@ -246,6 +248,7 @@ export class CreateSessionComponent implements OnInit {
       extensions: {},
       difficultyLevels: [...this.selectedLevels].sort((a, b) => a - b),
       includeUnrated: this.includeUnrated,
+      allTracks,
     };
     this.submitting = true;
     this.submitError = '';
@@ -348,6 +351,17 @@ export class CreateSessionComponent implements OnInit {
     return Math.max(1, Math.round((trackCount * (maxRoundSeconds + 8)) / 60));
   }
 
+  /** Toggles between a chosen number of tracks and every matching track. */
+  setAllTracks(allTracks: boolean): void {
+    this.form.controls.allTracks.setValue(allTracks);
+    if (allTracks) {
+      this.form.controls.trackCount.disable();
+    } else {
+      this.form.controls.trackCount.enable();
+    }
+    this.applyTrackCountMaximum();
+  }
+
   trackCountMaximum(): number {
     return Math.min(
       this.selected ? this.matchingTrackCount() : this.limits.trackCount.maximum,
@@ -369,6 +383,7 @@ export class CreateSessionComponent implements OnInit {
       trackCount: lobby.trackCount,
       maxRoundSeconds: lobby.maxRoundSeconds,
     });
+    this.setAllTracks(lobby.allTracks);
     this.selectedLevels.clear();
     for (const level of lobby.difficultyLevels ?? DIFFICULTY_LEVELS) {
       this.selectedLevels.add(level);
@@ -384,11 +399,16 @@ export class CreateSessionComponent implements OnInit {
     return $localize`The catalogue could not be loaded.`;
   }
 
-  /** Caps the track count to the tracks matching the difficulty selection. */
+  /**
+   * Caps the track count to the tracks matching the difficulty selection, or follows them
+   * when every track is played.
+   */
   private applyTrackCountMaximum(): void {
     const maximum = Math.max(this.trackCountMaximum(), this.limits.trackCount.minimum);
     this.setTrackCountMaximum(maximum);
-    const currentCount = this.form.controls.trackCount.value;
+    const currentCount = this.form.controls.allTracks.value
+      ? maximum
+      : this.form.controls.trackCount.value;
     this.form.controls.trackCount.setValue(
       Math.min(Math.max(currentCount, this.limits.trackCount.minimum), maximum),
     );

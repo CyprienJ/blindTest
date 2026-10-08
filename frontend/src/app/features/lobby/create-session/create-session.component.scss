@@ -430,6 +430,23 @@
   color: var(--fg-2);
 }
 
+.track-count-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.track-count-options button {
+  border: 1px solid var(--line);
+  color: var(--fg-1);
+  cursor: pointer;
+}
+
+.range-field input:disabled {
+  opacity: 0.45;
+}
+
 .heading-actions {
   display: flex;
   flex-wrap: wrap;

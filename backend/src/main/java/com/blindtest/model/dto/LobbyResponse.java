@@ -9,7 +9,10 @@ import java.util.UUID;
  * Lobby state returned to one member, including that member's own participant identity and
  * the settings the host can change before starting.
  *
+ * @param trackCount rounds of the next game; with {@code allTracks}, the matching tracks when
+ *     the settings were last saved, selected again at start
  * @param difficultyLevels requested star levels; {@code null} includes every level
+ * @param allTracks whether the next game plays every matching track
  */
 public record LobbyResponse(
         UUID sessionId,
@@ -28,5 +31,6 @@ public record LobbyResponse(
         int maxRoundSeconds,
         List<Integer> difficultyLevels,
         boolean includeUnrated,
-        AudioMode audioMode) {
+        AudioMode audioMode,
+        boolean allTracks) {
 }

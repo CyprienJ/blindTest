@@ -54,6 +54,7 @@ describe('GameSessionService', () => {
         extensions: {},
         difficultyLevels: [2, 3],
         includeUnrated: false,
+        allTracks: false,
       })
       .subscribe();
 
@@ -66,6 +67,7 @@ describe('GameSessionService', () => {
       extensions: {},
       difficultyLevels: [2, 3],
       includeUnrated: false,
+      allTracks: false,
     });
     request.flush(response);
   });

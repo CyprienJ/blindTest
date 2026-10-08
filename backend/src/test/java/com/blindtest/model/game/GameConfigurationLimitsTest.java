@@ -28,7 +28,7 @@ class GameConfigurationLimitsTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {5, 15, 30})
+    @ValueSource(ints = {5, 15, 30, 500})
     void acceptsTrackCountBoundariesAndDefault(int trackCount) {
         GameConfiguration result = validator.validate(
                 request(trackCount, GameConfigurationLimits.DEFAULT_ROUND_DURATION_SECONDS),
@@ -38,7 +38,7 @@ class GameConfigurationLimitsTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {4, 31, Integer.MAX_VALUE})
+    @ValueSource(ints = {4, 501, Integer.MAX_VALUE})
     void rejectsTrackCountsOutsideTheApprovedRange(int trackCount) {
         assertError(
                 request(trackCount, GameConfigurationLimits.DEFAULT_ROUND_DURATION_SECONDS),

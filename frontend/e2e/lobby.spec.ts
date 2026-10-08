@@ -47,6 +47,7 @@ function lobby(participantId: string, participants: Member[], canStart = false) 
     difficultyLevels: null,
     includeUnrated: true,
     audioMode: 'EVERYONE',
+    allTracks: false,
   };
 }
 
@@ -55,6 +56,7 @@ const settings = {
   playlistName: 'Party mix',
   trackCount: 5,
   maxRoundSeconds: 30,
+  allTracks: false,
 };
 
 /** Minimal STOMP broker: acknowledges CONNECT and SUBSCRIBE and lets tests push lobby events. */

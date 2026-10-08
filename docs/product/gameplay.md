@@ -8,14 +8,16 @@ A verified authenticated player selects a public playlist and configures:
 
 | Setting | Allowed values | Default |
 |---|---|---|
-| Track count | 5–30 | 15 |
+| Track count | 5–500, or every matching track | 15 |
 | Maximum round duration | 10–60 seconds, in five-second increments | 30 seconds |
 | Difficulty levels | Any subset of 1–5 stars, plus or minus unrated tracks; at least one | All levels and unrated |
 
 Difficulty is the administrator rating set during import (1 = easiest, 5 =
 hardest). The setup screen shows how many tracks of the selected playlist sit at
 each level, caps the track count to the matching tracks, and blocks creation
-when fewer than five match. The backend validates eligibility and sufficient
+when fewer than five match. "Play all tracks" plays every matching track; the
+server counts them when the game is created, so a lobby start picks up playlist
+changes ([ADR-0024](../adr/0024-play-all-playlist-tracks.md)). The backend validates eligibility and sufficient
 playable tracks within the selected difficulty levels. It samples
 published private-media tracks without replacement and shuffles their order.
 The game retains immutable metadata, alternative-answer, and media-version

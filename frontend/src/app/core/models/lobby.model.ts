@@ -33,6 +33,8 @@ export interface Lobby {
   difficultyLevels: number[] | null;
   includeUnrated: boolean;
   audioMode: AudioMode;
+  /** The next game plays every matching track; `trackCount` is the count when last saved. */
+  allTracks: boolean;
 }
 
 /** Lobby creation or settings change: the solo configuration plus where the audio plays. */
