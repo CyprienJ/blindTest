@@ -1,4 +1,4 @@
-// Builds public/i18n/fr.json (loaded at startup by src/main.ts) from the messages extracted by
+// Builds src/locale/fr.json (bundled by src/translations.ts) from the messages extracted by
 // `ng extract-i18n` and the English→French table in src/locale/fr-translations.json.
 // Fails when a message has no French text or when a translation changes its placeholders.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -31,5 +31,5 @@ if (problems.length > 0) {
   console.error(`${problems.length} French translation problem(s).`);
   process.exit(1);
 }
-writeFileSync('public/i18n/fr.json', `${JSON.stringify({ locale: 'fr', translations: output }, null, 2)}\n`);
-console.log(`public/i18n/fr.json: ${Object.keys(output).length} messages.`);
+writeFileSync('src/locale/fr.json', `${JSON.stringify({ locale: 'fr', translations: output }, null, 2)}\n`);
+console.log(`src/locale/fr.json: ${Object.keys(output).length} messages.`);

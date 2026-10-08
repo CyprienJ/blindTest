@@ -67,6 +67,15 @@ raises it only for that exact path and to 6 MiB for the cover upload
 limit does not widen other endpoints. A host limit below 26 MiB makes uploads fail with
 an Nginx `413` page before they reach the application.
 
+The frontend container compresses static text assets with gzip and sets their
+caching: `index.html` (and every SPA route) is `no-cache`, while hashed `.js` and
+`.css` bundles are cached for a year as `immutable`. Leave NPM's **Cache Assets**
+option off so the host proxy does not override these headers. Proxied `/api/`
+responses stay uncompressed (BREACH). Security headers live in
+[`security-headers.conf`](../../frontend/security-headers.conf), included by every
+location that sets its own headers, because Nginx drops inherited `add_header`
+directives in such a location.
+
 NPM's WebSocket option supplies the HTTP/1.1 upgrade headers. Keep the
 application's `APP_BASE_URL` and `CORS_ALLOWED_ORIGINS` equal to the HTTPS
 application origin.

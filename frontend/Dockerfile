@@ -14,6 +14,7 @@ FROM nginx:1.27.5-alpine
 
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 # Media files are mounted at runtime via the shared volume
 VOLUME ["/media"]
