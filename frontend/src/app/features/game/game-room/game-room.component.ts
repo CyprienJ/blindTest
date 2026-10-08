@@ -21,6 +21,7 @@ import {
   CurrentSnapshotPayload,
   CurrentRoundProjection,
   GameFinishedPayload,
+  ParticipantResult,
   ParticipantScore,
   PrivateSessionEvent,
   PublicSessionEvent,
@@ -48,6 +49,9 @@ type GamePhase =
   | 'revealed'
   | 'finished'
   | 'error';
+
+/** A final ranking row; `titlesFound` is null when rebuilt from a snapshot. */
+type FinalStanding = Omit<ParticipantResult, 'titlesFound'> & { titlesFound: number | null };
 
 const COMMAND_GUARD_MS = 400;
 
@@ -126,6 +130,28 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   /** In a host-only audio game (ADR-0022), every device but the host's stays silent. */
   get silentDevice(): boolean {
     return this.session?.audioMode === 'HOST_ONLY' && this.session.host === false;
+  }
+
+  /**
+   * Final multiplayer ranking. GAME_FINISHED carries it; a player who reaches the finished game
+   * through a snapshot (refresh, reconnect) only has the scores, so rank those instead, sharing
+   * a rank on equal totals. `titlesFound` is unknown then and left null.
+   */
+  get finalStandings(): FinalStanding[] {
+    if (this.finished?.standings?.length) {
+      return this.finished.standings;
+    }
+    const ordered = [...this.scores].sort(
+      (left, right) =>
+        right.totalScore - left.totalScore || left.displayName.localeCompare(right.displayName),
+    );
+    return ordered.map((score) => ({
+      participantId: score.participantId,
+      displayName: score.displayName,
+      totalScore: score.totalScore,
+      titlesFound: null,
+      rank: 1 + ordered.filter((other) => other.totalScore > score.totalScore).length,
+    }));
   }
 
   get multiplayer(): boolean {

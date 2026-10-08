@@ -70,22 +70,26 @@
           <h1 i18n>That's a wrap.</h1>
           <p class="final-score mono">{{ totalScore }}</p>
           <p i18n class="score-label">total points</p>
-          @if (finished && multiplayer && finished.standings.length > 0) {
+          @if (multiplayer && finalStandings.length > 0) {
             <table class="standings" i18n-aria-label aria-label="Final standings">
               <thead>
                 <tr>
                   <th scope="col">#</th>
                   <th i18n scope="col">Player</th>
-                  <th i18n scope="col">Found</th>
+                  @if (finished?.standings?.length) {
+                    <th i18n scope="col">Found</th>
+                  }
                   <th i18n scope="col" class="numeric">Score</th>
                 </tr>
               </thead>
               <tbody>
-                @for (standing of finished.standings; track standing.participantId) {
+                @for (standing of finalStandings; track standing.participantId) {
                   <tr [class.me]="standing.participantId === session.participantId">
                     <td>{{ standing.rank }}</td>
                     <td>{{ standing.displayName }}</td>
-                    <td class="mono">{{ standing.titlesFound }}/{{ finished.totalRounds }}</td>
+                    @if (standing.titlesFound !== null) {
+                      <td class="mono">{{ standing.titlesFound }}/{{ finished?.totalRounds }}</td>
+                    }
                     <td class="mono numeric">{{ standing.totalScore }}</td>
                   </tr>
                 }

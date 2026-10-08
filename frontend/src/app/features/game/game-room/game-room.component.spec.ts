@@ -465,6 +465,93 @@ describe('GameRoomComponent', () => {
     expect(harness.navigate).toHaveBeenCalledWith(['/lobby/create']);
   });
 
+  describe('multiplayer final standings', () => {
+    const FRIEND_ID = '77777777-7777-4777-8777-777777777777';
+    const player: ActiveSoloSession = { ...active, host: false, hostParticipantId: FRIEND_ID };
+
+    it('lists every player from GAME_FINISHED', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(player));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+
+      socket.publicEvents$.next({
+        metadata: meta(40),
+        type: 'GAME_FINISHED',
+        payload: {
+          totalScore: 1200,
+          totalRounds: 12,
+          titlesFound: 9,
+          skippedRounds: 2,
+          timedOutRounds: 1,
+          standings: [
+            {
+              participantId: FRIEND_ID,
+              displayName: 'musicfan',
+              totalScore: 800,
+              titlesFound: 6,
+              rank: 1,
+            },
+            {
+              participantId: active.participantId,
+              displayName: 'me',
+              totalScore: 400,
+              titlesFound: 3,
+              rank: 2,
+            },
+          ],
+        },
+      });
+      fixture.changeDetectorRef.detectChanges();
+
+      const rows = [...fixture.nativeElement.querySelectorAll('table.standings tbody tr')].map(
+        (row: HTMLElement) =>
+          [...row.querySelectorAll('td')].map((cell) => cell.textContent?.trim()).join(' '),
+      );
+      expect(rows).toEqual(['1 musicfan 6/12 800', '2 me 3/12 400']);
+      expect(fixture.nativeElement.querySelector('tr.me')?.textContent).toContain('me');
+    });
+
+    it('ranks the snapshot scores when the game is already finished', async () => {
+      sessionStorage.setItem('active_solo_session', JSON.stringify(player));
+      const harness = await setup(SESSION_ID);
+      const fixture = await harness.create();
+
+      socket.snapshots$.next({
+        gameStatus: 'FINISHED',
+        currentRoundIndex: 11,
+        totalRounds: 12,
+        totalScore: 400,
+        currentRound: null,
+        discoveredAnswerTypes: [],
+        expiresAt: active.expiresAt,
+        scores: [
+          {
+            participantId: active.participantId,
+            displayName: 'me',
+            roundPoints: 0,
+            totalScore: 400,
+          },
+          { participantId: FRIEND_ID, displayName: 'musicfan', roundPoints: 0, totalScore: 800 },
+          {
+            participantId: '88888888-8888-4888-8888-888888888888',
+            displayName: 'zed',
+            roundPoints: 0,
+            totalScore: 400,
+          },
+        ],
+      });
+      fixture.changeDetectorRef.detectChanges();
+
+      expect(text(fixture)).toContain('Game finished');
+      const rows = [...fixture.nativeElement.querySelectorAll('table.standings tbody tr')].map(
+        (row: HTMLElement) =>
+          [...row.querySelectorAll('td')].map((cell) => cell.textContent?.trim()).join(' '),
+      );
+      expect(rows).toEqual(['1 musicfan 800', '2 me 400', '2 zed 400']);
+      expect(text(fixture)).not.toContain('Found');
+    });
+  });
+
   it('recovers a PLAYING game from a snapshot', async () => {
     sessionStorage.setItem('active_solo_session', JSON.stringify(active));
     const harness = await setup(SESSION_ID);

@@ -156,7 +156,7 @@ host sees "Next now". While the round plays, the round strip counts finders
 lists them in finding order with their points. Once this player finds the title,
 the answer box gives way to an animated success panel with the round points; it
 never shows the title, because other players may see the screen. Artist,
-composer, and album guesses award no points, so they stop there too. The finish view and the end screen list the ranked standings.
+composer, and album guesses award no points, so they stop there too. The finish view and the end screen list the ranked standings. A player who reaches the finish view through a finished snapshot (refresh or reconnect) misses `GAME_FINISHED`, so the view ranks the snapshot's scores instead, sharing a rank on equal totals and omitting the titles-found column.
 
 ## Current limits
 
