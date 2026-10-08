@@ -6,6 +6,7 @@ import { ActiveSoloSession } from '../models/game-session.model';
 import { PublicSessionEvent, SessionEventMetadata } from '../models/game-protocol.model';
 import { AuthService } from './auth.service';
 import { GAME_SOCKET_CLIENT, GameSocketService } from './game-socket.service';
+import { ServerClockService } from './server-clock.service';
 
 const SESSION_ID = '55555555-5555-4555-8555-555555555555';
 
@@ -166,6 +167,26 @@ describe('GameSocketService', () => {
     expect(publicEvents.map((event) => event.type)).toEqual(['ROUND_PREPARING']);
     expect(snapshots.length).toBe(1);
     expect(service.version).toBe(8);
+  });
+
+  it('feeds every event timestamp to the server clock', () => {
+    const observe = spyOn(TestBed.inject(ServerClockService), 'observe');
+
+    service.connect(session);
+    current().frame(session.connection.eventDestination, {
+      metadata: meta(7),
+      type: 'ROUND_PREPARING',
+      payload: { roundIndex: 1, totalRounds: 12 },
+    });
+    current().frame(session.connection.privateDestination, {
+      metadata: { ...meta(8), occurredAt: '2026-09-02T12:00:01Z' },
+      recipientParticipantId: session.participantId,
+      commandId: null,
+      type: 'ERROR',
+      payload: { code: 'SESSION_RATE_LIMITED', recoverable: true },
+    });
+
+    expect(observe.calls.allArgs()).toEqual([['2026-09-02T12:00:00Z'], ['2026-09-02T12:00:01Z']]);
   });
 
   it('builds typed commands with the current version and JSON content type', () => {

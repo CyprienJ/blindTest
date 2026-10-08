@@ -3,8 +3,10 @@ import {
   AUDIO_ELEMENT,
   AudioPlaybackService,
   AudioPlaybackStatus,
+  NextRoundPreload,
   RoundPlaybackRequest,
 } from './audio-playback.service';
+import { ServerClockService } from './server-clock.service';
 
 const NOW = Date.parse('2026-09-02T12:00:00.000Z');
 
@@ -52,17 +54,29 @@ class FakeAudio extends EventTarget {
 
 describe('AudioPlaybackService', () => {
   let audio: FakeAudio;
+  /** Every element the service created: the playing one first, then the standby one. */
+  let elements: FakeAudio[];
   let service: AudioPlaybackService;
   let statuses: AudioPlaybackStatus[];
 
   beforeEach(() => {
     jasmine.clock().install();
     jasmine.clock().mockDate(new Date(NOW));
-    audio = new FakeAudio();
+    elements = [];
     TestBed.configureTestingModule({
-      providers: [{ provide: AUDIO_ELEMENT, useValue: () => audio }],
+      providers: [
+        {
+          provide: AUDIO_ELEMENT,
+          useValue: () => {
+            const element = new FakeAudio();
+            elements.push(element);
+            return element;
+          },
+        },
+      ],
     });
     service = TestBed.inject(AudioPlaybackService);
+    audio = elements[0];
     statuses = [];
     service.status$.subscribe((status) => statuses.push(status));
   });
@@ -303,5 +317,167 @@ describe('AudioPlaybackService', () => {
     audio.emit('timeupdate');
 
     expect(audio.currentTime).toBe(15);
+  });
+
+  describe('on the server timeline', () => {
+    it('seeks by the server clock rather than the device clock', async () => {
+      // The device clock runs three seconds behind the server.
+      TestBed.inject(ServerClockService).observe(new Date(NOW + 3_000).toISOString());
+
+      service.scheduleRound(round());
+      await flush();
+
+      expect(audio.currentTime).toBeCloseTo(18, 3);
+    });
+
+    it('never starts a round the server already ended, whatever the device clock says', async () => {
+      TestBed.inject(ServerClockService).observe(new Date(NOW + 31_000).toISOString());
+
+      service.scheduleRound(round());
+      await flush();
+
+      expect(audio.playCalls.length).toBe(0);
+      expect(statuses.at(-1)).toBe('ended');
+    });
+  });
+
+  describe('next-round preloading', () => {
+    const FRESH_URL = 'https://media.example/next.mp3?sig=fresh';
+
+    function next(overrides: Partial<NextRoundPreload> = {}): NextRoundPreload {
+      return {
+        roundIndex: 1,
+        url: 'https://media.example/next.mp3?sig=early',
+        excerptStartSeconds: 42,
+        validUntil: new Date(NOW + 120_000).toISOString(),
+        ...overrides,
+      };
+    }
+
+    function nextRound(overrides: Partial<RoundPlaybackRequest> = {}): RoundPlaybackRequest {
+      return round({
+        roundIndex: 1,
+        url: FRESH_URL,
+        startsAt: new Date(NOW + 10_000).toISOString(),
+        deadline: new Date(NOW + 40_000).toISOString(),
+        excerptStartSeconds: 42,
+        ...overrides,
+      });
+    }
+
+    async function revealThenStartNext(
+      preload: NextRoundPreload,
+      started = nextRound(),
+    ): Promise<FakeAudio> {
+      service.scheduleRound(round({ roundIndex: 0 }));
+      await flush();
+      service.preloadNext(preload);
+      const standby = elements[1];
+      standby.load.calls.reset();
+      jasmine.clock().mockDate(new Date(NOW + 10_000));
+      service.scheduleRound(started);
+      await flush();
+      await flush();
+      return standby;
+    }
+
+    it('buffers the next excerpt on a standby element while the current track plays', async () => {
+      service.scheduleRound(round({ roundIndex: 0 }));
+      await flush();
+
+      service.preloadNext(next());
+
+      const standby = elements[1];
+      expect(standby.src).toBe(next().url);
+      expect(standby.load).toHaveBeenCalled();
+      expect(standby.currentTime).toBe(42);
+      expect(audio.paused).toBeFalse();
+      expect(audio.src).toBe(round().url);
+    });
+
+    it('seeks the standby element once its metadata arrives', () => {
+      service.preloadNext(next());
+      const standby = elements[1];
+      expect(standby.currentTime).toBe(42);
+
+      service.preloadNext(next({ url: 'https://media.example/other.mp3', excerptStartSeconds: 7 }));
+      standby.readyState = HTMLMediaElement.HAVE_NOTHING;
+      service.preloadNext(next({ url: 'https://media.example/third.mp3', excerptStartSeconds: 9 }));
+      expect(standby.currentTime).toBe(7);
+      standby.emit('loadedmetadata');
+      expect(standby.currentTime).toBe(9);
+    });
+
+    it('starts the next round on the buffered element without loading its fresh URL', async () => {
+      const standby = await revealThenStartNext(next());
+
+      expect(standby.playCalls).toEqual([next().url]);
+      expect(standby.load).not.toHaveBeenCalled();
+      expect(audio.paused).toBeTrue();
+      expect(audio.src).toBe('');
+      expect(statuses.at(-1)).toBe('playing');
+    });
+
+    it('loads the fresh URL when the buffered one may expire before the round ends', async () => {
+      const standby = await revealThenStartNext(
+        next({ validUntil: new Date(NOW + 39_000).toISOString() }),
+      );
+
+      expect(standby.playCalls).toEqual([]);
+      expect(standby.src).toBe('');
+      expect(audio.playCalls.at(-1)).toBe(FRESH_URL);
+    });
+
+    it('ignores media buffered for another round', async () => {
+      const standby = await revealThenStartNext(next({ roundIndex: 2 }));
+
+      expect(standby.playCalls).toEqual([]);
+      expect(audio.playCalls.at(-1)).toBe(FRESH_URL);
+    });
+
+    it('falls back to the allowed element when the browser refuses the buffered one', async () => {
+      service.scheduleRound(round({ roundIndex: 0 }));
+      await flush();
+      service.preloadNext(next());
+      const standby = elements[1];
+      standby.playResult = () => Promise.reject(new DOMException('gesture', 'NotAllowedError'));
+      jasmine.clock().mockDate(new Date(NOW + 10_000));
+
+      service.scheduleRound(nextRound());
+      for (let index = 0; index < 4; index++) {
+        await flush();
+      }
+
+      expect(standby.src).toBe('');
+      expect(audio.playCalls.at(-1)).toBe(FRESH_URL);
+      expect(audio.currentTime).toBeCloseTo(42, 3);
+      expect(statuses.at(-1)).toBe('playing');
+    });
+
+    it('treats a failed standby preload as a lost head start, not a playback error', async () => {
+      service.scheduleRound(round({ roundIndex: 0 }));
+      await flush();
+      service.preloadNext(next());
+
+      elements[1].emit('error');
+
+      expect(statuses.at(-1)).toBe('playing');
+    });
+
+    it('unlocks the standby element on the first user gesture only', () => {
+      document.dispatchEvent(new Event('pointerdown'));
+      document.dispatchEvent(new Event('keydown'));
+
+      expect(elements.length).toBe(2);
+      expect(elements[1].load).toHaveBeenCalledTimes(1);
+    });
+
+    it('releases buffered media on stop', () => {
+      service.preloadNext(next());
+
+      service.stop();
+
+      expect(elements[1].src).toBe('');
+    });
   });
 });

@@ -40,7 +40,12 @@ renders connecting, starting, preparing, playing, revealed, finished, and error
 states. Public events drive round numbers, deadlines, outcome, and score. Answer
 and skip actions send commands; client button guards supplement server rate limits.
 
-The browser countdown is presentation based on server timestamps and `Date.now()`.
+The browser countdown is presentation based on server timestamps and the estimated
+server clock of [`ServerClockService`](../../frontend/src/app/core/services/server-clock.service.ts).
+`GameSocketService` feeds it every event's `metadata.occurredAt`; the largest recent
+`occurredAt − arrival` sample is the offset, since transit time only lowers a sample.
+Timers, cooldowns, and audio seeking therefore stay aligned on a device whose clock
+is off.
 The backend decides whether an answer arrived in time and how many points it earns.
 The browser cannot change the authoritative deadline or score.
 
@@ -105,8 +110,8 @@ and `e2e/game-pause.spec.ts` cover both phases.
 
 ## Audio ownership
 
-`AudioPlaybackService` owns one `HTMLAudioElement` behind an injectable factory.
-For a playing round it:
+`AudioPlaybackService` owns a playing `HTMLAudioElement` and a standby one, created
+by an injectable factory. For a playing round it:
 
 1. stops previous playback and loads the signed URL;
 2. waits until the server start instant when necessary;
@@ -121,9 +126,19 @@ For a playing round it:
    round's playback replaces it. Once the round is revealed (`releaseLoop()`) or its
    deadline passes, the track continues from where it is instead of restarting.
 
+When `ROUND_REVEALED` carries `nextRound`, the room calls `preloadNext()`: the
+standby element loads that URL and seeks to its excerpt while the revealed track
+keeps playing. The next `scheduleRound()` for that `roundIndex` swaps the elements
+when `validUntil` covers the round's deadline, so playback starts from buffered
+media; otherwise it loads the `ROUND_STARTED` URL as before. WebKit lets an element
+play without a gesture only after it was loaded or played inside one, so the first
+pointer or key press calls `load()` on the standby element, and a standby element
+refused with `NotAllowedError` falls back to the previous element with the fresh
+URL. A failed standby preload is not a playback error.
+
 In a `HOST_ONLY` lobby ([ADR-0022](../adr/0022-host-only-audio.md)) the active
 session carries `audioMode`, and every room except the host's skips
-`scheduleRound()` and shows that the music plays on the host's device.
+`scheduleRound()` and `preloadNext()` and shows that the music plays on the host's device.
 
 Already expired rounds never start audio. The game room stops playback on finish,
 fatal error, snapshot resynchronization, and component destruction. Unit tests use a fake audio

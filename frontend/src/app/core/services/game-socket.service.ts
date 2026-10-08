@@ -4,6 +4,7 @@ import { ReconnectionTimeMode } from '@stomp/stompjs';
 import { BehaviorSubject, filter, map, Observable, Subject, Subscription } from 'rxjs';
 import { AuthService } from './auth.service';
 import { GuestSessionService } from './guest-session.service';
+import { ServerClockService } from './server-clock.service';
 import { ActiveSoloSession } from '../models/game-session.model';
 import {
   CurrentSnapshotPayload,
@@ -49,6 +50,7 @@ export class GameSocketService implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly guestSession = inject(GuestSessionService);
   private readonly createClient = inject(GAME_SOCKET_CLIENT);
+  private readonly serverClock = inject(ServerClockService);
 
   private client: RxStomp | null = null;
   private sessionId: string | null = null;
@@ -243,6 +245,7 @@ export class GameSocketService implements OnDestroy {
 
   private emitPublic(body: string): void {
     const event = JSON.parse(body) as PublicSessionEvent;
+    this.serverClock.observe(event.metadata.occurredAt);
     // Lobby events carry lobby versions; the game session that replaces it restarts at its own.
     this.sessionVersion =
       event.type === 'LOBBY_STARTED'
@@ -253,6 +256,7 @@ export class GameSocketService implements OnDestroy {
 
   private emitPrivate(body: string): void {
     const event = JSON.parse(body) as PrivateSessionEvent;
+    this.serverClock.observe(event.metadata.occurredAt);
     this.sessionVersion = Math.max(this.sessionVersion, event.metadata.sessionVersion);
     this.privateSubject.next(event);
   }

@@ -14,6 +14,7 @@ import {
   AudioPlaybackStatus,
 } from '../../../core/services/audio-playback.service';
 import { GameSocketService, GameSocketStatus } from '../../../core/services/game-socket.service';
+import { ServerClockService } from '../../../core/services/server-clock.service';
 import { GameRoomComponent } from './game-room.component';
 
 const SESSION_ID = '55555555-5555-4555-8555-555555555555';
@@ -87,6 +88,7 @@ class FakeAudio {
   status$ = new BehaviorSubject<AudioPlaybackStatus>('idle');
   error$ = new BehaviorSubject<string | null>(null);
   preload = jasmine.createSpy('preload');
+  preloadNext = jasmine.createSpy('preloadNext');
   scheduleRound = jasmine.createSpy('scheduleRound');
   resume = jasmine.createSpy('resume');
   stop = jasmine.createSpy('stop');
@@ -181,6 +183,7 @@ describe('GameRoomComponent', () => {
     fixture.changeDetectorRef.detectChanges();
 
     expect(audio.scheduleRound).toHaveBeenCalledWith({
+      roundIndex: 0,
       url: 'https://media.example/excerpt.mp3?sig=abc',
       startsAt: new Date(NOW).toISOString(),
       deadline: new Date(NOW + 30_000).toISOString(),
@@ -195,6 +198,43 @@ describe('GameRoomComponent', () => {
     jasmine.clock().tick(250);
     fixture.changeDetectorRef.detectChanges();
     expect(text(fixture)).toContain('25s left');
+  });
+
+  it('counts down on the server clock when the device clock is off', async () => {
+    sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+    const harness = await setup(SESSION_ID);
+    const fixture = await harness.create();
+    // The device clock runs five seconds behind the server.
+    TestBed.inject(ServerClockService).observe(new Date(NOW + 5_000).toISOString());
+
+    socket.publicEvents$.next(roundStarted(0));
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(text(fixture)).toContain('25s left');
+  });
+
+  it('buffers the next round announced with a reveal, but not after the last one', async () => {
+    sessionStorage.setItem('active_solo_session', JSON.stringify(active));
+    const harness = await setup(SESSION_ID);
+    await harness.create();
+    socket.publicEvents$.next(roundStarted(0));
+
+    socket.publicEvents$.next(revealedWithNext(0));
+
+    expect(audio.preloadNext).toHaveBeenCalledOnceWith({
+      roundIndex: 1,
+      url: 'https://media.example/next.mp3?sig=early',
+      excerptStartSeconds: 42,
+      validUntil: new Date(NOW + 70_000).toISOString(),
+    });
+
+    audio.preloadNext.calls.reset();
+    const last = revealedWithNext(11);
+    if (last.type === 'ROUND_REVEALED') {
+      last.payload.nextRound = null;
+    }
+    socket.publicEvents$.next(last);
+    expect(audio.preloadNext).not.toHaveBeenCalled();
   });
 
   it('submits an answer once and never twice for a rapid double submit', async () => {
@@ -654,6 +694,9 @@ describe('GameRoomComponent', () => {
 
       expect(audio.scheduleRound).not.toHaveBeenCalled();
       expect(text(fixture)).toContain("The music plays on the host's device.");
+
+      socket.publicEvents$.next(revealedWithNext(0));
+      expect(audio.preloadNext).not.toHaveBeenCalled();
     });
 
     it("plays the music on the host's device in a host-only game", async () => {
@@ -871,6 +914,7 @@ describe('GameRoomComponent', () => {
       });
       fixture.changeDetectorRef.detectChanges();
       expect(audio.scheduleRound).toHaveBeenCalledWith({
+        roundIndex: 0,
         url: 'https://media.example/excerpt.mp3?sig=fresh',
         startsAt: new Date(NOW + 60_000).toISOString(),
         deadline: new Date(NOW + 90_000).toISOString(),
@@ -998,6 +1042,34 @@ describe('GameRoomComponent', () => {
     expect(audio.stop).toHaveBeenCalled();
   });
 });
+
+function revealedWithNext(roundIndex: number): PublicSessionEvent {
+  return {
+    metadata: meta(roundIndex + 2),
+    type: 'ROUND_REVEALED',
+    payload: {
+      roundIndex,
+      totalRounds: 12,
+      outcome: 'SKIPPED',
+      title: 'Take On Me',
+      artist: 'a-ha',
+      composer: null,
+      album: null,
+      streamingLinks: {},
+      coverUrl: null,
+      roundPoints: 0,
+      totalScore: 0,
+      transitionAt: new Date(NOW + 4_000).toISOString(),
+      scores: [],
+      nextRound: {
+        roundIndex: roundIndex + 1,
+        playbackUrl: 'https://media.example/next.mp3?sig=early',
+        excerptStartSeconds: 42,
+        validUntil: new Date(NOW + 70_000).toISOString(),
+      },
+    },
+  };
+}
 
 function snapshot(gameStatus: CurrentSnapshotPayload['gameStatus']): CurrentSnapshotPayload {
   return {

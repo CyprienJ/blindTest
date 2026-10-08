@@ -142,7 +142,7 @@ session topic:
 | `SESSION_READY` | game `state`, `totalRounds`, `expiresAt` |
 | `ROUND_PREPARING` | `roundIndex`, `totalRounds` |
 | `ROUND_STARTED` | round position, `startsAt`, `deadline`, excerpt offset and window length, short-lived `playbackUrl` |
-| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, `streamingLinks` (available HTTP(S) links keyed by platform), optional `coverUrl` (same-origin `/api/covers/{coverId}` path), round and total points of every participant combined, `transitionAt`, and `scores` (`participantId`, `displayName`, `roundPoints`, `totalScore` in join order) |
+| `ROUND_REVEALED` | outcome, canonical title/artist, optional composer/album, `streamingLinks` (available HTTP(S) links keyed by platform), optional `coverUrl` (same-origin `/api/covers/{coverId}` path), round and total points of every participant combined, `transitionAt`, `scores` (`participantId`, `displayName`, `roundPoints`, `totalScore` in join order), and `nextRound` (`roundIndex`, `playbackUrl`, `excerptStartSeconds`, `validUntil`) except after the last round |
 | `SCORE_UPDATED` | `participantId`, round points, total score; in multiplayer it is sent as each participant finds the title and never names the answer |
 | `SKIP_VOTE_UPDATED` | multiplayer `votes` among connected participants and `requiredVotes` |
 | `GAME_FINISHED` | combined total score, title/skip/timeout aggregate counts, and ranked `standings` (`participantId`, `displayName`, `totalScore`, `titlesFound`, shared `rank`) |
@@ -231,6 +231,12 @@ the private queue and in only that participant's recovery snapshot.
   time the reveal spent paused. The server advances automatically then; an owner
   `ADVANCE_ROUND` command may win the same transition earlier, and duplicate or late
   timer callbacks are harmless.
+- `ROUND_REVEALED.nextRound` signs the following round's media so clients buffer it
+  during the reveal. `validUntil` is `transitionAt` plus the multiplayer start lead,
+  the round duration, and the 30-second reconnect buffer; the URL is signed for at
+  least that long. A client may play that URL for the started round only when
+  `validUntil` is not before the round's `deadline` (a long reveal pause can break
+  that); otherwise it uses the `ROUND_STARTED` URL.
 - A paused round ignores its deadline and transition timers. A paused playing round
   rejects answers and skips as `INVALID_ROUND_STATE`, and its snapshot omits
   `playbackUrl`: the remaining time is `deadline − pausedAt`. Resuming moves the
@@ -270,4 +276,5 @@ discoveries.
 - Breaking shape or semantic changes require a new `protocolVersion` and explicit
   server/client support during rollout.
 - Event timestamps and versions are server authoritative; browser clocks and local
-  ordering never decide score or state transitions.
+  ordering never decide score or state transitions. `metadata.occurredAt` is stamped
+  at publication, so clients may use it to estimate the server clock.

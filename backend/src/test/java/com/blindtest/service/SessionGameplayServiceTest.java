@@ -298,6 +298,30 @@ class SessionGameplayServiceTest {
     }
 
     @Test
+    void revealSignsTheNextRoundMediaThroughItsReconnectBoundary() {
+        startGame();
+        clock.advance(Duration.ofSeconds(5));
+
+        service.handle(SESSION_ID, ACCOUNT_ID, command(
+                SessionCommandType.SKIP_ROUND, 2, null, UUID.randomUUID()));
+
+        PublicSessionEventPayload.RoundRevealed revealed = publicEvents.stream().
+                filter(event -> event.type() == PublicSessionEventType.ROUND_REVEALED).
+                map(event -> (PublicSessionEventPayload.RoundRevealed) event.payload()).
+                findFirst().orElseThrow();
+        // Reveal at +5 s, next round at +9 s (+1.5 s lead at most), 30 s round, 30 s reconnect.
+        Instant validUntil = NOW.plusSeconds(70).plusMillis(500);
+        assertThat(revealed.nextRound()).contains(new PublicSessionEventPayload.NextRoundMedia(
+                1,
+                URI.create("https://media.example.test/audio.mp3?signature=2"),
+                1,
+                validUntil));
+        ArgumentCaptor<Duration> validity = ArgumentCaptor.forClass(Duration.class);
+        verify(mediaStorage).presignedGetUrl(eq("tracks/1/audio.mp3"), validity.capture());
+        assertThat(validity.getValue()).isEqualTo(Duration.between(clock.instant(), validUntil));
+    }
+
+    @Test
     void duplicateDeadlineAndAdvanceTimersEachTransitionExactlyOnce() {
         startGame();
         ScheduledTask deadline = scheduler.tasks().getFirst();
@@ -430,6 +454,13 @@ class SessionGameplayServiceTest {
                     assertThat(payload.skippedRounds()).isEqualTo(5);
                     assertThat(payload.totalScore()).isZero();
                 });
+        assertThat(publicEvents).filteredOn(event ->
+                event.type() == PublicSessionEventType.ROUND_REVEALED).
+                extracting(event -> ((PublicSessionEventPayload.RoundRevealed) event.payload()).
+                        nextRound().map(PublicSessionEventPayload.NextRoundMedia::roundIndex)).
+                containsExactly(
+                        Optional.of(1), Optional.of(2), Optional.of(3), Optional.of(4),
+                        Optional.empty());
         verify(historyCompletionService).complete(finished);
     }
 

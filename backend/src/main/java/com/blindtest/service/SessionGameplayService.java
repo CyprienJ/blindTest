@@ -10,6 +10,7 @@ import com.blindtest.model.game.GameProgression;
 import com.blindtest.model.game.GameStateMachine;
 import com.blindtest.model.game.GameStateSnapshot;
 import com.blindtest.model.game.GameSummary;
+import com.blindtest.model.game.GameTrackSnapshot;
 import com.blindtest.model.game.GameTransitionException;
 import com.blindtest.model.game.RoundCompletionTransition;
 import com.blindtest.model.game.RoundPlaybackWindow;
@@ -614,7 +615,34 @@ public class SessionGameplayService {
                         round.scoreState().totalPoints(),
                         totalScore,
                         advanceAt,
-                        participantScores(session)));
+                        participantScores(session),
+                        nextRoundMedia(session, advanceAt)));
+    }
+
+    /**
+     * Signs the following round's media so clients buffer it during the reveal. Unless the
+     * reveal is paused, the URL stays valid through that round's reconnect boundary.
+     */
+    private Optional<PublicSessionEventPayload.NextRoundMedia> nextRoundMedia(
+            ActiveSessionSnapshot session,
+            Instant advanceAt) {
+        int nextIndex = session.gameState().currentRoundIndex() + 1;
+        List<GameTrackSnapshot> tracks = session.gameState().trackSelection().tracks();
+        if (nextIndex >= tracks.size()) {
+            return Optional.empty();
+        }
+        GameTrackSnapshot track = tracks.get(nextIndex);
+        Instant validUntil = advanceAt.
+                plus(MULTIPLAYER_ROUND_LEAD).
+                plusSeconds(session.configuration().maximumRoundDurationSeconds()).
+                plus(RoundPlaybackWindow.RECONNECT_BUFFER);
+        Duration minimumValidity = Duration.between(expirationPolicy.instant(), validUntil);
+        if (minimumValidity.isNegative()) {
+            minimumValidity = Duration.ZERO;
+        }
+        URI playbackUrl = mediaStorage.presignedGetUrl(track.media().objectKey(), minimumValidity);
+        return Optional.of(new PublicSessionEventPayload.NextRoundMedia(
+                nextIndex, playbackUrl, track.playback().excerptStartSeconds(), validUntil));
     }
 
     private boolean onAdvance(SessionId sessionId, int roundIndex, Instant revealedAt) {

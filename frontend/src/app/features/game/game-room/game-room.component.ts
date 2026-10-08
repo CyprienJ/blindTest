@@ -37,6 +37,7 @@ import {
 import { GuestSessionService } from '../../../core/services/guest-session.service';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { GameSocketService, GameSocketStatus } from '../../../core/services/game-socket.service';
+import { ServerClockService } from '../../../core/services/server-clock.service';
 import { FoundFeedComponent } from '../found-feed/found-feed.component';
 import { ScoreboardComponent } from '../scoreboard/scoreboard.component';
 import { STREAMING_PLATFORMS } from './streaming-platforms';
@@ -70,6 +71,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   private readonly gameSessions = inject(GameSessionService);
   private readonly gameSocket = inject(GameSocketService);
   private readonly audioPlayback = inject(AudioPlaybackService);
+  private readonly serverClock = inject(ServerClockService);
   private readonly guestSession = inject(GuestSessionService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly injector = inject(Injector);
@@ -331,7 +333,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       this.socketStatus === 'connected' &&
       !this.sending &&
       this.startsInSeconds === 0 &&
-      Date.now() >= this.retryAtMs
+      this.serverClock.now() >= this.retryAtMs
     );
   }
 
@@ -412,9 +414,12 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     void this.router.navigate([exit]);
   }
 
-  /** Round clock: frozen at the pause instant while the round or its reveal is paused. */
+  /**
+   * Round clock on the estimated server timeline, frozen at the pause instant while the round
+   * or its reveal is paused.
+   */
   private roundClockMs(): number {
-    return this.paused && this.pausedAtMs !== null ? this.pausedAtMs : Date.now();
+    return this.paused && this.pausedAtMs !== null ? this.pausedAtMs : this.serverClock.now();
   }
 
   private tick(): void {
@@ -424,7 +429,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
       this.phase === 'playing' && this.roundStartMs !== null
         ? Math.max(0, Math.ceil((this.roundStartMs - now) / 1000))
         : 0;
-    this.cooldownSeconds = Math.max(0, Math.ceil((this.retryAtMs - Date.now()) / 1000));
+    this.cooldownSeconds = Math.max(0, Math.ceil((this.retryAtMs - this.serverClock.now()) / 1000));
     this.secondsLeft =
       this.phase === 'revealed'
         ? Math.max(0, Math.ceil(((this.advanceAtMs ?? now) - now) / 1000))
@@ -491,9 +496,11 @@ export class GameRoomComponent implements OnInit, OnDestroy {
           return;
         }
         if (round.status === 'PLAYING') {
+          const serverNow = new Date(this.serverClock.now()).toISOString();
           this.enterRound({
-            startsAt: round.startsAt ?? new Date().toISOString(),
-            deadline: round.deadline ?? new Date().toISOString(),
+            roundIndex: snapshot.currentRoundIndex,
+            startsAt: round.startsAt ?? serverNow,
+            deadline: round.deadline ?? serverNow,
             playbackUrl: round.playbackUrl,
             excerptStartSeconds: round.excerptStartSeconds ?? 0,
             excerptDurationSeconds: round.excerptDurationSeconds ?? undefined,
@@ -554,6 +561,15 @@ export class GameRoomComponent implements OnInit, OnDestroy {
           mine ? mine.roundPoints : event.payload.roundPoints,
           event.payload.transitionAt,
         );
+        const next = event.payload.nextRound;
+        if (next && !this.silentDevice) {
+          this.audioPlayback.preloadNext({
+            roundIndex: next.roundIndex,
+            url: next.playbackUrl,
+            excerptStartSeconds: next.excerptStartSeconds,
+            validUntil: next.validUntil,
+          });
+        }
         return;
       }
       case 'SCORE_UPDATED': {
@@ -707,7 +723,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     const pausedAtMs = Date.parse(pausedAt);
     this.paused = true;
     this.pausing = false;
-    this.pausedAtMs = Number.isNaN(pausedAtMs) ? Date.now() : pausedAtMs;
+    this.pausedAtMs = Number.isNaN(pausedAtMs) ? this.serverClock.now() : pausedAtMs;
     // A paused reveal keeps its music; a paused round stops it with the timer.
     if (status === 'PLAYING') {
       this.audioPlayback.pause();
@@ -734,6 +750,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.focusInput();
     if (payload.playbackUrl && !this.silentDevice) {
       this.audioPlayback.scheduleRound({
+        roundIndex: payload.roundIndex,
         url: payload.playbackUrl,
         startsAt: payload.startsAt,
         deadline: payload.deadline,
@@ -756,7 +773,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   }
 
   private enterRound(
-    payload: Omit<RoundStartedPayload, 'roundIndex' | 'totalRounds' | 'excerptDurationSeconds'> & {
+    payload: Omit<RoundStartedPayload, 'totalRounds' | 'excerptDurationSeconds'> & {
       excerptDurationSeconds?: number;
     },
   ): void {
@@ -775,6 +792,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
 
     if (payload.playbackUrl && !this.silentDevice) {
       this.audioPlayback.scheduleRound({
+        roundIndex: payload.roundIndex,
         url: payload.playbackUrl,
         startsAt: payload.startsAt,
         deadline: payload.deadline,

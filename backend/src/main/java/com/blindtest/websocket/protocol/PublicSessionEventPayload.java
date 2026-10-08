@@ -168,10 +168,32 @@ public sealed interface PublicSessionEventPayload permits
     }
 
     /**
+     * Media of the round that follows a reveal, so clients can buffer it before it starts.
+     *
+     * @param validUntil instant through which the signed URL is guaranteed to stay valid; a
+     *     client reuses its buffered media only when this covers the started round's deadline
+     */
+    record NextRoundMedia(
+            int roundIndex,
+            URI playbackUrl,
+            int excerptStartSeconds,
+            Instant validUntil) {
+
+        /** Validates the round position, media URL, and validity boundary. */
+        public NextRoundMedia {
+            SessionProtocol.requireNonNegative(roundIndex, "roundIndex");
+            Objects.requireNonNull(playbackUrl, "playbackUrl is required");
+            SessionProtocol.requireNonNegative(excerptStartSeconds, "excerptStartSeconds");
+            SessionProtocol.requireInstant(validUntil, "validUntil");
+        }
+    }
+
+    /**
      * Reveals canonical answers and the authoritative score for one terminal round.
      *
      * @param streamingLinks available HTTP(S) listening links keyed by platform
      * @param coverUrl same-origin path of the track cover, when one is stored
+     * @param nextRound media of the following round, absent after the last round
      */
     record RoundRevealed(
             int roundIndex,
@@ -186,7 +208,8 @@ public sealed interface PublicSessionEventPayload permits
             int roundPoints,
             int totalScore,
             Instant transitionAt,
-            List<ParticipantScore> scores) implements PublicSessionEventPayload {
+            List<ParticipantScore> scores,
+            Optional<NextRoundMedia> nextRound) implements PublicSessionEventPayload {
 
         /** Validates reveal metadata and non-negative authoritative scores. */
         public RoundRevealed {
@@ -203,6 +226,11 @@ public sealed interface PublicSessionEventPayload permits
             SessionProtocol.requireNonNegative(totalScore, "totalScore");
             SessionProtocol.requireInstant(transitionAt, "transitionAt");
             scores = List.copyOf(scores);
+            Objects.requireNonNull(nextRound, "nextRound is required");
+            if (nextRound.filter(next -> next.roundIndex() != roundIndex + 1
+                    || next.roundIndex() >= totalRounds).isPresent()) {
+                throw new IllegalArgumentException("nextRound must be the following round");
+            }
         }
     }
 

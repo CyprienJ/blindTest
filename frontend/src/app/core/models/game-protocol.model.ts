@@ -91,6 +91,17 @@ export interface RoundRevealedPayload {
   transitionAt: string;
   /** Every participant in join order. */
   scores: ParticipantScore[];
+  /** Media of the following round to buffer during the reveal; null after the last round. */
+  nextRound?: NextRoundMedia | null;
+}
+
+/** Signed media of the round that follows a reveal. */
+export interface NextRoundMedia {
+  roundIndex: number;
+  playbackUrl: string;
+  excerptStartSeconds: number;
+  /** Server instant through which the URL stays valid. */
+  validUntil: string;
 }
 
 /** One participant's round and running scores. */

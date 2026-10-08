@@ -274,7 +274,8 @@ class SessionProtocolTest {
                 800,
                 800,
                 NOW.plusSeconds(4),
-                List.of())).
+                List.of(),
+                Optional.empty())).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("composer");
         assertThatThrownBy(() -> new PublicSessionEventPayload.RoundRevealed(
@@ -290,9 +291,31 @@ class SessionProtocolTest {
                 800,
                 800,
                 NOW.plusSeconds(4),
-                List.of())).
+                List.of(),
+                Optional.empty())).
                 isInstanceOf(IllegalArgumentException.class).
                 hasMessageContaining("coverUrl");
+        assertThatThrownBy(() -> new PublicSessionEventPayload.RoundRevealed(
+                0,
+                5,
+                RoundOutcome.TITLE_FOUND,
+                "Take On Me",
+                "a-ha",
+                Optional.empty(),
+                Optional.empty(),
+                Map.of(),
+                Optional.empty(),
+                800,
+                800,
+                NOW.plusSeconds(4),
+                List.of(),
+                Optional.of(new PublicSessionEventPayload.NextRoundMedia(
+                        2,
+                        URI.create("https://media.example.test/next.mp3"),
+                        0,
+                        NOW.plusSeconds(60))))).
+                isInstanceOf(IllegalArgumentException.class).
+                hasMessageContaining("nextRound");
     }
 
     @Test
