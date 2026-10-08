@@ -634,6 +634,10 @@ describe('GameRoomComponent', () => {
       expect(component.found.has(FRIEND)).toBeTrue();
       expect(text(fixture)).toContain('Scoreboard');
       expect(text(fixture)).toContain('1300 pts');
+      expect(text(fixture)).toContain('1/2 found');
+      expect(text(fixture)).toContain('Léa found it');
+      // Another player's find leaves this player's answer box open.
+      expect(fixture.nativeElement.querySelector('#answer-input')).not.toBeNull();
 
       component.skip();
       socket.publicEvents$.next({
@@ -652,6 +656,13 @@ describe('GameRoomComponent', () => {
       });
       fixture.changeDetectorRef.detectChanges();
       expect(text(fixture)).toContain('You found the title! +500 points');
+      // The answer box gives way to a success panel that never shows the title.
+      const panel = fixture.nativeElement.querySelector('.found-panel') as HTMLElement;
+      expect(panel.textContent).toContain('You found it!');
+      expect(panel.textContent).toContain('+500');
+      expect(panel.textContent).toContain('2/2 found');
+      expect(fixture.nativeElement.querySelector('#answer-input')).toBeNull();
+      expect(text(fixture)).toContain('You found it');
 
       socket.publicEvents$.next({
         metadata: meta(6),

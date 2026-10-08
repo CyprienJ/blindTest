@@ -127,6 +127,15 @@
                 @if (phase === 'playing') {
                   <span i18n class="mono timer" aria-hidden="true">{{ secondsLeft }}s left</span>
                 }
+                @if (multiplayer && phase === 'playing' && scores.length > 0) {
+                  <span
+                    i18n
+                    class="bt-chip found-count"
+                    [class.has-finds]="found.size > 0"
+                    aria-hidden="true"
+                    >{{ found.size }}/{{ scores.length }} found</span
+                  >
+                }
                 @if (showPauseControl) {
                   <button
                     class="bt-btn bt-btn-ghost bt-btn-sm pause-toggle"
@@ -322,64 +331,88 @@
                 }
               </section>
             } @else {
-              <form class="bt-card answer-card" (ngSubmit)="submit()">
-                <label i18n class="eyebrow" for="answer-input">Your answer</label>
-                <div class="answer-row">
-                  <input
-                    #answerInput
-                    id="answer-input"
-                    class="bt-input bt-input-lg"
-                    name="answer"
-                    type="text"
-                    autocomplete="off"
-                    [(ngModel)]="answer"
-                    [disabled]="phase !== 'playing' || paused || socketStatus === 'reconnecting'"
-                    i18n-aria-label
-                    aria-label="Your answer"
-                    aria-describedby="answer-feedback"
-                    i18n-placeholder
-                    placeholder="Type the title…"
-                  />
-                  <button
-                    i18n
-                    class="bt-btn bt-btn-primary bt-btn-lg"
-                    type="submit"
-                    [disabled]="!canSubmit || !answer.trim()"
-                  >
-                    Submit
-                  </button>
-                </div>
-                <p id="answer-feedback" class="answer-feedback" role="status" aria-atomic="true">
-                  @if (startsInSeconds > 0) {
-                    <ng-container i18n>Get ready…</ng-container>
-                  }
-                  {{ feedback }}
-                  @if (cooldownSeconds > 0) {
-                    <ng-container i18n
-                      >Wait {{ cooldownSeconds }}s before submitting again.</ng-container
-                    >
-                  }
-                </p>
-                @if (
-                  discoveries.ARTIST !== undefined ||
-                  discoveries.COMPOSER !== undefined ||
-                  discoveries.ALBUM !== undefined
-                ) {
-                  <ul class="discoveries" i18n-aria-label aria-label="Your discoveries">
-                    @for (type of secondaryTypes; track type) {
-                      @if (discoveries[type] !== undefined) {
-                        <li>
-                          <ng-container i18n>{{ secondaryLabels[type] }} found</ng-container>
-                          @if (discoveries[type]) {
-                            <span>: {{ discoveries[type] }}</span>
-                          }
-                        </li>
-                      }
+              <form
+                class="bt-card answer-card"
+                [class.is-found]="foundLocked"
+                (ngSubmit)="submit()"
+              >
+                @if (foundLocked) {
+                  <!-- The title stays hidden: other players may be looking at this screen. -->
+                  <div class="found-panel" role="status">
+                    <span class="found-check" aria-hidden="true">✓</span>
+                    <div class="found-text">
+                      <strong i18n class="found-title">You found it!</strong>
+                      <span i18n class="found-wait">
+                        Waiting for the others · {{ found.size }}/{{ scores.length }} found
+                      </span>
+                    </div>
+                    @if (lastRoundPoints) {
+                      <span class="mono found-points">+{{ lastRoundPoints }}</span>
                     }
-                  </ul>
+                  </div>
+                } @else {
+                  <label i18n class="eyebrow" for="answer-input">Your answer</label>
+                  <div class="answer-row">
+                    <input
+                      #answerInput
+                      id="answer-input"
+                      class="bt-input bt-input-lg"
+                      name="answer"
+                      type="text"
+                      autocomplete="off"
+                      [(ngModel)]="answer"
+                      [disabled]="phase !== 'playing' || paused || socketStatus === 'reconnecting'"
+                      i18n-aria-label
+                      aria-label="Your answer"
+                      aria-describedby="answer-feedback"
+                      i18n-placeholder
+                      placeholder="Type the title…"
+                    />
+                    <button
+                      i18n
+                      class="bt-btn bt-btn-primary bt-btn-lg"
+                      type="submit"
+                      [disabled]="!canSubmit || !answer.trim()"
+                    >
+                      Submit
+                    </button>
+                  </div>
+                  <p id="answer-feedback" class="answer-feedback" role="status" aria-atomic="true">
+                    @if (startsInSeconds > 0) {
+                      <ng-container i18n>Get ready…</ng-container>
+                    }
+                    {{ feedback }}
+                    @if (cooldownSeconds > 0) {
+                      <ng-container i18n
+                        >Wait {{ cooldownSeconds }}s before submitting again.</ng-container
+                      >
+                    }
+                  </p>
+                  @if (
+                    discoveries.ARTIST !== undefined ||
+                    discoveries.COMPOSER !== undefined ||
+                    discoveries.ALBUM !== undefined
+                  ) {
+                    <ul class="discoveries" i18n-aria-label aria-label="Your discoveries">
+                      @for (type of secondaryTypes; track type) {
+                        @if (discoveries[type] !== undefined) {
+                          <li>
+                            <ng-container i18n>{{ secondaryLabels[type] }} found</ng-container>
+                            @if (discoveries[type]) {
+                              <span>: {{ discoveries[type] }}</span>
+                            }
+                          </li>
+                        }
+                      }
+                    </ul>
+                  }
                 }
                 <div class="answer-hint">
-                  <span i18n>The server checks your answer — small typos are fine.</span>
+                  @if (foundLocked) {
+                    <span i18n>Don't want to wait? Vote to skip the rest of the round.</span>
+                  } @else {
+                    <span i18n>The server checks your answer — small typos are fine.</span>
+                  }
                   <button
                     class="bt-btn bt-btn-ghost bt-btn-sm"
                     type="button"
@@ -402,11 +435,15 @@
               </form>
             }
 
+            @if (multiplayer && phase === 'playing' && foundFeed.length > 0) {
+              <app-found-feed [finders]="foundFeed" [meId]="session.participantId" />
+            }
+
             <aside class="bt-card bt-card-tight score-card">
               <span i18n class="eyebrow">Score</span>
               <span class="mono score">{{ totalScore }}</span>
               @if (lastRoundPoints) {
-                <span class="delta">+{{ lastRoundPoints }}</span>
+                <span class="delta" [class.is-new]="foundLocked">+{{ lastRoundPoints }}</span>
               }
             </aside>
 

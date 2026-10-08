@@ -150,7 +150,13 @@ participant's score from `CURRENT_SNAPSHOT.scores`, `SCORE_UPDATED`, and
 combined totals. `SCORE_UPDATED` marks who found the title in the
 [scoreboard](../../frontend/src/app/features/game/scoreboard/scoreboard.component.ts);
 the skip button becomes a vote showing `SKIP_VOTE_UPDATED` progress, and only the
-host sees "Next now". The finish view and the end screen list the ranked standings.
+host sees "Next now". While the round plays, the round strip counts finders
+(`2/5 found`) and the
+[found feed](../../frontend/src/app/features/game/found-feed/found-feed.component.ts)
+lists them in finding order with their points. Once this player finds the title,
+the answer box gives way to an animated success panel with the round points; it
+never shows the title, because other players may see the screen. Artist,
+composer, and album guesses award no points, so they stop there too. The finish view and the end screen list the ranked standings.
 
 ## Current limits
 

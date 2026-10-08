@@ -731,5 +731,12 @@
   "＋ Add alias": "＋ Ajouter un alias",
   "＋ Import track": "＋ Importer un titre",
   "＋ New playlist": "＋ Nouvelle playlist",
-  "🔈 The music plays on the host's device.": "🔈 La musique est diffusée sur l'appareil de l'hôte."
+  "🔈 The music plays on the host's device.": "🔈 La musique est diffusée sur l'appareil de l'hôte.",
+  "{$INTERPOLATION} found it": "{$INTERPOLATION} a trouvé",
+  "{$INTERPOLATION}/{$INTERPOLATION_1} found": "{$INTERPOLATION}/{$INTERPOLATION_1} trouvé",
+  "Don't want to wait? Vote to skip the rest of the round.": "Pas envie d'attendre ? Votez pour passer la fin du morceau.",
+  "Players who found the title": "Joueurs ayant trouvé le titre",
+  "Waiting for the others · {$INTERPOLATION}/{$INTERPOLATION_1} found": "En attente des autres · {$INTERPOLATION}/{$INTERPOLATION_1} ont trouvé",
+  "You found it": "Vous avez trouvé",
+  "You found it!": "Trouvé !"
 }

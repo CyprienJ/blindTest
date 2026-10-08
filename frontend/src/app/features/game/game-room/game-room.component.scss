@@ -546,3 +546,108 @@
   color: var(--fg-2);
   font-size: 11.5px;
 }
+
+/* ── Title found (multiplayer) ─────────────────────────────────────────── */
+.found-count {
+  color: var(--fg-2);
+}
+
+.found-count.has-finds {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.answer-card.is-found {
+  border-color: var(--accent);
+  background: oklch(0.24 0.06 130 / 40%);
+  animation: found-pulse 0.6s ease-out;
+}
+
+.found-panel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.found-check {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg-0);
+  font-size: 28px;
+  font-weight: 800;
+  animation: found-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.found-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+
+.found-title {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.found-wait {
+  color: var(--fg-2);
+  font-size: 12.5px;
+}
+
+.found-points {
+  color: var(--accent);
+  font-size: 28px;
+  font-weight: 800;
+  animation: found-rise 0.8s ease-out;
+}
+
+.delta.is-new {
+  display: inline-block;
+  animation: found-rise 0.8s ease-out;
+}
+
+@keyframes found-pulse {
+  0% {
+    box-shadow: 0 0 0 0 oklch(0.8 0.18 130 / 55%);
+  }
+  100% {
+    box-shadow: 0 0 0 18px oklch(0.8 0.18 130 / 0%);
+  }
+}
+
+@keyframes found-pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes found-rise {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .answer-card.is-found,
+  .found-check,
+  .found-points,
+  .delta.is-new {
+    animation: none;
+  }
+}

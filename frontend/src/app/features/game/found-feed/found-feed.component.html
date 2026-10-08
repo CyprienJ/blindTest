@@ -1,0 +1,13 @@
+<ol class="found-feed" i18n-aria-label aria-label="Players who found the title">
+  @for (finder of finders; track finder.participantId) {
+    <li [class.me]="finder.participantId === meId">
+      <span class="check" aria-hidden="true">✓</span>
+      @if (finder.participantId === meId) {
+        <strong i18n>You found it</strong>
+      } @else {
+        <strong i18n>{{ finder.displayName }} found it</strong>
+      }
+      <span class="mono points">+{{ finder.roundPoints }}</span>
+    </li>
+  }
+</ol>

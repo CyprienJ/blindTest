@@ -36,6 +36,7 @@ import {
 import { GuestSessionService } from '../../../core/services/guest-session.service';
 import { GameSessionService } from '../../../core/services/game-session.service';
 import { GameSocketService, GameSocketStatus } from '../../../core/services/game-socket.service';
+import { FoundFeedComponent } from '../found-feed/found-feed.component';
 import { ScoreboardComponent } from '../scoreboard/scoreboard.component';
 import { STREAMING_PLATFORMS } from './streaming-platforms';
 
@@ -54,7 +55,7 @@ const COMMAND_GUARD_MS = 400;
   changeDetection: ChangeDetectionStrategy.Eager,
   selector: 'app-game-room',
   standalone: true,
-  imports: [FormsModule, RouterLink, ScoreboardComponent],
+  imports: [FormsModule, RouterLink, FoundFeedComponent, ScoreboardComponent],
   templateUrl: './game-room.component.html',
   styleUrl: './game-room.component.scss',
 })
@@ -105,6 +106,13 @@ export class GameRoomComponent implements OnInit, OnDestroy {
   requiredSkipVotes = 1;
   skipVoted = false;
   titleFound = false;
+  /** This round's finders in the order they found the title; refreshed with `found`. */
+  foundFeed: ParticipantScore[] = [];
+
+  /** Once a multiplayer player finds the title, the answer box gives way to a success panel. */
+  get foundLocked(): boolean {
+    return this.multiplayer && this.titleFound && this.phase === 'playing';
+  }
 
   /** A guest tab has no account, so it leaves through the join screen. */
   get guest(): boolean {
@@ -533,6 +541,7 @@ export class GameRoomComponent implements OnInit, OnDestroy {
           score.participantId === participantId ? { ...score, roundPoints, totalScore } : score,
         );
         this.found = new Set(this.found).add(participantId);
+        this.refreshFoundFeed();
         const name =
           this.scores.find((score) => score.participantId === participantId)?.displayName ??
           $localize`A player`;
@@ -810,14 +819,23 @@ export class GameRoomComponent implements OnInit, OnDestroy {
     this.found = new Set(
       scores.filter((score) => score.roundPoints > 0).map((score) => score.participantId),
     );
+    this.refreshFoundFeed();
     const mine = this.myScore();
     if (this.multiplayer && mine) {
       this.totalScore = mine.totalScore;
     }
   }
 
+  private refreshFoundFeed(): void {
+    this.foundFeed = [...this.found].flatMap((id) => {
+      const score = this.scores.find((entry) => entry.participantId === id);
+      return score ? [score] : [];
+    });
+  }
+
   private resetRoundVotes(): void {
     this.found = new Set();
+    this.foundFeed = [];
     this.scores = this.scores.map((score) => ({ ...score, roundPoints: 0 }));
     this.skipVotes = 0;
     // Until SKIP_VOTE_UPDATED arrives, assume every participant is connected (ADR-0019: 60%).
